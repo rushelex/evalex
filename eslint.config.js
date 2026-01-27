@@ -55,6 +55,7 @@ export default antfu(
     rules: {
       'ts/strict-boolean-expressions': 'off',
       'ts/no-unsafe-call': 'off',
+      'ts/no-unsafe-argument': 'off',
       'ts/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports', prefer: 'type-imports' }],
       'ts/consistent-type-exports': 'error',
     },

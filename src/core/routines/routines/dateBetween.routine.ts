@@ -1,0 +1,64 @@
+import { Temporal } from 'temporal-polyfill';
+
+import type { FormulaString } from '../../data-types';
+import type { ProcessedArgument } from '../arguments';
+
+import { FormulaDate, FormulaDuration } from '../../data-types';
+import { Argument, createRoutineArguments } from '../arguments';
+import { routinesRegistry } from '../registry';
+import { createRoutineExamples } from '../routine-examples';
+
+const DURATION_UNITS = ['years', 'months', 'weeks', 'days', 'hours', 'minutes'] as const;
+
+const SINGULAR_UNITS = {
+  years: 'year',
+  months: 'month',
+  weeks: 'week',
+  days: 'day',
+  hours: 'hour',
+  minutes: 'minute',
+} as const satisfies Record<typeof DURATION_UNITS[number], string>;
+
+const routineExamples = createRoutineExamples([
+  {
+    formula: (name) => name('now()', 'parseDate("2022-09-07")', '"days"'),
+    result: () => FormulaDuration.from(Temporal.Now.zonedDateTimeISO('UTC').since(Temporal.ZonedDateTime.from({ year: 2022, month: 9, day: 7, timeZone: 'UTC' }), { largestUnit: 'days' })),
+  },
+  {
+    formula: (name) => name('parseDate("2030-01-01")', 'now()', '"years"'),
+    result: () => FormulaDuration.from(Temporal.ZonedDateTime.from({ year: 2030, month: 1, day: 1, timeZone: 'UTC' }).since(Temporal.Now.zonedDateTimeISO('UTC'), { largestUnit: 'years' })),
+  },
+]);
+
+const routineArguments = createRoutineArguments([
+  new Argument('date', { name: 'date1' }),
+  new Argument('date', { name: 'date2' }),
+  new Argument('string', {
+    name: 'unit',
+    validation: (dataType) => {
+      if (!DURATION_UNITS.includes(dataType.value)) {
+        return `Expected ${DURATION_UNITS.map((u) => `"${u}"`).join(', ')}.`;
+      }
+    },
+  }),
+]);
+
+routinesRegistry.registerFunction('dateBetween', {
+  description: 'Returns the difference between two dates. The unit argument can be one of: “years”, “months”, “weeks”, “days”, “hours”, or “minutes”.',
+  examples: routineExamples,
+  arguments: routineArguments,
+  handler: ({ args }) => {
+    const [date1Arg, date2Arg, unitArg] = args as [ProcessedArgument<FormulaDate>, ProcessedArgument<FormulaDate>, ProcessedArgument<FormulaString>];
+    return new FormulaDuration(date1Arg.dataType.value.since(date2Arg.dataType.value, { largestUnit: SINGULAR_UNITS[unitArg.dataType.value as typeof DURATION_UNITS[number]] }));
+  },
+});
+
+routinesRegistry.registerMethod(FormulaDate, 'between', {
+  description: 'Returns the difference between two dates. The unit argument can be one of: “years”, “months”, “weeks”, “days”, “hours”, or “minutes”.',
+  examples: routineExamples,
+  arguments: routineArguments,
+  handler: ({ instance, args }) => {
+    const [dateArg, unitArg] = args as [ProcessedArgument<FormulaDate>, ProcessedArgument<FormulaString>];
+    return new FormulaDuration(instance.value.since(dateArg.dataType.value, { largestUnit: SINGULAR_UNITS[unitArg.dataType.value as typeof DURATION_UNITS[number]] }));
+  },
+});

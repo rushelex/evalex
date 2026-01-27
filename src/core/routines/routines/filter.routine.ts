@@ -1,0 +1,47 @@
+import type { CallbackExecutor, ProcessedArgument } from '../arguments';
+
+import { FormulaArray, FormulaNumber, FormulaString } from '../../data-types';
+import { Argument, CallbackArgument, createRoutineArguments } from '../arguments';
+import { routinesRegistry } from '../registry';
+import { createRoutineExamples } from '../routine-examples';
+
+const routineExamples = createRoutineExamples([
+  {
+    formula: (name) => name('[1, 2, 3, 4, 5]', 'current > 3'),
+    result: () => new FormulaArray([new FormulaNumber(4), new FormulaNumber(5)]),
+  },
+  {
+    formula: (name) => name('[1, 2, 3, 4, 5]', 'index % 2 == 0'),
+    result: () => new FormulaArray([new FormulaNumber(1), new FormulaNumber(3), new FormulaNumber(5)]),
+  },
+  {
+    formula: (name) => name('["a", "b", "c"]', 'current == "a"'),
+    result: () => new FormulaArray([new FormulaString('a')]),
+  },
+]);
+
+routinesRegistry.registerFunction('filter', {
+  description: 'Returns the values in the list for which the condition is true.',
+  examples: routineExamples,
+  arguments: createRoutineArguments([
+    new Argument('array', { name: 'list' }),
+    new CallbackArgument(['current', 'index'], {
+      name: 'predicate',
+      returnType: 'boolean',
+    }),
+  ]),
+  handler: ({ args }) => {
+    const [listArg, predicateArg] = args as [ProcessedArgument<FormulaArray>, CallbackExecutor];
+
+    const results = listArg.dataType.value.filter((item, index) => {
+      const result = predicateArg.execute({
+        current: item,
+        index: new FormulaNumber(index),
+      });
+
+      return !!result.value;
+    });
+
+    return new FormulaArray(results);
+  },
+});

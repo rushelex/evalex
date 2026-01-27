@@ -1,0 +1,35 @@
+import { FormulaNumber } from '../../data-types';
+import { Argument, createRoutineArguments } from '../arguments';
+import { routinesRegistry } from '../registry';
+import { createRoutineExamples } from '../routine-examples';
+
+const routineExamples = createRoutineExamples([
+  {
+    formula: (name) => name('4'),
+    result: () => new FormulaNumber(2),
+  },
+  {
+    formula: (name) => name('1024'),
+    result: () => new FormulaNumber(10),
+  },
+]);
+
+routinesRegistry.registerFunction('log2', {
+  description: 'Returns the base 2 logarithm of the number.',
+  examples: routineExamples,
+  arguments: createRoutineArguments([
+    new Argument('number', {
+      name: 'number',
+      validation: (value) => {
+        if (value.value <= 0) {
+          return 'Expected positive number.';
+        }
+      },
+    }),
+  ]),
+  handler: ({ node, visitor }) => {
+    const [numberArg] = visitor.evaluateNodes<[FormulaNumber]>(node.args);
+    const number = numberArg.value;
+    return new FormulaNumber(Math.log2(number));
+  },
+});

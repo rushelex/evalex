@@ -1,0 +1,373 @@
+import type { AST } from '../parser';
+import type { FormulaEvaluationContext } from './context';
+import type { RoutineDispatcher } from './routines/dispatcher';
+
+import {
+  FormulaArray,
+  FormulaBoolean,
+  FormulaDataType,
+  FormulaNull,
+  FormulaNumber,
+  FormulaString,
+} from './data-types';
+import {
+  ArithmeticFormulaError,
+  RangeFormulaError,
+  ReferenceFormulaError,
+  TypeFormulaError,
+} from './errors';
+import { routineDispatcher } from './routines/dispatcher';
+
+export interface EvaluationHooks {
+  onIdentifier?: (name: string) => void;
+}
+
+export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
+  constructor(
+    public readonly context: FormulaEvaluationContext,
+    private readonly hooks?: EvaluationHooks,
+    private readonly dispatcher: RoutineDispatcher = routineDispatcher,
+  ) {}
+
+  /**
+   * Basic method for evaluating any AST node.
+   */
+  public evaluateNode(node: AST.AstNode): FormulaDataType {
+    return node.accept(this);
+  }
+
+  /**
+   * Evaluates an array of AST nodes.
+   */
+  public evaluateNodes<T extends (FormulaDataType | undefined)[] = FormulaDataType[]>(nodes: AST.AstNode[]): T {
+    return nodes.map((node) => this.evaluateNode(node)) as T;
+  }
+
+  /**
+   * Creates a new instance of FormulaEvaluatorVisitor with a new (nested) context.
+   * Used for operations like map, filter, where a new scope is required.
+   */
+  public cloneWithContext(newContext: FormulaEvaluationContext): FormulaEvaluatorVisitor {
+    // Important: create a new instance to avoid mutating the current visitor
+    return new FormulaEvaluatorVisitor(newContext, this.hooks);
+  }
+
+  public visitLiteralNode(node: AST.ILiteralNode): FormulaDataType {
+    if (typeof node.value === 'string') {
+      return new FormulaString(node.value);
+    }
+
+    if (typeof node.value === 'number') {
+      return new FormulaNumber(node.value);
+    }
+
+    if (typeof node.value === 'boolean') {
+      return new FormulaBoolean(node.value);
+    }
+
+    if (node.value === null || node.value === undefined) {
+      return new FormulaNull();
+    }
+
+    throw new Error(`Unsupported literal type ${typeof node.value} for value ${node.raw}`);
+  }
+
+  public visitBinaryExpressionNode(node: AST.IBinaryExpressionNode): FormulaDataType {
+    const left = this.evaluateNode(node.left);
+    const right = this.evaluateNode(node.right);
+
+    function checkNumeric(l: FormulaDataType, r: FormulaDataType, location: AST.IBinaryExpressionNode['location']) {
+      if (!(l instanceof FormulaNumber) || !(r instanceof FormulaNumber)) {
+        throw new TypeFormulaError(
+          'Cannot perform math operation on a non-numeric value.',
+          {
+            location,
+            context: {
+              expected: 'Number',
+              actual: 'Non-Number',
+            },
+          },
+        );
+      }
+
+      return { leftNum: l, rightNum: r };
+    }
+
+    switch (node.operator) {
+      case '+': {
+        // Special case: string addition (concatenation)
+        if (left instanceof FormulaString || right instanceof FormulaString) {
+          const leftStr = left instanceof FormulaString ? left.value : String(left.value); // Try to convert to string if not string
+          const rightStr = right instanceof FormulaString ? right.value : String(right.value);
+          return new FormulaString(leftStr + rightStr);
+        }
+
+        // Numeric addition
+        const { leftNum, rightNum } = checkNumeric(left, right, node.location);
+        return new FormulaNumber(leftNum.value + rightNum.value);
+      }
+      case '-': {
+        const { leftNum, rightNum } = checkNumeric(left, right, node.location);
+        return new FormulaNumber(leftNum.value - rightNum.value);
+      }
+      case '*': {
+        const { leftNum, rightNum } = checkNumeric(left, right, node.location);
+        return new FormulaNumber(leftNum.value * rightNum.value);
+      }
+      case '/': {
+        const { leftNum, rightNum } = checkNumeric(left, right, node.location);
+
+        if (rightNum.value === 0) {
+          throw new ArithmeticFormulaError(
+            'Division by zero.',
+            {
+              location: node.location,
+              context: {
+                operation: 'division',
+                dividend: leftNum.value,
+              },
+            },
+          );
+        }
+
+        return new FormulaNumber(leftNum.value / rightNum.value);
+      }
+      case '^': {
+        const { leftNum, rightNum } = checkNumeric(left, right, node.location);
+        return new FormulaNumber(leftNum.value ** rightNum.value);
+      }
+      case '%': {
+        const { leftNum, rightNum } = checkNumeric(left, right, node.location);
+
+        if (rightNum.value === 0) {
+          throw new ArithmeticFormulaError(
+            'Division by zero (modulo).',
+            {
+              location: node.location,
+              context: {
+                operation: 'modulo',
+                dividend: leftNum.value,
+              },
+            },
+          );
+        }
+
+        return new FormulaNumber(leftNum.value % rightNum.value);
+      }
+      case '==': {
+        // Handle null comparisons first
+        if (left instanceof FormulaNull && right instanceof FormulaNull) {
+          return new FormulaBoolean(true); // null == null is true
+        }
+
+        // If one is null and the other is not, they are not equal.
+        if (left instanceof FormulaNull || right instanceof FormulaNull) {
+          return new FormulaBoolean(false);
+        }
+
+        // If types are different (and neither is null), they are not equal for '=='.
+        if (left.kind !== right.kind) {
+          return new FormulaBoolean(false);
+        }
+
+        // For same types (Number, String, Boolean), compare their values.
+        return new FormulaBoolean(left.value === right.value);
+      }
+      case '!=': {
+        if (left.kind !== right.kind) {
+          return new FormulaBoolean(true);
+        }
+
+        return new FormulaBoolean(left.value !== right.value);
+      }
+      case '<': {
+        if ((left instanceof FormulaNumber && right instanceof FormulaNumber)
+          || (left instanceof FormulaString && right instanceof FormulaString)) {
+          return new FormulaBoolean(left.value < right.value);
+        }
+
+        throw new TypeFormulaError(
+          'Comparison operands must be of the same type (Number or Date).',
+          {
+            location: node.location,
+            context: {
+              expected: 'Number | Date',
+              actual: `${left.displayType} and ${right.displayType}`,
+            },
+          },
+        );
+      }
+      case '<=': {
+        if ((left instanceof FormulaNumber && right instanceof FormulaNumber)
+          || (left instanceof FormulaString && right instanceof FormulaString)) {
+          return new FormulaBoolean(left.value <= right.value);
+        }
+
+        throw new TypeFormulaError(
+          'Comparison operands must be of the same type (Number or Date).',
+          {
+            location: node.location,
+            context: {
+              expected: 'Number | Date',
+              actual: `${left.displayType} and ${right.displayType}`,
+            },
+          },
+        );
+      }
+      case '>': {
+        if ((left instanceof FormulaNumber && right instanceof FormulaNumber)
+          || (left instanceof FormulaString && right instanceof FormulaString)) {
+          return new FormulaBoolean(left.value > right.value);
+        }
+
+        throw new TypeFormulaError(
+          'Comparison operands must be of the same type (Number or Date).',
+          {
+            location: node.location,
+            context: {
+              expected: 'Number | Date',
+              actual: `${left.displayType} and ${right.displayType}`,
+            },
+          },
+        );
+      }
+      case '>=': {
+        if ((left instanceof FormulaNumber && right instanceof FormulaNumber)
+          || (left instanceof FormulaString && right instanceof FormulaString)) {
+          return new FormulaBoolean(left.value >= right.value);
+        }
+
+        throw new TypeFormulaError(
+          'Comparison operands must be of the same type (Number or Date).',
+          {
+            location: node.location,
+            context: {
+              expected: 'Number | Date',
+              actual: `${left.displayType} and ${right.displayType}`,
+            },
+          },
+        );
+      }
+      case 'and':
+      case '&&': {
+        return new FormulaBoolean(!!left.value && !!right.value);
+      }
+      case 'or':
+      case '||': {
+        return new FormulaBoolean(!!left.value || !!right.value);
+      }
+
+      default: {
+        throw new RangeFormulaError(
+          `Unsupported binary operator: ${node.operator}`,
+          {
+            location: node.location,
+            context: {
+              actual: node.operator,
+              expected: ['+', '-', '*', '/', '^', '%', '==', '!=', '<', '<=', '>', '>=', 'and', '&&', 'or', '||'],
+            },
+          },
+        );
+      }
+    }
+  }
+
+  public visitUnaryExpressionNode(node: AST.IUnaryExpressionNode): FormulaDataType {
+    const arg = this.evaluateNode(node.arg);
+
+    switch (node.operator) {
+      case '-': {
+        if (!(arg instanceof FormulaNumber)) {
+          throw new TypeFormulaError(
+            `Cannot apply unary minus to a non-numeric value.`,
+            {
+              location: node.location,
+              context: {
+                expected: 'Number',
+                actual: arg.displayType,
+              },
+            },
+          );
+        }
+
+        return new FormulaNumber(-arg.value);
+      }
+      case 'not':
+      case '!': {
+        return new FormulaBoolean(!arg.value);
+      }
+      default: {
+        throw new RangeFormulaError(
+          `Unsupported unary operator: ${node.operator}`,
+          {
+            location: node.location,
+            context: {
+              actual: node.operator,
+              expected: ['-', 'not', '!'],
+            },
+          },
+        );
+      }
+    }
+  }
+
+  public visitIdentifierNode(node: AST.IIdentifierNode): FormulaDataType {
+    this.hooks?.onIdentifier?.(node.name);
+
+    // An identifier can be a variable from the current lexical context
+    // (e.g., "current" in a map function) or a global property.
+    // The context handles resolving this.
+    const value = this.context.getVariable(node.name);
+
+    if (value instanceof FormulaDataType) {
+      return value;
+    }
+
+    // If the identifier is not found in the context, it's an error.
+    throw new ReferenceFormulaError(
+      `Variable "${node.name}" is not defined.`,
+      {
+        location: node.location,
+        context: {
+          name: node.name,
+          type: 'variable',
+        },
+      },
+    );
+  }
+
+  public visitCallExpressionNode(node: AST.ICallExpressionNode): FormulaDataType {
+    const callee = node.callee;
+
+    // Case 1: Call to global function (e.g., now(), parseDate())
+    if (callee.type === 'Identifier') {
+      const functionName = callee.name;
+      return this.dispatcher.callFunction(functionName, node, this);
+    }
+
+    // Case 2: Call to object method (e.g., myList.map(), myString.upper())
+    if (callee.type === 'MemberExpression') {
+      const objectInstance = this.evaluateNode(callee.object);
+      const methodNode = callee.property;
+
+      return this.dispatcher.callMethod(objectInstance, methodNode, node, this);
+    }
+
+    throw new Error('Unsupported call expression type.');
+  }
+
+  public visitMemberExpressionNode(node: AST.IMemberExpressionNode): FormulaDataType {
+    return this.evaluateNode(node.object);
+  }
+
+  public visitConditionalExpressionNode(node: AST.IConditionalExpressionNode): FormulaDataType {
+    const test = this.evaluateNode(node.test);
+    return !test.isEmpty() ? this.evaluateNode(node.consequent) : this.evaluateNode(node.alternate);
+  }
+
+  public visitArrayExpressionNode(node: AST.IArrayExpressionNode): FormulaDataType {
+    const items = node.elements.map((el) => this.evaluateNode(el));
+
+    return new FormulaArray(items);
+  }
+}

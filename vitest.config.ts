@@ -20,7 +20,7 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      exclude: ['**/index.ts', '**/testing-library/**'],
+      exclude: ['**/index.ts'],
     },
     projects: [
       {

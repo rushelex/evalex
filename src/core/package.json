@@ -1,0 +1,19 @@
+{
+  "name": "@evalex/core",
+  "description": "Core expression evaluation engine with extensible data types, formula parsing, and stateless computation. Foundation for building reactive formula systems.",
+  "keywords": [
+    "expression",
+    "evaluation",
+    "formula",
+    "parsing",
+    "javascript",
+    "typescript",
+    "stateless",
+    "computation",
+    "extensible",
+    "interpreter",
+    "calculator",
+    "math",
+    "enterprise"
+  ]
+}
