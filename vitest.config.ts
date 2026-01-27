@@ -1,23 +1,35 @@
 import { playwright } from '@vitest/browser-playwright';
+import path from 'node:path';
 import circularDependency from 'vite-plugin-circular-dependency';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [circularDependency()],
+
+  resolve: {
+    alias: {
+      '~': path.resolve(import.meta.dirname, './src'),
+    },
+  },
+
   test: {
     globals: true,
-    environment: 'happy-dom',
+    typecheck: {
+      enabled: true,
+      ignoreSourceErrors: true,
+    },
+    coverage: {
+      provider: 'v8',
+      exclude: ['**/index.ts', '**/testing-library/**'],
+    },
     projects: [
       {
         extends: true,
         test: {
           name: 'common',
-          include: [
-            './src/**/*.test.ts',
-            '!./src/**/*.{node,browser}.test.ts',
-          ],
-          // environment: 'happy-dom',
-          // setupFiles: ['./src/shared/libs/formula/testing-library/bootstrap.ts', './src/shared/libs/formula/testing-library/matchers.ts', './vitest.setup.ts'],
+          include: ['**/*.test.ts'],
+          exclude: ['**/node_modules/**', '**/.git/**', '**/*.{node,browser}.test.ts'],
+          setupFiles: ['./src/testing-library/setup.ts'],
         },
       },
       {
@@ -26,6 +38,7 @@ export default defineConfig({
           name: 'node',
           include: ['**/*.node.test.ts'],
           environment: 'node',
+          setupFiles: ['./src/testing-library/setup.ts'],
         },
       },
       {
@@ -39,6 +52,7 @@ export default defineConfig({
             headless: true,
             instances: [{ browser: 'chromium' }],
           },
+          setupFiles: ['./src/testing-library/setup.ts'],
         },
       },
     ],

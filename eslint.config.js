@@ -57,12 +57,6 @@ export default antfu(
       'ts/no-unsafe-call': 'off',
       'ts/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports', prefer: 'type-imports' }],
       'ts/consistent-type-exports': 'error',
-      'react-refresh/only-export-components': [
-        'warn',
-        {
-          allowConstantExport: true,
-        },
-      ],
     },
   },
   {

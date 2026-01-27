@@ -1,0 +1,11 @@
+{
+  "name": "@evalex/parser",
+  "description": "Formula parser for evalex with extensible data types and formula parsing. Foundation for building reactive formula systems.",
+  "keywords": [
+    "formula",
+    "parsing",
+    "javascript",
+    "typescript",
+    "ast"
+  ]
+}
