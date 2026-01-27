@@ -1,0 +1,72 @@
+{
+  "name": "evalex",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "",
+  "author": "Aleksey Shelementev <rushelex@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/rushelex/evalex#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rushelex/evalex.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rushelex/evalex/issues"
+  },
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "start": "tsdown --watch",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "lint:fix": "pnpm check:scripts --fix",
+    "generate:grammar": "peggy -o src/parser/grammar/__generated__/grammar.js src/parser/grammar/grammar.peggy --dts --format=es --source-map --dependency \"* as Nodes:../nodes\"",
+    "generate:grammar:watch": "pnpm generate:grammar --watch",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "es-toolkit": "^1.44.0",
+    "temporal-polyfill": "^0.3.0",
+    "valibot": "^1.2.0"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^7.2.0",
+    "@eslint-react/eslint-plugin": "^2.7.4",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@total-typescript/ts-reset": "^0.6.1",
+    "@types/node": "^24.10.9",
+    "@unocss/eslint-plugin": "^66.6.0",
+    "@vitest/browser": "^4.0.18",
+    "@vitest/browser-playwright": "^4.0.18",
+    "@vitest/coverage-v8": "^4.0.18",
+    "browserslist": "^4.28.1",
+    "bumpp": "^10.4.0",
+    "eslint": "^9.39.2",
+    "eslint-plugin-format": "^1.3.1",
+    "happy-dom": "^20.3.9",
+    "jest-leak-detector": "^30.2.0",
+    "jsonc-eslint-parser": "^2.4.2",
+    "peggy": "^5.0.6",
+    "playwright": "^1.58.0",
+    "taze": "^19.9.2",
+    "tsdown": "^0.20.1",
+    "type-fest": "^5.4.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-circular-dependency": "^0.5.0",
+    "vitest": "^4.0.18"
+  }
+}
