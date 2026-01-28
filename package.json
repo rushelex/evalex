@@ -14,14 +14,17 @@
     "url": "https://github.com/rushelex/evalex/issues"
   },
   "exports": {
-    ".": "./dist/index.mjs",
+    "./bootstrap": "./dist/bootstrap.mjs",
+    "./core": "./dist/core.mjs",
+    "./parser": "./dist/parser.mjs",
+    "./runtime": "./dist/runtime.mjs",
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.mjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
   "files": [
-    "dist"
+    "LICENSE",
+    "README.md",
+    "dist",
+    "package.json"
   ],
   "scripts": {
     "build": "tsdown",

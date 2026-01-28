@@ -1,0 +1,23 @@
+{
+  "name": "@evalex/runtime",
+  "description": "Reactive runtime for evalex with dependency tracking, cascading updates, and automatic recalculation. Orchestrates formula execution with enterprise-grade performance.",
+  "keywords": [
+    "reactive",
+    "runtime",
+    "dependency-tracking",
+    "cascading",
+    "orchestration",
+    "recalculation",
+    "scheduler",
+    "executor",
+    "dependencies",
+    "graph",
+    "performance",
+    "enterprise",
+    "formula",
+    "formula-runtime",
+    "automatic",
+    "lifecycle",
+    "batch-processing"
+  ]
+}

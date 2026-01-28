@@ -1,3 +1,4 @@
+export * from './bootstrap';
 export * from './context';
 export * from './data-types';
 export * from './debugger';
