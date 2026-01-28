@@ -1,9 +1,9 @@
 import { FormulaNumber } from '../../../data-types';
-import { RoutineTester } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('sum');
 
-describe('sum routine', tester.testSuites([
+describe('sum routine', tester.examples([
   {
     formula: 'sum(1, 2, 3)',
     expected: new FormulaNumber(6),

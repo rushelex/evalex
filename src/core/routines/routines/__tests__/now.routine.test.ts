@@ -1,7 +1,7 @@
 import { Temporal } from 'temporal-polyfill';
 
 import { FormulaDate } from '../../../data-types';
-import { RoutineTester } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('now');
 
@@ -15,7 +15,7 @@ vi.spyOn(Temporal.Now, 'zonedDateTimeISO').mockReturnValue(Temporal.ZonedDateTim
   timeZone: 'UTC',
 }));
 
-describe('now routine', tester.onlyTestSuites([
+describe('now routine', tester.examples.only([
   {
     formula: 'now()',
     expected: FormulaDate.from('2024-01-31T12:30:45+00:00[UTC]'),

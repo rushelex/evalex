@@ -1,9 +1,11 @@
 import { FormulaArray, FormulaNumber, FormulaObject, FormulaString } from '../../../data-types';
-import { RoutineTester } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('if');
 
-describe('if routine', tester.testSuites([
+describe('if routine', tester.examples({
+  skipMethod: true,
+}, [
   {
     formula: 'if(true, 1, 2)',
     expected: new FormulaNumber(1),
@@ -35,6 +37,4 @@ describe('if routine', tester.testSuites([
       },
     },
   },
-], {
-  skipMethod: true,
-}));
+]));

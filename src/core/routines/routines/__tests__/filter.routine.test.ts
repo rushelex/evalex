@@ -1,9 +1,9 @@
 import { FormulaArray, FormulaNumber, FormulaObject, FormulaString } from '../../../data-types';
-import { RoutineTester } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('filter');
 
-describe('filter routine', tester.testSuites([
+describe('filter routine', tester.examples([
   {
     formula: 'numbers.filter(current % 2 == 0)',
     context: {

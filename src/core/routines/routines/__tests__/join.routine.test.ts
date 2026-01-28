@@ -1,9 +1,9 @@
 import { FormulaArray, FormulaString } from '../../../data-types';
-import { RoutineTester } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('join');
 
-describe('join routine', tester.testSuites([
+describe('join routine', tester.examples([
   {
     formula: '[1, 2, 3].join()',
     expected: new FormulaString('123'),

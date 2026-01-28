@@ -76,6 +76,14 @@ export class RoutinesRegistry {
     return methods.get(name);
   }
 
+  /**
+   * Returns all data type constructors that have registered methods.
+   * Useful for iterating over all known data types when generating test cases.
+   */
+  public getRegisteredDataTypes(): Class<FormulaDataType>[] {
+    return Array.from(this.methodRegistry.keys());
+  }
+
   public getMethods(ctor: Class<FormulaDataType>): Map<string, Routine> {
     if (this.resolvedMethodsCache?.has(ctor)) {
       // Use finalized cache when available

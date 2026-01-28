@@ -1,4 +1,5 @@
 import type { FormulaDataType } from '../data-types';
+import type { ExpectedResult } from './test-helpers/types';
 
 import { FormulaNull } from '../data-types';
 import { RoutineExample } from './routine-example';
@@ -7,33 +8,15 @@ export interface RoutineTestExampleOptions {
   readonly formula: string;
   readonly description?: string;
   readonly context?: Record<string, FormulaDataType>;
-  readonly expected: FormulaDataType | {
-    function?: {
-      message: string;
-      location: [number, number];
-    };
-    method?: {
-      message: string;
-      location: [number, number];
-    };
-  };
+  readonly expected: ExpectedResult;
 }
 
 export class RoutineTestExample extends RoutineExample {
-  public readonly expected: FormulaDataType | {
-    function?: {
-      message: string;
-      location: [number, number];
-    };
-    method?: {
-      message: string;
-      location: [number, number];
-    };
-  };
+  readonly expected: ExpectedResult;
 
-  public readonly description?: string;
+  readonly description?: string;
 
-  public readonly context?: Record<string, FormulaDataType>;
+  readonly context?: Record<string, FormulaDataType>;
 
   constructor(
     routineName: string,

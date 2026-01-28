@@ -1,11 +1,11 @@
 import { Temporal } from 'temporal-polyfill';
 
 import { FormulaBoolean, FormulaDate, FormulaObject } from '../../../data-types';
-import { RoutineTester } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('empty');
 
-describe('empty routine', tester.testSuites([
+describe('empty routine', tester.examples([
   {
     formula: 'true.empty()',
     expected: new FormulaBoolean(false),

@@ -1,9 +1,9 @@
 import { FormulaNumber } from '../../../data-types';
-import { RoutineTester } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('length');
 
-describe('length routine', tester.testSuites([
+describe('length routine', tester.examples([
   {
     formula: '"hello".length()',
     expected: new FormulaNumber(5),

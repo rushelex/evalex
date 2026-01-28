@@ -1,11 +1,11 @@
 import { Temporal } from 'temporal-polyfill';
 
 import { FormulaDate, FormulaDuration } from '../../../data-types';
-import { RoutineTester } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-tester';
 
-const tester = new RoutineTester('dateBetween');
-
-describe('dateBetween routine', tester.onlyTestSuites([
+describe('"dateBetween" function routine', new RoutineTester('dateBetween').examples.only({
+  skipMethod: true,
+}, [
   {
     formula: 'dateBetween(parseDate("2025-08-23"), parseDate("2023-08-23"), "years")',
     expected: FormulaDuration.from(Temporal.Duration.from({ years: 2 })),
@@ -37,7 +37,10 @@ describe('dateBetween routine', tester.onlyTestSuites([
   },
 ]));
 
-describe('FormulaDate.add method', tester.onlyTestSuites([
+// TODO: Replace "add" tests with "between"
+describe('"between" method routine', new RoutineTester('between').examples.only({
+  skipFunction: true,
+}, [
   {
     formula: 'parseDate("2025-08-23").add(1, "days")',
     expected: FormulaDate.from(Temporal.ZonedDateTime.from({

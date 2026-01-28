@@ -1,11 +1,11 @@
 import { Temporal } from 'temporal-polyfill';
 
 import { FormulaDate, FormulaDuration } from '../../../data-types';
-import { RoutineTester } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-tester';
 
-const tester = new RoutineTester('dateAdd');
-
-describe('dateAdd routine', tester.onlyTestSuites([
+describe('"dateAdd" function routine', new RoutineTester('dateAdd').examples.only({
+  skipMethod: true,
+}, [
   {
     formula: 'dateAdd(parseDate("2025-08-23"), 1, "days")',
     expected: FormulaDate.from(Temporal.ZonedDateTime.from({
@@ -46,7 +46,9 @@ describe('dateAdd routine', tester.onlyTestSuites([
   },
 ]));
 
-describe('FormulaDate.add method', tester.onlyTestSuites([
+describe('"add" method routine', new RoutineTester('add').examples.only({
+  skipFunction: true,
+}, [
   {
     formula: 'parseDate("2025-08-23").add(1, "days")',
     expected: FormulaDate.from(Temporal.ZonedDateTime.from({

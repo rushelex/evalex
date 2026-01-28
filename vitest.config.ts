@@ -22,6 +22,7 @@ export default defineConfig({
       provider: 'v8',
       exclude: ['**/index.ts'],
     },
+    exclude: ['**/*.bench.ts'],
     projects: [
       {
         extends: true,

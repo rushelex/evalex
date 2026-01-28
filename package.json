@@ -32,6 +32,7 @@
     "start": "tsdown --watch",
     "test": "vitest run",
     "test:watch": "vitest watch",
+    "bench": "vitest bench --run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "lint:fix": "pnpm check:scripts --fix",

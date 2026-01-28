@@ -1,11 +1,13 @@
 import { Temporal } from 'temporal-polyfill';
 
 import { FormulaDate } from '../../../data-types';
-import { RoutineTester } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('parseDate');
 
-describe('parseDate routine', tester.testSuites([
+describe('parseDate routine', tester.examples({
+  skipMethod: true,
+}, [
   {
     formula: 'parseDate("2024-07-28")',
     expected: new FormulaDate(Temporal.ZonedDateTime.from({
@@ -103,6 +105,4 @@ describe('parseDate routine', tester.testSuites([
       },
     },
   },
-], {
-  skipMethod: true,
-}));
+]));

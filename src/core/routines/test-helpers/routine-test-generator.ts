@@ -1,12 +1,11 @@
-import type { Class } from 'type-fest';
-
+import type { FormulaDataType } from '../../data-types';
+import type { RoutinesRegistry } from '../registry';
 import type { RoutineTestExampleOptions } from '../routine-test-example';
+import type { FormulaTypeResolver } from './formula-type-resolver';
+import type { ExpectedResult } from './types';
 
-import { FormulaArray, FormulaBoolean, FormulaDataType, FormulaDate, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString } from '../../data-types';
-import { convertValueToFormulaType } from '../../data-types/converter';
-import { Expression } from '../../expression';
-import { routinesRegistry } from '../registry';
 import { RoutineTestExample } from '../routine-test-example';
+import { isExpectedError } from './types';
 
 export interface RoutineTestCase {
   group: 'function' | (string & {});
@@ -14,58 +13,73 @@ export interface RoutineTestCase {
   functionCall?: string;
   methodCall?: string;
   context: Record<string, FormulaDataType>;
-  expected: FormulaDataType | {
-    function?: {
-      message: string;
-      location: [number, number];
-    };
-    method?: {
-      message: string;
-      location: [number, number];
-    };
-  };
+  expected: ExpectedResult;
 }
 
+export interface GenerateOptions {
+  /**
+   * Include built-in examples from routine definitions
+   * @default true
+   */
+  includeBuiltIn?: boolean;
+}
+
+/**
+ * Generates test cases for routine functions and methods
+ * Supports both built-in examples from routine definitions and custom test examples
+ */
 export class RoutineTestGenerator {
-  private static readonly ALL_DATA_TYPES = [
-    FormulaArray,
-    FormulaBoolean,
-    FormulaDate,
-    FormulaDuration,
-    FormulaNull,
-    FormulaNumber,
-    FormulaObject,
-    FormulaRegExp,
-    FormulaString,
-  ] satisfies Class<FormulaDataType>[];
+  readonly #registry: RoutinesRegistry;
+  readonly #typeResolver: FormulaTypeResolver;
 
-  public static generateAllTestCases(routineName: string, examples: RoutineTestExampleOptions[] = []): RoutineTestCase[] {
-    return [
-      ...RoutineTestGenerator.generateAllFunctionTestCases(routineName, examples),
-      ...RoutineTestGenerator.generateAllMethodTestCases(routineName, examples),
-    ];
+  constructor(
+    registry: RoutinesRegistry,
+    typeResolver: FormulaTypeResolver,
+  ) {
+    this.#registry = registry;
+    this.#typeResolver = typeResolver;
   }
 
-  public static generateAllFunctionTestCases(routineName: string, examples: RoutineTestExampleOptions[] = []): RoutineTestCase[] {
-    const allCases = [
-      ...RoutineTestGenerator.generateFunctionExamples(routineName),
-      ...RoutineTestGenerator.generateFunctionTestExamples(routineName, examples),
-    ];
+  /**
+   * Generates test cases for function testing.
+   * Returns: functionExamples + customFunctionExamples (deduplicated by functionCall)
+   */
+  forFunctionTesting(
+    routineName: string,
+    examples: RoutineTestExampleOptions[],
+    options?: GenerateOptions,
+  ): RoutineTestCase[] {
+    const { includeBuiltIn = true } = options ?? {};
 
-    return RoutineTestGenerator.filterUniqueBy(allCases, 'functionCall');
+    const builtInCases = includeBuiltIn ? this.generateFunctionExamples(routineName) : [];
+    const customCases = this.generateFunctionCustomExamples(routineName, examples);
+
+    return this.#filterUniqueBy([...builtInCases, ...customCases], 'functionCall');
   }
 
-  public static generateAllMethodTestCases(routineName: string, examples: RoutineTestExampleOptions[] = []): RoutineTestCase[] {
-    const allCases = [
-      ...RoutineTestGenerator.generateMethodExamples(routineName),
-      ...RoutineTestGenerator.generateMethodTestExamples(routineName, examples),
-    ];
+  /**
+   * Generates test cases for method testing.
+   * Returns: methodExamples + customMethodExamples (deduplicated by methodCall)
+   */
+  forMethodTesting(
+    routineName: string,
+    examples: RoutineTestExampleOptions[],
+    options?: GenerateOptions,
+  ): RoutineTestCase[] {
+    const { includeBuiltIn = true } = options ?? {};
 
-    return RoutineTestGenerator.filterUniqueBy(allCases, 'methodCall');
+    // Generate method-specific cases
+    const builtInMethodCases = includeBuiltIn ? this.generateMethodExamples(routineName) : [];
+    const customMethodCases = this.generateMethodCustomExamples(routineName, examples);
+
+    return this.#filterUniqueBy([...builtInMethodCases, ...customMethodCases], 'methodCall');
   }
 
-  public static generateFunctionExamples(routineName: string): RoutineTestCase[] {
-    const functionDef = routinesRegistry.getFunction(routineName);
+  /**
+   * Generates test cases from built-in function examples
+   */
+  generateFunctionExamples(routineName: string): RoutineTestCase[] {
+    const functionDef = this.#registry.getFunction(routineName);
 
     if (!functionDef?.examples.length) {
       return [];
@@ -74,7 +88,7 @@ export class RoutineTestGenerator {
     return functionDef.examples.map<RoutineTestCase>((example, index) => {
       const functionFormula = example.toFunctionCall();
       const methodFormula = example.toMethodCall();
-      const dataType = this.parseDataType(methodFormula, {});
+      const dataType = this.#typeResolver.resolve(methodFormula, {});
 
       return {
         group: dataType?.constructor.name || 'function',
@@ -87,42 +101,53 @@ export class RoutineTestGenerator {
     });
   }
 
-  public static generateFunctionTestExamples(routineName: string, examples: RoutineTestExampleOptions[] = []): RoutineTestCase[] {
-    if (!examples.length) {
+  /**
+   * Generates test cases from custom function test examples
+   */
+  generateFunctionCustomExamples(routineName: string, examples?: RoutineTestExampleOptions[]): RoutineTestCase[] {
+    if (!examples?.length) {
       return [];
     }
 
-    return examples
-      .filter((example) => example.expected instanceof FormulaDataType || !!example.expected.function)
-      .map<RoutineTestCase>((example, index) => {
-        const routineExample = new RoutineTestExample(routineName, example);
-        const functionFormula = routineExample.toFunctionCall();
-        const methodFormula = routineExample.toMethodCall();
-        const dataType = this.parseDataType(methodFormula, example.context ?? {});
+    return examples.reduce<RoutineTestCase[]>((acc, example) => {
+      if (isExpectedError(example.expected) && !example.expected.function) {
+        return acc;
+      }
 
-        return {
-          group: dataType?.constructor.name || 'function',
-          name: example.description || `function test example ${index + 1}: ${functionFormula}`,
-          functionCall: functionFormula,
-          methodCall: methodFormula,
-          context: example.context ?? {},
-          expected: example.expected,
-        };
+      const routineExample = new RoutineTestExample(routineName, example);
+      const functionFormula = routineExample.toFunctionCall();
+      const methodFormula = routineExample.toMethodCall();
+      const dataType = this.#typeResolver.resolve(methodFormula, example.context ?? {});
+
+      acc.push({
+        group: dataType?.constructor.name || 'function',
+        name: example.description || `function custom example ${acc.length + 1}: ${functionFormula}`,
+        functionCall: functionFormula,
+        methodCall: methodFormula,
+        context: example.context ?? {},
+        expected: example.expected,
       });
+
+      return acc;
+    }, []);
   }
 
-  public static generateMethodExamples(routineName: string): RoutineTestCase[] {
+  /**
+   * Generates test cases from built-in method examples for all registered data types
+   */
+  generateMethodExamples(routineName: string): RoutineTestCase[] {
     const allTestCases: RoutineTestCase[] = [];
+    const dataTypes = this.#registry.getRegisteredDataTypes();
 
-    for (const constructor of this.ALL_DATA_TYPES) {
-      const methodDef = routinesRegistry.getMethod(constructor, routineName);
+    for (const constructor of dataTypes) {
+      const methodDef = this.#registry.getMethod(constructor, routineName);
 
       if (!methodDef?.examples.length) {
         continue;
       }
 
       const methodTestCases = methodDef.examples.map<RoutineTestCase>((example, index) => {
-        const dataType = this.parseDataType(example.toMethodCall(), {});
+        const dataType = this.#typeResolver.resolve(example.toMethodCall(), {});
 
         return {
           group: dataType?.constructor.name || constructor.name,
@@ -140,107 +165,57 @@ export class RoutineTestGenerator {
     return allTestCases;
   }
 
-  public static generateMethodTestExamples(routineName: string, examples: RoutineTestExampleOptions[] = []): RoutineTestCase[] {
+  /**
+   * Generates test cases from custom method test examples for all registered data types
+   */
+  generateMethodCustomExamples(routineName: string, examples?: RoutineTestExampleOptions[]): RoutineTestCase[] {
+    if (!examples?.length) {
+      return [];
+    }
+
     const allTestCases: RoutineTestCase[] = [];
+    const dataTypes = this.#registry.getRegisteredDataTypes();
 
-    for (const constructor of this.ALL_DATA_TYPES) {
-      if (!examples.length) {
-        continue;
-      }
+    for (const constructor of dataTypes) {
+      let matchIndex = 0;
 
-      const methodTestCases = examples
-        .filter((example) => {
-          const routineExample = new RoutineTestExample(routineName, example);
-          const dataType = this.parseDataType(routineExample.toMethodCall(), routineExample.context ?? {});
-          return dataType?.constructor === constructor && (example.expected instanceof FormulaDataType || !!example.expected.method);
-        })
-        .map<RoutineTestCase>((example, index) => {
-          const routineExample = new RoutineTestExample(routineName, example);
-          const dataType = this.parseDataType(routineExample.toMethodCall(), routineExample.context ?? {});
+      for (const example of examples) {
+        const routineExample = new RoutineTestExample(routineName, example);
+        const dataType = this.#typeResolver.resolve(routineExample.toMethodCall(), routineExample.context ?? {});
 
-          return {
-            group: dataType?.constructor.name || constructor.name,
-            name: routineExample.description || `${dataType?.constructor.name || constructor.name} method test example ${index + 1}: ${routineExample.formula}`,
-            functionCall: routineExample.toFunctionCall(),
-            methodCall: routineExample.toMethodCall(),
-            context: routineExample.context ?? {},
-            expected: routineExample.expected,
-          };
+        const isMatchingType = dataType?.constructor === constructor;
+        const hasValidExpected = !isExpectedError(example.expected) || !!example.expected.method;
+
+        if (!isMatchingType || !hasValidExpected) {
+          continue;
+        }
+
+        matchIndex++;
+
+        allTestCases.push({
+          group: dataType?.constructor.name || constructor.name,
+          name: routineExample.description || `${dataType?.constructor.name || constructor.name} method custom example ${matchIndex}: ${routineExample.formula}`,
+          functionCall: routineExample.toFunctionCall(),
+          methodCall: routineExample.toMethodCall(),
+          context: routineExample.context ?? {},
+          expected: routineExample.expected,
         });
-
-      allTestCases.push(...methodTestCases);
+      }
     }
 
     return allTestCases;
   }
 
-  private static filterUniqueBy(array: RoutineTestCase[], predicateProp: keyof RoutineTestCase): RoutineTestCase[] {
-    return array.filter((tc, index, array) => {
-      return tc[predicateProp] && array.findLastIndex((tc2) => tc2[predicateProp] === tc[predicateProp]) === index;
-    });
-  }
+  #filterUniqueBy(array: RoutineTestCase[], predicateProp: keyof RoutineTestCase): RoutineTestCase[] {
+    const seen = new Map<string | undefined, RoutineTestCase>();
 
-  /**
-   * Parses formula to extract data type
-   * [1,2,3].map(current * 2) -> FormulaArray
-   * "hello".empty() -> FormulaString
-   * emptyObj.empty() -> FormulaObject (if context is provided)
-   */
-  private static parseDataType(formula: string | undefined, context: Record<string, FormulaDataType>): FormulaDataType | undefined {
-    if (!formula) {
-      return;
-    }
-
-    const instance = this.parseInstance(formula);
-
-    let dataType: FormulaDataType | undefined;
-
-    if (instance instanceof FormulaDataType) {
-      dataType = instance;
-    }
-    else if (context && instance?.dependencyName) {
-      dataType = context[instance.dependencyName];
-    }
-
-    return dataType;
-  }
-
-  /**
-   * Parses formula to extract instance
-   * [1,2,3].map(current * 2) -> FormulaArray
-   * "hello".empty() -> FormulaString
-   * emptyObj.empty() -> { dependencyName: "emptyObj" }
-   */
-  private static parseInstance(formula: string): FormulaDataType | { dependencyName: string } | undefined {
-    const expression = new Expression(formula);
-    const ast = expression.parse();
-
-    if (ast.type !== 'CallExpression') {
-      return;
-    }
-
-    const instance = ast.callee;
-
-    if (instance.type !== 'MemberExpression') {
-      return;
-    }
-
-    const object = instance.object;
-
-    if (object.type === 'Literal') {
-      return convertValueToFormulaType(object.value);
-    }
-
-    if (object.type === 'ArrayExpression') {
-      return convertValueToFormulaType(object.elements);
-    }
-
-    if (object.type === 'Identifier') {
-      const dependencies = expression.extractDependencies(ast);
-
-      if (dependencies.has(object.name)) {
-        return { dependencyName: object.name };
+    for (const testCase of array) {
+      const value = testCase[predicateProp] as string | undefined;
+      if (value) {
+        seen.set(value, testCase); // Last wins (preserves original findLastIndex behavior)
       }
     }
+
+    return Array.from(seen.values());
   }
 }
