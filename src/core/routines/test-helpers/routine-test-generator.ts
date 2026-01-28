@@ -27,7 +27,7 @@ export interface RoutineTestCase {
 }
 
 export class RoutineTestGenerator {
-  private static readonly ALL_DATA_TYPES: Class<FormulaDataType>[] = [
+  private static readonly ALL_DATA_TYPES = [
     FormulaArray,
     FormulaBoolean,
     FormulaDate,
@@ -37,7 +37,7 @@ export class RoutineTestGenerator {
     FormulaObject,
     FormulaRegExp,
     FormulaString,
-  ];
+  ] satisfies Class<FormulaDataType>[];
 
   public static generateAllTestCases(routineName: string, examples: RoutineTestExampleOptions[] = []): RoutineTestCase[] {
     return [
@@ -176,7 +176,7 @@ export class RoutineTestGenerator {
 
   private static filterUniqueBy(array: RoutineTestCase[], predicateProp: keyof RoutineTestCase): RoutineTestCase[] {
     return array.filter((tc, index, array) => {
-      return tc[predicateProp] && array.findIndex((tc2) => tc2[predicateProp] === tc[predicateProp]) === index;
+      return tc[predicateProp] && array.findLastIndex((tc2) => tc2[predicateProp] === tc[predicateProp]) === index;
     });
   }
 

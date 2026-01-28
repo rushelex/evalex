@@ -1,9 +1,9 @@
 import { FormulaNumber } from '../../../data-types';
-import { RoutineTestRunner } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-test-runner';
 
-const runner = new RoutineTestRunner('e');
+const tester = new RoutineTester('e');
 
-describe('e routine', runner.testSuites([
+describe('e routine', tester.testSuites([
   {
     formula: 'e()',
     expected: new FormulaNumber(Math.E),

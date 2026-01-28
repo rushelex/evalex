@@ -1,9 +1,9 @@
 import { FormulaNumber } from '../../../data-types';
-import { RoutineTestRunner } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-test-runner';
 
-const runner = new RoutineTestRunner('pi');
+const tester = new RoutineTester('pi');
 
-describe('pi routine', runner.testSuites([
+describe('pi routine', tester.testSuites([
   {
     formula: 'pi()',
     expected: new FormulaNumber(Math.PI),

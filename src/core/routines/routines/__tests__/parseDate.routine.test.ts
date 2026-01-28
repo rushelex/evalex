@@ -1,11 +1,11 @@
 import { Temporal } from 'temporal-polyfill';
 
 import { FormulaDate } from '../../../data-types';
-import { RoutineTestRunner } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-test-runner';
 
-const runner = new RoutineTestRunner('parseDate');
+const tester = new RoutineTester('parseDate');
 
-describe('parseDate routine', runner.testSuites([
+describe('parseDate routine', tester.testSuites([
   {
     formula: 'parseDate("2024-07-28")',
     expected: new FormulaDate(Temporal.ZonedDateTime.from({

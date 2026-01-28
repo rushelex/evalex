@@ -1,9 +1,9 @@
 import { Temporal } from 'temporal-polyfill';
 
 import { FormulaDate } from '../../../data-types';
-import { RoutineTestRunner } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-test-runner';
 
-const runner = new RoutineTestRunner('now');
+const tester = new RoutineTester('now');
 
 vi.spyOn(Temporal.Now, 'zonedDateTimeISO').mockReturnValue(Temporal.ZonedDateTime.from({
   year: 2024,
@@ -15,7 +15,7 @@ vi.spyOn(Temporal.Now, 'zonedDateTimeISO').mockReturnValue(Temporal.ZonedDateTim
   timeZone: 'UTC',
 }));
 
-describe('now routine', runner.onlyTestSuites([
+describe('now routine', tester.onlyTestSuites([
   {
     formula: 'now()',
     expected: FormulaDate.from('2024-01-31T12:30:45+00:00[UTC]'),

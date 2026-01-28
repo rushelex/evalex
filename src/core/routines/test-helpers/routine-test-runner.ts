@@ -15,7 +15,7 @@ interface RunTestOptions {
   skipMethod?: boolean;
 }
 
-export class RoutineTestRunner {
+export class RoutineTester {
   constructor(
     private readonly routineName: string,
     private readonly testAPI: TestAPI = test,

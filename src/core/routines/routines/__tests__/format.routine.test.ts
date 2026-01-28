@@ -1,11 +1,11 @@
 import { Temporal } from 'temporal-polyfill';
 
 import { FormulaDate, FormulaObject, FormulaString } from '../../../data-types';
-import { RoutineTestRunner } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-test-runner';
 
-const runner = new RoutineTestRunner('format');
+const tester = new RoutineTester('format');
 
-describe('format routine', runner.testSuites([
+describe('format routine', tester.testSuites([
   {
     formula: '[1, 2, 3].format()',
     expected: new FormulaString('1, 2, 3'),

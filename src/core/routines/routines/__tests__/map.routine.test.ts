@@ -1,9 +1,9 @@
 import { FormulaArray, FormulaNumber, FormulaObject, FormulaString } from '../../../data-types';
-import { RoutineTestRunner } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-test-runner';
 
-const runner = new RoutineTestRunner('map');
+const tester = new RoutineTester('map');
 
-describe('map routine', runner.testSuites([
+describe('map routine', tester.testSuites([
   {
     formula: '[].map(current + 1)',
     expected: new FormulaArray([]),

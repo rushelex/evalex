@@ -1,9 +1,9 @@
 import { FormulaNumber } from '../../../data-types';
-import { RoutineTestRunner } from '../../test-helpers/routine-test-runner';
+import { RoutineTester } from '../../test-helpers/routine-test-runner';
 
-const runner = new RoutineTestRunner('log10');
+const tester = new RoutineTester('log10');
 
-describe('log10 routine', runner.testSuites([
+describe('log10 routine', tester.testSuites([
   {
     formula: '1.log10()',
     expected: new FormulaNumber(0),
