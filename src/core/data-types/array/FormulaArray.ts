@@ -10,10 +10,8 @@ import { FormulaDataType } from '../FormulaDataType';
  */
 export class FormulaArray<TItem extends FormulaDataType = FormulaDataType> extends FormulaDataType<TItem[]> {
   static readonly SEPARATOR = ', ';
-
   static readonly kind = 'array';
-
-  public readonly itemDisplayType: string;
+  readonly itemDisplayType: string;
 
   constructor(items: TItem[], itemDisplayTypeSingular?: string) {
     const nestedItemDisplayType = itemDisplayTypeSingular || (items.length > 0 ? items[0].kind : 'any');
@@ -22,27 +20,27 @@ export class FormulaArray<TItem extends FormulaDataType = FormulaDataType> exten
     this.itemDisplayType = itemDisplayType;
   }
 
-  public isEmpty(): boolean {
+  isEmpty(): boolean {
     return this.value.length === 0;
   }
 
-  public toString(options?: ToStringOptions): string {
+  toString(options?: ToStringOptions): string {
     const result = this.value.map((item) => item.toString(options)).join(FormulaArray.SEPARATOR);
     return options?.asJSON ? `[${result}]` : result;
   }
 
-  public static convert: <T extends unknown[]>(items: T) => ToFormulaDataType<T[number], true>[];
+  static convert: <T extends unknown[]>(items: T) => ToFormulaDataType<T[number], true>[];
 
-  public static from<T extends unknown[]>(items: T, itemDisplayTypeSingular?: string): FormulaArray<ToFormulaDataType<T[number], true>> {
+  static from<T extends unknown[]>(items: T, itemDisplayTypeSingular?: string): FormulaArray<ToFormulaDataType<T[number], true>> {
     const converted = FormulaArray.convert(items);
     return new FormulaArray(converted, itemDisplayTypeSingular);
   }
 
-  public static isValidInput(input: unknown): input is FormulaDataType[] {
+  static isValidInput(input: unknown): input is FormulaDataType[] {
     return Array.isArray(input) && input.every((item) => item instanceof FormulaDataType);
   }
 
-  public static isOfType<T extends Kind = 'any'>(instance: FormulaDataType, kind?: T): instance is FormulaArray<InferFormulaDataTypeByKind<T>> {
+  static isOfType<T extends Kind = 'any'>(instance: FormulaDataType, kind?: T): instance is FormulaArray<InferFormulaDataTypeByKind<T>> {
     if (!kind || kind === 'any') {
       return instance instanceof FormulaArray;
     }
@@ -50,7 +48,7 @@ export class FormulaArray<TItem extends FormulaDataType = FormulaDataType> exten
     return instance instanceof FormulaArray && instance.value.every((item) => item instanceof FormulaDataType && item.kind === kind);
   }
 
-  public static flatValues(instance: FormulaArray): FormulaDataType[] {
+  static flatValues(instance: FormulaArray): FormulaDataType[] {
     return instance.value.flatMap((value) => {
       return FormulaArray.isOfType(value) ? FormulaArray.flatValues(value) : value;
     });

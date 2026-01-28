@@ -72,30 +72,23 @@ export interface FormulaRuntimeOptions<T extends FormulaNode> {
  * ```
  */
 export class FormulaRuntime<T extends FormulaNode> {
-  private readonly executor: Executor;
-
-  private readonly scheduler: Scheduler;
-
-  private readonly adapter: NodeAdapter<T>;
-
-  private readonly nodeProvider: (id: string) => T | undefined;
-
-  private readonly queue = new RecalculationQueue();
-
-  private readonly graph = new DependencyGraph();
-
-  private readonly validator = new FormulaValidator();
-
+  readonly #executor: Executor;
+  readonly #scheduler: Scheduler;
+  readonly #adapter: NodeAdapter<T>;
+  readonly #nodeProvider: (id: string) => T | undefined;
+  readonly #queue = new RecalculationQueue();
+  readonly #graph = new DependencyGraph();
+  readonly #validator = new FormulaValidator();
   // Track objects for GC-based cleanup
-  private readonly finalizer: FinalizationRegistry<string>;
+  readonly #finalizer: FinalizationRegistry<string>;
 
   constructor(options: FormulaRuntimeOptions<T>) {
-    this.nodeProvider = options.nodeProvider;
-    this.adapter = options.adapter;
-    this.executor = options.executor;
-    this.scheduler = options.scheduler;
-    this.finalizer = new FinalizationRegistry<string>((id) => {
-      this.graph.removeAll(id);
+    this.#nodeProvider = options.nodeProvider;
+    this.#adapter = options.adapter;
+    this.#executor = options.executor;
+    this.#scheduler = options.scheduler;
+    this.#finalizer = new FinalizationRegistry<string>((id) => {
+      this.#graph.removeAll(id);
       options.onNodeCleanup?.(id);
     });
   }
@@ -103,31 +96,31 @@ export class FormulaRuntime<T extends FormulaNode> {
   /**
    * Enqueue nodeId for processing and schedule batch if needed.
    */
-  public enqueue(nodeId: string): void {
-    this.queue.enqueue(nodeId);
+  enqueue(nodeId: string): void {
+    this.#queue.enqueue(nodeId);
     FormulaDebugger.traceEnqueue(nodeId, 'Manual enqueue');
-    this.scheduler.scheduleIfIdle(
-      async () => this.processQueue(),
-      { queueSize: this.queue.size() },
+    this.#scheduler.scheduleIfIdle(
+      async () => this.#processQueue(),
+      { queueSize: this.#queue.size() },
     );
   }
 
   /**
    * Enqueues all dependents of a node and schedules batch processing.
    */
-  public enqueueDependents(id: string): void {
-    const dependents = this.graph.getDependents(id);
+  enqueueDependents(id: string): void {
+    const dependents = this.#graph.getDependents(id);
 
     for (const dependentId of dependents) {
-      this.queue.enqueue(dependentId);
+      this.#queue.enqueue(dependentId);
       FormulaDebugger.traceEnqueue(dependentId, `Cascade from ${id}`);
     }
 
     // Schedule processing if items were enqueued
     if (dependents.length > 0) {
-      this.scheduler.scheduleIfIdle(
-        async () => this.processQueue(),
-        { queueSize: this.queue.size() },
+      this.#scheduler.scheduleIfIdle(
+        async () => this.#processQueue(),
+        { queueSize: this.#queue.size() },
       );
     }
   }
@@ -136,8 +129,8 @@ export class FormulaRuntime<T extends FormulaNode> {
    * Waits for all currently scheduled processing to complete.
    * Returns immediately if no processing is scheduled.
    */
-  public async waitForProcessing(): Promise<void> {
-    const promise = this.scheduler.getProcessingPromise();
+  async waitForProcessing(): Promise<void> {
+    const promise = this.#scheduler.getProcessingPromise();
 
     if (promise) {
       await promise;
@@ -148,28 +141,28 @@ export class FormulaRuntime<T extends FormulaNode> {
    * Registers an object so that when it is garbage-collected, runtime cleans up graph & registry.
    * Library users call this via PropertyManager; implementation detail hidden.
    */
-  public register(nodeId: string, target: object): void {
-    this.finalizer.register(target, nodeId);
+  register(nodeId: string, target: object): void {
+    this.#finalizer.register(target, nodeId);
   }
 
   /**
    * Explicitly removes registration of an object if it was removed manually.
    */
-  public unregister(target: FormulaNode): void {
-    this.finalizer.unregister(target);
+  unregister(target: FormulaNode): void {
+    this.#finalizer.unregister(target);
   }
 
-  private async processQueue(): Promise<void> {
+  async #processQueue(): Promise<void> {
     // "using" declarations for automatic resource management
     using session = QueueProcessor.createSession({
-      dequeue: () => this.queue.dequeue(),
-      onStart: () => this.scheduler.markProcessingStarted(),
-      onComplete: () => this.scheduler.markProcessingComplete(),
+      dequeue: () => this.#queue.dequeue(),
+      onStart: () => this.#scheduler.markProcessingStarted(),
+      onComplete: () => this.#scheduler.markProcessingComplete(),
     });
 
     try {
       for await (const nodeId of session.processItems()) {
-        await this.processQueueItem(nodeId);
+        await this.#processQueueItem(nodeId);
       }
     }
     catch (error) {
@@ -179,7 +172,7 @@ export class FormulaRuntime<T extends FormulaNode> {
     }
     finally {
       // Check if more items were added during processing and schedule if needed
-      this.scheduleAdditionalProcessingIfNeeded();
+      this.#scheduleAdditionalProcessingIfNeeded();
     }
     // session automatically disposed thanks to 'using'
   }
@@ -187,30 +180,30 @@ export class FormulaRuntime<T extends FormulaNode> {
   /**
    * Process individual queue item with comprehensive error handling.
    */
-  private async processQueueItem(nodeId: string): Promise<void> {
+  async #processQueueItem(nodeId: string): Promise<void> {
     try {
-      const processingContext = await this.extractAndValidateNode(nodeId);
+      const processingContext = await this.#extractAndValidateNode(nodeId);
       if (!processingContext) {
         return;
       }
 
-      const { result, dependencies } = await this.executor.exec({
+      const { result, dependencies } = await this.#executor.exec({
         expression: processingContext.expression,
         context: processingContext.context,
       });
 
       // Update result
-      this.adapter.onCalculate(processingContext.node, result, new Set(dependencies));
+      this.#adapter.onCalculate(processingContext.node, result, new Set(dependencies));
 
-      const dependents = this.graph.getDependents(nodeId);
+      const dependents = this.#graph.getDependents(nodeId);
 
       for (const dependentId of dependents) {
-        this.queue.enqueue(dependentId);
+        this.#queue.enqueue(dependentId);
         FormulaDebugger.traceEnqueue(dependentId, `Cascade from ${nodeId}`);
       }
     }
     catch (error) {
-      const node = this.nodeProvider(nodeId);
+      const node = this.#nodeProvider(nodeId);
       if (!node) {
         return;
       }
@@ -218,27 +211,27 @@ export class FormulaRuntime<T extends FormulaNode> {
       const err = error instanceof Error ? error : new Error(String(error));
       FormulaDebugger.traceError(nodeId, err);
 
-      this.adapter.onError(node, err);
+      this.#adapter.onError(node, err);
     }
   }
 
   /**
    * Extract and validate node for processing.
    */
-  private async extractAndValidateNode(nodeId: string): Promise<{
+  async #extractAndValidateNode(nodeId: string): Promise<{
     node: T;
     expression: Expression;
     context: Record<string, FormulaDataType>;
     dependencies: ReadonlySet<string>;
   } | null> {
-    const node = this.nodeProvider(nodeId);
-    if (!node || !this.adapter.shouldProcess(node)) {
+    const node = this.#nodeProvider(nodeId);
+    if (!node || !this.#adapter.shouldProcess(node)) {
       return null;
     }
 
-    let expression = this.adapter.toExpression(node);
+    let expression = this.#adapter.toExpression(node);
 
-    const formulaValidation = this.validator.validateFormula(expression);
+    const formulaValidation = this.#validator.validateFormula(expression);
     if (!formulaValidation.isValid) {
       throw formulaValidation.error;
     }
@@ -252,22 +245,22 @@ export class FormulaRuntime<T extends FormulaNode> {
     const staticDeps = expression.extractDependencies();
 
     // Validate using FormulaValidator
-    const depsValidation = this.validator.validateDependencies(nodeId, staticDeps);
+    const depsValidation = this.#validator.validateDependencies(nodeId, staticDeps);
     if (!depsValidation.isValid) {
       throw depsValidation.error;
     }
 
     // Update dependency graph
-    this.graph.replaceDependencies(nodeId, staticDeps);
+    this.#graph.replaceDependencies(nodeId, staticDeps);
 
     // Validate depth after updating dependencies
-    const depthValidation = this.validator.validateDepth(nodeId, this.graph);
+    const depthValidation = this.#validator.validateDepth(nodeId, this.#graph);
     if (!depthValidation.isValid) {
       throw depthValidation.error;
     }
 
     // Build execution context
-    const context = this.buildExecutionContext(staticDeps);
+    const context = this.#buildExecutionContext(staticDeps);
 
     return { node, expression, context, dependencies: staticDeps };
   }
@@ -275,14 +268,14 @@ export class FormulaRuntime<T extends FormulaNode> {
   /**
    * Build execution context from dependencies.
    */
-  private buildExecutionContext(dependencies: ReadonlySet<string>): Record<string, FormulaDataType> {
+  #buildExecutionContext(dependencies: ReadonlySet<string>): Record<string, FormulaDataType> {
     const context: Record<string, FormulaDataType> = {};
 
     for (const depId of dependencies) {
-      const dep = this.nodeProvider(depId);
+      const dep = this.#nodeProvider(depId);
 
       if (dep) {
-        const value = this.adapter.toFormulaDataType(dep);
+        const value = this.#adapter.toFormulaDataType(dep);
         context[depId] = value;
       }
     }
@@ -294,11 +287,11 @@ export class FormulaRuntime<T extends FormulaNode> {
    * Schedule additional processing if more items were added during processing.
    * This ensures all cascaded updates are processed.
    */
-  private scheduleAdditionalProcessingIfNeeded(): void {
-    if (this.queue.size() > 0) {
-      this.scheduler.scheduleIfIdle(
-        async () => this.processQueue(),
-        { queueSize: this.queue.size() },
+  #scheduleAdditionalProcessingIfNeeded(): void {
+    if (this.#queue.size() > 0) {
+      this.#scheduler.scheduleIfIdle(
+        async () => this.#processQueue(),
+        { queueSize: this.#queue.size() },
       );
     }
   }

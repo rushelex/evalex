@@ -3,9 +3,13 @@ import type { ArgumentsPattern } from './arguments-definitions';
 import { CallbackArgument } from './callback-argument';
 
 export class RoutineArguments<const T extends ArgumentsPattern | ReadonlyArray<ArgumentsPattern> = ArgumentsPattern | ReadonlyArray<ArgumentsPattern>> {
-  constructor(public readonly alternatives: T) {}
+  readonly alternatives: T;
 
-  public toMethodArgs() {
+  constructor(alternatives: T) {
+    this.alternatives = alternatives;
+  }
+
+  toMethodArgs() {
     const alts = this.alternatives;
 
     if (!alts.length) {

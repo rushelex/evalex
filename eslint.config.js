@@ -28,6 +28,16 @@ export default antfu(
 
       'style/arrow-parens': ['error', 'always'],
       'style/no-trailing-spaces': 'warn',
+      'style/lines-between-class-members': [
+        'warn',
+        {
+          enforce: [
+            { blankLine: 'always', prev: 'method', next: '*' },
+            { blankLine: 'always', prev: '*', next: 'method' },
+            { blankLine: 'never', prev: 'field', next: 'field' },
+          ],
+        },
+      ],
 
       'perfectionist/sort-imports': [
         'warn',

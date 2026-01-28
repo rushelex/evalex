@@ -21,14 +21,18 @@ export interface EvaluateResult {
 }
 
 export class Expression {
-  constructor(public readonly formula: string) {}
+  readonly formula: string;
+
+  constructor(formula: string) {
+    this.formula = formula;
+  }
 
   /**
    * Parses a formula string and returns its AST.
    * Caches the AST for reuse.
    * @returns The AST of the parsed formula.
    */
-  public parse(): AST.AstNode {
+  parse(): AST.AstNode {
     if (!astCache.has(this.formula)) {
       astCache.set(this.formula, parse(this.formula));
     }
@@ -41,7 +45,7 @@ export class Expression {
    * @param ast Optional AST of the formula. If not provided, it will be parsed.
    * @returns A set of static dependency ids.
    */
-  public extractDependencies(ast = this.parse()): ReadonlySet<string> {
+  extractDependencies(ast = this.parse()): ReadonlySet<string> {
     if (!dependenciesCache.has(this.formula)) {
       dependenciesCache.set(this.formula, DependencyExtractorVisitor.getDependencies(ast));
     }
@@ -54,7 +58,7 @@ export class Expression {
    * @param options Optional configuration for the evaluation.
    * @returns The result and active dependencies of the evaluation.
    */
-  public evaluate(options: EvaluateOptions = {}): EvaluateResult {
+  evaluate(options: EvaluateOptions = {}): EvaluateResult {
     const ast = this.parse();
 
     let initialProperties = new Map<string, FormulaDataType>();

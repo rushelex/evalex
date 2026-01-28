@@ -10,11 +10,11 @@ export abstract class Executor {
    * @param request - The formula execution request
    * @returns The execution result (sync or async)
    */
-  public abstract exec(request: FormulaExecRequest): FormulaExecResult | Promise<FormulaExecResult>;
+  abstract exec(request: FormulaExecRequest): FormulaExecResult | Promise<FormulaExecResult>;
 
   /**
    * Optional cleanup method for executors that need it.
    * @returns Promise that resolves when cleanup is complete
    */
-  public abstract terminate(): Promise<void>;
+  abstract terminate(): Promise<void>;
 }

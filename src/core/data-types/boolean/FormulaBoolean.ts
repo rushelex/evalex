@@ -14,19 +14,19 @@ export class FormulaBoolean extends FormulaDataType<boolean> {
     super('boolean', value, 'Boolean');
   }
 
-  public isEmpty(): boolean {
+  isEmpty(): boolean {
     return !this.value;
   }
 
-  public toString(): string {
+  toString(): string {
     return this.value ? 'true' : 'false';
   }
 
-  public static from(input: boolean): FormulaBoolean {
+  static from(input: boolean): FormulaBoolean {
     return new FormulaBoolean(input);
   }
 
-  public static isValidInput(input: unknown): input is boolean {
+  static isValidInput(input: unknown): input is boolean {
     return typeof input === 'boolean';
   }
 }

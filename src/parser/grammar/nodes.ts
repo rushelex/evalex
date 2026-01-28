@@ -13,115 +13,175 @@ import type {
 } from '../ast';
 
 export class LiteralNode implements ILiteralNode {
-  public type = 'Literal' as const;
+  type = 'Literal' as const;
+  value: string | number | boolean | null;
+  raw: string;
+  location: Location;
 
   constructor(
-    public value: string | number | boolean | null,
-    public raw: string,
-    public location: Location,
-  ) {}
+    value: string | number | boolean | null,
+    raw: string,
+    location: Location,
+  ) {
+    this.value = value;
+    this.raw = raw;
+    this.location = location;
+  }
 
-  public accept<T>(visitor: IVisitor<T>): T {
+  accept<T>(visitor: IVisitor<T>): T {
     return visitor.visitLiteralNode(this);
   }
 }
 
 export class IdentifierNode implements IIdentifierNode {
-  public type = 'Identifier' as const;
+  type = 'Identifier' as const;
+  name: string;
+  location: Location;
 
   constructor(
-    public name: string,
-    public location: Location,
-  ) {}
+    name: string,
+    location: Location,
+  ) {
+    this.name = name;
+    this.location = location;
+  }
 
-  public accept<T>(visitor: IVisitor<T>): T {
+  accept<T>(visitor: IVisitor<T>): T {
     return visitor.visitIdentifierNode(this);
   }
 }
 
 export class UnaryExpressionNode implements IUnaryExpressionNode {
-  public type = 'UnaryExpression' as const;
+  type = 'UnaryExpression' as const;
+  operator: string;
+  arg: AstNode;
+  prefix: boolean;
+  location: Location;
 
   constructor(
-    public operator: string,
-    public arg: AstNode,
-    public prefix: boolean,
-    public location: Location,
-  ) {}
+    operator: string,
+    arg: AstNode,
+    prefix: boolean,
+    location: Location,
+  ) {
+    this.operator = operator;
+    this.arg = arg;
+    this.prefix = prefix;
+    this.location = location;
+  }
 
-  public accept<T>(visitor: IVisitor<T>): T {
+  accept<T>(visitor: IVisitor<T>): T {
     return visitor.visitUnaryExpressionNode(this);
   }
 }
 
 export class BinaryExpressionNode implements IBinaryExpressionNode {
-  public type = 'BinaryExpression' as const;
+  type = 'BinaryExpression' as const;
+  operator: string;
+  left: AstNode;
+  right: AstNode;
+  location: Location;
 
   constructor(
-    public operator: string,
-    public left: AstNode,
-    public right: AstNode,
-    public location: Location,
-  ) {}
+    operator: string,
+    left: AstNode,
+    right: AstNode,
+    location: Location,
+  ) {
+    this.operator = operator;
+    this.left = left;
+    this.right = right;
+    this.location = location;
+  }
 
-  public accept<T>(visitor: IVisitor<T>): T {
+  accept<T>(visitor: IVisitor<T>): T {
     return visitor.visitBinaryExpressionNode(this);
   }
 }
 
 export class CallExpressionNode implements ICallExpressionNode {
-  public type = 'CallExpression' as const;
+  type = 'CallExpression' as const;
+  callee: IIdentifierNode | IMemberExpressionNode;
+  args: AstNode[];
+  location: Location;
 
   constructor(
-    public callee: IIdentifierNode | IMemberExpressionNode,
-    public args: AstNode[],
-    public location: Location,
-  ) {}
+    callee: IIdentifierNode | IMemberExpressionNode,
+    args: AstNode[],
+    location: Location,
+  ) {
+    this.callee = callee;
+    this.args = args;
+    this.location = location;
+  }
 
-  public accept<T>(visitor: IVisitor<T>): T {
+  accept<T>(visitor: IVisitor<T>): T {
     return visitor.visitCallExpressionNode(this);
   }
 }
 
 export class MemberExpressionNode implements IMemberExpressionNode {
-  public type = 'MemberExpression' as const;
+  type = 'MemberExpression' as const;
+  object: AstNode;
+  property: IIdentifierNode;
+  computed: false;
+  location: Location;
 
   constructor(
-    public object: AstNode,
-    public property: IIdentifierNode,
-    public computed: false = false,
-    public location: Location,
-  ) {}
+    object: AstNode,
+    property: IIdentifierNode,
+    computed: false = false,
+    location: Location,
+  ) {
+    this.object = object;
+    this.property = property;
+    this.computed = computed;
+    this.location = location;
+  }
 
-  public accept<T>(visitor: IVisitor<T>): T {
+  accept<T>(visitor: IVisitor<T>): T {
     return visitor.visitMemberExpressionNode(this);
   }
 }
 
 export class ConditionalExpressionNode implements IConditionalExpressionNode {
-  public type = 'ConditionalExpression' as const;
+  type = 'ConditionalExpression' as const;
+  test: AstNode;
+  consequent: AstNode;
+  alternate: AstNode;
+  location: Location;
 
   constructor(
-    public test: AstNode,
-    public consequent: AstNode,
-    public alternate: AstNode,
-    public location: Location,
-  ) {}
+    test: AstNode,
+    consequent: AstNode,
+    alternate: AstNode,
+    location: Location,
+  ) {
+    this.test = test;
+    this.consequent = consequent;
+    this.alternate = alternate;
+    this.location = location;
+  }
 
-  public accept<T>(visitor: IVisitor<T>): T {
+  accept<T>(visitor: IVisitor<T>): T {
     return visitor.visitConditionalExpressionNode(this);
   }
 }
 
 export class ArrayExpressionNode implements IArrayExpressionNode {
-  public type = 'ArrayExpression' as const;
+  type = 'ArrayExpression' as const;
+  elements: AstNode[];
+  location: Location;
 
   constructor(
-    public elements: AstNode[],
-    public location: Location,
-  ) {}
+    elements: AstNode[],
+    location: Location,
+  ) {
+    this.elements = elements;
+    this.location = location;
+  }
 
-  public accept<T>(visitor: IVisitor<T>): T {
+  accept<T>(visitor: IVisitor<T>): T {
     return visitor.visitArrayExpressionNode(this);
   }
 }

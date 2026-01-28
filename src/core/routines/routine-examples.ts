@@ -3,18 +3,20 @@ import type { RoutineExampleOptions } from './routine-example';
 import { RoutineExample } from './routine-example';
 
 export class RoutineExamples {
-  public readonly examples: RoutineExample[];
+  readonly routineName: string;
+  readonly examples: RoutineExample[];
 
   constructor(
-    public readonly routineName: string,
+    routineName: string,
     examples: RoutineExampleOptions[],
   ) {
+    this.routineName = routineName;
     this.examples = examples.map((options) => {
       return new RoutineExample(this.routineName, options);
     });
   }
 
-  public toFunctionExamples(): RoutineExample[] {
+  toFunctionExamples(): RoutineExample[] {
     return this.examples.map((example) => {
       const functionCall = example.toFunctionCall();
 
@@ -29,7 +31,7 @@ export class RoutineExamples {
     });
   }
 
-  public toMethodExamples(): RoutineExample[] {
+  toMethodExamples(): RoutineExample[] {
     return this.examples.map((example) => {
       const methodCall = example.toMethodCall();
 

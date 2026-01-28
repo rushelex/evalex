@@ -14,10 +14,10 @@ import { TypeFormatter } from './type-formatter';
  * Centralizes error creation logic with consistent formatting.
  */
 export class ValidationErrorFactory {
-  private readonly typeFormatter: TypeFormatter;
+  readonly #typeFormatter: TypeFormatter;
 
   constructor() {
-    this.typeFormatter = new TypeFormatter();
+    this.#typeFormatter = new TypeFormatter();
   }
 
   /**
@@ -28,7 +28,7 @@ export class ValidationErrorFactory {
    * @param globalLocation The location of the global error
    * @returns Validation error info
    */
-  public createCountError(
+  createCountError(
     expected: [number, number],
     actual: number,
     hasRepeatable: boolean = false,
@@ -87,12 +87,12 @@ export class ValidationErrorFactory {
    * @param position The 1-based position of the argument
    * @returns Validation error info
    */
-  public createTypeError(
+  createTypeError(
     arg: ProcessedArgument,
     argDef: Argument,
     position: number,
   ): FormulaError {
-    const expectedTypeStr = this.typeFormatter.formatTypes(argDef.types);
+    const expectedTypeStr = this.#typeFormatter.formatTypes(argDef.types);
 
     return new ArgumentFormulaError(
       `Expected type ${expectedTypeStr}.`,
@@ -114,7 +114,7 @@ export class ValidationErrorFactory {
    * @param position The 1-based position of the argument
    * @returns Validation error info or undefined if no validation message
    */
-  public createCustomValidationError(
+  createCustomValidationError(
     arg: ProcessedArgument,
     argDef: Argument,
     position: number,
@@ -144,7 +144,7 @@ export class ValidationErrorFactory {
    * @param position The 1-based position of the argument
    * @returns Validation error info
    */
-  public createUnexpectedArgumentError(
+  createUnexpectedArgumentError(
     arg: ProcessedArgument | CallbackExecutor,
     position: number,
   ): FormulaError {
@@ -168,7 +168,7 @@ export class ValidationErrorFactory {
    * @param position The 1-based position of the argument
    * @returns Validation error info
    */
-  public createCallbackTypeError(
+  createCallbackTypeError(
     arg: ProcessedArgument,
     argDef: CallbackArgument,
     position: number,
@@ -193,13 +193,13 @@ export class ValidationErrorFactory {
    * @param position The 1-based position of the argument
    * @returns Validation error info
    */
-  public createWrongCallbackError(
+  createWrongCallbackError(
     arg: CallbackExecutor,
     argDef: Argument,
     position: number,
   ): FormulaError {
     return new ArgumentFormulaError(
-      `Expected type ${this.typeFormatter.formatTypes(argDef.types)}, but got callback.`,
+      `Expected type ${this.#typeFormatter.formatTypes(argDef.types)}, but got callback.`,
       {
         context: {
           argumentPosition: position,
@@ -218,7 +218,7 @@ export class ValidationErrorFactory {
    * @param globalLocation The location of the global error
    * @returns Validation error info
    */
-  public createPatternMismatchError(
+  createPatternMismatchError(
     patterns: readonly ArgumentsPattern[],
     patternErrors: FormulaError[],
     globalLocation: AST.Location,
@@ -256,7 +256,7 @@ export class ValidationErrorFactory {
    * @param globalLocation The location of the global error
    * @returns Validation error info for unknown errors
    */
-  public createUnknownError(globalLocation: AST.Location): FormulaError {
+  createUnknownError(globalLocation: AST.Location): FormulaError {
     return new ArgumentFormulaError(
       'Unknown validation error.',
       {

@@ -8,7 +8,7 @@ import { Executor } from './executor';
  * Useful for SSR, tests, or small datasets.
  */
 export class SyncExecutor extends Executor {
-  public exec(request: FormulaExecRequest): FormulaExecResult {
+  exec(request: FormulaExecRequest): FormulaExecResult {
     const { result, dependencies } = request.expression.evaluate({
       context: request.context,
     });
@@ -19,7 +19,7 @@ export class SyncExecutor extends Executor {
     };
   }
 
-  public async terminate(): Promise<void> {
+  async terminate(): Promise<void> {
     // Do nothing
   }
 }

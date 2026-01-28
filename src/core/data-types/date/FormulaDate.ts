@@ -9,25 +9,25 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime> {
     super('date', value, 'Date');
   }
 
-  public isEmpty(): boolean {
+  isEmpty(): boolean {
     return false;
   }
 
-  public toString(): string {
+  toString(): string {
     return this.value.toLocaleString();
   }
 
-  public static from(date: string | number | Date | Temporal.ZonedDateTime): FormulaDate {
+  static from(date: string | number | Date | Temporal.ZonedDateTime): FormulaDate {
     if (typeof date === 'number') {
-      return FormulaDate.fromJSDate(new Date(date));
+      return FormulaDate.#fromJSDate(new Date(date));
     }
 
     if (date instanceof Date) {
-      return FormulaDate.fromJSDate(date);
+      return FormulaDate.#fromJSDate(date);
     }
 
     if (date instanceof Temporal.ZonedDateTime) {
-      return FormulaDate.fromZonedDateTime(date);
+      return FormulaDate.#fromZonedDateTime(date);
     }
 
     const parsers: (() => FormulaDate)[] = [
@@ -38,10 +38,10 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime> {
           throw new TypeError('Invalid JS Date');
         }
 
-        return FormulaDate.fromJSDate(jsDate);
+        return FormulaDate.#fromJSDate(jsDate);
       },
       () => {
-        return FormulaDate.fromZonedDateTime(Temporal.ZonedDateTime.from(date));
+        return FormulaDate.#fromZonedDateTime(Temporal.ZonedDateTime.from(date));
       },
     ];
 
@@ -55,14 +55,14 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime> {
     throw new TypeError(`Failed to parse date string: "${date}"`);
   }
 
-  public static isValidInput(date: unknown): date is string | number | Date | Temporal.ZonedDateTime {
+  static isValidInput(date: unknown): date is string | number | Date | Temporal.ZonedDateTime {
     return typeof date === 'string'
       || typeof date === 'number'
       || date instanceof Date
       || date instanceof Temporal.ZonedDateTime;
   }
 
-  private static fromJSDate(date: Date) {
+  static #fromJSDate(date: Date) {
     return new FormulaDate(
       Temporal.ZonedDateTime.from({
         year: date.getUTCFullYear(),
@@ -77,7 +77,7 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime> {
     );
   }
 
-  private static fromZonedDateTime(value: Temporal.ZonedDateTime) {
+  static #fromZonedDateTime(value: Temporal.ZonedDateTime) {
     return new FormulaDate(value.withTimeZone('UTC'));
   }
 }

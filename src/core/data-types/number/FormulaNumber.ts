@@ -14,19 +14,19 @@ export class FormulaNumber extends FormulaDataType<number> {
     super('number', value, 'Number');
   }
 
-  public isEmpty(): boolean {
+  isEmpty(): boolean {
     return this.value === 0;
   }
 
-  public toString(): string {
+  toString(): string {
     return String(this.value);
   }
 
-  public static from(input: number): FormulaNumber {
+  static from(input: number): FormulaNumber {
     return new FormulaNumber(input);
   }
 
-  public static isValidInput(input: unknown): input is number {
+  static isValidInput(input: unknown): input is number {
     return typeof input === 'number';
   }
 }

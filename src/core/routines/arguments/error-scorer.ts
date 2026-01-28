@@ -11,7 +11,11 @@ import { ProcessedArgument } from './processed-argument';
  * Higher scores indicate better error quality (more relevant to user's intent).
  */
 export class ErrorScorer {
-  constructor(private readonly definitions: ArgumentsDefinitions) {}
+  readonly #definitions: ArgumentsDefinitions;
+
+  constructor(definitions: ArgumentsDefinitions) {
+    this.#definitions = definitions;
+  }
 
   /**
    * Calculates a score for how well arguments match a pattern.
@@ -21,9 +25,9 @@ export class ErrorScorer {
    * @param pattern The pattern to score against
    * @returns Score (higher is better, 0 means no match)
    */
-  public calculatePatternScore(args: ProcessedArguments, pattern: ArgumentsPattern): number {
-    const requiredCount = this.definitions.getRequiredCount(pattern);
-    const maxCount = this.definitions.getMaxCount(pattern);
+  calculatePatternScore(args: ProcessedArguments, pattern: ArgumentsPattern): number {
+    const requiredCount = this.#definitions.getRequiredCount(pattern);
+    const maxCount = this.#definitions.getMaxCount(pattern);
 
     if (args.length < requiredCount || args.length > maxCount) {
       return 0;
@@ -34,7 +38,7 @@ export class ErrorScorer {
     let literalFailures = 0;
 
     args.forEach((arg, index) => {
-      const argDef = this.definitions.getArgumentForPattern(index, pattern);
+      const argDef = this.#definitions.getArgumentForPattern(index, pattern);
       const actualType = arg instanceof ProcessedArgument ? arg.dataType.kind : 'any';
 
       if (!argDef) {
@@ -52,10 +56,10 @@ export class ErrorScorer {
         return;
       }
 
-      if (this.isTypeMatch(actualType, argDef.types)) {
+      if (this.#isTypeMatch(actualType, argDef.types)) {
         typeMatches++;
 
-        if (!this.isCustomValidationPass(arg, argDef)) {
+        if (!this.#isCustomValidationPass(arg, argDef)) {
           literalFailures++;
           score += 10;
         }
@@ -79,7 +83,7 @@ export class ErrorScorer {
    * @param expectedTypes Single expected type or array of expected types
    * @returns True if types match
    */
-  private isTypeMatch(actualType: Kind, expectedTypes: Kind | readonly Kind[]): boolean {
+  #isTypeMatch(actualType: Kind, expectedTypes: Kind | readonly Kind[]): boolean {
     const expectedTypesArray = Array.isArray(expectedTypes) ? expectedTypes : [expectedTypes];
     return expectedTypesArray.includes(actualType) || expectedTypesArray.includes('any');
   }
@@ -90,7 +94,7 @@ export class ErrorScorer {
    * @param argDef The argument definition with optional validation
    * @returns True if validation passes or no validation is defined
    */
-  private isCustomValidationPass(arg: ProcessedArgument, argDef: Argument): boolean {
+  #isCustomValidationPass(arg: ProcessedArgument, argDef: Argument): boolean {
     return !argDef.validation?.(arg.dataType);
   }
 }

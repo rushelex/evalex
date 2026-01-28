@@ -120,10 +120,8 @@ interface ExamplesAPI {
 
 export class RoutineTester {
   readonly #routineName: string;
-
   readonly #suite: SuiteAPI;
   readonly #test: TestAPI;
-
   readonly #generator: RoutineTestGenerator;
 
   constructor(

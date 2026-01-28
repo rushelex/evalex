@@ -6,14 +6,15 @@ export interface RoutineExampleOptions {
 }
 
 export class RoutineExample {
-  public readonly formula: string;
-
-  public readonly result: () => FormulaDataType;
+  readonly routineName: string;
+  readonly formula: string;
+  readonly result: () => FormulaDataType;
 
   constructor(
-    public readonly routineName: string,
+    routineName: string,
     options: RoutineExampleOptions,
   ) {
+    this.routineName = routineName;
     this.formula = options.formula((...args) => `${this.routineName}(${args.join(', ')})`);
     this.result = options.result;
   }
@@ -23,7 +24,7 @@ export class RoutineExample {
    * [1,2,3].format() -> format([1,2,3])
    * [1,2,3].map(current * 2) -> map([1,2,3], current * 2)
    */
-  public toFunctionCall(): string {
+  toFunctionCall(): string {
     const methodCallRegex = new RegExp(`(.+)\\.${this.routineName}\\s*\\((.*)?\\)`);
     const match = this.formula.match(methodCallRegex);
 
@@ -47,7 +48,7 @@ export class RoutineExample {
    * format([1,2,3]) -> [1,2,3].format()
    * map([1,2,3], current * 2) -> [1,2,3].map(current * 2)
    */
-  public toMethodCall(): string {
+  toMethodCall(): string {
     const functionCallRegex = new RegExp(`\\s?${this.routineName}\\s*\\((.*)?\\)`);
     const match = this.formula.match(functionCallRegex);
 
@@ -63,7 +64,7 @@ export class RoutineExample {
       return this.formula;
     }
 
-    const args = this.parseArguments(match[1]);
+    const args = this.#parseArguments(match[1]);
     const firstArg = args[0];
     const restArgs = args.slice(1);
 
@@ -81,7 +82,7 @@ export class RoutineExample {
    * "hello".empty() -> ["hello"]
    * emptyObj.empty() -> ["emptyObj"]
    */
-  private parseArguments(argsString: string): string[] {
+  #parseArguments(argsString: string): string[] {
     const args: string[] = [];
     let currentArg = '';
     let depth = 0;

@@ -30,11 +30,9 @@ import { CircularDependencyError } from './errors';
  * ```
  */
 export class DependencyGraph {
-  private readonly dependencies = new Map<string, Set<string>>();
-
-  private readonly dependents = new Map<string, Set<string>>();
-
-  private readonly analyzer = new DependencyGraphAnalyzer(
+  readonly #dependencies = new Map<string, Set<string>>();
+  readonly #dependents = new Map<string, Set<string>>();
+  readonly #analyzer = new DependencyGraphAnalyzer(
     (nodeId) => this.getDependencies(nodeId),
     (nodeId) => this.getDependents(nodeId),
   );
@@ -48,10 +46,10 @@ export class DependencyGraph {
    * @param deps - The new complete set of dependencies
    * @throws May throw if any of the new dependencies would create a cycle
    */
-  public replaceDependencies(nodeId: string, deps: ReadonlySet<string>): void {
+  replaceDependencies(nodeId: string, deps: ReadonlySet<string>): void {
     // Detect potential cycles before mutating the graph
     for (const dep of deps) {
-      if (this.analyzer.wouldCreateCycle(nodeId, dep)) {
+      if (this.#analyzer.wouldCreateCycle(nodeId, dep)) {
         throw new CircularDependencyError(`Circular dependency detected between ${nodeId} and ${dep}.`, {
           context: {
             nodeId,
@@ -61,23 +59,23 @@ export class DependencyGraph {
       }
     }
 
-    const existing = this.dependencies.get(nodeId) ?? new Set<string>();
+    const existing = this.#dependencies.get(nodeId) ?? new Set<string>();
     for (const dep of existing) {
-      this.dependents.get(dep)?.delete(nodeId);
-      this.maybePrune(dep);
+      this.#dependents.get(dep)?.delete(nodeId);
+      this.#maybePrune(dep);
     }
 
-    this.dependencies.set(nodeId, new Set(deps));
+    this.#dependencies.set(nodeId, new Set(deps));
 
     for (const dep of deps) {
-      if (!this.dependents.has(dep)) {
-        this.dependents.set(dep, new Set());
+      if (!this.#dependents.has(dep)) {
+        this.#dependents.set(dep, new Set());
       }
-      this.dependents.get(dep)!.add(nodeId);
+      this.#dependents.get(dep)!.add(nodeId);
     }
 
     // After replacement, nodeId may have lost all outgoing deps and no incoming
-    this.maybePrune(nodeId);
+    this.#maybePrune(nodeId);
   }
 
   /**
@@ -88,9 +86,9 @@ export class DependencyGraph {
    * @param dependsOnId - The node being depended upon
    * @throws May throw if adding this edge would create a cycle
    */
-  public addDependency(nodeId: string, dependsOnId: string): void {
+  addDependency(nodeId: string, dependsOnId: string): void {
     // Detect potential cycles before mutating the graph
-    if (this.analyzer.wouldCreateCycle(nodeId, dependsOnId)) {
+    if (this.#analyzer.wouldCreateCycle(nodeId, dependsOnId)) {
       throw new CircularDependencyError(`Circular dependency detected between ${nodeId} and ${dependsOnId}.`, {
         context: {
           nodeId,
@@ -99,15 +97,15 @@ export class DependencyGraph {
       });
     }
 
-    if (!this.dependencies.has(nodeId)) {
-      this.dependencies.set(nodeId, new Set());
+    if (!this.#dependencies.has(nodeId)) {
+      this.#dependencies.set(nodeId, new Set());
     }
-    this.dependencies.get(nodeId)!.add(dependsOnId);
+    this.#dependencies.get(nodeId)!.add(dependsOnId);
 
-    if (!this.dependents.has(dependsOnId)) {
-      this.dependents.set(dependsOnId, new Set());
+    if (!this.#dependents.has(dependsOnId)) {
+      this.#dependents.set(dependsOnId, new Set());
     }
-    this.dependents.get(dependsOnId)!.add(nodeId);
+    this.#dependents.get(dependsOnId)!.add(nodeId);
   }
 
   /**
@@ -117,12 +115,12 @@ export class DependencyGraph {
    * @param nodeId - The node that has the dependency
    * @param dependsOnId - The node being depended upon
    */
-  public removeDependency(nodeId: string, dependsOnId: string): void {
-    this.dependencies.get(nodeId)?.delete(dependsOnId);
-    this.dependents.get(dependsOnId)?.delete(nodeId);
+  removeDependency(nodeId: string, dependsOnId: string): void {
+    this.#dependencies.get(nodeId)?.delete(dependsOnId);
+    this.#dependents.get(dependsOnId)?.delete(nodeId);
 
-    this.maybePrune(nodeId);
-    this.maybePrune(dependsOnId);
+    this.#maybePrune(nodeId);
+    this.#maybePrune(dependsOnId);
   }
 
   /**
@@ -132,12 +130,12 @@ export class DependencyGraph {
    *
    * @param nodeId - The node to completely remove
    */
-  public removeAll(nodeId: string): void {
+  removeAll(nodeId: string): void {
     // Collect nodes that might become orphaned
     const nodesToCheck = new Set<string>();
 
     // Nodes that nodeId depends on
-    const dependencies = this.dependencies.get(nodeId);
+    const dependencies = this.#dependencies.get(nodeId);
     if (dependencies) {
       for (const dep of dependencies) {
         nodesToCheck.add(dep);
@@ -145,7 +143,7 @@ export class DependencyGraph {
     }
 
     // Nodes that depend on nodeId
-    const dependents = this.dependents.get(nodeId);
+    const dependents = this.#dependents.get(nodeId);
     if (dependents) {
       for (const dep of dependents) {
         nodesToCheck.add(dep);
@@ -153,25 +151,25 @@ export class DependencyGraph {
     }
 
     // Remove nodeId from all relationships
-    for (const deps of this.dependencies.values()) {
+    for (const deps of this.#dependencies.values()) {
       deps.delete(nodeId);
     }
-    this.dependencies.delete(nodeId);
+    this.#dependencies.delete(nodeId);
 
-    for (const deps of this.dependents.values()) {
+    for (const deps of this.#dependents.values()) {
       deps.delete(nodeId);
     }
-    this.dependents.delete(nodeId);
+    this.#dependents.delete(nodeId);
 
     // Check and prune nodes that might have become orphaned
     for (const node of nodesToCheck) {
-      this.maybePrune(node);
+      this.#maybePrune(node);
     }
   }
 
-  public cleanup() {
-    this.dependencies.clear();
-    this.dependents.clear();
+  cleanup() {
+    this.#dependencies.clear();
+    this.#dependents.clear();
   }
 
   /**
@@ -181,8 +179,8 @@ export class DependencyGraph {
    * @param nodeId - The node to find dependents for
    * @returns Array of node IDs that depend on this node
    */
-  public getDependents(nodeId: string): string[] {
-    return Array.from(this.dependents.get(nodeId) || []);
+  getDependents(nodeId: string): string[] {
+    return Array.from(this.#dependents.get(nodeId) || []);
   }
 
   /**
@@ -192,8 +190,8 @@ export class DependencyGraph {
    * @param nodeId - The node to find dependencies for
    * @returns Array of node IDs that this node depends on
    */
-  public getDependencies(nodeId: string): string[] {
-    return Array.from(this.dependencies.get(nodeId) || []);
+  getDependencies(nodeId: string): string[] {
+    return Array.from(this.#dependencies.get(nodeId) || []);
   }
 
   /**
@@ -202,8 +200,8 @@ export class DependencyGraph {
    *
    * @returns Number of nodes with dependents
    */
-  public getDependentsSize(): number {
-    return this.dependents.size;
+  getDependentsSize(): number {
+    return this.#dependents.size;
   }
 
   /**
@@ -212,8 +210,8 @@ export class DependencyGraph {
    *
    * @returns Number of nodes with dependencies
    */
-  public getDependenciesSize(): number {
-    return this.dependencies.size;
+  getDependenciesSize(): number {
+    return this.#dependencies.size;
   }
 
   /**
@@ -223,8 +221,8 @@ export class DependencyGraph {
    * @param nodeId - The node to find depth for
    * @returns Depth of the node
    */
-  public getNodeDepth(nodeId: string): number {
-    return this.analyzer.getNodeDepth(nodeId);
+  getNodeDepth(nodeId: string): number {
+    return this.#analyzer.getNodeDepth(nodeId);
   }
 
   /**
@@ -234,10 +232,10 @@ export class DependencyGraph {
    * This method is called after any operation that might create orphaned nodes
    * to ensure the graph remains minimal and doesn't leak memory.
    */
-  private maybePrune(nodeId: string): void {
-    if (this.analyzer.isOrphaned(nodeId)) {
-      this.dependencies.delete(nodeId);
-      this.dependents.delete(nodeId);
+  #maybePrune(nodeId: string): void {
+    if (this.#analyzer.isOrphaned(nodeId)) {
+      this.#dependencies.delete(nodeId);
+      this.#dependents.delete(nodeId);
     }
   }
 }

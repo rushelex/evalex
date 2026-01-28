@@ -9,6 +9,10 @@ export interface ToStringOptions {
  * Each concrete data type (string, number, list, etc.) must inherit from this class.
  */
 export abstract class FormulaDataType<TValue = any> {
+  readonly kind: Kind;
+  readonly value: TValue;
+  readonly displayType: string;
+
   /**
    * Constructor for the base formula data type.
    * @param kind The kind of the data type.
@@ -16,20 +20,24 @@ export abstract class FormulaDataType<TValue = any> {
    * @param displayType The display type for the user interface.
    */
   protected constructor(
-    public readonly kind: Kind,
-    public readonly value: TValue,
-    public readonly displayType: string,
-  ) {}
+    kind: Kind,
+    value: TValue,
+    displayType: string,
+  ) {
+    this.kind = kind;
+    this.value = value;
+    this.displayType = displayType;
+  }
 
   /**
    * Checks if the value is considered empty.
    * This is used for functions like empty() and for conditional logic.
    */
-  public abstract isEmpty(): boolean;
+  abstract isEmpty(): boolean;
 
   /**
    * Returns a string representation of the value.
    * This is used for display and debugging purposes.
    */
-  public abstract toString(options?: ToStringOptions): string;
+  abstract toString(options?: ToStringOptions): string;
 }

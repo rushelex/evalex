@@ -7,11 +7,11 @@ interface CallbackArgumentOptions {
 }
 
 export class CallbackArgument {
-  public readonly types = 'any';
-  public readonly name?: string;
-  public readonly optional: boolean;
-  public readonly contextVariables: string[];
-  public readonly returnType: Kind | readonly Kind[];
+  readonly types = 'any';
+  readonly name?: string;
+  readonly optional: boolean;
+  readonly contextVariables: string[];
+  readonly returnType: Kind | readonly Kind[];
 
   constructor(
     contextVariables: string[],

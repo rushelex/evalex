@@ -3,10 +3,16 @@
  * Provides read-only analysis methods without modifying the graph.
  */
 export class DependencyGraphAnalyzer {
+  readonly #getDependencies: (nodeId: string) => string[];
+  readonly #getDependents: (nodeId: string) => string[];
+
   constructor(
-    private readonly getDependencies: (nodeId: string) => string[],
-    private readonly getDependents: (nodeId: string) => string[],
-  ) {}
+    getDependencies: (nodeId: string) => string[],
+    getDependents: (nodeId: string) => string[],
+  ) {
+    this.#getDependencies = getDependencies;
+    this.#getDependents = getDependents;
+  }
 
   /**
    * Checks if adding an edge from 'nodeId' to 'dependsOnId' would create a cycle.
@@ -17,7 +23,7 @@ export class DependencyGraphAnalyzer {
    * @param dependsOnId - The potential target of the new edge
    * @returns true if adding the edge would create a cycle
    */
-  public wouldCreateCycle(nodeId: string, dependsOnId: string): boolean {
+  wouldCreateCycle(nodeId: string, dependsOnId: string): boolean {
     // If nodeId depends on dependsOnId, then dependsOnId cannot depend on nodeId
     const queue = [dependsOnId];
     const visited = new Set<string>([dependsOnId]);
@@ -29,7 +35,7 @@ export class DependencyGraphAnalyzer {
         return true;
       }
 
-      for (const dep of this.getDependencies(current)) {
+      for (const dep of this.#getDependencies(current)) {
         if (!visited.has(dep)) {
           visited.add(dep);
           queue.push(dep);
@@ -48,7 +54,7 @@ export class DependencyGraphAnalyzer {
    * @param nodeId - The node to calculate depth for
    * @returns The maximum depth from this node
    */
-  public getNodeDepth(nodeId: string): number {
+  getNodeDepth(nodeId: string): number {
     const visited = new Set<string>();
 
     const calculateDepth = (currentId: string): number => {
@@ -59,7 +65,7 @@ export class DependencyGraphAnalyzer {
 
       visited.add(currentId);
 
-      const dependencies = this.getDependencies(currentId);
+      const dependencies = this.#getDependencies(currentId);
       if (dependencies.length === 0) {
         visited.delete(currentId);
         return 0;
@@ -84,8 +90,8 @@ export class DependencyGraphAnalyzer {
    *
    * @returns Array of root node IDs
    */
-  public findRoots(allNodeIds: string[]): string[] {
-    return allNodeIds.filter((nodeId) => this.getDependents(nodeId).length === 0);
+  findRoots(allNodeIds: string[]): string[] {
+    return allNodeIds.filter((nodeId) => this.#getDependents(nodeId).length === 0);
   }
 
   /**
@@ -94,8 +100,8 @@ export class DependencyGraphAnalyzer {
    *
    * @returns Array of leaf node IDs
    */
-  public findLeaves(allNodeIds: string[]): string[] {
-    return allNodeIds.filter((nodeId) => this.getDependencies(nodeId).length === 0);
+  findLeaves(allNodeIds: string[]): string[] {
+    return allNodeIds.filter((nodeId) => this.#getDependencies(nodeId).length === 0);
   }
 
   /**
@@ -105,7 +111,7 @@ export class DependencyGraphAnalyzer {
    * @param nodeId - The node to analyze
    * @returns Number of nodes that would be affected
    */
-  public calculateFanOut(nodeId: string): number {
+  calculateFanOut(nodeId: string): number {
     const queue = [nodeId];
     const visited = new Set<string>();
 
@@ -118,7 +124,7 @@ export class DependencyGraphAnalyzer {
 
       visited.add(current);
 
-      for (const dependent of this.getDependents(current)) {
+      for (const dependent of this.#getDependents(current)) {
         queue.push(dependent);
       }
     }
@@ -134,9 +140,9 @@ export class DependencyGraphAnalyzer {
    * @param nodeId - The node to check
    * @returns true if the node has no connections and can be pruned
    */
-  public isOrphaned(nodeId: string): boolean {
-    const hasDependencies = this.getDependencies(nodeId).length > 0;
-    const hasDependents = this.getDependents(nodeId).length > 0;
+  isOrphaned(nodeId: string): boolean {
+    const hasDependencies = this.#getDependencies(nodeId).length > 0;
+    const hasDependents = this.#getDependents(nodeId).length > 0;
 
     return !hasDependencies && !hasDependents;
   }

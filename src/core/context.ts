@@ -5,13 +5,11 @@ import type { FormulaDataType } from './data-types';
  */
 export class FormulaEvaluationContext {
   // Properties available at the top level
-  private globalProperties: Map<string, FormulaDataType>;
-
+  #globalProperties: Map<string, FormulaDataType>;
   // Parent context for nested scopes
-  private parentContext: FormulaEvaluationContext | null;
-
+  #parentContext: FormulaEvaluationContext | null;
   // Local scope for variables
-  private localScope: Map<string, FormulaDataType>;
+  #localScope: Map<string, FormulaDataType>;
 
   /**
    * Creates an instance of BaseFormulaContext.
@@ -24,28 +22,28 @@ export class FormulaEvaluationContext {
     parentContext: FormulaEvaluationContext | null = null,
     initialLocalScope: Map<string, FormulaDataType> = new Map(),
   ) {
-    this.globalProperties = globalProperties;
-    this.parentContext = parentContext;
-    this.localScope = new Map(initialLocalScope); // Copy to avoid external mutations
+    this.#globalProperties = globalProperties;
+    this.#parentContext = parentContext;
+    this.#localScope = new Map(initialLocalScope); // Copy to avoid external mutations
   }
 
   /**
    * Checks if a variable with the given name exists in the current or any parent scope.
    */
-  public hasVariable(name: string): boolean {
+  hasVariable(name: string): boolean {
     // First search in the local scope
-    if (this.localScope.has(name)) {
+    if (this.#localScope.has(name)) {
       return true;
     }
 
     // Then in the global properties of the current context
-    if (this.globalProperties.has(name)) {
+    if (this.#globalProperties.has(name)) {
       return true;
     }
 
     // If there is a parent context, delegate to it
-    if (this.parentContext) {
-      return this.parentContext.hasVariable(name);
+    if (this.#parentContext) {
+      return this.#parentContext.hasVariable(name);
     }
 
     return false;
@@ -54,20 +52,20 @@ export class FormulaEvaluationContext {
   /**
    * Retrieves a variable by its name from the current or any parent scope.
    */
-  public getVariable(name: string): FormulaDataType | undefined {
+  getVariable(name: string): FormulaDataType | undefined {
     // First search in the local scope (variables may override properties)
-    if (this.localScope.has(name)) {
-      return this.localScope.get(name);
+    if (this.#localScope.has(name)) {
+      return this.#localScope.get(name);
     }
 
     // Then in the global properties of the current context
-    if (this.globalProperties.has(name)) {
-      return this.globalProperties.get(name);
+    if (this.#globalProperties.has(name)) {
+      return this.#globalProperties.get(name);
     }
 
     // If there is a parent context, delegate to it
-    if (this.parentContext) {
-      return this.parentContext.getVariable(name);
+    if (this.#parentContext) {
+      return this.#parentContext.getVariable(name);
     }
 
     return undefined;
@@ -78,14 +76,14 @@ export class FormulaEvaluationContext {
    * @param name Variable name.
    * @param value Variable value (must be FormulaDataType).
    */
-  public setVariable(name: string, value: FormulaDataType): void {
-    this.localScope.set(name, value);
+  setVariable(name: string, value: FormulaDataType): void {
+    this.#localScope.set(name, value);
   }
 
   /**
    * To create nested scopes (e.g. for "current" and "index" in array's map method)
    */
-  public createNestedContext(newScopeValues: Record<string, FormulaDataType>): FormulaEvaluationContext {
+  createNestedContext(newScopeValues: Record<string, FormulaDataType>): FormulaEvaluationContext {
     const newLocalScope = new Map<string, FormulaDataType>();
 
     for (const key in newScopeValues) {
@@ -96,6 +94,6 @@ export class FormulaEvaluationContext {
 
     // Global properties are passed by reference from the topmost context
     // or each context has its own copy if needed (current implementation passes a reference)
-    return new FormulaEvaluationContext(this.globalProperties, this, newLocalScope);
+    return new FormulaEvaluationContext(this.#globalProperties, this, newLocalScope);
   }
 }

@@ -27,7 +27,7 @@ export class QueueProcessor {
    * Creates a processing session with automatic lifecycle management.
    * Supports ES2025 'using' declarations.
    */
-  public static createSession(options: CreateSessionOptions): QueueProcessingSession {
+  static createSession(options: CreateSessionOptions): QueueProcessingSession {
     const { dequeue, onStart, onComplete } = options;
     let isDisposed = false;
 

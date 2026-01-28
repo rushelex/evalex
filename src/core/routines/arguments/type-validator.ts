@@ -16,7 +16,7 @@ export class TypeValidator {
    * @param argDef The argument definition to validate against
    * @returns True if the argument is valid
    */
-  public validateArgumentType(arg: ProcessedArgument | CallbackExecutor, argDef: Argument | CallbackArgument): boolean {
+  validateArgumentType(arg: ProcessedArgument | CallbackExecutor, argDef: Argument | CallbackArgument): boolean {
     if (argDef instanceof CallbackArgument) {
       // For CallbackArgument, expect CallbackExecutor (not ProcessedArgument)
       return !(arg instanceof ProcessedArgument);
@@ -27,7 +27,7 @@ export class TypeValidator {
       return false;
     }
 
-    return this.isTypeMatch(arg.dataType.kind, argDef.types) && this.isCustomValidationPass(arg, argDef);
+    return this.#isTypeMatch(arg.dataType.kind, argDef.types) && this.#isCustomValidationPass(arg, argDef);
   }
 
   /**
@@ -36,8 +36,8 @@ export class TypeValidator {
    * @param argDef The argument definition with validation rules
    * @returns True if custom validation passes
    */
-  public validateCustomRules(arg: ProcessedArgument, argDef: Argument): boolean {
-    return this.isCustomValidationPass(arg, argDef);
+  validateCustomRules(arg: ProcessedArgument, argDef: Argument): boolean {
+    return this.#isCustomValidationPass(arg, argDef);
   }
 
   /**
@@ -46,7 +46,7 @@ export class TypeValidator {
    * @param expectedTypes Single expected type or array of expected types
    * @returns True if types match
    */
-  private isTypeMatch(actualType: Kind, expectedTypes: Kind | readonly Kind[]): boolean {
+  #isTypeMatch(actualType: Kind, expectedTypes: Kind | readonly Kind[]): boolean {
     const expectedTypesArray = Array.isArray(expectedTypes) ? expectedTypes : [expectedTypes];
     return expectedTypesArray.includes(actualType) || expectedTypesArray.includes('any');
   }
@@ -57,7 +57,7 @@ export class TypeValidator {
    * @param argDef The argument definition with optional validation
    * @returns True if validation passes or no validation is defined
    */
-  private isCustomValidationPass(arg: ProcessedArgument, argDef: Argument): boolean {
+  #isCustomValidationPass(arg: ProcessedArgument, argDef: Argument): boolean {
     return !argDef.validation?.(arg.dataType);
   }
 }

@@ -10,12 +10,12 @@ import { TypeValidator } from './type-validator';
  * Determines which patterns match the provided arguments.
  */
 export class PatternMatcher {
-  private readonly definitions: ArgumentsDefinitions;
-  private readonly typeValidator: TypeValidator;
+  readonly #definitions: ArgumentsDefinitions;
+  readonly #typeValidator: TypeValidator;
 
   constructor(definitions: ArgumentsDefinitions) {
-    this.definitions = definitions;
-    this.typeValidator = new TypeValidator();
+    this.#definitions = definitions;
+    this.#typeValidator = new TypeValidator();
   }
 
   /**
@@ -23,8 +23,8 @@ export class PatternMatcher {
    * @param args The processed arguments to match
    * @returns The matching pattern or null if no match found
    */
-  public findMatchingPattern(args: ProcessedArguments): ArgumentsPattern | null {
-    for (const pattern of this.definitions.alternatives) {
+  findMatchingPattern(args: ProcessedArguments): ArgumentsPattern | null {
+    for (const pattern of this.#definitions.alternatives) {
       if (this.validatePatternStructure(args, pattern)) {
         return pattern;
       }
@@ -40,13 +40,13 @@ export class PatternMatcher {
    * @param pattern The pattern to validate against
    * @returns True if the pattern matches
    */
-  public validatePatternStructure(args: ProcessedArguments, pattern: ArgumentsPattern): boolean {
-    if (!this.checkArgumentCount(args, pattern)) {
+  validatePatternStructure(args: ProcessedArguments, pattern: ArgumentsPattern): boolean {
+    if (!this.#checkArgumentCount(args, pattern)) {
       return false;
     }
 
     return args.every((arg, index) => {
-      const argDef = this.definitions.getArgumentForPattern(index, pattern);
+      const argDef = this.#definitions.getArgumentForPattern(index, pattern);
 
       if (!argDef) {
         return false;
@@ -62,7 +62,7 @@ export class PatternMatcher {
         return false;
       }
 
-      return this.typeValidator.validateArgumentType(arg, argDef);
+      return this.#typeValidator.validateArgumentType(arg, argDef);
     });
   }
 
@@ -72,9 +72,9 @@ export class PatternMatcher {
    * @param pattern The pattern to check against
    * @returns True if argument count is valid
    */
-  private checkArgumentCount(args: ProcessedArguments, pattern: ArgumentsPattern): boolean {
-    const requiredCount = this.definitions.getRequiredCount(pattern);
-    const maxCount = this.definitions.getMaxCount(pattern);
+  #checkArgumentCount(args: ProcessedArguments, pattern: ArgumentsPattern): boolean {
+    const requiredCount = this.#definitions.getRequiredCount(pattern);
+    const maxCount = this.#definitions.getMaxCount(pattern);
 
     return args.length >= requiredCount && args.length <= maxCount;
   }

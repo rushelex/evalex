@@ -52,11 +52,11 @@ export class FormulaObject<T extends Record<string, FormulaDataType> = Record<st
     super('object', value, displayType || 'Object');
   }
 
-  public isEmpty(): boolean {
+  isEmpty(): boolean {
     return Object.keys(this.value).length === 0;
   }
 
-  public toString(options?: ToStringOptions): string {
+  toString(options?: ToStringOptions): string {
     const entries = Object.entries(this.value).map(([key, value]) => `${key}: ${value.toString({ asJSON: options?.asJSON ?? true })}`);
     if (entries.length === 0)
       return '{}';
@@ -103,7 +103,7 @@ export class FormulaObject<T extends Record<string, FormulaDataType> = Record<st
    * const formulaObj = new FormulaObject(converted);
    * ```
    */
-  public static convert: <T extends Record<string, unknown>>(obj: T) => ToFormulaDataType<T>;
+  static convert: <T extends Record<string, unknown>>(obj: T) => ToFormulaDataType<T>;
 
   /**
    * Creates a new FormulaObject instance from a plain JavaScript object.
@@ -150,7 +150,7 @@ export class FormulaObject<T extends Record<string, FormulaDataType> = Record<st
    * // Returns: FormulaNumber(2)
    * ```
    */
-  public static from<T extends Record<string, unknown>>(value: T): FormulaObject<ToFormulaDataType<T>> {
+  static from<T extends Record<string, unknown>>(value: T): FormulaObject<ToFormulaDataType<T>> {
     const converted = FormulaObject.convert(value);
     return new FormulaObject(converted);
   }

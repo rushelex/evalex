@@ -14,14 +14,14 @@ import { ValidationErrorCollector } from './validation-error-collector';
  * Processes and validates arguments based on defined patterns.
  */
 export class ArgumentsProcessor {
-  public readonly definitions: ArgumentsDefinitions;
-  private readonly patternMatcher: PatternMatcher;
-  private readonly errorCollector: ValidationErrorCollector;
+  readonly definitions: ArgumentsDefinitions;
+  readonly #patternMatcher: PatternMatcher;
+  readonly #errorCollector: ValidationErrorCollector;
 
   constructor(argumentDefinitions: ArgumentsPattern | readonly ArgumentsPattern[]) {
     this.definitions = new ArgumentsDefinitions(argumentDefinitions);
-    this.patternMatcher = new PatternMatcher(this.definitions);
-    this.errorCollector = new ValidationErrorCollector(this.definitions);
+    this.#patternMatcher = new PatternMatcher(this.definitions);
+    this.#errorCollector = new ValidationErrorCollector(this.definitions);
   }
 
   /**
@@ -29,26 +29,26 @@ export class ArgumentsProcessor {
    * If a pattern matches, returns the processed arguments for that pattern.
    * If no pattern matches, returns processed arguments using the first pattern for error generation.
    */
-  public process(args: AST.AstNode[], visitor: FormulaEvaluatorVisitor): ProcessedArguments {
+  process(args: AST.AstNode[], visitor: FormulaEvaluatorVisitor): ProcessedArguments {
     // Try each pattern to find a match
     for (const pattern of this.definitions.alternatives) {
-      const processedArgs = this.processArgsForPattern(args, pattern, visitor);
+      const processedArgs = this.#processArgsForPattern(args, pattern, visitor);
 
-      if (this.patternMatcher.validatePatternStructure(processedArgs, pattern)) {
+      if (this.#patternMatcher.validatePatternStructure(processedArgs, pattern)) {
         return processedArgs;
       }
     }
 
     // If none of the patterns matched, use the first one for error generation
     const firstPattern = this.definitions.alternatives[0];
-    return this.processArgsForPattern(args, firstPattern, visitor);
+    return this.#processArgsForPattern(args, firstPattern, visitor);
   }
 
   /**
    * Validates if the processed arguments match any of the available patterns.
    */
-  public validate(args: ProcessedArguments): boolean {
-    return this.patternMatcher.findMatchingPattern(args) !== null;
+  validate(args: ProcessedArguments): boolean {
+    return this.#patternMatcher.findMatchingPattern(args) !== null;
   }
 
   /**
@@ -58,11 +58,11 @@ export class ArgumentsProcessor {
    * @param globalLocation The location of the global error
    * @returns The collected error with all messages in one.
    */
-  public getValidationError(
+  getValidationError(
     args: ProcessedArguments,
     globalLocation: AST.Location,
   ): FormulaError {
-    return this.errorCollector.collectBestError(args, globalLocation);
+    return this.#errorCollector.collectBestError(args, globalLocation);
   }
 
   /**
@@ -71,11 +71,11 @@ export class ArgumentsProcessor {
    * @param globalLocation The location of the global error
    * @returns All errors for each pattern.
    */
-  public getValidationErrors(
+  getValidationErrors(
     args: ProcessedArguments,
     globalLocation: AST.Location,
   ): FormulaError[] {
-    return this.errorCollector.collectPatternErrors(args, globalLocation);
+    return this.#errorCollector.collectPatternErrors(args, globalLocation);
   }
 
   /**
@@ -85,7 +85,7 @@ export class ArgumentsProcessor {
    * @param visitor The evaluator visitor
    * @returns Processed arguments for the pattern
    */
-  private processArgsForPattern(
+  #processArgsForPattern(
     args: AST.AstNode[],
     pattern: ArgumentsPattern,
     visitor: FormulaEvaluatorVisitor,

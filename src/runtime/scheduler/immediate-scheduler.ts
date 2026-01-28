@@ -20,20 +20,19 @@ export type ImmediateSchedulerState = 'idle' | 'processing';
  * ```
  */
 export class ImmediateScheduler implements Scheduler {
-  private state: ImmediateSchedulerState = 'idle';
+  #state: ImmediateSchedulerState = 'idle';
+  #processingPromise: Promise<void> | null = null;
 
-  private processingPromise: Promise<void> | null = null;
-
-  public scheduleIfIdle(task: () => void | Promise<void>): boolean {
-    if (this.state === 'processing') {
+  scheduleIfIdle(task: () => void | Promise<void>): boolean {
+    if (this.#state === 'processing') {
       return false;
     }
 
     // Execute immediately and track the promise
-    this.processingPromise = Promise.resolve(task()).then(
-      () => this.cleanup(),
+    this.#processingPromise = Promise.resolve(task()).then(
+      () => this.#cleanup(),
       (error) => {
-        this.cleanup();
+        this.#cleanup();
         throw error;
       },
     );
@@ -41,20 +40,20 @@ export class ImmediateScheduler implements Scheduler {
     return true;
   }
 
-  public markProcessingStarted(): void {
-    this.state = 'processing';
+  markProcessingStarted(): void {
+    this.#state = 'processing';
   }
 
-  public markProcessingComplete(): void {
-    this.state = 'idle';
+  markProcessingComplete(): void {
+    this.#state = 'idle';
     // Note: processingPromise is already resolved in the task completion
   }
 
-  public getProcessingPromise(): Promise<void> | null {
-    return this.processingPromise;
+  getProcessingPromise(): Promise<void> | null {
+    return this.#processingPromise;
   }
 
-  private cleanup(): void {
-    this.processingPromise = null;
+  #cleanup(): void {
+    this.#processingPromise = null;
   }
 }

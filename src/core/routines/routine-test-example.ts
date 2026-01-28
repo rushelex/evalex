@@ -13,9 +13,7 @@ export interface RoutineTestExampleOptions {
 
 export class RoutineTestExample extends RoutineExample {
   readonly expected: ExpectedResult;
-
   readonly description?: string;
-
   readonly context?: Record<string, FormulaDataType>;
 
   constructor(

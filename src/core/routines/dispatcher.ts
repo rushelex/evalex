@@ -18,16 +18,16 @@ export type MethodResolver = (
 ) => MethodResolveResult;
 
 export class RoutineDispatcher {
-  private readonly resolvers: readonly MethodResolver[];
+  readonly #resolvers: readonly MethodResolver[];
 
   constructor(resolvers?: readonly MethodResolver[]) {
-    this.resolvers = resolvers ?? [
-      this.staticMethodResolver.bind(this),
-      this.dynamicObjectFieldResolver.bind(this),
+    this.#resolvers = resolvers ?? [
+      this.#staticMethodResolver.bind(this),
+      this.#dynamicObjectFieldResolver.bind(this),
     ];
   }
 
-  public callFunction(functionName: string, node: AST.ICallExpressionNode, visitor: FormulaEvaluatorVisitor) {
+  callFunction(functionName: string, node: AST.ICallExpressionNode, visitor: FormulaEvaluatorVisitor) {
     const fn = routinesRegistry.getFunction(functionName);
 
     if (!fn) {
@@ -51,13 +51,13 @@ export class RoutineDispatcher {
     });
   }
 
-  public callMethod(
+  callMethod(
     instance: FormulaDataType,
     methodNode: AST.IIdentifierNode,
     node: AST.ICallExpressionNode,
     visitor: FormulaEvaluatorVisitor,
   ) {
-    for (const resolver of this.resolvers) {
+    for (const resolver of this.#resolvers) {
       const res = resolver(instance, methodNode, node, visitor);
       if (res.handled) {
         return res.result;
@@ -77,7 +77,7 @@ export class RoutineDispatcher {
     );
   }
 
-  private staticMethodResolver(
+  #staticMethodResolver(
     instance: FormulaDataType,
     methodNode: AST.IIdentifierNode,
     node: AST.ICallExpressionNode,
@@ -99,7 +99,7 @@ export class RoutineDispatcher {
     return { handled: true, result };
   }
 
-  private dynamicObjectFieldResolver(
+  #dynamicObjectFieldResolver(
     instance: FormulaDataType,
     methodNode: AST.IIdentifierNode,
     node: AST.ICallExpressionNode,

@@ -57,14 +57,14 @@ export class FormulaRegExp extends FormulaDataType<RegExpData> {
   /**
    * Gets the pattern string.
    */
-  public get pattern(): string {
+  get pattern(): string {
     return this.value.pattern;
   }
 
   /**
    * Gets the flags string.
    */
-  public get flags(): string {
+  get flags(): string {
     return this.value.flags;
   }
 
@@ -72,15 +72,15 @@ export class FormulaRegExp extends FormulaDataType<RegExpData> {
    * Creates a fresh RegExp instance for use in operations.
    * This ensures no stateful behavior from RegExp.exec().
    */
-  public toRegExp(): RegExp {
+  toRegExp(): RegExp {
     return new RegExp(this.value.pattern, this.value.flags);
   }
 
-  public isEmpty(): boolean {
+  isEmpty(): boolean {
     return this.value.pattern.length === 0;
   }
 
-  public toString(options?: ToStringOptions): string {
+  toString(options?: ToStringOptions): string {
     const regexStr = `/${this.value.pattern}/${this.value.flags}`;
     return options?.asJSON ? `"${regexStr}"` : regexStr;
   }
@@ -88,7 +88,7 @@ export class FormulaRegExp extends FormulaDataType<RegExpData> {
   /**
    * Creates a FormulaRegExp from a pattern string and optional flags.
    */
-  public static from(pattern: string | RegExp | RegExpData, flags?: string): FormulaRegExp {
+  static from(pattern: string | RegExp | RegExpData, flags?: string): FormulaRegExp {
     if (pattern instanceof RegExp) {
       return new FormulaRegExp(pattern.source, pattern.flags);
     }
@@ -105,7 +105,7 @@ export class FormulaRegExp extends FormulaDataType<RegExpData> {
   /**
    * Checks if the input is a valid RegExp object.
    */
-  public static isValidInput(input: unknown): input is RegExp {
+  static isValidInput(input: unknown): input is RegExp {
     return input instanceof RegExp;
   }
 }

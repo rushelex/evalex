@@ -24,7 +24,7 @@ export class FormulaValidator {
    * Validates node dependencies count against limits.
    * Uses DependencyGraph for dependency information.
    */
-  public validateDependencies(nodeId: string, dependencies: ReadonlySet<string>): ValidationResult {
+  validateDependencies(nodeId: string, dependencies: ReadonlySet<string>): ValidationResult {
     if (dependencies.size <= FORMULA_LIMITS.MAX_DEPENDENCIES_PER_FORMULA) {
       return { isValid: true };
     }
@@ -47,7 +47,7 @@ export class FormulaValidator {
    * Validates formula depth using existing DependencyGraph.
    * Delegates depth calculation to graph.
    */
-  public validateDepth(nodeId: string, graph: DependencyGraph): ValidationResult {
+  validateDepth(nodeId: string, graph: DependencyGraph): ValidationResult {
     const depth = graph.getNodeDepth(nodeId);
 
     if (depth <= FORMULA_LIMITS.MAX_FORMULA_DEPTH) {
@@ -71,7 +71,7 @@ export class FormulaValidator {
   /**
    * Validates formula string format.
    */
-  public validateFormula(expression: Expression | undefined | null): ValidationResult {
+  validateFormula(expression: Expression | undefined | null): ValidationResult {
     if (typeof expression?.formula !== 'string') {
       return {
         isValid: false,

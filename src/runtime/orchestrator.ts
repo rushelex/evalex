@@ -62,23 +62,20 @@ export interface FormulaOrchestratorOptions<T extends FormulaNode> {
  * ```
  */
 export class FormulaOrchestrator<T extends FormulaNode> {
-  private readonly adapter: NodeAdapter<T>;
-
-  private readonly registry = new Map<string, T>();
-
-  private readonly runtime: FormulaRuntime<T>;
-
-  private readonly subscriptions = new Map<string, () => void>();
+  readonly #adapter: NodeAdapter<T>;
+  readonly #registry = new Map<string, T>();
+  readonly #runtime: FormulaRuntime<T>;
+  readonly #subscriptions = new Map<string, () => void>();
 
   constructor(options: FormulaOrchestratorOptions<T>) {
-    this.adapter = options.adapter;
-    this.runtime = new FormulaRuntime({
-      adapter: this.adapter,
-      nodeProvider: (id) => this.registry.get(id),
+    this.#adapter = options.adapter;
+    this.#runtime = new FormulaRuntime({
+      adapter: this.#adapter,
+      nodeProvider: (id) => this.#registry.get(id),
       executor: options.executor ?? new SyncExecutor(),
       scheduler: options.scheduler ?? new ImmediateScheduler(),
       onNodeCleanup: (id) => {
-        this.registry.delete(id);
+        this.#registry.delete(id);
       },
     });
   }
@@ -91,16 +88,16 @@ export class FormulaOrchestrator<T extends FormulaNode> {
    * @param subscribe - Optional callback to subscribe to node changes
    * @throws Error if a node with the same ID already exists
    */
-  public add(node: T, subscribe?: () => () => void): void {
+  add(node: T, subscribe?: () => () => void): void {
     // Validate uniqueness
-    if (this.registry.has(node.id)) {
+    if (this.#registry.has(node.id)) {
       throw new Error(`Node with id "${node.id}" already exists`);
     }
 
     // Check formulas count limit
-    if (this.adapter.shouldProcess(node)) {
-      const formulasCount = Array.from(this.registry.values())
-        .filter((n) => this.adapter.shouldProcess(n))
+    if (this.#adapter.shouldProcess(node)) {
+      const formulasCount = Array.from(this.#registry.values())
+        .filter((n) => this.#adapter.shouldProcess(n))
         .length;
 
       if (formulasCount >= FORMULA_LIMITS.MAX_FORMULAS_COUNT) {
@@ -118,20 +115,20 @@ export class FormulaOrchestrator<T extends FormulaNode> {
     }
 
     // Add to registry first
-    this.registry.set(node.id, node);
+    this.#registry.set(node.id, node);
 
     // Register with runtime for GC
-    this.runtime.register(node.id, node);
+    this.#runtime.register(node.id, node);
 
     // Set up subscription if provided
     if (subscribe) {
       const unsubscribe = subscribe();
-      this.subscriptions.set(node.id, unsubscribe);
+      this.#subscriptions.set(node.id, unsubscribe);
     }
 
     // Enqueue if it's a formula
-    if (this.adapter.shouldProcess(node)) {
-      this.runtime.enqueue(node.id);
+    if (this.#adapter.shouldProcess(node)) {
+      this.#runtime.enqueue(node.id);
     }
   }
 
@@ -142,26 +139,26 @@ export class FormulaOrchestrator<T extends FormulaNode> {
    * @param id - The ID of the node to remove
    * @returns true if the node was found and removed
    */
-  public remove(id: string): boolean {
-    const node = this.registry.get(id);
+  remove(id: string): boolean {
+    const node = this.#registry.get(id);
 
     if (!node) {
       return false;
     }
 
     // Clean up subscription
-    const unsubscribe = this.subscriptions.get(id);
+    const unsubscribe = this.#subscriptions.get(id);
 
     if (unsubscribe) {
       unsubscribe();
-      this.subscriptions.delete(id);
+      this.#subscriptions.delete(id);
     }
 
     // Unregister from runtime
-    this.runtime.unregister(node);
+    this.#runtime.unregister(node);
 
     // Remove from registry
-    this.registry.delete(id);
+    this.#registry.delete(id);
 
     return true;
   }
@@ -169,44 +166,44 @@ export class FormulaOrchestrator<T extends FormulaNode> {
   /**
    * Gets a node by ID.
    */
-  public get(id: string): T | undefined {
-    return this.registry.get(id);
+  get(id: string): T | undefined {
+    return this.#registry.get(id);
   }
 
   /**
    * Checks if a node exists.
    */
-  public has(id: string): boolean {
-    return this.registry.has(id);
+  has(id: string): boolean {
+    return this.#registry.has(id);
   }
 
   /**
    * Enqueues a node for processing.
    * Useful for triggering recalculation of formulas.
    */
-  public enqueue(id: string): void {
-    this.runtime.enqueue(id);
+  enqueue(id: string): void {
+    this.#runtime.enqueue(id);
   }
 
   /**
    * Enqueues all dependents of a node.
    * Useful when a non-formula property changes.
    */
-  public enqueueDependents(id: string): void {
-    this.runtime.enqueueDependents(id);
+  enqueueDependents(id: string): void {
+    this.#runtime.enqueueDependents(id);
   }
 
   /**
    * Waits for all pending processing to complete.
    */
-  public async waitForProcessing(): Promise<void> {
-    return this.runtime.waitForProcessing();
+  async waitForProcessing(): Promise<void> {
+    return this.#runtime.waitForProcessing();
   }
 
   /**
    * Gets all registered node IDs.
    */
-  public getAllIds(): string[] {
-    return Array.from(this.registry.keys());
+  getAllIds(): string[] {
+    return Array.from(this.#registry.keys());
   }
 }

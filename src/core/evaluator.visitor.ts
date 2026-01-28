@@ -23,23 +23,31 @@ export interface EvaluationHooks {
 }
 
 export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
+  context: FormulaEvaluationContext;
+  readonly #hooks?: EvaluationHooks;
+  readonly #dispatcher: RoutineDispatcher = routineDispatcher;
+
   constructor(
-    public readonly context: FormulaEvaluationContext,
-    private readonly hooks?: EvaluationHooks,
-    private readonly dispatcher: RoutineDispatcher = routineDispatcher,
-  ) {}
+    context: FormulaEvaluationContext,
+    hooks?: EvaluationHooks,
+    dispatcher: RoutineDispatcher = routineDispatcher,
+  ) {
+    this.context = context;
+    this.#hooks = hooks;
+    this.#dispatcher = dispatcher;
+  }
 
   /**
    * Basic method for evaluating any AST node.
    */
-  public evaluateNode(node: AST.AstNode): FormulaDataType {
+  evaluateNode(node: AST.AstNode): FormulaDataType {
     return node.accept(this);
   }
 
   /**
    * Evaluates an array of AST nodes.
    */
-  public evaluateNodes<T extends (FormulaDataType | undefined)[] = FormulaDataType[]>(nodes: AST.AstNode[]): T {
+  evaluateNodes<T extends (FormulaDataType | undefined)[] = FormulaDataType[]>(nodes: AST.AstNode[]): T {
     return nodes.map((node) => this.evaluateNode(node)) as T;
   }
 
@@ -47,12 +55,12 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
    * Creates a new instance of FormulaEvaluatorVisitor with a new (nested) context.
    * Used for operations like map, filter, where a new scope is required.
    */
-  public cloneWithContext(newContext: FormulaEvaluationContext): FormulaEvaluatorVisitor {
+  cloneWithContext(newContext: FormulaEvaluationContext): FormulaEvaluatorVisitor {
     // Important: create a new instance to avoid mutating the current visitor
-    return new FormulaEvaluatorVisitor(newContext, this.hooks);
+    return new FormulaEvaluatorVisitor(newContext, this.#hooks, this.#dispatcher);
   }
 
-  public visitLiteralNode(node: AST.ILiteralNode): FormulaDataType {
+  visitLiteralNode(node: AST.ILiteralNode): FormulaDataType {
     if (typeof node.value === 'string') {
       return new FormulaString(node.value);
     }
@@ -72,7 +80,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
     throw new Error(`Unsupported literal type ${typeof node.value} for value ${node.raw}`);
   }
 
-  public visitBinaryExpressionNode(node: AST.IBinaryExpressionNode): FormulaDataType {
+  visitBinaryExpressionNode(node: AST.IBinaryExpressionNode): FormulaDataType {
     const left = this.evaluateNode(node.left);
     const right = this.evaluateNode(node.right);
 
@@ -272,7 +280,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
     }
   }
 
-  public visitUnaryExpressionNode(node: AST.IUnaryExpressionNode): FormulaDataType {
+  visitUnaryExpressionNode(node: AST.IUnaryExpressionNode): FormulaDataType {
     const arg = this.evaluateNode(node.arg);
 
     switch (node.operator) {
@@ -311,8 +319,8 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
     }
   }
 
-  public visitIdentifierNode(node: AST.IIdentifierNode): FormulaDataType {
-    this.hooks?.onIdentifier?.(node.name);
+  visitIdentifierNode(node: AST.IIdentifierNode): FormulaDataType {
+    this.#hooks?.onIdentifier?.(node.name);
 
     // An identifier can be a variable from the current lexical context
     // (e.g., "current" in a map function) or a global property.
@@ -336,13 +344,13 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
     );
   }
 
-  public visitCallExpressionNode(node: AST.ICallExpressionNode): FormulaDataType {
+  visitCallExpressionNode(node: AST.ICallExpressionNode): FormulaDataType {
     const callee = node.callee;
 
     // Case 1: Call to global function (e.g., now(), parseDate())
     if (callee.type === 'Identifier') {
       const functionName = callee.name;
-      return this.dispatcher.callFunction(functionName, node, this);
+      return this.#dispatcher.callFunction(functionName, node, this);
     }
 
     // Case 2: Call to object method (e.g., myList.map(), myString.upper())
@@ -350,22 +358,22 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
       const objectInstance = this.evaluateNode(callee.object);
       const methodNode = callee.property;
 
-      return this.dispatcher.callMethod(objectInstance, methodNode, node, this);
+      return this.#dispatcher.callMethod(objectInstance, methodNode, node, this);
     }
 
     throw new Error('Unsupported call expression type.');
   }
 
-  public visitMemberExpressionNode(node: AST.IMemberExpressionNode): FormulaDataType {
+  visitMemberExpressionNode(node: AST.IMemberExpressionNode): FormulaDataType {
     return this.evaluateNode(node.object);
   }
 
-  public visitConditionalExpressionNode(node: AST.IConditionalExpressionNode): FormulaDataType {
+  visitConditionalExpressionNode(node: AST.IConditionalExpressionNode): FormulaDataType {
     const test = this.evaluateNode(node.test);
     return !test.isEmpty() ? this.evaluateNode(node.consequent) : this.evaluateNode(node.alternate);
   }
 
-  public visitArrayExpressionNode(node: AST.IArrayExpressionNode): FormulaDataType {
+  visitArrayExpressionNode(node: AST.IArrayExpressionNode): FormulaDataType {
     const items = node.elements.map((el) => this.evaluateNode(el));
 
     return new FormulaArray(items);

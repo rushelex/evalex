@@ -13,11 +13,11 @@ export class FormulaNull extends FormulaDataType<null> {
     super('null', null, 'Null');
   }
 
-  public isEmpty(): boolean {
+  isEmpty(): boolean {
     return true;
   }
 
-  public toString(): string {
+  toString(): string {
     return '';
   }
 }

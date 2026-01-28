@@ -127,7 +127,7 @@ describe('FormulaRuntime', () => {
       let processCount = 0;
 
       const executor = new (class extends SyncExecutor {
-        public override exec(request: FormulaExecRequest) {
+        override exec(request: FormulaExecRequest) {
           processCount++;
           return super.exec(request);
         }
@@ -188,7 +188,7 @@ describe('FormulaRuntime', () => {
     it('should handle multiple setPropertyValue calls during processing', async () => {
       let execCount = 0;
       const executor = new (class extends AsyncExecutor {
-        public override async exec(request: FormulaExecRequest) {
+        override async exec(request: FormulaExecRequest) {
           execCount++;
           // Simulate slow async execution
           await new Promise((resolve) => setTimeout(resolve, 50));

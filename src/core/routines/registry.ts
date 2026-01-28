@@ -17,32 +17,30 @@ type RegisterRoutineOptions<TInstance extends FormulaDataType | unknown = unknow
  * Supports method inheritance across FormulaDataType subclasses and caches resolved lookups after finalize().
  */
 export class RoutinesRegistry {
-  private readonly functionRegistry: Map<string, Routine> = new Map();
+  readonly #functionRegistry: Map<string, Routine> = new Map();
+  readonly #methodRegistry: Map<Class<FormulaDataType>, Map<string, Routine>> = new Map();
+  #resolvedMethodsCache: WeakMap<Class<FormulaDataType>, Map<string, Routine>> | null = null;
 
-  private readonly methodRegistry: Map<Class<FormulaDataType>, Map<string, Routine>> = new Map();
-
-  private resolvedMethodsCache: WeakMap<Class<FormulaDataType>, Map<string, Routine>> | null = null;
-
-  public registerFunction(name: string, options: RegisterRoutineOptions): void {
+  registerFunction(name: string, options: RegisterRoutineOptions): void {
     const examplesOption = options.examples(name).toFunctionExamples();
     const argumentsOption = typeof options.arguments === 'function' ? options.arguments() : options.arguments;
-    this.functionRegistry.set(name, new Routine({
+    this.#functionRegistry.set(name, new Routine({
       ...options,
       examples: examplesOption,
       arguments: argumentsOption,
     }));
   }
 
-  public registerMethod<TInstance extends FormulaDataType>(
+  registerMethod<TInstance extends FormulaDataType>(
     dataTypeCtor: Class<TInstance>,
     name: string,
     options: RegisterRoutineOptions<TInstance>,
   ): void {
-    if (!this.methodRegistry.has(dataTypeCtor)) {
-      this.methodRegistry.set(dataTypeCtor, new Map());
+    if (!this.#methodRegistry.has(dataTypeCtor)) {
+      this.#methodRegistry.set(dataTypeCtor, new Map());
     }
 
-    const typeMethods = this.methodRegistry.get(dataTypeCtor)!;
+    const typeMethods = this.#methodRegistry.get(dataTypeCtor)!;
 
     const examplesOption = options.examples(name).toMethodExamples();
 
@@ -54,24 +52,24 @@ export class RoutinesRegistry {
       arguments: argumentsOption?.toMethodArgs(),
     } as RoutineOptions<unknown>));
 
-    this.invalidateCache();
+    this.#invalidateCache();
   }
 
-  public finalize(): void {
+  finalize(): void {
     const cache = new WeakMap<Class<FormulaDataType>, Map<string, Routine>>();
 
-    for (const ctor of this.methodRegistry.keys()) {
-      cache.set(ctor, this.resolveMethodsForCtor(ctor));
+    for (const ctor of this.#methodRegistry.keys()) {
+      cache.set(ctor, this.#resolveMethodsForCtor(ctor));
     }
 
-    this.resolvedMethodsCache = cache;
+    this.#resolvedMethodsCache = cache;
   }
 
-  public getFunction(name: string): Routine | undefined {
-    return this.functionRegistry.get(name);
+  getFunction(name: string): Routine | undefined {
+    return this.#functionRegistry.get(name);
   }
 
-  public getMethod(ctor: Class<FormulaDataType>, name: string): Routine | undefined {
+  getMethod(ctor: Class<FormulaDataType>, name: string): Routine | undefined {
     const methods = this.getMethods(ctor);
     return methods.get(name);
   }
@@ -80,33 +78,33 @@ export class RoutinesRegistry {
    * Returns all data type constructors that have registered methods.
    * Useful for iterating over all known data types when generating test cases.
    */
-  public getRegisteredDataTypes(): Class<FormulaDataType>[] {
-    return Array.from(this.methodRegistry.keys());
+  getRegisteredDataTypes(): Class<FormulaDataType>[] {
+    return Array.from(this.#methodRegistry.keys());
   }
 
-  public getMethods(ctor: Class<FormulaDataType>): Map<string, Routine> {
-    if (this.resolvedMethodsCache?.has(ctor)) {
+  getMethods(ctor: Class<FormulaDataType>): Map<string, Routine> {
+    if (this.#resolvedMethodsCache?.has(ctor)) {
       // Use finalized cache when available
-      return this.resolvedMethodsCache.get(ctor)!;
+      return this.#resolvedMethodsCache.get(ctor)!;
     }
 
     // Compute on-demand when not finalized or unknown ctor
-    const computed = this.resolveMethodsForCtor(ctor);
+    const computed = this.#resolveMethodsForCtor(ctor);
 
     // Opportunistically cache if finalized cache already exists (extend it)
-    if (this.resolvedMethodsCache) {
-      this.resolvedMethodsCache.set(ctor, computed);
+    if (this.#resolvedMethodsCache) {
+      this.#resolvedMethodsCache.set(ctor, computed);
     }
 
     return computed;
   }
 
-  private resolveMethodsForCtor(ctor: Class<FormulaDataType>): Map<string, Routine> {
-    const chain = this.getPrototypeChain(ctor);
+  #resolveMethodsForCtor(ctor: Class<FormulaDataType>): Map<string, Routine> {
+    const chain = this.#getPrototypeChain(ctor);
     const out = new Map<string, Routine>();
 
     for (const c of chain) {
-      const map = this.methodRegistry.get(c);
+      const map = this.#methodRegistry.get(c);
       if (!map) {
         continue;
       }
@@ -120,7 +118,7 @@ export class RoutinesRegistry {
     return out;
   }
 
-  private getPrototypeChain(ctor: Class<FormulaDataType>): Class<FormulaDataType>[] {
+  #getPrototypeChain(ctor: Class<FormulaDataType>): Class<FormulaDataType>[] {
     // Collect from base to leaf to preserve override precedence
     const chain: Class<FormulaDataType>[] = [];
     const seen = new Set<Class<FormulaDataType>>();
@@ -147,8 +145,8 @@ export class RoutinesRegistry {
     return chain;
   }
 
-  private invalidateCache(): void {
-    this.resolvedMethodsCache = null;
+  #invalidateCache(): void {
+    this.#resolvedMethodsCache = null;
   }
 }
 

@@ -11,29 +11,31 @@ export type ArgumentsPattern = ReadonlyArray<Argument | CallbackArgument>;
 export type ProcessedArguments = (ProcessedArgument | CallbackExecutor)[];
 
 export class ArgumentsDefinitions {
-  public readonly alternatives: readonly ArgumentsPattern[];
+  readonly alternatives: readonly ArgumentsPattern[];
+  readonly #definitions: ArgumentsPattern | ReadonlyArray<ArgumentsPattern>;
 
   constructor(
-    private readonly definitions: ArgumentsPattern | ReadonlyArray<ArgumentsPattern>,
+    definitions: ArgumentsPattern | ReadonlyArray<ArgumentsPattern>,
   ) {
-    this.alternatives = Array.isArray(this.definitions[0])
-      ? this.definitions as ReadonlyArray<ArgumentsPattern>
-      : [this.definitions as ArgumentsPattern];
+    this.#definitions = definitions;
+    this.alternatives = Array.isArray(this.#definitions[0])
+      ? this.#definitions as ReadonlyArray<ArgumentsPattern>
+      : [this.#definitions as ArgumentsPattern];
   }
 
-  public getRequiredCount(pattern: ArgumentsPattern): number {
+  getRequiredCount(pattern: ArgumentsPattern): number {
     return pattern.filter((arg) => !arg.optional).length;
   }
 
-  public hasRepeatableArg(pattern: ArgumentsPattern): pattern is Argument[] {
+  hasRepeatableArg(pattern: ArgumentsPattern): pattern is Argument[] {
     return pattern.some((arg) => 'repeatable' in arg && !!arg.repeatable);
   }
 
-  public getMaxCount(pattern: ArgumentsPattern): number {
+  getMaxCount(pattern: ArgumentsPattern): number {
     return this.hasRepeatableArg(pattern) ? Infinity : pattern.length;
   }
 
-  public getArgumentForPattern(argIndex: number, pattern: ArgumentsPattern): Argument | CallbackArgument | undefined {
+  getArgumentForPattern(argIndex: number, pattern: ArgumentsPattern): Argument | CallbackArgument | undefined {
     if (argIndex < pattern.length) {
       return pattern[argIndex];
     }

@@ -11,7 +11,7 @@ export class TypeFormatter {
    * @param types Single type or array of types to format
    * @returns Formatted string representation
    */
-  public formatTypes(types: Kind | readonly Kind[]): string {
+  formatTypes(types: Kind | readonly Kind[]): string {
     if (Array.isArray(types)) {
       return types.join(' | ');
     }
@@ -26,10 +26,10 @@ export class TypeFormatter {
    * @param actual Actual value
    * @returns Object with formatted expected and actual values
    */
-  public formatExpectedActual(expected: unknown, actual: unknown): { expected: unknown; actual: unknown } {
+  formatExpectedActual(expected: unknown, actual: unknown): { expected: unknown; actual: unknown } {
     return {
-      expected: this.formatErrorContextValue(expected),
-      actual: this.formatErrorContextValue(actual),
+      expected: this.#formatErrorContextValue(expected),
+      actual: this.#formatErrorContextValue(actual),
     };
   }
 
@@ -39,7 +39,7 @@ export class TypeFormatter {
    * @param value Value to format
    * @returns Formatted value for error context
    */
-  private formatErrorContextValue(value: unknown): unknown {
+  #formatErrorContextValue(value: unknown): unknown {
     if (Array.isArray(value)) {
       return [...value]; // Preserve array structure for error context
     }

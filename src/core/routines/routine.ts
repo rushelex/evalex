@@ -48,28 +48,27 @@ export interface RoutineOptions<TInstance extends Routine | FormulaDataType | un
 }
 
 export class Routine<TInstance extends Routine | FormulaDataType | unknown = unknown> {
-  public readonly description: string;
-  public readonly examples: RoutineExample[];
-
-  private readonly argumentsProcessor?: ArgumentsProcessor;
-  private readonly handler: RoutineHandler<TInstance>;
+  readonly description: string;
+  readonly examples: RoutineExample[];
+  readonly #argumentsProcessor?: ArgumentsProcessor;
+  readonly #handler: RoutineHandler<TInstance>;
 
   constructor(options: RoutineOptions<TInstance>) {
     this.description = options.description;
     this.examples = options.examples;
     const args = options.arguments instanceof RoutineArguments ? options.arguments.alternatives : options.arguments;
-    this.argumentsProcessor = args ? new ArgumentsProcessor(args) : undefined;
-    this.handler = options.handler;
+    this.#argumentsProcessor = args ? new ArgumentsProcessor(args) : undefined;
+    this.#handler = options.handler;
   }
 
-  public execute(params: RoutineExecuteParams<TInstance>) {
+  execute(params: RoutineExecuteParams<TInstance>) {
     const { instance, node, visitor, location } = params;
 
-    const processedArgs = this.process(node.args, visitor);
+    const processedArgs = this.#process(node.args, visitor);
 
-    this.validate(processedArgs, location);
+    this.#validate(processedArgs, location);
 
-    const utils = this.buildContextUtils();
+    const utils = this.#buildContextUtils();
 
     if (instance instanceof FormulaDataType) {
       const context = {
@@ -80,7 +79,7 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
         utils,
       } satisfies FormulaDataTypeRoutineHandlerContext<FormulaDataType>;
 
-      return this.handler(context as RoutineHandlerContext<TInstance>);
+      return this.#handler(context as RoutineHandlerContext<TInstance>);
     }
 
     const context = {
@@ -91,36 +90,36 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
       utils,
     } satisfies GlobalRoutineHandlerContext;
 
-    return this.handler(context as RoutineHandlerContext<TInstance>);
+    return this.#handler(context as RoutineHandlerContext<TInstance>);
   }
 
-  private process(
+  #process(
     args: AST.AstNode[],
     visitor: FormulaEvaluatorVisitor,
   ): ProcessedArguments | undefined {
-    if (!this.argumentsProcessor) {
+    if (!this.#argumentsProcessor) {
       return;
     }
 
-    return this.argumentsProcessor.process(args, visitor);
+    return this.#argumentsProcessor.process(args, visitor);
   }
 
-  private validate(
+  #validate(
     processedArgs: ProcessedArguments | undefined,
     location: AST.Location,
   ): void {
-    if (!this.argumentsProcessor) {
+    if (!this.#argumentsProcessor) {
       return;
     }
 
-    if (!processedArgs || this.argumentsProcessor.validate(processedArgs)) {
+    if (!processedArgs || this.#argumentsProcessor.validate(processedArgs)) {
       return;
     }
 
-    throw this.argumentsProcessor.getValidationError(processedArgs, location);
+    throw this.#argumentsProcessor.getValidationError(processedArgs, location);
   }
 
-  private buildContextUtils(): ContextUtils {
+  #buildContextUtils(): ContextUtils {
     function flatArgs(args: AST.AstNode[] | ProcessedArguments): AST.AstNode[] {
       return args.flatMap((arg) => {
         const node = arg instanceof ProcessedArgument ? arg.node : arg instanceof CallbackExecutor ? arg.node : arg;

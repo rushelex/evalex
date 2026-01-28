@@ -12,11 +12,11 @@ class BaseDataType extends FormulaDataType<number> {
     super('number', value, 'Number');
   }
 
-  public isEmpty(): boolean {
+  isEmpty(): boolean {
     return this.value === 0;
   }
 
-  public toString(): string {
+  toString(): string {
     return String(this.value);
   }
 }
@@ -30,11 +30,11 @@ class OtherDataType extends FormulaDataType<string> {
     super('string', value, 'Text');
   }
 
-  public isEmpty(): boolean {
+  isEmpty(): boolean {
     return this.value.length === 0;
   }
 
-  public toString(): string {
+  toString(): string {
     return this.value;
   }
 }

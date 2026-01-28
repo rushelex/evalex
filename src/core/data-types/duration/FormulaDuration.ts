@@ -9,19 +9,19 @@ export class FormulaDuration extends FormulaDataType<Temporal.Duration> {
     super('duration', value, 'Duration');
   }
 
-  public isEmpty(): boolean {
+  isEmpty(): boolean {
     return false;
   }
 
-  public toString(): string {
+  toString(): string {
     return this.value.toString();
   }
 
-  public static from(value: Temporal.Duration): FormulaDuration {
+  static from(value: Temporal.Duration): FormulaDuration {
     return new FormulaDuration(value);
   }
 
-  public static isValidInput(value: unknown): value is Temporal.Duration {
+  static isValidInput(value: unknown): value is Temporal.Duration {
     return value instanceof Temporal.Duration;
   }
 }

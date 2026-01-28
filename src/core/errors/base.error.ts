@@ -11,11 +11,9 @@ export interface FormulaErrorOptions<TContext extends FormulaErrorContext = Form
 }
 
 export class FormulaError<TContext extends FormulaErrorContext = FormulaErrorContext> extends Error {
-  public readonly rawMessage: string;
-
-  public readonly context: TContext;
-
-  public readonly location?: AST.Location;
+  readonly rawMessage: string;
+  readonly context: TContext;
+  readonly location?: AST.Location;
 
   constructor(
     message: string,

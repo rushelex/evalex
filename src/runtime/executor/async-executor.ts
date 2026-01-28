@@ -18,20 +18,20 @@ export interface AsyncExecutorOptions {
  * Supports timeout and external abort control.
  */
 export class AsyncExecutor extends Executor {
-  private readonly runner: AsyncRunner;
-  private readonly abortController?: AbortController;
-  private readonly onTerminate?: () => Promise<void>;
-  private readonly timeoutMs?: number;
+  readonly #runner: AsyncRunner;
+  readonly #abortController?: AbortController;
+  readonly #onTerminate?: () => Promise<void>;
+  readonly #timeoutMs?: number;
 
   constructor(options: AsyncExecutorOptions = {}) {
     super();
-    this.runner = options.runner ?? this.defaultRunner;
-    this.abortController = options.abortController;
-    this.onTerminate = options.onTerminate;
-    this.timeoutMs = options.timeoutMs;
+    this.#runner = options.runner ?? this.#defaultRunner;
+    this.#abortController = options.abortController;
+    this.#onTerminate = options.onTerminate;
+    this.#timeoutMs = options.timeoutMs;
   }
 
-  public async exec(request: FormulaExecRequest): Promise<FormulaExecResult> {
+  async exec(request: FormulaExecRequest): Promise<FormulaExecResult> {
     const job = () => {
       const { result, dependencies } = request.expression.evaluate({
         context: request.context,
@@ -42,33 +42,33 @@ export class AsyncExecutor extends Executor {
 
     // Combine signals if needed
     const signals: AbortSignal[] = [];
-    if (this.abortController?.signal) {
-      signals.push(this.abortController.signal);
+    if (this.#abortController?.signal) {
+      signals.push(this.#abortController.signal);
     }
-    if (this.timeoutMs) {
-      signals.push(AbortSignal.timeout(this.timeoutMs));
+    if (this.#timeoutMs) {
+      signals.push(AbortSignal.timeout(this.#timeoutMs));
     }
 
     const signal = signals.length > 0 ? AbortSignal.any(signals) : undefined;
 
     try {
-      return await this.runner(job, signal);
+      return await this.#runner(job, signal);
     }
     catch (error) {
       // Replace generic timeout error with our custom message
       if (error instanceof Error && error.name === 'TimeoutError') {
-        throw new Error(`Formula execution timed out after ${this.timeoutMs}ms`);
+        throw new Error(`Formula execution timed out after ${this.#timeoutMs}ms`);
       }
       throw error;
     }
   }
 
-  public async terminate(): Promise<void> {
-    this.abortController?.abort(new Error('Aborted'));
-    await this.onTerminate?.();
+  async terminate(): Promise<void> {
+    this.#abortController?.abort(new Error('Aborted'));
+    await this.#onTerminate?.();
   }
 
-  private defaultRunner: AsyncRunner = async (job, signal) => {
+  #defaultRunner: AsyncRunner = async (job, signal) => {
     return new Promise((resolve, reject) => {
       queueMicrotask(() => {
         if (signal?.aborted) {

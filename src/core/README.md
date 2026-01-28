@@ -324,17 +324,17 @@ try {
 import { FormulaDataType, FormulaDataTypeKind, RoutineArguments, RoutineExamples } from '~/shared/libs/formula/core';
 
 class FormulaCustomType extends FormulaDataType<string> {
-  public readonly kind = 'Custom' as FormulaDataTypeKind;
+  readonly kind = 'Custom' as FormulaDataTypeKind;
 
   constructor(value: string) {
     super(value, 'Custom');
   }
 
-  public isEmpty(): boolean {
+  isEmpty(): boolean {
     return this.value === '';
   }
 
-  public toString(): string {
+  toString(): string {
     return `Custom(${this.value})`;
   }
 }
