@@ -1,11 +1,11 @@
 import type { Class } from 'type-fest';
 import type { SuiteAPI, TestAPI } from 'vitest';
 
-import { describe, test } from 'vitest';
-
 import type { FormulaDataType } from '../../data-types';
 import type { RoutineTestExampleOptions } from '../routine-test-example';
 import type { GenerateOptions, RoutineTestCase } from './routine-test-generator';
+
+import { describe, test } from 'vitest';
 
 import { evaluate } from '../../../testing-library';
 import { routinesRegistry } from '../registry';

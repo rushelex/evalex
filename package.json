@@ -34,7 +34,7 @@
     "test:watch": "vitest watch",
     "bench": "vitest bench --run",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src",
+    "lint": "eslint src --cache",
     "lint:fix": "pnpm check:scripts --fix",
     "generate:grammar": "peggy -o src/parser/grammar/__generated__/grammar.js src/parser/grammar/grammar.peggy --dts --format=es --source-map --dependency \"* as Nodes:../nodes\"",
     "generate:grammar:watch": "pnpm generate:grammar --watch",

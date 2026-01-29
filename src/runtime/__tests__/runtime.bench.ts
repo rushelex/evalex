@@ -1,8 +1,8 @@
-import { bench, describe } from 'vitest';
-
 import type { FormulaDataType } from '../../core';
 import type { FormulaRuntimeOptions } from '../runtime';
 import type { NodeAdapter } from '../types';
+
+import { bench, describe } from 'vitest';
 
 import { Expression, FormulaNull, FormulaNumber } from '../../core';
 import { SyncExecutor } from '../executor';

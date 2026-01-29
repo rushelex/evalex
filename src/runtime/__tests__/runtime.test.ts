@@ -1,9 +1,9 @@
-import LeakDetector from 'jest-leak-detector';
-
 import type { FormulaDataType } from '../../core';
 import type { FormulaExecRequest } from '../executor';
 import type { FormulaRuntimeOptions } from '../runtime';
 import type { FormulaNode, NodeAdapter } from '../types';
+
+import LeakDetector from 'jest-leak-detector';
 
 import { Expression, FormulaNull, FormulaNumber } from '../../core';
 import { AsyncExecutor, SyncExecutor } from '../executor';

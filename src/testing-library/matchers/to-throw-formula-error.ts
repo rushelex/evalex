@@ -1,6 +1,6 @@
-import { FormulaError } from '~/core';
-
 import type { LocationTuple, MatcherState } from './utils';
+
+import { FormulaError } from '~/core';
 
 import {
   buildErrorMessageWithLocation,

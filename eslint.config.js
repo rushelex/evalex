@@ -13,8 +13,6 @@ export default antfu(
       quotes: 'single',
       indent: 2,
     },
-  },
-  {
     ignores: [
       'node_modules',
       'dist',
@@ -22,10 +20,14 @@ export default antfu(
       '**/*.md',
     ],
   },
-  {
+)
+  .override('antfu/jsdoc/rules', {
     rules: {
       'jsdoc/no-defaults': 'off',
-
+    },
+  })
+  .override('antfu/stylistic/rules', {
+    rules: {
       'style/arrow-parens': ['error', 'always'],
       'style/no-trailing-spaces': 'warn',
       'style/lines-between-class-members': [
@@ -38,45 +40,72 @@ export default antfu(
           ],
         },
       ],
-
+    },
+  })
+  .override('antfu/perfectionist/setup', {
+    rules: {
       'perfectionist/sort-imports': [
         'warn',
         {
           groups: [
-            ['side-effect'],
-            ['side-effect-style'],
+            'side-effect',
+            'side-effect-style',
             'type-import',
-            ['value-builtin', 'value-external'],
-            ['value-internal', 'type-internal'],
-            ['type-parent', 'type-sibling', 'type-index'],
-            ['value-parent', 'value-sibling', 'value-index'],
+            'type-internal',
+            [
+              'type-parent',
+              'type-sibling',
+              'type-index',
+            ],
+            'value-builtin',
+            'value-external',
+            [
+              'value-subpath',
+              'value-internal',
+            ],
+            [
+              'value-parent',
+              'value-sibling',
+              'value-index',
+            ],
             'ts-equals-import',
             'unknown',
           ],
           newlinesBetween: 1,
+          newlinesInside: 'ignore',
           order: 'asc',
           type: 'natural',
         },
       ],
     },
-  },
-  {
-    files: ['**/*.{ts,tsx}', '*.{ts,tsx}'],
+  })
+  .override('antfu/javascript/rules', {
     rules: {
-      'ts/strict-boolean-expressions': 'off',
-      'ts/no-unsafe-call': 'off',
-      'ts/no-unsafe-argument': 'off',
-      'ts/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports', prefer: 'type-imports' }],
+      'no-restricted-syntax': [
+        'error',
+        'TSExportAssignment',
+      ],
+    },
+  })
+  .override('antfu/typescript/rules', {
+    rules: {
+      'ts/consistent-type-imports': [
+        'error',
+        { fixStyle: 'inline-type-imports', prefer: 'type-imports' },
+      ],
       'ts/consistent-type-exports': 'error',
     },
-  },
-  {
-    files: ['src/**/*.{spec,test,bench}.{ts,tsx}'],
+  })
+  .override('antfu/typescript/rules-type-aware', {
+    rules: {
+      'ts/strict-boolean-expressions': 'off',
+    },
+  })
+  .override('antfu/test/rules', {
     rules: {
       'test/prefer-lowercase-title': ['error', {
         ignore: ['describe'],
         ignoreTopLevelDescribe: true,
       }],
     },
-  },
-);
+  });

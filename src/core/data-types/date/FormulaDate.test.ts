@@ -1,6 +1,6 @@
-import { Temporal } from 'temporal-polyfill';
-
 import type { EvaluateOptions } from '../../expression';
+
+import { Temporal } from 'temporal-polyfill';
 
 import { evaluate } from '../../../testing-library';
 import { FormulaDuration } from '../duration';

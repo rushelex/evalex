@@ -1,10 +1,10 @@
 /* eslint-disable test/prefer-lowercase-title */
 
-import { HyperFormula } from 'hyperformula';
-import { bench, describe } from 'vitest';
-
 import type { FormulaDataType } from '../../core';
 import type { NodeAdapter } from '../types';
+
+import { HyperFormula } from 'hyperformula';
+import { bench, describe } from 'vitest';
 
 import { Expression, FormulaEvaluationContext, FormulaNull, FormulaNumber } from '../../core';
 import { FormulaEvaluatorVisitor } from '../../core/evaluator.visitor';

@@ -1,4 +1,5 @@
 import type { LocationRange } from '~/parser/grammar/__generated__/grammar';
+
 import { SyntaxError } from '~/parser/grammar/__generated__/grammar';
 
 import { toThrowSyntaxError } from '../to-throw-syntax-error';
