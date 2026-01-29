@@ -1,5 +1,3 @@
-import type { FormulaDataType } from '../../data-types';
-
 import { FormulaArray, FormulaNumber } from '../../data-types';
 import { ArgumentFormulaError } from '../../errors';
 import { Argument, createRoutineArguments } from '../arguments';
@@ -64,12 +62,14 @@ routinesRegistry.registerMethod(FormulaArray, 'sum', {
       );
     }
 
-    if (flattenInstanceValues.some((num) => !Number.isFinite(num.value))) {
+    const flattenInstanceNumberValues = flattenInstanceValues as FormulaNumber[];
+
+    if (flattenInstanceNumberValues.some((num) => !Number.isFinite(num.value))) {
       throw new ArgumentFormulaError(
         'All numbers must be finite',
         {
           context: {
-            actual: flattenInstanceValues.map((num) => num.value as number),
+            actual: flattenInstanceNumberValues.map((num) => num.value),
             expected: 'finite numbers',
           },
           location,
@@ -79,11 +79,11 @@ routinesRegistry.registerMethod(FormulaArray, 'sum', {
 
     const numbers = visitor.evaluateNodes<FormulaNumber[]>(utils.flatArgs(args));
 
-    function sum(acc: number, num: FormulaDataType): number {
-      return acc + num.value as number;
+    function sum(acc: number, num: FormulaNumber): number {
+      return acc + num.value;
     }
 
-    const result = numbers.reduce(sum, flattenInstanceValues.reduce(sum, 0));
+    const result = numbers.reduce(sum, flattenInstanceNumberValues.reduce(sum, 0));
 
     return new FormulaNumber(result);
   },

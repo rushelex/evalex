@@ -15,19 +15,16 @@ describe(AsyncExecutor, () => {
 
   describe('Basic Execution', () => {
     it('should execute formula asynchronously', async () => {
-      // Arrange
       const executor = new AsyncExecutor();
       const request: FormulaExecRequest = {
         expression: new Expression('1 + 2'),
-        context: {},
+        context: new Map(),
       };
 
-      // Act
       const resultPromise = executor.exec(request);
       await vi.runAllTimersAsync();
       const result = await resultPromise;
 
-      // Assert
       expect(result.result).toBeInstanceOf(FormulaNumber);
       if (result.result instanceof FormulaNumber) {
         expect(result.result.value).toBe(3);
@@ -36,22 +33,19 @@ describe(AsyncExecutor, () => {
     });
 
     it('should extract dependencies', async () => {
-      // Arrange
       const executor = new AsyncExecutor();
       const request: FormulaExecRequest = {
         expression: new Expression('a + b'),
-        context: {
-          a: new FormulaNumber(5),
-          b: new FormulaNumber(10),
-        },
+        context: new Map([
+          ['a', new FormulaNumber(5)],
+          ['b', new FormulaNumber(10)],
+        ]),
       };
 
-      // Act
       const resultPromise = executor.exec(request);
       await vi.runAllTimersAsync();
       const result = await resultPromise;
 
-      // Assert
       expect(result.result).toBeInstanceOf(FormulaNumber);
       if (result.result instanceof FormulaNumber) {
         expect(result.result.value).toBe(15);
@@ -60,7 +54,6 @@ describe(AsyncExecutor, () => {
     });
 
     it('should use custom runner', async () => {
-      // Arrange
       const customRunner = vi.fn<AsyncRunner>().mockResolvedValue({
         result: new FormulaNumber(42),
         dependencies: ['custom'],
@@ -68,13 +61,11 @@ describe(AsyncExecutor, () => {
       const executor = new AsyncExecutor({ runner: customRunner });
       const request: FormulaExecRequest = {
         expression: new Expression('test'),
-        context: {},
+        context: new Map(),
       };
 
-      // Act
       const result = await executor.exec(request);
 
-      // Assert
       expect(customRunner).toHaveBeenCalledWith(
         expect.any(Function),
         undefined,
@@ -86,7 +77,7 @@ describe(AsyncExecutor, () => {
 
   describe('Timeout Functionality', () => {
     it('should timeout after specified duration', async () => {
-      // Arrange - use slow runner to ensure timeout
+      // Use slow runner to ensure timeout
       const slowRunner = vi.fn<AsyncRunner>().mockImplementation(async (job, signal) => {
         return new Promise((resolve, reject) => {
           const timeoutId = setTimeout(() => resolve(job()), 200);
@@ -105,37 +96,32 @@ describe(AsyncExecutor, () => {
 
       const request: FormulaExecRequest = {
         expression: new Expression('1 + 1'),
-        context: {},
+        context: new Map(),
       };
 
-      // Act
       // Add .catch() immediately to prevent unhandled rejection
       const promise = executor.exec(request).catch((e) => e);
 
       // Advance past timeout
       await vi.advanceTimersByTimeAsync(150);
 
-      // Assert
       const result = await promise;
       expect(result).toBeInstanceOf(Error);
       expect((result as Error).message).toBe('Formula execution timed out after 100ms');
     });
 
     it('should complete successfully if faster than timeout', async () => {
-      // Arrange
       const executor = new AsyncExecutor({ timeoutMs: 100 });
       const request: FormulaExecRequest = {
         expression: new Expression('42'),
-        context: {},
+        context: new Map(),
       };
 
-      // Act
       const promise = executor.exec(request);
       // Complete before timeout
       await vi.runAllTimersAsync();
       const result = await promise;
 
-      // Assert
       expect(result.result).toBeInstanceOf(FormulaNumber);
       if (result.result instanceof FormulaNumber) {
         expect(result.result.value).toBe(42);
@@ -143,19 +129,16 @@ describe(AsyncExecutor, () => {
     });
 
     it('should work without timeout', async () => {
-      // Arrange
       const executor = new AsyncExecutor(); // No timeout
       const request: FormulaExecRequest = {
         expression: new Expression('99'),
-        context: {},
+        context: new Map(),
       };
 
-      // Act
       const promise = executor.exec(request);
       await vi.runAllTimersAsync();
       const result = await promise;
 
-      // Assert
       expect(result.result).toBeInstanceOf(FormulaNumber);
       if (result.result instanceof FormulaNumber) {
         expect(result.result.value).toBe(99);
@@ -165,7 +148,6 @@ describe(AsyncExecutor, () => {
 
   describe('Abort Functionality', () => {
     it('should abort execution when controller aborts', async () => {
-      // Arrange
       const controller = new AbortController();
       const slowRunner = vi.fn<AsyncRunner>().mockImplementation(async (job, signal) => {
         // Wait a bit then check signal
@@ -180,11 +162,10 @@ describe(AsyncExecutor, () => {
         abortController: controller,
       });
 
-      // Act
       // Add .catch() immediately to prevent unhandled rejection
       const promise = executor.exec({
         expression: new Expression('1 + 1'),
-        context: {},
+        context: new Map(),
       }).catch((e) => e);
 
       // Abort before runner completes
@@ -192,42 +173,36 @@ describe(AsyncExecutor, () => {
       controller.abort(new Error('User cancelled'));
       await vi.runAllTimersAsync();
 
-      // Assert
       const result = await promise;
       expect(result).toBeInstanceOf(Error);
       expect((result as Error).message).toBe('User cancelled');
     });
 
     it('should abort via terminate method', async () => {
-      // Arrange
       const controller = new AbortController();
       const executor = new AsyncExecutor({ abortController: controller });
 
       // Add .catch() immediately to prevent unhandled rejection
       const promise = executor.exec({
         expression: new Expression('1 + 1'),
-        context: {},
+        context: new Map(),
       }).catch((e) => e);
 
-      // Act - terminate immediately
+      // Terminate immediately
       await executor.terminate();
       await vi.runAllTimersAsync();
 
-      // Assert
       const result = await promise;
       expect(result).toBeInstanceOf(Error);
       expect((result as Error).message).toBe('Aborted');
     });
 
     it('should call onTerminate handler', async () => {
-      // Arrange
       const onTerminate = vi.fn().mockResolvedValue(undefined);
       const executor = new AsyncExecutor({ onTerminate });
 
-      // Act
       await executor.terminate();
 
-      // Assert
       expect(onTerminate).toHaveBeenCalled();
     });
   });
@@ -239,7 +214,7 @@ describe(AsyncExecutor, () => {
 
       const result = await executor.exec({
         expression: new Expression('10 * 5'),
-        context: {},
+        context: new Map(),
       });
 
       expect(result.result).toBeInstanceOf(FormulaNumber);
@@ -254,13 +229,15 @@ describe(AsyncExecutor, () => {
       const executor = new AsyncExecutor({ abortController: controller });
 
       // Start execution with .catch() to prevent unhandled rejection
-      const promise = executor.exec({ expression: new Expression('1 + 1'), context: {} }).catch((e) => e);
+      const promise = executor.exec({
+        expression: new Expression('1 + 1'),
+        context: new Map(),
+      }).catch((e) => e);
 
       // Cancel immediately
       controller.abort(new Error('Cancelled by user'));
       await vi.runAllTimersAsync();
 
-      // Assert
       const result = await promise;
       expect(result).toBeInstanceOf(Error);
       expect((result as Error).message).toBe('Cancelled by user');
@@ -290,7 +267,7 @@ describe(AsyncExecutor, () => {
 
       const promise = executor.exec({
         expression: new Expression('10 * 5'),
-        context: {},
+        context: new Map(),
       });
 
       await vi.advanceTimersByTimeAsync(60);
@@ -305,34 +282,29 @@ describe(AsyncExecutor, () => {
 
   describe('Error Handling', () => {
     it('should propagate formula errors', async () => {
-      // Arrange
       const executor = new AsyncExecutor();
       const request: FormulaExecRequest = {
         expression: new Expression('unknownVariable + 1'),
-        context: {},
+        context: new Map(),
       };
 
-      // Act
       // Add .catch() immediately to prevent unhandled rejection
       const promise = executor.exec(request).catch((e) => e);
       await vi.runAllTimersAsync();
 
-      // Assert
       const result = await promise;
       expect(result).toBeInstanceOf(Error);
       expect((result as Error).message).toContain('Variable "unknownVariable" is not defined');
     });
 
     it('should propagate runner errors', async () => {
-      // Arrange
       const errorRunner = vi.fn<AsyncRunner>().mockRejectedValue(new Error('Runner failed'));
       const executor = new AsyncExecutor({ runner: errorRunner });
       const request: FormulaExecRequest = {
         expression: new Expression('test'),
-        context: {},
+        context: new Map(),
       };
 
-      // Act & Assert
       await expect(executor.exec(request)).rejects.toThrow('Runner failed');
     });
   });

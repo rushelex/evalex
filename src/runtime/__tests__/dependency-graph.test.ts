@@ -12,8 +12,8 @@ describe('DependencyGraph', () => {
     it('adds and retrieves dependencies', () => {
       graph.addDependency('A', 'B');
 
-      expect(graph.getDependencies('A')).toEqual(['B']);
-      expect(graph.getDependents('B')).toEqual(['A']);
+      expect(graph.getDependencies('A')).toEqual(new Set(['B']));
+      expect(graph.getDependents('B')).toEqual(new Set(['A']));
     });
 
     it('removes individual dependencies', () => {
@@ -22,8 +22,8 @@ describe('DependencyGraph', () => {
 
       graph.removeDependency('A', 'B');
 
-      expect(graph.getDependencies('A')).toEqual(['C']);
-      expect(graph.getDependents('B')).toEqual([]);
+      expect(graph.getDependencies('A')).toEqual(new Set(['C']));
+      expect(graph.getDependents('B')).toEqual(new Set());
     });
 
     it('prevents circular dependencies', () => {
@@ -34,8 +34,8 @@ describe('DependencyGraph', () => {
     });
 
     it('handles non-existent nodes gracefully', () => {
-      expect(graph.getDependencies('X')).toEqual([]);
-      expect(graph.getDependents('X')).toEqual([]);
+      expect(graph.getDependencies('X')).toEqual(new Set());
+      expect(graph.getDependents('X')).toEqual(new Set());
 
       // Should not throw
       graph.removeAll('X');
@@ -49,17 +49,17 @@ describe('DependencyGraph', () => {
       graph.addDependency('B', 'A');
       graph.addDependency('B', 'C');
 
-      expect(graph.getDependencies('B')).toEqual(['A', 'C']);
-      expect(graph.getDependents('A')).toEqual(['B']);
-      expect(graph.getDependents('C')).toEqual(['B']);
+      expect(graph.getDependencies('B')).toEqual(new Set(['A', 'C']));
+      expect(graph.getDependents('A')).toEqual(new Set(['B']));
+      expect(graph.getDependents('C')).toEqual(new Set(['B']));
 
       // Replace with new set: B depends on C and D
       graph.replaceDependencies('B', new Set(['C', 'D']));
 
-      expect(graph.getDependencies('B')).toEqual(['C', 'D']);
-      expect(graph.getDependents('A')).toEqual([]); // A is orphaned and removed
-      expect(graph.getDependents('C')).toEqual(['B']);
-      expect(graph.getDependents('D')).toEqual(['B']);
+      expect(graph.getDependencies('B')).toEqual(new Set(['C', 'D']));
+      expect(graph.getDependents('A')).toEqual(new Set()); // A is orphaned and removed
+      expect(graph.getDependents('C')).toEqual(new Set(['B']));
+      expect(graph.getDependents('D')).toEqual(new Set(['B']));
     });
 
     it('handles replacing with empty set', () => {
@@ -71,12 +71,12 @@ describe('DependencyGraph', () => {
       // Replace A's dependencies with empty set
       graph.replaceDependencies('A', new Set());
 
-      expect(graph.getDependencies('A')).toEqual([]);
+      expect(graph.getDependencies('A')).toEqual(new Set());
       // A still exists because D depends on it
-      expect(graph.getDependents('A')).toEqual(['D']);
+      expect(graph.getDependents('A')).toEqual(new Set(['D']));
       // B and C are orphaned and removed from maps
-      expect(graph.getDependencies('B')).toEqual([]);
-      expect(graph.getDependencies('C')).toEqual([]);
+      expect(graph.getDependencies('B')).toEqual(new Set());
+      expect(graph.getDependencies('C')).toEqual(new Set());
       // D and A remain in dependencies map
       expect(graph.getDependenciesSize()).toBe(2); // D and A
     });
@@ -90,7 +90,7 @@ describe('DependencyGraph', () => {
       // Replace with same set
       graph.replaceDependencies('A', new Set(['B', 'C']));
 
-      expect(graph.getDependencies('A')).toEqual(['B', 'C']);
+      expect(graph.getDependencies('A')).toEqual(new Set(['B', 'C']));
       expect(graph.getDependenciesSize()).toBe(sizeBefore);
     });
 
@@ -113,13 +113,13 @@ describe('DependencyGraph', () => {
       graph.removeAll('A');
 
       // A is completely removed
-      expect(graph.getDependencies('A')).toEqual([]);
-      expect(graph.getDependents('A')).toEqual([]);
+      expect(graph.getDependencies('A')).toEqual(new Set());
+      expect(graph.getDependents('A')).toEqual(new Set());
       // D is also pruned because it has no dependencies after A is removed
-      expect(graph.getDependencies('D')).toEqual([]);
+      expect(graph.getDependencies('D')).toEqual(new Set());
       // B and C are removed as orphans (fixed!)
-      expect(graph.getDependents('B')).toEqual([]);
-      expect(graph.getDependents('C')).toEqual([]);
+      expect(graph.getDependents('B')).toEqual(new Set());
+      expect(graph.getDependents('C')).toEqual(new Set());
       // After fix: all nodes are pruned (D, B, and C become orphans)
       expect(graph.getDependenciesSize()).toBe(0); // All pruned
       expect(graph.getDependentsSize()).toBe(0); // All orphans pruned
@@ -146,13 +146,13 @@ describe('DependencyGraph', () => {
       graph.removeAll('A');
 
       // D is removed as orphan
-      expect(graph.getDependencies('D')).toEqual([]);
+      expect(graph.getDependencies('D')).toEqual(new Set());
       // E still exists and depends only on C
-      expect(graph.getDependencies('E')).toEqual(['C']);
+      expect(graph.getDependencies('E')).toEqual(new Set(['C']));
       // B is removed as orphan
-      expect(graph.getDependents('B')).toEqual([]);
+      expect(graph.getDependents('B')).toEqual(new Set());
       // C still has E as dependent
-      expect(graph.getDependents('C')).toEqual(['E']);
+      expect(graph.getDependents('C')).toEqual(new Set(['E']));
     });
   });
 
@@ -199,7 +199,7 @@ describe('DependencyGraph', () => {
       graph.removeAll('A');
 
       // B is not orphaned because C still depends on it
-      expect(graph.getDependents('B')).toEqual(['C']);
+      expect(graph.getDependents('B')).toEqual(new Set(['C']));
       expect(graph.getDependenciesSize()).toBe(1); // Only C
       expect(graph.getDependentsSize()).toBe(1); // Only B
     });
@@ -229,16 +229,16 @@ describe('DependencyGraph', () => {
       // Another formula uses A: D = A * 2
       graph.replaceDependencies('D', new Set(['A']));
 
-      expect(graph.getDependents('B')).toEqual(['A']);
-      expect(graph.getDependents('A')).toEqual(['D']);
+      expect(graph.getDependents('B')).toEqual(new Set(['A']));
+      expect(graph.getDependents('A')).toEqual(new Set(['D']));
 
       // Formula A changes to: A = B + E (no longer uses C)
       graph.replaceDependencies('A', new Set(['B', 'E']));
 
-      expect(graph.getDependents('C')).toEqual([]); // C is orphaned
-      expect(graph.getDependents('E')).toEqual(['A']);
-      expect(graph.getDependents('B')).toEqual(['A']);
-      expect(graph.getDependents('A')).toEqual(['D']);
+      expect(graph.getDependents('C')).toEqual(new Set()); // C is orphaned
+      expect(graph.getDependents('E')).toEqual(new Set(['A']));
+      expect(graph.getDependents('B')).toEqual(new Set(['A']));
+      expect(graph.getDependents('A')).toEqual(new Set(['D']));
     });
 
     it('simulates property removal cascade', () => {
@@ -254,13 +254,13 @@ describe('DependencyGraph', () => {
       graph.removeAll('A');
 
       // D becomes orphaned and is removed
-      expect(graph.getDependencies('D')).toEqual([]);
+      expect(graph.getDependencies('D')).toEqual(new Set());
       // E still exists, depends only on C
-      expect(graph.getDependencies('E')).toEqual(['C']);
+      expect(graph.getDependencies('E')).toEqual(new Set(['C']));
       // B becomes orphaned
-      expect(graph.getDependents('B')).toEqual([]);
+      expect(graph.getDependents('B')).toEqual(new Set());
       // C still has E as dependent
-      expect(graph.getDependents('C')).toEqual(['E']);
+      expect(graph.getDependents('C')).toEqual(new Set(['E']));
     });
 
     it('handles batch updates efficiently', () => {
@@ -278,21 +278,21 @@ describe('DependencyGraph', () => {
       });
 
       // Verify the graph structure
-      expect(graph.getDependents('X')).toEqual(['A']);
-      expect(graph.getDependents('Y').sort()).toEqual(['A', 'B']);
-      expect(graph.getDependents('Z')).toEqual(['B']);
-      expect(graph.getDependents('A')).toEqual(['C']);
-      expect(graph.getDependents('B')).toEqual(['C']);
-      expect(graph.getDependents('C')).toEqual(['D']);
+      expect(graph.getDependents('X')).toEqual(new Set(['A']));
+      expect(graph.getDependents('Y')).toEqual(new Set(['A', 'B']));
+      expect(graph.getDependents('Z')).toEqual(new Set(['B']));
+      expect(graph.getDependents('A')).toEqual(new Set(['C']));
+      expect(graph.getDependents('B')).toEqual(new Set(['C']));
+      expect(graph.getDependents('C')).toEqual(new Set(['D']));
 
       // Simulate removing intermediate node
       graph.removeAll('C');
 
       // D becomes orphaned
-      expect(graph.getDependencies('D')).toEqual([]);
+      expect(graph.getDependencies('D')).toEqual(new Set());
       // A and B no longer have dependents
-      expect(graph.getDependents('A')).toEqual([]);
-      expect(graph.getDependents('B')).toEqual([]);
+      expect(graph.getDependents('A')).toEqual(new Set());
+      expect(graph.getDependents('B')).toEqual(new Set());
     });
   });
 

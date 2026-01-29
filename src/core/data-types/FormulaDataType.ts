@@ -8,7 +8,7 @@ export interface ToStringOptions {
  * Abstract base class for all data types used in the formula system.
  * Each concrete data type (string, number, list, etc.) must inherit from this class.
  */
-export abstract class FormulaDataType<TValue = any> {
+export abstract class FormulaDataType<TValue = unknown> {
   readonly kind: Kind;
   readonly value: TValue;
   readonly displayType: string;

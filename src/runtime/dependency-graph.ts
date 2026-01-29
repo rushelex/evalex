@@ -1,5 +1,7 @@
-import { DependencyGraphAnalyzer } from './dependency-graph-analyzer';
 import { CircularDependencyError } from './errors';
+
+// Shared empty set to avoid allocations
+const EMPTY_SET: ReadonlySet<string> = new Set();
 
 /**
  * Stores dependencies and dependents between nodes.
@@ -32,10 +34,8 @@ import { CircularDependencyError } from './errors';
 export class DependencyGraph {
   readonly #dependencies = new Map<string, Set<string>>();
   readonly #dependents = new Map<string, Set<string>>();
-  readonly #analyzer = new DependencyGraphAnalyzer(
-    (nodeId) => this.getDependencies(nodeId),
-    (nodeId) => this.getDependents(nodeId),
-  );
+  // Cache for node depths - invalidated on graph changes
+  readonly #depthCache = new Map<string, number>();
 
   /**
    * Atomically replaces all dependencies of a node with a new set.
@@ -47,17 +47,19 @@ export class DependencyGraph {
    * @throws May throw if any of the new dependencies would create a cycle
    */
   replaceDependencies(nodeId: string, deps: ReadonlySet<string>): void {
-    // Detect potential cycles before mutating the graph
-    for (const dep of deps) {
-      if (this.#analyzer.wouldCreateCycle(nodeId, dep)) {
-        throw new CircularDependencyError(`Circular dependency detected between ${nodeId} and ${dep}.`, {
-          context: {
-            nodeId,
-            dependsOnId: dep,
-          },
-        });
-      }
+    // Batch cycle detection - check all deps at once using single BFS
+    const cycleTarget = this.#wouldCreateCycleBatch(nodeId, deps);
+    if (cycleTarget !== null) {
+      throw new CircularDependencyError(`Circular dependency detected between ${nodeId} and ${cycleTarget}.`, {
+        context: {
+          nodeId,
+          dependsOnId: cycleTarget,
+        },
+      });
     }
+
+    // Invalidate depth cache for affected nodes
+    this.#invalidateDepthCache(nodeId);
 
     const existing = this.#dependencies.get(nodeId) ?? new Set<string>();
     for (const dep of existing) {
@@ -88,7 +90,7 @@ export class DependencyGraph {
    */
   addDependency(nodeId: string, dependsOnId: string): void {
     // Detect potential cycles before mutating the graph
-    if (this.#analyzer.wouldCreateCycle(nodeId, dependsOnId)) {
+    if (this.#wouldCreateCycleSingle(nodeId, dependsOnId)) {
       throw new CircularDependencyError(`Circular dependency detected between ${nodeId} and ${dependsOnId}.`, {
         context: {
           nodeId,
@@ -96,6 +98,9 @@ export class DependencyGraph {
         },
       });
     }
+
+    // Invalidate depth cache
+    this.#invalidateDepthCache(nodeId);
 
     if (!this.#dependencies.has(nodeId)) {
       this.#dependencies.set(nodeId, new Set());
@@ -119,6 +124,7 @@ export class DependencyGraph {
     this.#dependencies.get(nodeId)?.delete(dependsOnId);
     this.#dependents.get(dependsOnId)?.delete(nodeId);
 
+    this.#invalidateDepthCache(nodeId);
     this.#maybePrune(nodeId);
     this.#maybePrune(dependsOnId);
   }
@@ -170,28 +176,27 @@ export class DependencyGraph {
   cleanup() {
     this.#dependencies.clear();
     this.#dependents.clear();
+    this.#depthCache.clear();
   }
 
   /**
    * Gets all nodes that depend on the specified node.
-   * These are nodes that have edges pointing to nodeId.
    *
    * @param nodeId - The node to find dependents for
-   * @returns Array of node IDs that depend on this node
+   * @returns The internal Set for iteration - do NOT modify!
    */
-  getDependents(nodeId: string): string[] {
-    return Array.from(this.#dependents.get(nodeId) || []);
+  getDependents(nodeId: string): ReadonlySet<string> {
+    return this.#dependents.get(nodeId) ?? EMPTY_SET;
   }
 
   /**
    * Gets all nodes that the specified node depends on.
-   * These are nodes that nodeId has edges pointing to.
    *
    * @param nodeId - The node to find dependencies for
-   * @returns Array of node IDs that this node depends on
+   * @returns The internal Set for iteration - do NOT modify!
    */
-  getDependencies(nodeId: string): string[] {
-    return Array.from(this.#dependencies.get(nodeId) || []);
+  getDependencies(nodeId: string): ReadonlySet<string> {
+    return this.#dependencies.get(nodeId) ?? EMPTY_SET;
   }
 
   /**
@@ -215,27 +220,201 @@ export class DependencyGraph {
   }
 
   /**
-   * Gets the depth of the node in the graph.
-   * Depth is defined as the maximum distance from the node to any other node.
+   * Gets the depth of the node in the graph with caching.
    *
    * @param nodeId - The node to find depth for
    * @returns Depth of the node
    */
   getNodeDepth(nodeId: string): number {
-    return this.#analyzer.getNodeDepth(nodeId);
+    const cached = this.#depthCache.get(nodeId);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const depth = this.#calculateDepth(nodeId, new Set());
+    this.#depthCache.set(nodeId, depth);
+    return depth;
   }
 
   /**
-   * Removes orphaned nodes (nodes with no dependencies and no dependents).
-   * This is O(1) for single candidate and avoids scanning whole maps.
+   * Batch cycle detection - checks if adding edges from nodeId to any dep would create a cycle.
+   * Single BFS from all deps simultaneously.
    *
-   * This method is called after any operation that might create orphaned nodes
-   * to ensure the graph remains minimal and doesn't leak memory.
+   * @returns The dependency that would create a cycle, or null if safe
+   */
+  #wouldCreateCycleBatch(nodeId: string, deps: ReadonlySet<string>): string | null {
+    if (deps.size === 0)
+      return null;
+
+    // Quick check: if nodeId depends on itself
+    if (deps.has(nodeId))
+      return nodeId;
+
+    // BFS from all deps at once - check if any path leads to nodeId
+    const queue: string[] = [];
+    const visited = new Set<string>();
+
+    for (const dep of deps) {
+      if (!visited.has(dep)) {
+        visited.add(dep);
+        queue.push(dep);
+      }
+    }
+
+    let idx = 0;
+    while (idx < queue.length) {
+      const current = queue[idx++];
+
+      if (current === nodeId) {
+        // Find which original dep led here (for error message)
+        // Return the first dep that was in the path
+        return this.#findCycleCause(nodeId, deps);
+      }
+
+      const currentDeps = this.#dependencies.get(current);
+      if (currentDeps) {
+        for (const dep of currentDeps) {
+          if (!visited.has(dep)) {
+            visited.add(dep);
+            queue.push(dep);
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find which dependency would cause the cycle (for error messages)
+   *
+   * @param nodeId - The node to find cycle cause for
+   * @param deps - The dependencies to check
+   * @returns The dependency that would cause the cycle
+   */
+  #findCycleCause(nodeId: string, deps: ReadonlySet<string>): string {
+    for (const dep of deps) {
+      if (this.#wouldCreateCycleSingle(nodeId, dep)) {
+        return dep;
+      }
+    }
+    return deps.values().next().value!;
+  }
+
+  /**
+   * Single cycle detection using index-based queue (O(1) dequeue)
+   *
+   * @param nodeId - The node to find cycle cause for
+   * @param dependsOnId - The dependency to check
+   * @returns True if a cycle would be created, false otherwise
+   */
+  #wouldCreateCycleSingle(nodeId: string, dependsOnId: string): boolean {
+    if (nodeId === dependsOnId)
+      return true;
+
+    const queue = [dependsOnId];
+    const visited = new Set<string>([dependsOnId]);
+    let idx = 0;
+
+    while (idx < queue.length) {
+      const current = queue[idx++];
+
+      if (current === nodeId) {
+        return true;
+      }
+
+      const currentDeps = this.#dependencies.get(current);
+      if (currentDeps) {
+        for (const dep of currentDeps) {
+          if (!visited.has(dep)) {
+            visited.add(dep);
+            queue.push(dep);
+          }
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Calculate depth using iterative approach with explicit stack
+   *
+   * @param nodeId - The node to calculate depth for
+   * @param visited - Set of visited nodes to detect cycles
+   * @returns The depth of the node
+   */
+  #calculateDepth(nodeId: string, visited: Set<string>): number {
+    if (visited.has(nodeId)) {
+      return Infinity; // Cycle
+    }
+
+    const deps = this.#dependencies.get(nodeId);
+    if (!deps || deps.size === 0) {
+      return 0;
+    }
+
+    visited.add(nodeId);
+
+    let maxDepth = 0;
+    for (const depId of deps) {
+      // Check cache first
+      let depDepth = this.#depthCache.get(depId);
+      if (depDepth === undefined) {
+        depDepth = this.#calculateDepth(depId, visited);
+      }
+      if (depDepth > maxDepth) {
+        maxDepth = depDepth;
+      }
+    }
+
+    visited.delete(nodeId);
+    return maxDepth + 1;
+  }
+
+  /**
+   * Invalidate depth cache for a node and all its dependents
+   *
+   * @param nodeId - The node to invalidate depth cache for
+   */
+  #invalidateDepthCache(nodeId: string): void {
+    if (!this.#depthCache.has(nodeId))
+      return;
+
+    const toInvalidate = [nodeId];
+    let idx = 0;
+
+    while (idx < toInvalidate.length) {
+      const current = toInvalidate[idx++];
+      this.#depthCache.delete(current);
+
+      const dependents = this.#dependents.get(current);
+      if (dependents) {
+        for (const dep of dependents) {
+          if (this.#depthCache.has(dep)) {
+            toInvalidate.push(dep);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Fast orphan check without creating arrays
+   *
+   * @param nodeId - The node to check for orphan status
    */
   #maybePrune(nodeId: string): void {
-    if (this.#analyzer.isOrphaned(nodeId)) {
+    const deps = this.#dependencies.get(nodeId);
+    const dependents = this.#dependents.get(nodeId);
+
+    const hasDeps = deps !== undefined && deps.size > 0;
+    const hasDependents = dependents !== undefined && dependents.size > 0;
+
+    if (!hasDeps && !hasDependents) {
       this.#dependencies.delete(nodeId);
       this.#dependents.delete(nodeId);
+      this.#depthCache.delete(nodeId);
     }
   }
 }

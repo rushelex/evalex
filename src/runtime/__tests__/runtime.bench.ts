@@ -1,4 +1,4 @@
-import { bench } from 'vitest';
+import { bench, describe } from 'vitest';
 
 import type { FormulaDataType } from '../../core';
 import type { FormulaRuntimeOptions } from '../runtime';
@@ -17,82 +17,117 @@ interface Node {
   activeDeps?: Set<string>;
 }
 
-describe('Runtime Benchmark', () => {
-  bench('should calculate simple formula (A + B) in < 5ms', async () => {
+/**
+ * Benchmark: Simple formula calculation
+ * Measures pure evaluation time without setup overhead
+ */
+describe('Simple Formula (A + B)', () => {
+  let initFn: () => Promise<void>;
+
+  bench(
+    'evaluation only',
+    async () => {
+      await initFn();
+    },
+    {
+      warmupIterations: 10,
+      iterations: 100,
+      setup: () => {
+        const { registry, initializeFormulas } = setup();
+        registry.set('a', { id: 'a', value: new FormulaNumber(10) });
+        registry.set('b', { id: 'b', value: new FormulaNumber(20) });
+        registry.set('sum', {
+          id: 'sum',
+          value: new FormulaNumber(0),
+          expression: new Expression('a + b'),
+        });
+        initFn = initializeFormulas;
+      },
+    },
+  );
+});
+
+/**
+ * Benchmark: Formula chain processing
+ * Measures how chain length affects evaluation time
+ */
+describe('Formula Chain Processing', () => {
+  let initFn5: () => Promise<void>;
+  let initFn10: () => Promise<void>;
+  let initFn20: () => Promise<void>;
+
+  const createChainSetup = (chainLength: number) => {
     const { registry, initializeFormulas } = setup();
-
-    registry.set('a', { id: 'a', value: new FormulaNumber(10) });
-    registry.set('b', { id: 'b', value: new FormulaNumber(20) });
-    registry.set('sum', { id: 'sum', value: new FormulaNumber(0), expression: new Expression('a + b') });
-
-    const start = performance.now();
-    await initializeFormulas();
-    const duration = performance.now() - start;
-
-    const sum = registry.get('sum');
-    expect(sum?.value).toEqual(new FormulaNumber(30));
-    expect(duration).toBeLessThan(5);
-  });
-
-  bench('should calculate 10-formula chain in < 10ms', async () => {
-    const { registry, initializeFormulas } = setup();
-
     registry.set('f0', { id: 'f0', value: new FormulaNumber(1) });
 
-    // Create chain of 10 formulas
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= chainLength; i++) {
       registry.set(`f${i}`, {
         id: `f${i}`,
         value: new FormulaNumber(0),
         expression: new Expression(`f${i - 1} + 1`),
       });
     }
+    return initializeFormulas;
+  };
 
-    const start = performance.now();
-    await initializeFormulas();
-    const duration = performance.now() - start;
+  bench(
+    'chain of 5 formulas',
+    async () => {
+      await initFn5();
+    },
+    {
+      warmupIterations: 10,
+      iterations: 100,
+      setup: () => {
+        initFn5 = createChainSetup(5);
+      },
+    },
+  );
 
-    const last = registry.get('f10');
-    expect(last?.value).toEqual(new FormulaNumber(11));
-    expect(duration).toBeLessThan(10);
-  });
+  bench(
+    'chain of 10 formulas',
+    async () => {
+      await initFn10();
+    },
+    {
+      warmupIterations: 10,
+      iterations: 100,
+      setup: () => {
+        initFn10 = createChainSetup(10);
+      },
+    },
+  );
 
-  bench('should calculate 100-formula graph in < 20ms', async () => {
-    const { registry, initializeFormulas } = setup();
+  bench(
+    'chain of 20 formulas',
+    async () => {
+      await initFn20();
+    },
+    {
+      warmupIterations: 10,
+      iterations: 100,
+      setup: () => {
+        initFn20 = createChainSetup(20);
+      },
+    },
+  );
+});
 
-    // Create 10 base values
-    for (let i = 0; i < 10; i++) {
-      registry.set(`base${i}`, { id: `base${i}`, value: new FormulaNumber(i) });
-    }
+/**
+ * Benchmark: Dependent formula updates (fan-out)
+ * Measures recalculation propagation performance
+ * Setup includes initial calculation, measures only update time
+ */
+describe('Dependent Formula Updates (fan-out)', () => {
+  let updateFn10: () => Promise<void>;
+  let updateFn50: () => Promise<void>;
+  let updateFn100: () => Promise<void>;
 
-    // Create 100 formulas with various dependencies
-    for (let i = 0; i < 100; i++) {
-      const deps = [];
-      // Each formula depends on 2-3 base values
-      for (let j = 0; j < 3; j++) {
-        deps.push(`base${Math.floor(Math.random() * 10)}`);
-      }
-      registry.set(`f${i}`, {
-        id: `f${i}`,
-        value: new FormulaNumber(0),
-        expression: new Expression(deps.join(' + ')),
-      });
-    }
-
-    const start = performance.now();
-    await initializeFormulas();
-    const duration = performance.now() - start;
-
-    expect(duration).toBeLessThan(20);
-  });
-
-  bench('should complete 50 dependent formulas update in < 20ms', async () => {
+  const createFanOutSetup = async (dependentCount: number) => {
     const { registry, runtime, initializeFormulas } = setup();
-
     registry.set('base', { id: 'base', value: new FormulaNumber(10) });
 
-    // Create 50 formulas that depend on base
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < dependentCount; i++) {
       registry.set(`f${i}`, {
         id: `f${i}`,
         value: new FormulaNumber(0),
@@ -100,35 +135,93 @@ describe('Runtime Benchmark', () => {
       });
     }
 
+    // Initial calculation is part of setup
     await initializeFormulas();
 
-    // Measure update time
-    const start = performance.now();
-    registry.get('base')!.value = new FormulaNumber(20);
-    runtime.enqueueDependents('base');
-    await runtime.waitForProcessing();
-    const duration = performance.now() - start;
+    // Return only the update function to measure
+    return async () => {
+      registry.get('base')!.value = new FormulaNumber(20);
+      runtime.enqueueDependents('base');
+      await runtime.waitForProcessing();
+    };
+  };
 
-    // Verify a sample
-    expect(registry.get('f49')?.value).toEqual(new FormulaNumber(1000)); // 20 * 50
-    expect(duration).toBeLessThan(20);
-  });
+  bench(
+    'update with 10 dependents',
+    async () => {
+      await updateFn10();
+    },
+    {
+      warmupIterations: 5,
+      iterations: 50,
+      setup: async () => {
+        updateFn10 = await createFanOutSetup(10);
+      },
+    },
+  );
 
-  bench('should handle 1000 formulas cold start in < 200ms', async () => {
+  bench(
+    'update with 50 dependents',
+    async () => {
+      await updateFn50();
+    },
+    {
+      warmupIterations: 5,
+      iterations: 50,
+      setup: async () => {
+        updateFn50 = await createFanOutSetup(50);
+      },
+    },
+  );
+
+  bench(
+    'update with 100 dependents',
+    async () => {
+      await updateFn100();
+    },
+    {
+      warmupIterations: 5,
+      iterations: 50,
+      setup: async () => {
+        updateFn100 = await createFanOutSetup(100);
+      },
+    },
+  );
+});
+
+/**
+ * Benchmark: Cold start performance
+ * Measures FULL initialization time including object creation.
+ *
+ * NOTE: warmupIterations here prewarms V8's JIT compiler for the CODE PATHS,
+ * not the DATA. Each iteration creates fresh runtime/registry/formulas.
+ * This simulates "app is warm, but user opens new document with 1000 formulas".
+ *
+ * For TRUE cold start (first ever run), you'd need a separate process per measurement,
+ * which vitest bench doesn't support. Use manual benchmarking for that.
+ */
+describe('Warm Code, Cold Data (new document)', () => {
+  // Seeded random for reproducible benchmarks
+  const seededRandom = (seed: number) => {
+    return () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+  };
+
+  const runColdStart = async (formulaCount: number, baseCount: number) => {
+    const random = seededRandom(42);
     const { registry, initializeFormulas } = setup();
 
-    // Create 100 base values
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < baseCount; i++) {
       registry.set(`p${i}`, { id: `p${i}`, value: new FormulaNumber(i) });
     }
 
-    // Create 1000 formulas
-    for (let i = 0; i < 1000; i++) {
-      // Random formula complexity
-      const numDeps = Math.floor(Math.random() * 5) + 1;
+    for (let i = 0; i < formulaCount; i++) {
+      const numDeps = Math.floor(random() * 3) + 1;
       const deps = [];
       for (let j = 0; j < numDeps; j++) {
-        deps.push(`p${Math.floor(Math.random() * 100)}`);
+        deps.push(`p${Math.floor(random() * baseCount)}`);
       }
       registry.set(`f${i}`, {
         id: `f${i}`,
@@ -137,12 +230,122 @@ describe('Runtime Benchmark', () => {
       });
     }
 
-    const start = performance.now();
     await initializeFormulas();
-    const duration = performance.now() - start;
+  };
 
-    expect(duration).toBeLessThan(200);
-  });
+  bench(
+    '100 formulas (10 bases)',
+    async () => {
+      await runColdStart(100, 10);
+    },
+    // warmup prewarms JIT for code paths, data is fresh each time
+    { warmupIterations: 3, iterations: 20 },
+  );
+
+  bench(
+    '500 formulas (50 bases)',
+    async () => {
+      await runColdStart(500, 50);
+    },
+    { warmupIterations: 3, iterations: 20 },
+  );
+
+  bench(
+    '1000 formulas (100 bases)',
+    async () => {
+      await runColdStart(1000, 100);
+    },
+    { warmupIterations: 3, iterations: 20 },
+  );
+});
+
+/**
+ * Benchmark: Expression complexity
+ * Measures evaluation time for expressions with different dependency counts
+ */
+describe('Expression Complexity (same formula count)', () => {
+  let initFn1: () => Promise<void>;
+  let initFn3: () => Promise<void>;
+  let initFn5: () => Promise<void>;
+  let initFn10: () => Promise<void>;
+
+  const createComplexitySetup = (depsPerFormula: number) => {
+    const { registry, initializeFormulas } = setup();
+
+    for (let i = 0; i < 10; i++) {
+      registry.set(`base${i}`, { id: `base${i}`, value: new FormulaNumber(i + 1) });
+    }
+
+    for (let i = 0; i < 50; i++) {
+      const deps = [];
+      for (let j = 0; j < depsPerFormula; j++) {
+        deps.push(`base${j % 10}`);
+      }
+      registry.set(`f${i}`, {
+        id: `f${i}`,
+        value: new FormulaNumber(0),
+        expression: new Expression(deps.join(' + ')),
+      });
+    }
+
+    return initializeFormulas;
+  };
+
+  bench(
+    '50 formulas, 1 dep each',
+    async () => {
+      await initFn1();
+    },
+    {
+      warmupIterations: 5,
+      iterations: 50,
+      setup: () => {
+        initFn1 = createComplexitySetup(1);
+      },
+    },
+  );
+
+  bench(
+    '50 formulas, 3 deps each',
+    async () => {
+      await initFn3();
+    },
+    {
+      warmupIterations: 5,
+      iterations: 50,
+      setup: () => {
+        initFn3 = createComplexitySetup(3);
+      },
+    },
+  );
+
+  bench(
+    '50 formulas, 5 deps each',
+    async () => {
+      await initFn5();
+    },
+    {
+      warmupIterations: 5,
+      iterations: 50,
+      setup: () => {
+        initFn5 = createComplexitySetup(5);
+      },
+    },
+  );
+
+  bench(
+    '50 formulas, 10 deps each',
+    async () => {
+      await initFn10();
+    },
+    {
+      warmupIterations: 5,
+      iterations: 50,
+      setup: () => {
+        initFn10 = createComplexitySetup(10);
+      },
+    },
+  );
 });
 
 function setup(options?: Partial<FormulaRuntimeOptions<Node>>) {
@@ -172,17 +375,12 @@ function setup(options?: Partial<FormulaRuntimeOptions<Node>>) {
     ...options,
   });
 
-  // Function to initialize formulas and start calculations
   async function initializeFormulas() {
-    // Enqueue all formulas for initial calculation
-    // FormulaRuntime will automatically extract dependencies
     for (const [nodeId, node] of registry.entries()) {
       if (adapter.shouldProcess(node)) {
         runtime.enqueue(nodeId);
       }
     }
-
-    // Wait for processing to complete
     await runtime.waitForProcessing();
   }
 

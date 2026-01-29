@@ -5,7 +5,7 @@ import type { Expression, FormulaDataType } from '../../core';
  */
 export interface FormulaExecRequest {
   readonly expression: Expression;
-  readonly context: Record<string, FormulaDataType>;
+  readonly context: ReadonlyMap<string, FormulaDataType>;
 }
 
 /**

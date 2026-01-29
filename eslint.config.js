@@ -61,7 +61,7 @@ export default antfu(
     },
   },
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['**/*.{ts,tsx}', '*.{ts,tsx}'],
     rules: {
       'ts/strict-boolean-expressions': 'off',
       'ts/no-unsafe-call': 'off',

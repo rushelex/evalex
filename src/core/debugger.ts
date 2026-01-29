@@ -15,7 +15,7 @@ export class FormulaDebugger {
   static trace(expression: string, result: FormulaDataType) {
     if (FormulaDebugger.#enabled) {
       // eslint-disable-next-line no-console
-      console.info(`Formula: ${expression} => ${result.displayType}: ${result.value}`);
+      console.info(`Formula: ${expression} => ${result.displayType}:`, result.value);
     }
   }
 

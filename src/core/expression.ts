@@ -8,9 +8,11 @@ import { FormulaEvaluatorVisitor } from './evaluator.visitor';
 
 const astCache = new Map<string, AST.AstNode>();
 const dependenciesCache = new Map<string, ReadonlySet<string>>();
+// Shared empty map to avoid allocations
+const EMPTY_MAP = new Map<string, FormulaDataType>();
 
 export interface EvaluateOptions {
-  readonly context?: Readonly<Record<string, FormulaDataType>>;
+  readonly context?: Readonly<Record<string, FormulaDataType>> | ReadonlyMap<string, FormulaDataType>;
 }
 
 export interface EvaluateResult {
@@ -61,9 +63,16 @@ export class Expression {
   evaluate(options: EvaluateOptions = {}): EvaluateResult {
     const ast = this.parse();
 
-    let initialProperties = new Map<string, FormulaDataType>();
-    if (options.context) {
-      initialProperties = new Map(Object.entries(options.context));
+    let initialProperties: Map<string, FormulaDataType>;
+    if (options.context instanceof Map) {
+      // Fast path: use pre-built map directly (no copy needed, it's readonly)
+      initialProperties = options.context as Map<string, FormulaDataType>;
+    }
+    else if (options.context) {
+      initialProperties = new Map<string, FormulaDataType>(Object.entries(options.context));
+    }
+    else {
+      initialProperties = EMPTY_MAP;
     }
 
     const context = new FormulaEvaluationContext(initialProperties);

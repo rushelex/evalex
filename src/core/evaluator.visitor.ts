@@ -70,11 +70,11 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
     }
 
     if (typeof node.value === 'boolean') {
-      return new FormulaBoolean(node.value);
+      return FormulaBoolean.from(node.value);
     }
 
     if (node.value === null || node.value === undefined) {
-      return new FormulaNull();
+      return FormulaNull.instance();
     }
 
     throw new Error(`Unsupported literal type ${typeof node.value} for value ${node.raw}`);
@@ -83,23 +83,6 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
   visitBinaryExpressionNode(node: AST.IBinaryExpressionNode): FormulaDataType {
     const left = this.evaluateNode(node.left);
     const right = this.evaluateNode(node.right);
-
-    function checkNumeric(l: FormulaDataType, r: FormulaDataType, location: AST.IBinaryExpressionNode['location']) {
-      if (!(l instanceof FormulaNumber) || !(r instanceof FormulaNumber)) {
-        throw new TypeFormulaError(
-          'Cannot perform math operation on a non-numeric value.',
-          {
-            location,
-            context: {
-              expected: 'Number',
-              actual: 'Non-Number',
-            },
-          },
-        );
-      }
-
-      return { leftNum: l, rightNum: r };
-    }
 
     switch (node.operator) {
       case '+': {
@@ -111,19 +94,19 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
         }
 
         // Numeric addition
-        const { leftNum, rightNum } = checkNumeric(left, right, node.location);
-        return new FormulaNumber(leftNum.value + rightNum.value);
+        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location);
+        return FormulaNumber.from(leftNum.value + rightNum.value);
       }
       case '-': {
-        const { leftNum, rightNum } = checkNumeric(left, right, node.location);
-        return new FormulaNumber(leftNum.value - rightNum.value);
+        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location);
+        return FormulaNumber.from(leftNum.value - rightNum.value);
       }
       case '*': {
-        const { leftNum, rightNum } = checkNumeric(left, right, node.location);
-        return new FormulaNumber(leftNum.value * rightNum.value);
+        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location);
+        return FormulaNumber.from(leftNum.value * rightNum.value);
       }
       case '/': {
-        const { leftNum, rightNum } = checkNumeric(left, right, node.location);
+        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location);
 
         if (rightNum.value === 0) {
           throw new ArithmeticFormulaError(
@@ -138,14 +121,14 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           );
         }
 
-        return new FormulaNumber(leftNum.value / rightNum.value);
+        return FormulaNumber.from(leftNum.value / rightNum.value);
       }
       case '^': {
-        const { leftNum, rightNum } = checkNumeric(left, right, node.location);
-        return new FormulaNumber(leftNum.value ** rightNum.value);
+        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location);
+        return FormulaNumber.from(leftNum.value ** rightNum.value);
       }
       case '%': {
-        const { leftNum, rightNum } = checkNumeric(left, right, node.location);
+        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location);
 
         if (rightNum.value === 0) {
           throw new ArithmeticFormulaError(
@@ -160,38 +143,38 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           );
         }
 
-        return new FormulaNumber(leftNum.value % rightNum.value);
+        return FormulaNumber.from(leftNum.value % rightNum.value);
       }
       case '==': {
         // Handle null comparisons first
         if (left instanceof FormulaNull && right instanceof FormulaNull) {
-          return new FormulaBoolean(true); // null == null is true
+          return FormulaBoolean.from(true); // null == null is true
         }
 
         // If one is null and the other is not, they are not equal.
         if (left instanceof FormulaNull || right instanceof FormulaNull) {
-          return new FormulaBoolean(false);
+          return FormulaBoolean.from(false);
         }
 
         // If types are different (and neither is null), they are not equal for '=='.
         if (left.kind !== right.kind) {
-          return new FormulaBoolean(false);
+          return FormulaBoolean.from(false);
         }
 
         // For same types (Number, String, Boolean), compare their values.
-        return new FormulaBoolean(left.value === right.value);
+        return FormulaBoolean.from(left.value === right.value);
       }
       case '!=': {
         if (left.kind !== right.kind) {
-          return new FormulaBoolean(true);
+          return FormulaBoolean.from(true);
         }
 
-        return new FormulaBoolean(left.value !== right.value);
+        return FormulaBoolean.from(left.value !== right.value);
       }
       case '<': {
         if ((left instanceof FormulaNumber && right instanceof FormulaNumber)
           || (left instanceof FormulaString && right instanceof FormulaString)) {
-          return new FormulaBoolean(left.value < right.value);
+          return FormulaBoolean.from(left.value < right.value);
         }
 
         throw new TypeFormulaError(
@@ -208,7 +191,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
       case '<=': {
         if ((left instanceof FormulaNumber && right instanceof FormulaNumber)
           || (left instanceof FormulaString && right instanceof FormulaString)) {
-          return new FormulaBoolean(left.value <= right.value);
+          return FormulaBoolean.from(left.value <= right.value);
         }
 
         throw new TypeFormulaError(
@@ -225,7 +208,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
       case '>': {
         if ((left instanceof FormulaNumber && right instanceof FormulaNumber)
           || (left instanceof FormulaString && right instanceof FormulaString)) {
-          return new FormulaBoolean(left.value > right.value);
+          return FormulaBoolean.from(left.value > right.value);
         }
 
         throw new TypeFormulaError(
@@ -242,7 +225,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
       case '>=': {
         if ((left instanceof FormulaNumber && right instanceof FormulaNumber)
           || (left instanceof FormulaString && right instanceof FormulaString)) {
-          return new FormulaBoolean(left.value >= right.value);
+          return FormulaBoolean.from(left.value >= right.value);
         }
 
         throw new TypeFormulaError(
@@ -258,11 +241,11 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
       }
       case 'and':
       case '&&': {
-        return new FormulaBoolean(!!left.value && !!right.value);
+        return FormulaBoolean.from(!!left.value && !!right.value);
       }
       case 'or':
       case '||': {
-        return new FormulaBoolean(!!left.value || !!right.value);
+        return FormulaBoolean.from(!!left.value || !!right.value);
       }
 
       default: {
@@ -298,11 +281,11 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           );
         }
 
-        return new FormulaNumber(-arg.value);
+        return FormulaNumber.from(-arg.value);
       }
       case 'not':
       case '!': {
-        return new FormulaBoolean(!arg.value);
+        return FormulaBoolean.from(!arg.value);
       }
       default: {
         throw new RangeFormulaError(
@@ -378,4 +361,25 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
 
     return new FormulaArray(items);
   }
+}
+
+function checkNumericOperands(
+  l: FormulaDataType,
+  r: FormulaDataType,
+  location: AST.IBinaryExpressionNode['location'],
+): { leftNum: FormulaNumber; rightNum: FormulaNumber } {
+  if (!(l instanceof FormulaNumber) || !(r instanceof FormulaNumber)) {
+    throw new TypeFormulaError(
+      'Cannot perform math operation on a non-numeric value.',
+      {
+        location,
+        context: {
+          expected: 'Number',
+          actual: 'Non-Number',
+        },
+      },
+    );
+  }
+
+  return { leftNum: l, rightNum: r };
 }

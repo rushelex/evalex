@@ -71,6 +71,21 @@ export interface FormulaRuntimeOptions<T extends FormulaNode> {
  * await runtime.waitForProcessing();
  * ```
  */
+/**
+ * Cached state for incremental updates.
+ * Stores validated formula data to skip re-validation on recalculation.
+ */
+interface CachedFormulaState {
+  /** The formula string when last validated */
+  readonly formulaString: string;
+  /** Cached dependencies from last validation */
+  readonly dependencies: ReadonlySet<string>;
+  /** Cached expression object */
+  readonly expression: Expression;
+  /** Reusable context map - mutated in place to avoid allocations */
+  readonly context: Map<string, FormulaDataType>;
+}
+
 export class FormulaRuntime<T extends FormulaNode> {
   readonly #executor: Executor;
   readonly #scheduler: Scheduler;
@@ -81,6 +96,8 @@ export class FormulaRuntime<T extends FormulaNode> {
   readonly #validator = new FormulaValidator();
   // Track objects for GC-based cleanup
   readonly #finalizer: FinalizationRegistry<string>;
+  // Cache for incremental updates - stores validated formula state by node ID
+  readonly #cachedState = new Map<string, CachedFormulaState>();
 
   constructor(options: FormulaRuntimeOptions<T>) {
     this.#nodeProvider = options.nodeProvider;
@@ -89,6 +106,7 @@ export class FormulaRuntime<T extends FormulaNode> {
     this.#scheduler = options.scheduler;
     this.#finalizer = new FinalizationRegistry<string>((id) => {
       this.#graph.removeAll(id);
+      this.#cachedState.delete(id);
       options.onNodeCleanup?.(id);
     });
   }
@@ -117,7 +135,7 @@ export class FormulaRuntime<T extends FormulaNode> {
     }
 
     // Schedule processing if items were enqueued
-    if (dependents.length > 0) {
+    if (dependents.size > 0) {
       this.#scheduler.scheduleIfIdle(
         async () => this.#processQueue(),
         { queueSize: this.#queue.size() },
@@ -217,11 +235,12 @@ export class FormulaRuntime<T extends FormulaNode> {
 
   /**
    * Extract and validate node for processing.
+   * Uses incremental updates when formula hasn't changed (only values changed).
    */
   async #extractAndValidateNode(nodeId: string): Promise<{
     node: T;
     expression: Expression;
-    context: Record<string, FormulaDataType>;
+    context: Map<string, FormulaDataType>;
     dependencies: ReadonlySet<string>;
   } | null> {
     const node = this.#nodeProvider(nodeId);
@@ -229,15 +248,51 @@ export class FormulaRuntime<T extends FormulaNode> {
       return null;
     }
 
-    let expression = this.#adapter.toExpression(node);
-
-    const formulaValidation = this.#validator.validateFormula(expression);
-    if (!formulaValidation.isValid) {
-      throw formulaValidation.error;
+    const expression = this.#adapter.toExpression(node);
+    if (!expression) {
+      return null;
     }
 
-    // Already validated by FormulaValidator
-    expression = expression as Expression;
+    const currentFormulaString = expression.formula;
+
+    // Check if we can use cached state (incremental update path)
+    const cached = this.#cachedState.get(nodeId);
+    if (cached && cached.formulaString === currentFormulaString) {
+      // Fast path: formula unchanged, only values changed
+      // Skip all validation - just update context values in place
+      FormulaDebugger.traceProcessing(nodeId, cached.expression);
+
+      // Update context values in place (reuse existing objects)
+      this.#updateExecutionContextInPlace(cached.dependencies, cached.context);
+
+      return {
+        node,
+        expression: cached.expression,
+        context: cached.context,
+        dependencies: cached.dependencies,
+      };
+    }
+
+    // Slow path: formula is new or changed, full validation required
+    return this.#fullValidateAndCache(nodeId, node, expression);
+  }
+
+  /**
+   * Full validation path for new or changed formulas.
+   * Validates, updates graph, and caches state for future incremental updates.
+   */
+  async #fullValidateAndCache(nodeId: string, node: T, expression: Expression): Promise<{
+    node: T;
+    expression: Expression;
+    context: Map<string, FormulaDataType>;
+    dependencies: ReadonlySet<string>;
+  } | null> {
+    const formulaValidation = this.#validator.validateFormula(expression);
+    if (!formulaValidation.isValid) {
+      // Clear cache on validation failure
+      this.#cachedState.delete(nodeId);
+      throw formulaValidation.error;
+    }
 
     FormulaDebugger.traceProcessing(nodeId, expression);
 
@@ -247,6 +302,7 @@ export class FormulaRuntime<T extends FormulaNode> {
     // Validate using FormulaValidator
     const depsValidation = this.#validator.validateDependencies(nodeId, staticDeps);
     if (!depsValidation.isValid) {
+      this.#cachedState.delete(nodeId);
       throw depsValidation.error;
     }
 
@@ -256,31 +312,59 @@ export class FormulaRuntime<T extends FormulaNode> {
     // Validate depth after updating dependencies
     const depthValidation = this.#validator.validateDepth(nodeId, this.#graph);
     if (!depthValidation.isValid) {
+      this.#cachedState.delete(nodeId);
       throw depthValidation.error;
     }
 
-    // Build execution context
+    // Build execution context - use Map for performance
     const context = this.#buildExecutionContext(staticDeps);
+
+    // Cache validated state for future incremental updates (with reusable context objects)
+    this.#cachedState.set(nodeId, {
+      formulaString: expression.formula,
+      dependencies: staticDeps,
+      expression,
+      context,
+    });
 
     return { node, expression, context, dependencies: staticDeps };
   }
 
   /**
    * Build execution context from dependencies.
+   * Returns both Record (for compatibility) and Map (for performance).
    */
-  #buildExecutionContext(dependencies: ReadonlySet<string>): Record<string, FormulaDataType> {
-    const context: Record<string, FormulaDataType> = {};
+  #buildExecutionContext(dependencies: ReadonlySet<string>): Map<string, FormulaDataType> {
+    const context = new Map<string, FormulaDataType>();
 
     for (const depId of dependencies) {
       const dep = this.#nodeProvider(depId);
 
       if (dep) {
         const value = this.#adapter.toFormulaDataType(dep);
-        context[depId] = value;
+        context.set(depId, value);
       }
     }
 
     return context;
+  }
+
+  /**
+   * Update execution context values in place (no allocations).
+   * Used for incremental updates when formula hasn't changed.
+   */
+  #updateExecutionContextInPlace(
+    dependencies: ReadonlySet<string>,
+    context: Map<string, FormulaDataType>,
+  ): void {
+    for (const depId of dependencies) {
+      const dep = this.#nodeProvider(depId);
+
+      if (dep) {
+        const value = this.#adapter.toFormulaDataType(dep);
+        context.set(depId, value);
+      }
+    }
   }
 
   /**
