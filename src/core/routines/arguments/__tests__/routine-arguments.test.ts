@@ -1,3 +1,5 @@
+import { Kind } from '~/core/data-types';
+
 import { Argument } from '../argument';
 import { CallbackArgument } from '../callback-argument';
 import { RoutineArguments } from '../routine-arguments';
@@ -5,9 +7,9 @@ import { RoutineArguments } from '../routine-arguments';
 describe('RoutineArguments', () => {
   describe('initialization', () => {
     it('should initialize with provided alternatives', () => {
-      const dateArg = new Argument('date');
-      const durationArg = new Argument('duration');
-      const numberArg = new Argument('number');
+      const dateArg = new Argument(Kind.Date);
+      const durationArg = new Argument(Kind.Duration);
+      const numberArg = new Argument(Kind.Number);
       const alternatives = [[dateArg, durationArg], [dateArg, numberArg]];
       const args = new RoutineArguments(alternatives);
 
@@ -39,7 +41,7 @@ describe('RoutineArguments', () => {
 
     describe('when first alternative is single Argument', () => {
       it('should return empty array after consuming single non-repeatable argument', () => {
-        const numberArg = new Argument('number');
+        const numberArg = new Argument(Kind.Number);
         const alternatives = [numberArg];
         const args = new RoutineArguments(alternatives);
 
@@ -49,8 +51,8 @@ describe('RoutineArguments', () => {
       });
 
       it('should return slice(1) for two non-repeatable arguments', () => {
-        const stringArg = new Argument('string');
-        const numberArg = new Argument('number');
+        const stringArg = new Argument(Kind.String);
+        const numberArg = new Argument(Kind.Number);
         const alternatives = [stringArg, numberArg];
         const args = new RoutineArguments(alternatives);
 
@@ -60,7 +62,7 @@ describe('RoutineArguments', () => {
       });
 
       it('should return original alternatives when argument is repeatable', () => {
-        const stringOrNumberRepeatableArg = new Argument(['string', 'number'], { repeatable: true });
+        const stringOrNumberRepeatableArg = new Argument([Kind.String, Kind.Number], { repeatable: true });
         const alternatives = [stringOrNumberRepeatableArg];
         const args = new RoutineArguments(alternatives);
 
@@ -73,7 +75,7 @@ describe('RoutineArguments', () => {
     describe('when first alternative is array of Arguments', () => {
       it('should return original alternatives when first element is CallbackArgument', () => {
         const callbackArg = new CallbackArgument(['item']);
-        const numberArg = new Argument('number');
+        const numberArg = new Argument(Kind.Number);
         const alternatives = [[callbackArg, numberArg]];
         const args = new RoutineArguments(alternatives);
 
@@ -83,8 +85,8 @@ describe('RoutineArguments', () => {
       });
 
       it('should slice first element when head is non-repeatable (single alternative)', () => {
-        const numberArg = new Argument('number');
-        const stringArg = new Argument('string');
+        const numberArg = new Argument(Kind.Number);
+        const stringArg = new Argument(Kind.String);
         const alternatives = [[numberArg, stringArg]];
         const args = new RoutineArguments(alternatives);
 
@@ -94,8 +96,8 @@ describe('RoutineArguments', () => {
       });
 
       it('should return slice(1) for single pattern', () => {
-        const stringArg = new Argument('string');
-        const numberArg = new Argument('number');
+        const stringArg = new Argument(Kind.String);
+        const numberArg = new Argument(Kind.Number);
         const alternatives = [[stringArg, numberArg]];
         const args = new RoutineArguments(alternatives);
 
@@ -105,7 +107,7 @@ describe('RoutineArguments', () => {
       });
 
       it('should handle empty array after slicing first element', () => {
-        const stringArg = new Argument('string');
+        const stringArg = new Argument(Kind.String);
         const alternatives = [[stringArg]];
         const args = new RoutineArguments(alternatives);
 
@@ -115,7 +117,7 @@ describe('RoutineArguments', () => {
       });
 
       it('should return original alternatives when argument is repeatable', () => {
-        const stringRepeatableArg = new Argument('string', { repeatable: true });
+        const stringRepeatableArg = new Argument([Kind.String], { repeatable: true });
         const alternatives = [[stringRepeatableArg]];
         const args = new RoutineArguments(alternatives);
 
@@ -128,8 +130,8 @@ describe('RoutineArguments', () => {
     describe('when alternatives are arrays of Argument', () => {
       it('should return original alternatives when first element is CallbackArgument', () => {
         const callbackArg = new CallbackArgument(['item']);
-        const numberArg = new Argument('number');
-        const stringArg = new Argument('string');
+        const numberArg = new Argument(Kind.Number);
+        const stringArg = new Argument(Kind.String);
         const alternatives = [[callbackArg, numberArg], [callbackArg, stringArg]];
         const args = new RoutineArguments(alternatives);
 
@@ -139,9 +141,9 @@ describe('RoutineArguments', () => {
       });
 
       it('should slice first element across multiple patterns', () => {
-        const numberArg = new Argument('number');
-        const stringArg = new Argument('string');
-        const durationArg = new Argument('duration');
+        const numberArg = new Argument(Kind.Number);
+        const stringArg = new Argument(Kind.String);
+        const durationArg = new Argument(Kind.Duration);
         const alternatives = [[numberArg, stringArg], [stringArg, durationArg]];
         const args = new RoutineArguments(alternatives);
 
@@ -151,9 +153,9 @@ describe('RoutineArguments', () => {
       });
 
       it('should return slice(1) across multiple patterns', () => {
-        const stringArg = new Argument('string');
-        const numberArg = new Argument('number');
-        const dateArg = new Argument('date');
+        const stringArg = new Argument(Kind.String);
+        const numberArg = new Argument(Kind.Number);
+        const dateArg = new Argument(Kind.Date);
         const alternatives = [[stringArg, numberArg], [stringArg, dateArg]];
         const args = new RoutineArguments(alternatives);
 
@@ -163,7 +165,7 @@ describe('RoutineArguments', () => {
       });
 
       it('should handle empty array after slicing first element', () => {
-        const stringArg = new Argument('string');
+        const stringArg = new Argument(Kind.String);
         const alternatives = [[stringArg], [stringArg]];
         const args = new RoutineArguments(alternatives);
 
@@ -173,7 +175,7 @@ describe('RoutineArguments', () => {
       });
 
       it('should return original alternatives when argument is repeatable', () => {
-        const stringRepeatableArg = new Argument('string', { repeatable: true });
+        const stringRepeatableArg = new Argument([Kind.String], { repeatable: true });
         const alternatives = [[stringRepeatableArg], [stringRepeatableArg]];
         const args = new RoutineArguments(alternatives);
 
@@ -185,9 +187,9 @@ describe('RoutineArguments', () => {
 
     describe('edge cases', () => {
       it('should handle complex nested alternatives structure', () => {
-        const stringArg = new Argument('string');
-        const numberArg = new Argument('number');
-        const dateArg = new Argument('date');
+        const stringArg = new Argument(Kind.String);
+        const numberArg = new Argument(Kind.Number);
+        const dateArg = new Argument(Kind.Date);
         const callbackArg = new CallbackArgument(['item']);
 
         const alternatives = [
@@ -207,9 +209,9 @@ describe('RoutineArguments', () => {
       });
 
       it('should consume for non-callback, non-repeatable heads in complex case', () => {
-        const numberArg = new Argument('number');
-        const dateArg = new Argument('date');
-        const booleanArg = new Argument('boolean');
+        const numberArg = new Argument(Kind.Number);
+        const dateArg = new Argument(Kind.Date);
+        const booleanArg = new Argument(Kind.Boolean);
 
         const alternatives = [
           [numberArg, dateArg],
@@ -223,8 +225,8 @@ describe('RoutineArguments', () => {
       });
 
       it('should handle alternatives with mixed argument and callback patterns correctly', () => {
-        const stringArg = new Argument('string');
-        const numberArg = new Argument('number');
+        const stringArg = new Argument(Kind.String);
+        const numberArg = new Argument(Kind.Number);
         const callbackArg = new CallbackArgument(['item']);
 
         const alternatives = [

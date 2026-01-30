@@ -38,24 +38,24 @@ export type ToFormulaDataType<T, ShouldWrapObject extends boolean = false>
                       : never;
 
 export type InferFormulaDataTypeByKind<T extends Kind>
-  = T extends 'null'
+  = T extends Kind.Null
     ? FormulaNull
-    : T extends 'boolean'
+    : T extends Kind.Boolean
       ? FormulaBoolean
-      : T extends 'number'
+      : T extends Kind.Number
         ? FormulaNumber
-        : T extends 'string'
+        : T extends Kind.String
           ? FormulaString
-          : T extends 'date'
+          : T extends Kind.Date
             ? FormulaDate
-            : T extends 'duration'
+            : T extends Kind.Duration
               ? FormulaDuration
-              : T extends 'regexp'
+              : T extends Kind.RegExp
                 ? FormulaRegExp
-                : T extends 'array'
+                : T extends Kind.Array
                   ? FormulaArray
-                  : T extends 'object'
+                  : T extends Kind.Object
                     ? FormulaObject
-                    : T extends 'any'
+                    : T extends Kind.Any
                       ? FormulaDataType
                       : never;

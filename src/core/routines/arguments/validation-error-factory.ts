@@ -3,6 +3,7 @@ import type { FormulaError } from '../../errors';
 import type { Argument } from './argument';
 import type { ArgumentsPattern } from './arguments-definitions';
 import type { CallbackArgument } from './callback-argument';
+
 import type { CallbackExecutor } from './callback-executor';
 
 import { ArgumentFormulaError } from '../../errors';
@@ -99,7 +100,7 @@ export class ValidationErrorFactory {
       {
         context: {
           argumentPosition: position,
-          expected: typeof argDef.types === 'string' ? argDef.types : [...argDef.types],
+          expected: Array.isArray(argDef.types) ? [...argDef.types] : argDef.types,
           actual: arg.dataType.kind,
         },
         location: arg.location,
@@ -203,7 +204,7 @@ export class ValidationErrorFactory {
       {
         context: {
           argumentPosition: position,
-          expected: typeof argDef.types === 'string' ? argDef.types : [...argDef.types],
+          expected: Array.isArray(argDef.types) ? [...argDef.types] : argDef.types,
           actual: 'callback',
         },
         location: arg.location,

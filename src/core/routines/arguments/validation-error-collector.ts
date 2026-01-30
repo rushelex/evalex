@@ -1,7 +1,8 @@
 import type { AST } from '../../../parser';
-import type { Kind } from '../../data-types';
 import type { FormulaError } from '../../errors';
 import type { ArgumentsDefinitions, ArgumentsPattern, ProcessedArguments } from './arguments-definitions';
+
+import { Kind } from '../../data-types';
 
 import { CallbackArgument } from './callback-argument';
 import { CallbackExecutor } from './callback-executor';
@@ -152,8 +153,8 @@ export class ValidationErrorCollector {
    * @param expectedTypes Single expected type or array of expected types
    * @returns True if types match
    */
-  #isTypeMatch(actualType: Kind, expectedTypes: Kind | readonly Kind[]): boolean {
+  #isTypeMatch(actualType: Kind, expectedTypes: Kind | Kind[]): boolean {
     const expectedTypesArray = Array.isArray(expectedTypes) ? expectedTypes : [expectedTypes];
-    return expectedTypesArray.includes(actualType) || expectedTypesArray.includes('any');
+    return expectedTypesArray.includes(actualType) || expectedTypesArray.includes(Kind.Any);
   }
 }

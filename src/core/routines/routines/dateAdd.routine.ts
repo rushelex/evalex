@@ -3,7 +3,7 @@ import type { ProcessedArgument } from '../arguments';
 
 import { Temporal } from 'temporal-polyfill';
 
-import { FormulaDate, FormulaDuration } from '../../data-types';
+import { FormulaDate, FormulaDuration, Kind } from '../../data-types';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
@@ -27,13 +27,13 @@ const DURATION_UNITS = ['years', 'months', 'weeks', 'days', 'hours', 'minutes', 
 
 const routineArguments = createRoutineArguments([
   [
-    new Argument('date', { name: 'date' }),
-    new Argument('duration', { name: 'duration' }),
+    new Argument(Kind.Date, { name: 'date' }),
+    new Argument(Kind.Duration, { name: 'duration' }),
   ],
   [
-    new Argument('date', { name: 'date' }),
-    new Argument('number', { name: 'number' }),
-    new Argument('string', {
+    new Argument(Kind.Date, { name: 'date' }),
+    new Argument(Kind.Number, { name: 'number' }),
+    new Argument(Kind.String, {
       name: 'unit',
       validation: (dataType) => {
         if (!DURATION_UNITS.includes(dataType.value)) {

@@ -1,6 +1,6 @@
 import type { FormulaArray } from '../../data-types';
 
-import { FormulaString } from '../../data-types';
+import { FormulaString, Kind } from '../../data-types';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
@@ -24,8 +24,8 @@ routinesRegistry.registerFunction('join', {
   description: 'Returns the values of the list with the joiner placed between each of the values.',
   examples: routineExamples,
   arguments: createRoutineArguments([
-    new Argument('array', { name: 'list' }),
-    new Argument('string', { name: 'separator', optional: true }),
+    new Argument(Kind.Array, { name: 'list' }),
+    new Argument(Kind.String, { name: 'separator', optional: true }),
   ]),
   handler: ({ node, visitor }) => {
     const [listArg, separatorArg] = visitor.evaluateNodes<[FormulaArray, FormulaString?]>(node.args);

@@ -3,7 +3,7 @@ import type { Class } from 'type-fest';
 import type { FormulaDataType } from '../../data-types';
 import type { ProcessedArgument } from '../arguments';
 
-import { FormulaArray, FormulaBoolean, FormulaDate, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString } from '../../data-types';
+import { FormulaArray, FormulaBoolean, FormulaDate, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString, Kind } from '../../data-types';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
@@ -22,7 +22,7 @@ const routineExamples = createRoutineExamples([
 ]);
 
 const routineArguments = createRoutineArguments([
-  new Argument('any', { name: 'value' }),
+  new Argument(Kind.Any, { name: 'value' }),
 ]);
 
 routinesRegistry.registerFunction('format', {

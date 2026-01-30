@@ -8,14 +8,14 @@ interface ArgumentOptions<T extends Kind> {
 }
 
 export class Argument<T extends Kind = Kind> {
-  readonly types: T | readonly T[];
+  readonly types: T | T[];
   readonly name?: string;
   readonly optional: boolean;
   readonly repeatable: boolean;
   readonly validation?: (dataType: InferFormulaDataTypeByKind<T>) => string | undefined;
 
   constructor(
-    types: T | readonly T[],
+    types: T | T[],
     options?: ArgumentOptions<T>,
   ) {
     this.types = types;

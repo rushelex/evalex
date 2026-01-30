@@ -6,6 +6,7 @@ import { routinesRegistry } from '../../routines/registry';
 import { createRoutineExamples } from '../../routines/routine-examples';
 import { convertValueToFormulaType } from '../converter';
 import { defineCoreMethods } from '../core-methods';
+import { Kind } from '../kind';
 import { FormulaNumber } from '../number';
 import { FormulaString } from '../string';
 import { FormulaArray } from './FormulaArray';
@@ -31,10 +32,10 @@ routinesRegistry.registerMethod(FormulaArray, 'map', {
     },
   ]),
   arguments: createRoutineArguments([
-    new Argument('array', { name: 'self' }),
+    new Argument(Kind.Array, { name: 'self' }),
     new CallbackArgument(['current', 'index'], {
       name: 'mapper',
-      returnType: 'any',
+      returnType: Kind.Any,
     }),
   ]),
   handler: ({ instance, args }) => {
@@ -68,10 +69,10 @@ routinesRegistry.registerMethod(FormulaArray, 'filter', {
     },
   ]),
   arguments: createRoutineArguments([
-    new Argument('array', { name: 'self' }),
+    new Argument(Kind.Array, { name: 'self' }),
     new CallbackArgument(['current', 'index'], {
       name: 'predicate',
-      returnType: 'boolean',
+      returnType: Kind.Boolean,
     }),
   ]),
   handler: ({ instance, args }) => {
@@ -107,8 +108,8 @@ routinesRegistry.registerMethod(FormulaArray, 'join', {
     },
   ]),
   arguments: createRoutineArguments([
-    new Argument('array', { name: 'self' }),
-    new Argument('string', { name: 'separator', optional: true }),
+    new Argument(Kind.Array, { name: 'self' }),
+    new Argument(Kind.String, { name: 'separator', optional: true }),
   ]),
   handler: ({ instance, args }) => {
     const [separatorArg] = args as [ProcessedArgument<FormulaString>?];

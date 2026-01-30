@@ -54,7 +54,7 @@ describe('parseDate routine', tester.examples({
     formula: 'parseDate(1)',
     expected: {
       function: {
-        message: 'Expected type string.',
+        message: 'Expected type String.',
         location: [10, 11],
       },
     },
@@ -73,7 +73,7 @@ describe('parseDate routine', tester.examples({
     },
     expected: {
       function: {
-        message: 'Expected type string.',
+        message: 'Expected type String.',
         location: [10, 11],
       },
     },

@@ -1,19 +1,20 @@
 import type { ToStringOptions } from '../FormulaDataType';
 
 import { FormulaDataType } from '../FormulaDataType';
+import { Kind } from '../kind';
 
 /**
  * Represents a text data type in the formula system.
  */
 export class FormulaString extends FormulaDataType<string> {
-  static readonly kind = 'string';
+  static readonly kind = Kind.String;
 
   /**
    * Creates a FormulaString instance.
    * @param value String value.
    */
   constructor(value: string) {
-    super('string', String(value), 'Text');
+    super(Kind.String, String(value), 'Text');
   }
 
   isEmpty(): boolean {

@@ -1,12 +1,13 @@
 import { Temporal } from 'temporal-polyfill';
 
 import { FormulaDataType } from '../FormulaDataType';
+import { Kind } from '../kind';
 
 export class FormulaDuration extends FormulaDataType<Temporal.Duration> {
-  static readonly kind = 'duration';
+  static readonly kind = Kind.Duration;
 
   constructor(value: Temporal.Duration) {
-    super('duration', value, 'Duration');
+    super(Kind.Duration, value, 'Duration');
   }
 
   isEmpty(): boolean {

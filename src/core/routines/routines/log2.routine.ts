@@ -1,4 +1,4 @@
-import { FormulaNumber } from '../../data-types';
+import { FormulaNumber, Kind } from '../../data-types';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
@@ -18,7 +18,7 @@ routinesRegistry.registerFunction('log2', {
   description: 'Returns the base 2 logarithm of the number.',
   examples: routineExamples,
   arguments: createRoutineArguments([
-    new Argument('number', {
+    new Argument(Kind.Number, {
       name: 'number',
       validation: (value) => {
         if (value.value <= 0) {

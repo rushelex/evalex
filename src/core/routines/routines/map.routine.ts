@@ -1,6 +1,6 @@
 import type { CallbackExecutor, ProcessedArgument } from '../arguments';
 
-import { FormulaArray, FormulaNumber } from '../../data-types';
+import { FormulaArray, FormulaNumber, Kind } from '../../data-types';
 import { Argument, CallbackArgument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
@@ -20,10 +20,10 @@ routinesRegistry.registerFunction('map', {
   description: 'Returns the list populated with the results of calling the expression on every item in the input list.',
   examples: routineExamples,
   arguments: createRoutineArguments([
-    new Argument('array', { name: 'list' }),
+    new Argument(Kind.Array, { name: 'list' }),
     new CallbackArgument(['current', 'index'], {
       name: 'mapper',
-      returnType: 'any',
+      returnType: Kind.Any,
     }),
   ]),
   handler: ({ args }) => {

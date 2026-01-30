@@ -1,6 +1,6 @@
 import type { CallbackExecutor, ProcessedArgument } from '../arguments';
 
-import { FormulaArray, FormulaNumber, FormulaString } from '../../data-types';
+import { FormulaArray, FormulaNumber, FormulaString, Kind } from '../../data-types';
 import { Argument, CallbackArgument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
@@ -24,10 +24,10 @@ routinesRegistry.registerFunction('filter', {
   description: 'Returns the values in the list for which the condition is true.',
   examples: routineExamples,
   arguments: createRoutineArguments([
-    new Argument('array', { name: 'list' }),
+    new Argument(Kind.Array, { name: 'list' }),
     new CallbackArgument(['current', 'index'], {
       name: 'predicate',
-      returnType: 'boolean',
+      returnType: Kind.Boolean,
     }),
   ]),
   handler: ({ args }) => {

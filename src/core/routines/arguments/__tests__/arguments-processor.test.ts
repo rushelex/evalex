@@ -2,7 +2,7 @@ import type { AST } from '../../../../parser';
 
 import { AstNodes } from '../../../../parser';
 import { FormulaEvaluationContext } from '../../../context';
-import { FormulaString } from '../../../data-types';
+import { FormulaString, Kind } from '../../../data-types';
 import { FormulaEvaluatorVisitor } from '../../../evaluator.visitor';
 import { Argument } from '../argument';
 import { ArgumentsProcessor } from '../arguments-processor';
@@ -59,7 +59,7 @@ describe('ArgumentsProcessor', () => {
     describe('process()', () => {
       it('should create ProcessedArgument for regular arguments', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string', { name: 'text' }),
+          new Argument(Kind.String, { name: 'text' }),
         ]);
         const visitor = createMockVisitor();
 
@@ -87,7 +87,7 @@ describe('ArgumentsProcessor', () => {
     describe('validate()', () => {
       it('should validate ProcessedArguments correctly', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string', { name: 'text' }),
+          new Argument(Kind.String, { name: 'text' }),
         ]);
 
         expect(validateArgs(processor, [str()])).toBe(true);
@@ -98,22 +98,22 @@ describe('ArgumentsProcessor', () => {
     describe('getValidationError()', () => {
       it('should return error with location for specific argument errors', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string', { name: 'text' }),
+          new Argument(Kind.String, { name: 'text' }),
         ]);
 
         const error = getValidationError(processor, [num([9, 11])]);
 
-        expect(error).toBeFormulaError('Expected type string.', [9, 11]);
+        expect(error).toBeFormulaError('Expected type String.', [9, 11]);
         expect(error.context).toEqual(expect.objectContaining({
           argumentPosition: 1,
-          expected: 'string',
-          actual: 'number',
+          expected: Kind.String,
+          actual: Kind.Number,
         }));
       });
 
       it('should return null location for count errors', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string', { name: 'text' }),
+          new Argument(Kind.String, { name: 'text' }),
         ]);
 
         const error = getValidationError(processor, [], loc([0, 100]));
@@ -131,7 +131,7 @@ describe('ArgumentsProcessor', () => {
     describe('Single Arguments', () => {
       describe('Required Arguments', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string', { name: 'text' }),
+          new Argument(Kind.String, { name: 'text' }),
         ]);
 
         it('should validate single required argument', () => {
@@ -143,13 +143,13 @@ describe('ArgumentsProcessor', () => {
 
         it('should provide error for wrong type with location', () => {
           const error = getValidationError(processor, [num([5, 7])]);
-          expect(error).toBeFormulaError('Expected type string.', [5, 7]);
+          expect(error).toBeFormulaError('Expected type String.', [5, 7]);
         });
       });
 
       describe('Optional Arguments', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string', { optional: true, name: 'text' }),
+          new Argument(Kind.String, { optional: true, name: 'text' }),
         ]);
 
         it('should validate optional argument', () => {
@@ -162,9 +162,9 @@ describe('ArgumentsProcessor', () => {
 
     describe('Multiple Arguments', () => {
       const processor = new ArgumentsProcessor([
-        new Argument('string'),
-        new Argument('number', { optional: true }),
-        new Argument('boolean', { optional: true }),
+        new Argument(Kind.String),
+        new Argument(Kind.Number, { optional: true }),
+        new Argument(Kind.Boolean, { optional: true }),
       ]);
 
       it('should validate combinations of required and optional', () => {
@@ -177,18 +177,18 @@ describe('ArgumentsProcessor', () => {
 
       it('should provide error for wrong optional type with location', () => {
         const error = getValidationError(processor, [str([0, 4]), str([5, 9])]);
-        expect(error).toBeFormulaError('Expected type number.', [5, 9]);
+        expect(error).toBeFormulaError('Expected type Number.', [5, 9]);
         expect(error.context).toEqual(expect.objectContaining({
           argumentPosition: 2,
-          expected: 'number',
-          actual: 'string',
+          expected: Kind.Number,
+          actual: Kind.String,
         }));
       });
     });
 
     describe('Repeatable Arguments', () => {
       const processor = new ArgumentsProcessor([
-        new Argument('number', { name: 'values', repeatable: true }),
+        new Argument(Kind.Number, { name: 'values', repeatable: true }),
       ]);
 
       it('should validate repeatable arguments', () => {
@@ -202,11 +202,11 @@ describe('ArgumentsProcessor', () => {
 
       it('should provide error for wrong repeatable type with location', () => {
         const error = getValidationError(processor, [num(), str([9, 12])]);
-        expect(error).toBeFormulaError('Expected type number.', [9, 12]);
+        expect(error).toBeFormulaError('Expected type Number.', [9, 12]);
         expect(error.context).toEqual(expect.objectContaining({
           argumentPosition: 2,
-          expected: 'number',
-          actual: 'string',
+          expected: Kind.Number,
+          actual: Kind.String,
         }));
       });
     });
@@ -214,9 +214,9 @@ describe('ArgumentsProcessor', () => {
     describe('Alternative Patterns', () => {
       const processor = new ArgumentsProcessor([
         // Pattern 1: single array argument
-        [new Argument('array', { name: 'numbers_array' })],
+        [new Argument(Kind.Array, { name: 'numbers_array' })],
         // Pattern 2: repeatable number arguments
-        [new Argument('number', { name: 'numbers', repeatable: true })],
+        [new Argument(Kind.Number, { name: 'numbers', repeatable: true })],
       ]);
 
       it('should validate first pattern (array)', () => {
@@ -236,7 +236,7 @@ describe('ArgumentsProcessor', () => {
 
       it('should provide collected error for multiple patterns', () => {
         const error = getValidationError(processor, [str()], loc([0, 100]));
-        expect(error).toBeFormulaError('Arguments don\'t match. Pattern 1: Expected type array.; Pattern 2: Expected type number.', [0, 100]);
+        expect(error).toBeFormulaError('Arguments don\'t match. Pattern 1: Expected type Array.; Pattern 2: Expected type Number.', [0, 100]);
         expect(error.context).toEqual(expect.objectContaining({
           expected: 'one of 2 patterns',
           actual: 'invalid',
@@ -245,19 +245,18 @@ describe('ArgumentsProcessor', () => {
 
       it('should provide errors for multiple patterns', () => {
         const errors = getValidationErrors(processor, [str()], loc([0, 100]));
-        // "Arguments don't match. Pattern 1: Expected type array. [0,4]; Pattern 2: Expected type number. [0,4]."
         expect(errors).toHaveLength(2);
-        expect(errors[0]).toBeFormulaError('Expected type array.', [0, 4]);
+        expect(errors[0]).toBeFormulaError('Expected type Array.', [0, 4]);
         expect(errors[0].context).toEqual(expect.objectContaining({
           argumentPosition: 1,
-          expected: 'array',
-          actual: 'string',
+          expected: Kind.Array,
+          actual: Kind.String,
         }));
-        expect(errors[1]).toBeFormulaError('Expected type number.', [0, 4]);
+        expect(errors[1]).toBeFormulaError('Expected type Number.', [0, 4]);
         expect(errors[1].context).toEqual(expect.objectContaining({
           argumentPosition: 1,
-          expected: 'number',
-          actual: 'string',
+          expected: Kind.Number,
+          actual: Kind.String,
         }));
       });
     });
@@ -267,7 +266,7 @@ describe('ArgumentsProcessor', () => {
     describe('Basic Types', () => {
       it('should validate string type', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string'),
+          new Argument(Kind.String),
         ]);
 
         expect(validateArgs(processor, [str()])).toBe(true);
@@ -276,7 +275,7 @@ describe('ArgumentsProcessor', () => {
 
       it('should validate number type', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('number'),
+          new Argument(Kind.Number),
         ]);
 
         expect(validateArgs(processor, [num()])).toBe(true);
@@ -285,7 +284,7 @@ describe('ArgumentsProcessor', () => {
 
       it('should validate boolean type', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('boolean'),
+          new Argument(Kind.Boolean),
         ]);
 
         expect(validateArgs(processor, [bool()])).toBe(true);
@@ -294,7 +293,7 @@ describe('ArgumentsProcessor', () => {
 
       it('should validate array type', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('array'),
+          new Argument(Kind.Array),
         ]);
 
         expect(validateArgs(processor, [arr()])).toBe(true);
@@ -304,7 +303,7 @@ describe('ArgumentsProcessor', () => {
 
     describe('Union Types', () => {
       const processor = new ArgumentsProcessor([
-        new Argument(['string', 'number'], { name: 'value' }),
+        new Argument([Kind.String, Kind.Number], { name: 'value' }),
       ]);
 
       it('should validate union types', () => {
@@ -315,19 +314,19 @@ describe('ArgumentsProcessor', () => {
 
       it('should provide error for wrong union type with location', () => {
         const error = getValidationError(processor, [bool([5, 9])]);
-        expect(error).toBeFormulaError('Expected type string | number.', [5, 9]);
+        expect(error).toBeFormulaError('Expected type String | Number.', [5, 9]);
         expect(error.context).toEqual(expect.objectContaining({
           argumentPosition: 1,
-          expected: ['string', 'number'],
-          actual: 'boolean',
+          expected: [Kind.String, Kind.Number],
+          actual: Kind.Boolean,
         }));
       });
     });
 
     describe('Any Type', () => {
       const processor = new ArgumentsProcessor([
-        new Argument('any'),
-        new Argument(['any', 'string']),
+        new Argument(Kind.Any),
+        new Argument([Kind.Any, Kind.String]),
       ]);
 
       it('should accept any type for Any arguments', () => {
@@ -359,7 +358,7 @@ describe('ArgumentsProcessor', () => {
         const processor = new ArgumentsProcessor([
           new CallbackArgument(['current'], {
             name: 'callback',
-            returnType: 'number',
+            returnType: Kind.Number,
           }),
         ]);
         const visitor = createMockVisitor();
@@ -404,7 +403,7 @@ describe('ArgumentsProcessor', () => {
 
     describe('Mixed Callback and Regular Arguments', () => {
       const processor = new ArgumentsProcessor([
-        new Argument('array', { name: 'array' }),
+        new Argument(Kind.Array, { name: 'array' }),
         new CallbackArgument(['current'], { name: 'callback' }),
       ]);
 
@@ -416,11 +415,11 @@ describe('ArgumentsProcessor', () => {
 
       it('should provide specific error for wrong regular argument position', () => {
         const error = getValidationError(processor, [str([0, 4]), identifier('current')]);
-        expect(error).toBeFormulaError('Expected type array.', [0, 4]);
+        expect(error).toBeFormulaError('Expected type Array.', [0, 4]);
         expect(error.context).toEqual(expect.objectContaining({
           argumentPosition: 1,
-          expected: 'array',
-          actual: 'string',
+          expected: Kind.Array,
+          actual: Kind.String,
         }));
       });
 
@@ -435,7 +434,7 @@ describe('ArgumentsProcessor', () => {
   describe('Custom Validation', () => {
     it('should validate arguments using custom validator', () => {
       const processor = new ArgumentsProcessor([
-        new Argument('string', {
+        new Argument(Kind.String, {
           name: 'text',
           validation: (dataType) => dataType.value === 'test' ? undefined : 'Invalid value',
         }),
@@ -447,7 +446,7 @@ describe('ArgumentsProcessor', () => {
 
     it('should return custom validation error message', () => {
       const processor = new ArgumentsProcessor([
-        new Argument('string', {
+        new Argument(Kind.String, {
           name: 'text',
           validation: (dataType) => dataType.value === 'invalid' ? `Expected "test", but got "${dataType.value}".` : undefined,
         }),
@@ -467,7 +466,7 @@ describe('ArgumentsProcessor', () => {
 
     describe('String Literals', () => {
       const processor = new ArgumentsProcessor([
-        new Argument('string', {
+        new Argument(Kind.String, {
           name: 'unit',
           validation: (dataType) => {
             if (!['years', 'months', 'days'].includes(dataType.value)) {
@@ -502,7 +501,7 @@ describe('ArgumentsProcessor', () => {
 
     describe('Number Literals', () => {
       const processor = new ArgumentsProcessor([
-        new Argument('number', {
+        new Argument(Kind.Number, {
           name: 'level',
           validation: (dataType) => {
             if (![1, 2, 3].includes(dataType.value)) {
@@ -537,7 +536,7 @@ describe('ArgumentsProcessor', () => {
 
     describe('Boolean Literals', () => {
       const processor = new ArgumentsProcessor([
-        new Argument('boolean', {
+        new Argument(Kind.Boolean, {
           name: 'flag',
           validation: (dataType) => {
             if (dataType.value !== true) {
@@ -558,8 +557,8 @@ describe('ArgumentsProcessor', () => {
 
     describe('Mixed Literals', () => {
       const processor = new ArgumentsProcessor([
-        new Argument('number', { name: 'amount' }),
-        new Argument('string', {
+        new Argument(Kind.Number, { name: 'amount' }),
+        new Argument(Kind.String, {
           name: 'unit',
           validation: (dataType) => {
             if (!['hours', 'minutes', 'seconds'].includes(dataType.value)) {
@@ -587,8 +586,8 @@ describe('ArgumentsProcessor', () => {
         const multiPatternProcessor = new ArgumentsProcessor([
           // Pattern 1: Number and string with specific literals
           [
-            new Argument('number', { name: 'amount' }),
-            new Argument('string', {
+            new Argument(Kind.Number, { name: 'amount' }),
+            new Argument(Kind.String, {
               name: 'unit',
               validation: (dataType) => {
                 if (!['hours', 'minutes', 'seconds'].includes(dataType.value)) {
@@ -598,7 +597,7 @@ describe('ArgumentsProcessor', () => {
             }),
           ],
           // Pattern 2: Just a string
-          [new Argument('string', { name: 'text' })],
+          [new Argument(Kind.String, { name: 'text' })],
         ]);
 
         const error = getValidationError(multiPatternProcessor, [
@@ -618,16 +617,16 @@ describe('ArgumentsProcessor', () => {
     describe('Location Tracking', () => {
       it('should track location for type errors', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string'),
+          new Argument(Kind.String),
         ]);
 
         const error = getValidationError(processor, [num([15, 17])]);
-        expect(error).toBeFormulaError('Expected type string.', [15, 17]);
+        expect(error).toBeFormulaError('Expected type String.', [15, 17]);
       });
 
       it('should track location for custom validation errors', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string', { validation: (dataType) => dataType.value === 'valid' ? undefined : 'Invalid value.' }),
+          new Argument(Kind.String, { validation: (dataType) => dataType.value === 'valid' ? undefined : 'Invalid value.' }),
         ]);
 
         const error = getValidationError(processor, [literal('invalid', [20, 27])]);
@@ -636,7 +635,7 @@ describe('ArgumentsProcessor', () => {
 
       it('should return null location for count errors', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string'),
+          new Argument(Kind.String),
         ]);
 
         const error = getValidationError(processor, [], loc([0, 100]));
@@ -646,8 +645,8 @@ describe('ArgumentsProcessor', () => {
 
       it('should return fallback location for pattern mismatch errors', () => {
         const processor = new ArgumentsProcessor([
-          [new Argument('array')],
-          [new Argument('number', { repeatable: true })],
+          [new Argument(Kind.Array)],
+          [new Argument(Kind.Number, { repeatable: true })],
         ]);
 
         const error = getValidationError(processor, [str()], loc([0, 100]));
@@ -659,17 +658,17 @@ describe('ArgumentsProcessor', () => {
     describe('Error Messages', () => {
       it('should provide clear type error messages', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string'),
+          new Argument(Kind.String),
         ]);
 
         const error = getValidationError(processor, [num()]);
 
-        expect(error).toBeFormulaError('Expected type string.', [0, 2]);
+        expect(error).toBeFormulaError('Expected type String.', [0, 2]);
       });
 
       it('should provide clear custom validation error messages', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string', { validation: (dataType) => dataType.value === 'valid' ? undefined : 'Invalid value.' }),
+          new Argument(Kind.String, { validation: (dataType) => dataType.value === 'valid' ? undefined : 'Invalid value.' }),
         ]);
 
         const error = getValidationError(processor, [literal('invalid')]);
@@ -679,8 +678,8 @@ describe('ArgumentsProcessor', () => {
 
       it('should provide clear count error messages', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string'),
-          new Argument('number'),
+          new Argument(Kind.String),
+          new Argument(Kind.Number),
         ]);
 
         const error = getValidationError(processor, [str()]);
@@ -692,8 +691,8 @@ describe('ArgumentsProcessor', () => {
     describe('Error Context', () => {
       it('should provide argument position in context', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string'),
-          new Argument('number'),
+          new Argument(Kind.String),
+          new Argument(Kind.Number),
         ]);
 
         const error = getValidationError(processor, [str(), str()]);
@@ -705,20 +704,20 @@ describe('ArgumentsProcessor', () => {
 
       it('should provide expected and actual types in context', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string'),
+          new Argument(Kind.String),
         ]);
 
         const error = getValidationError(processor, [num()]);
 
         expect(error.context).toEqual(expect.objectContaining({
-          expected: 'string',
-          actual: 'number',
+          expected: Kind.String,
+          actual: Kind.Number,
         }));
       });
 
       it('should provide expected and actual arguments count in context', () => {
         const processor = new ArgumentsProcessor([
-          new Argument('string'),
+          new Argument(Kind.String),
         ]);
 
         const error = getValidationError(processor, []);
@@ -743,8 +742,8 @@ describe('ArgumentsProcessor', () => {
 
     describe('All Optional Arguments', () => {
       const processor = new ArgumentsProcessor([
-        new Argument('string', { optional: true }),
-        new Argument('number', { optional: true }),
+        new Argument(Kind.String, { optional: true }),
+        new Argument(Kind.Number, { optional: true }),
       ]);
 
       it('should handle all optional arguments', () => {
@@ -756,9 +755,9 @@ describe('ArgumentsProcessor', () => {
 
     describe('Complex Scenarios', () => {
       const processor = new ArgumentsProcessor([
-        new Argument('string', { name: 'separator' }),
-        new Argument('boolean', { optional: true, name: 'caseSensitive' }),
-        new Argument('string', { name: 'values', optional: true, repeatable: true }),
+        new Argument(Kind.String, { name: 'separator' }),
+        new Argument(Kind.Boolean, { optional: true, name: 'caseSensitive' }),
+        new Argument(Kind.String, { name: 'values', optional: true, repeatable: true }),
       ]);
 
       it('should validate complex pattern combinations', () => {

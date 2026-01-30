@@ -11,7 +11,7 @@ export class TypeFormatter {
    * @param types Single type or array of types to format
    * @returns Formatted string representation
    */
-  formatTypes(types: Kind | readonly Kind[]): string {
+  formatTypes(types: Kind | Kind[]): string {
     if (Array.isArray(types)) {
       return types.join(' | ');
     }

@@ -52,7 +52,7 @@ describe('sum routine', tester.examples([
     formula: 'sum("1", 2, 3)',
     expected: {
       function: {
-        message: 'Expected type array | number.',
+        message: 'Expected type Array | Number.',
         location: [4, 7],
       },
     },
@@ -61,7 +61,7 @@ describe('sum routine', tester.examples([
     formula: 'sum([1, 2], "3", 4, 5)',
     expected: {
       function: {
-        message: 'Expected type array | number.',
+        message: 'Expected type Array | Number.',
         location: [12, 15],
       },
     },
@@ -70,7 +70,7 @@ describe('sum routine', tester.examples([
     formula: 'sum(1, "2", 3)',
     expected: {
       function: {
-        message: 'Expected type array | number.',
+        message: 'Expected type Array | Number.',
         location: [7, 10],
       },
     },

@@ -1,15 +1,15 @@
 import type { AST } from '../../../parser';
 import type { FormulaEvaluatorVisitor } from '../../evaluator.visitor';
 
-import { FormulaDataType, FormulaString } from '../../data-types';
+import { FormulaDataType, FormulaString, Kind } from '../../data-types';
 import { RoutinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
 class BaseDataType extends FormulaDataType<number> {
-  static readonly kind = 'number';
+  static readonly kind = Kind.Number;
 
   constructor(value: number = 0) {
-    super('number', value, 'Number');
+    super(Kind.Number, value, 'Number');
   }
 
   isEmpty(): boolean {
@@ -24,10 +24,10 @@ class BaseDataType extends FormulaDataType<number> {
 class DerivedDataType extends BaseDataType {}
 
 class OtherDataType extends FormulaDataType<string> {
-  static readonly kind = 'string';
+  static readonly kind = Kind.String;
 
   constructor(value: string = '') {
-    super('string', value, 'Text');
+    super(Kind.String, value, 'Text');
   }
 
   isEmpty(): boolean {

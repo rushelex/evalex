@@ -15,6 +15,7 @@ import {
   FormulaObject,
   FormulaRegExp,
   FormulaString,
+  Kind,
 } from '../../data-types';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
@@ -38,7 +39,7 @@ const routineExamples = createRoutineExamples([
 ]);
 
 const routineArguments = createRoutineArguments([
-  new Argument('any', { name: 'value' }),
+  new Argument(Kind.Any, { name: 'value' }),
 ]);
 
 routinesRegistry.registerFunction('empty', {

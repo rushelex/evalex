@@ -1,4 +1,4 @@
-import { FormulaArray, FormulaNumber } from '../../data-types';
+import { FormulaArray, FormulaNumber, Kind } from '../../data-types';
 import { ArgumentFormulaError } from '../../errors';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
@@ -23,7 +23,7 @@ routinesRegistry.registerFunction('sum', {
   description: 'Returns the sum of its arguments.',
   examples: routineExamples,
   arguments: createRoutineArguments([
-    new Argument(['array', 'number'], { name: 'numbers', repeatable: true }),
+    new Argument([Kind.Array, Kind.Number], { name: 'numbers', repeatable: true }),
   ]),
   handler: ({ node, visitor, utils }) => {
     const flattenLiteralArgs = utils.flatArgs(node.args);
@@ -44,7 +44,7 @@ routinesRegistry.registerMethod(FormulaArray, 'sum', {
   description: 'Returns the sum of its arguments.',
   examples: routineExamples,
   arguments: createRoutineArguments([
-    new Argument(['array', 'number'], { name: 'numbers', repeatable: true, optional: true }),
+    new Argument([Kind.Array, Kind.Number], { name: 'numbers', repeatable: true, optional: true }),
   ]),
   handler: ({ instance, args, visitor, location, utils }) => {
     const flattenInstanceValues = FormulaArray.flatValues(instance);
@@ -93,7 +93,7 @@ routinesRegistry.registerMethod(FormulaNumber, 'sum', {
   description: 'Returns the sum of its arguments.',
   examples: routineExamples,
   arguments: createRoutineArguments([
-    new Argument(['array', 'number'], { name: 'numbers', repeatable: true, optional: true }),
+    new Argument([Kind.Array, Kind.Number], { name: 'numbers', repeatable: true, optional: true }),
   ]),
   handler: ({ instance, args, visitor, utils }) => {
     const flattenLiteralArgs = utils.flatArgs(args);

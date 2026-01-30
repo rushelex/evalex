@@ -223,14 +223,14 @@ describe('FormulaDate', () => {
 
       it('should throw an error when provided duration and unit', () => {
         expect(() => evaluate('d.add(duration, "hours")', contextOptions)).toThrowFormulaError(
-          'Expected type number.',
+          'Expected type Number.',
           [6, 14],
         );
       });
 
       it('should throw an error when provided number without unit', () => {
         expect(() => evaluate('d.add(1)', contextOptions)).toThrowFormulaError(
-          'Arguments don\'t match. Pattern 1: Expected type duration.; Pattern 2: Expected at least 2 argument(s).',
+          'Arguments don\'t match. Pattern 1: Expected type Duration.; Pattern 2: Expected at least 2 argument(s).',
           [2, 5],
         );
       });
@@ -268,14 +268,14 @@ describe('FormulaDate', () => {
 
       it('should throw an error when provided duration and unit', () => {
         expect(() => evaluate('d.subtract(duration, "hours")', contextOptions)).toThrowFormulaError(
-          'Expected type number.',
+          'Expected type Number.',
           [11, 19],
         );
       });
 
       it('should throw an error when provided number without unit', () => {
         expect(() => evaluate('d.subtract(1)', contextOptions)).toThrowFormulaError(
-          'Arguments don\'t match. Pattern 1: Expected type duration.; Pattern 2: Expected at least 2 argument(s).',
+          'Arguments don\'t match. Pattern 1: Expected type Duration.; Pattern 2: Expected at least 2 argument(s).',
           [2, 10],
         );
       });

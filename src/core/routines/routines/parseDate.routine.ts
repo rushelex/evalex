@@ -1,7 +1,7 @@
 import type { FormulaString } from '../../data-types';
 import type { ProcessedArgument } from '../arguments';
 
-import { FormulaDate } from '../../data-types';
+import { FormulaDate, Kind } from '../../data-types';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
@@ -21,7 +21,7 @@ routinesRegistry.registerFunction('parseDate', {
   description: 'Returns the date parsed according to the ISO 8601 standard.',
   examples: routineExamples,
   arguments: createRoutineArguments([
-    new Argument('string', {
+    new Argument(Kind.String, {
       name: 'date',
       validation: (value) => {
         try {

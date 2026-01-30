@@ -112,7 +112,7 @@ describe('FormulaString', () => {
 
       it('should throw error for unsupported arguments', () => {
         expect(() => evaluate('"test".match(42)')).toThrowFormulaError(
-          'Arguments don\'t match. Pattern 1: Expected type string.; Pattern 2: Expected type regexp.',
+          'Arguments don\'t match. Pattern 1: Expected type String.; Pattern 2: Expected type Regexp.',
           [7, 12],
         );
 
@@ -120,7 +120,7 @@ describe('FormulaString', () => {
           '"test".match(regexp, "g")',
           { context: { regexp: new FormulaRegExp('test', 'i') } },
         )).toThrowFormulaError(
-          'Expected type string.',
+          'Expected type String.',
           [13, 19],
         );
       });

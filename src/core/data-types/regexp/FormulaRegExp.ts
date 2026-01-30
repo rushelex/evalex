@@ -1,6 +1,7 @@
 import type { ToStringOptions } from '../FormulaDataType';
 
 import { FormulaDataType } from '../FormulaDataType';
+import { Kind } from '../kind';
 
 interface RegExpData {
   pattern: string;
@@ -28,7 +29,7 @@ interface RegExpData {
  * ```
  */
 export class FormulaRegExp extends FormulaDataType<RegExpData> {
-  static readonly kind = 'regexp';
+  static readonly kind = Kind.RegExp;
 
   /**
    * Creates a FormulaRegExp instance.
@@ -51,7 +52,7 @@ export class FormulaRegExp extends FormulaDataType<RegExpData> {
       };
     }
 
-    super('regexp', regexpData, 'RegExp');
+    super(Kind.RegExp, regexpData, 'RegExp');
   }
 
   /**

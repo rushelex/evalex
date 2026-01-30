@@ -1,17 +1,17 @@
-import type { Kind } from '../../data-types';
+import { Kind } from '../../data-types';
 
 interface CallbackArgumentOptions {
   name?: string;
   optional?: boolean;
-  returnType?: Kind | readonly Kind[];
+  returnType?: Kind | Kind[];
 }
 
 export class CallbackArgument {
-  readonly types = 'any';
+  readonly types = Kind.Any;
   readonly name?: string;
   readonly optional: boolean;
   readonly contextVariables: string[];
-  readonly returnType: Kind | readonly Kind[];
+  readonly returnType: Kind | Kind[];
 
   constructor(
     contextVariables: string[],
@@ -20,6 +20,6 @@ export class CallbackArgument {
     this.name = options?.name;
     this.optional = options?.optional ?? false;
     this.contextVariables = contextVariables;
-    this.returnType = options?.returnType ?? 'any';
+    this.returnType = options?.returnType ?? Kind.Any;
   }
 }

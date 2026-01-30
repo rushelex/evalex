@@ -358,7 +358,7 @@ routinesRegistry.registerMethod(FormulaCustomType, 'customMethod', {
 ### Добавление глобальных функций
 
 ```typescript
-import { FormulaGlobalFunctions, ArgumentsProcessor, Argument } from '~/shared/libs/formula/core';
+import { FormulaGlobalFunctions, ArgumentsProcessor, Argument, Kind } from '~/shared/libs/formula/core';
 
 routinesRegistry.registerFunction('customFunction', {
   description: 'Custom global function',
@@ -369,7 +369,7 @@ routinesRegistry.registerFunction('customFunction', {
     },
   ]),
   arguments: createRoutineArguments([
-    new Argument('string', { name: 'input' }),
+    new Argument(Kind.String, { name: 'input' }),
   ]),
   handler: ({ args }) => {
     const [stringArg] = args as [ProcessedArgument<FormulaString>];

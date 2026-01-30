@@ -24,7 +24,7 @@ describe('length routine', tester.examples([
     formula: '0.length()',
     expected: {
       function: {
-        message: 'Arguments don\'t match. Pattern 1: Expected type string.; Pattern 2: Expected type array.',
+        message: 'Arguments don\'t match. Pattern 1: Expected type String.; Pattern 2: Expected type Array.',
         location: [0, 9],
       },
       method: {
@@ -37,7 +37,7 @@ describe('length routine', tester.examples([
     formula: '123.length()',
     expected: {
       function: {
-        message: 'Arguments don\'t match. Pattern 1: Expected type string.; Pattern 2: Expected type array.',
+        message: 'Arguments don\'t match. Pattern 1: Expected type String.; Pattern 2: Expected type Array.',
         location: [0, 11],
       },
       method: {

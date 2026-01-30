@@ -2,6 +2,7 @@ import type { ToStringOptions } from '../FormulaDataType';
 import type { ToFormulaDataType } from '../types';
 
 import { FormulaDataType } from '../FormulaDataType';
+import { Kind } from '../kind';
 
 /**
  * Universal object type for the formula system that enables working with arbitrary JavaScript objects in formulas.
@@ -46,10 +47,10 @@ import { FormulaDataType } from '../FormulaDataType';
  * ```
  */
 export class FormulaObject<T extends Record<string, FormulaDataType> = Record<string, FormulaDataType>> extends FormulaDataType<T> {
-  static readonly kind = 'object';
+  static readonly kind = Kind.Object;
 
   constructor(value: T, displayType?: string) {
-    super('object', value, displayType || 'Object');
+    super(Kind.Object, value, displayType || 'Object');
   }
 
   isEmpty(): boolean {

@@ -1,16 +1,18 @@
 import type { AST } from '../../../parser';
-import type { FormulaDataType, Kind } from '../../data-types';
+import type { FormulaDataType } from '../../data-types';
 import type { FormulaEvaluatorVisitor } from '../../evaluator.visitor';
+
+import { Kind } from '../../data-types';
 
 export class CallbackExecutor {
   readonly node: AST.AstNode;
   readonly #visitor: FormulaEvaluatorVisitor;
-  readonly returnType?: Kind | readonly Kind[];
+  readonly returnType?: Kind | Kind[];
 
   constructor(
     node: AST.AstNode,
     visitor: FormulaEvaluatorVisitor,
-    returnType?: Kind | readonly Kind[],
+    returnType?: Kind | Kind[],
   ) {
     this.node = node;
     this.#visitor = visitor;
@@ -39,6 +41,6 @@ export class CallbackExecutor {
 
   #isTypeMatch(actualType: Kind): boolean {
     const expectedTypesArray = Array.isArray(this.returnType) ? this.returnType : [this.returnType];
-    return expectedTypesArray.includes(actualType) || expectedTypesArray.includes('any');
+    return expectedTypesArray.includes(actualType) || expectedTypesArray.includes(Kind.Any);
   }
 }

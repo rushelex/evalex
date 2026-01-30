@@ -1,4 +1,5 @@
 import { FormulaDataType } from '../FormulaDataType';
+import { Kind } from '../kind';
 
 // Cache for common small integer values (-10 to 100)
 const CACHE_MIN = -10;
@@ -9,7 +10,7 @@ const numberCache: (FormulaNumber | undefined)[] = Array.from({ length: CACHE_MA
  * Represents a number data type in the formula system.
  */
 export class FormulaNumber extends FormulaDataType<number> {
-  static readonly kind = 'number';
+  static readonly kind = Kind.Number;
 
   /**
    * Creates a FormulaNumber instance.
@@ -17,7 +18,7 @@ export class FormulaNumber extends FormulaDataType<number> {
    * @param value Numeric value.
    */
   constructor(value: number) {
-    super('number', value, 'Number');
+    super(Kind.Number, value, 'Number');
   }
 
   isEmpty(): boolean {

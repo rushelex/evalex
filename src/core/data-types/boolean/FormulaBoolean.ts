@@ -1,4 +1,5 @@
 import { FormulaDataType } from '../FormulaDataType';
+import { Kind } from '../kind';
 
 // Cached singleton instances for true and false
 let TRUE_INSTANCE: FormulaBoolean | null = null;
@@ -8,7 +9,7 @@ let FALSE_INSTANCE: FormulaBoolean | null = null;
  * Represents a boolean data type in the formula system.
  */
 export class FormulaBoolean extends FormulaDataType<boolean> {
-  static readonly kind = 'boolean';
+  static readonly kind = Kind.Boolean;
 
   /**
    * Creates a FormulaBoolean instance.
@@ -16,7 +17,7 @@ export class FormulaBoolean extends FormulaDataType<boolean> {
    * @param value Boolean value.
    */
   constructor(value: boolean) {
-    super('boolean', value, 'Boolean');
+    super(Kind.Boolean, value, 'Boolean');
   }
 
   isEmpty(): boolean {

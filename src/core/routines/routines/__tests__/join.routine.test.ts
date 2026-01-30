@@ -40,11 +40,11 @@ describe('join routine', tester.examples([
     formula: '[1, 2, 3].join(3)',
     expected: {
       function: {
-        message: 'Expected type string.',
+        message: 'Expected type String.',
         location: [16, 17],
       },
       method: {
-        message: 'Expected type string.',
+        message: 'Expected type String.',
         location: [15, 16],
       },
     },

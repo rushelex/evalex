@@ -3,7 +3,7 @@ export * from './boolean';
 export * from './date';
 export * from './duration';
 export * from './FormulaDataType';
-export type * from './kind';
+export * from './kind';
 export * from './null';
 export * from './number';
 export * from './object';

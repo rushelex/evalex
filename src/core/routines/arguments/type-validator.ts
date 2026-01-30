@@ -1,6 +1,7 @@
-import type { Kind } from '../../data-types';
 import type { Argument } from './argument';
 import type { CallbackExecutor } from './callback-executor';
+
+import { Kind } from '../../data-types';
 
 import { CallbackArgument } from './callback-argument';
 import { ProcessedArgument } from './processed-argument';
@@ -46,9 +47,9 @@ export class TypeValidator {
    * @param expectedTypes Single expected type or array of expected types
    * @returns True if types match
    */
-  #isTypeMatch(actualType: Kind, expectedTypes: Kind | readonly Kind[]): boolean {
+  #isTypeMatch(actualType: Kind, expectedTypes: Kind | Kind[]): boolean {
     const expectedTypesArray = Array.isArray(expectedTypes) ? expectedTypes : [expectedTypes];
-    return expectedTypesArray.includes(actualType) || expectedTypesArray.includes('any');
+    return expectedTypesArray.includes(actualType) || expectedTypesArray.includes(Kind.Any);
   }
 
   /**

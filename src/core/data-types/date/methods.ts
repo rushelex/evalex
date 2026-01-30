@@ -8,6 +8,7 @@ import { routinesRegistry } from '../../routines/registry';
 import { createRoutineExamples } from '../../routines/routine-examples';
 import { defineCoreMethods } from '../core-methods';
 import { FormulaDuration } from '../duration';
+import { Kind } from '../kind';
 import { FormulaNull } from '../null';
 import { FormulaNumber } from '../number';
 import { FormulaDate } from './FormulaDate';
@@ -99,13 +100,13 @@ routinesRegistry.registerMethod(FormulaDate, 'subtract', {
   ]),
   arguments: createRoutineArguments([
     [
-      new Argument('date', { name: 'date' }),
-      new Argument('duration', { name: 'duration' }),
+      new Argument(Kind.Date, { name: 'date' }),
+      new Argument(Kind.Duration, { name: 'duration' }),
     ],
     [
-      new Argument('date', { name: 'date' }),
-      new Argument('number', { name: 'number' }),
-      new Argument('string', {
+      new Argument(Kind.Date, { name: 'date' }),
+      new Argument(Kind.Number, { name: 'number' }),
+      new Argument(Kind.String, {
         name: 'unit',
         validation: (dataType) => {
           if (!DURATION_UNITS.includes(dataType.value)) {

@@ -7,6 +7,7 @@ import { Argument, createRoutineArguments } from '../routines/arguments';
 import { routinesRegistry } from '../routines/registry';
 import { createRoutineExamples } from '../routines/routine-examples';
 import { FormulaBoolean } from './boolean';
+import { Kind } from './kind';
 
 /**
  * Defines core methods for a specific data type.
@@ -26,8 +27,8 @@ export function defineCoreMethods(subject: Class<FormulaDataType>): void {
       },
     ]),
     arguments: createRoutineArguments([
-      new Argument('any', { name: 'a' }),
-      new Argument('any', { name: 'b' }),
+      new Argument(Kind.Any, { name: 'a' }),
+      new Argument(Kind.Any, { name: 'b' }),
     ]),
     handler: ({ instance, args }) => {
       const [bArg] = args as [ProcessedArgument<FormulaBoolean>];

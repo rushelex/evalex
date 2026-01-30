@@ -1,8 +1,9 @@
 import type { ToStringOptions } from '../FormulaDataType';
-import type { Kind } from '../kind';
+
 import type { InferFormulaDataTypeByKind, ToFormulaDataType } from '../types';
 
 import { FormulaDataType } from '../FormulaDataType';
+import { Kind } from '../kind';
 
 /**
  * Represents a typed list of elements in the formula system.
@@ -10,13 +11,13 @@ import { FormulaDataType } from '../FormulaDataType';
  */
 export class FormulaArray<TItem extends FormulaDataType = FormulaDataType> extends FormulaDataType<TItem[]> {
   static readonly SEPARATOR = ', ';
-  static readonly kind = 'array';
+  static readonly kind = Kind.Array;
   readonly itemDisplayType: string;
 
   constructor(items: TItem[], itemDisplayTypeSingular?: string) {
-    const nestedItemDisplayType = itemDisplayTypeSingular || (items.length > 0 ? items[0].kind : 'any');
-    const itemDisplayType = `List of ${nestedItemDisplayType.toLowerCase()}s`;
-    super('array', items, itemDisplayType);
+    const nestedItemDisplayType = itemDisplayTypeSingular || (items.length > 0 && new Set(items.map((item) => item.displayType)).size === 1 ? `${items[0].displayType} items` : 'any items');
+    const itemDisplayType = `${nestedItemDisplayType} list`;
+    super(Kind.Array, items, itemDisplayType);
     this.itemDisplayType = itemDisplayType;
   }
 
@@ -40,8 +41,8 @@ export class FormulaArray<TItem extends FormulaDataType = FormulaDataType> exten
     return Array.isArray(input) && input.every((item) => item instanceof FormulaDataType);
   }
 
-  static isOfType<T extends Kind = 'any'>(instance: FormulaDataType, kind?: T): instance is FormulaArray<InferFormulaDataTypeByKind<T>> {
-    if (!kind || kind === 'any') {
+  static isOfType<T extends Kind = Kind.Any>(instance: FormulaDataType, kind?: T): instance is FormulaArray<InferFormulaDataTypeByKind<T>> {
+    if (!kind || kind === Kind.Any) {
       return instance instanceof FormulaArray;
     }
 

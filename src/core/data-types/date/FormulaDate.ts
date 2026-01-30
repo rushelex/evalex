@@ -1,12 +1,13 @@
 import { Temporal } from 'temporal-polyfill';
 
 import { FormulaDataType } from '../FormulaDataType';
+import { Kind } from '../kind';
 
 export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime> {
-  static readonly kind = 'date';
+  static readonly kind = Kind.Date;
 
   constructor(value: Temporal.ZonedDateTime) {
-    super('date', value, 'Date');
+    super(Kind.Date, value, 'Date');
   }
 
   isEmpty(): boolean {

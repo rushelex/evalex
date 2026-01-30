@@ -8,6 +8,7 @@ import { createRoutineExamples } from '../../routines/routine-examples';
 import { FormulaArray } from '../array';
 import { FormulaBoolean } from '../boolean';
 import { defineCoreMethods } from '../core-methods';
+import { Kind } from '../kind';
 import { FormulaNumber } from '../number';
 import { FormulaRegExp } from '../regexp';
 import { FormulaString } from './FormulaString';
@@ -110,13 +111,13 @@ routinesRegistry.registerMethod(FormulaString, 'match', {
   ]),
   arguments: createRoutineArguments([
     [
-      new Argument('array', { name: 'self' }),
-      new Argument('string', { name: 'pattern' }),
-      new Argument('string', { name: 'flags', optional: true }),
+      new Argument(Kind.Array, { name: 'self' }),
+      new Argument(Kind.String, { name: 'pattern' }),
+      new Argument(Kind.String, { name: 'flags', optional: true }),
     ],
     [
-      new Argument('array', { name: 'self' }),
-      new Argument('regexp', { name: 'regexp' }),
+      new Argument(Kind.Array, { name: 'self' }),
+      new Argument(Kind.RegExp, { name: 'regexp' }),
     ],
   ]),
   handler: ({ instance, args, location }) => {
@@ -152,13 +153,13 @@ routinesRegistry.registerMethod(FormulaString, 'test', {
   ]),
   arguments: createRoutineArguments([
     [
-      new Argument('array', { name: 'self' }),
-      new Argument('string', { name: 'pattern' }),
-      new Argument('string', { name: 'flags', optional: true }),
+      new Argument(Kind.Array, { name: 'self' }),
+      new Argument(Kind.String, { name: 'pattern' }),
+      new Argument(Kind.String, { name: 'flags', optional: true }),
     ],
     [
-      new Argument('array', { name: 'self' }),
-      new Argument('regexp', { name: 'regexp' }),
+      new Argument(Kind.Array, { name: 'self' }),
+      new Argument(Kind.RegExp, { name: 'regexp' }),
     ],
   ]),
   handler: ({ instance, args, location }) => {
@@ -189,15 +190,15 @@ routinesRegistry.registerMethod(FormulaString, 'replace', {
   ]),
   arguments: createRoutineArguments([
     [
-      new Argument('array', { name: 'self' }),
-      new Argument('string', { name: 'pattern' }),
-      new Argument('string', { name: 'replacement' }),
-      new Argument('string', { name: 'flags', optional: true }),
+      new Argument(Kind.Array, { name: 'self' }),
+      new Argument(Kind.String, { name: 'pattern' }),
+      new Argument(Kind.String, { name: 'replacement' }),
+      new Argument(Kind.String, { name: 'flags', optional: true }),
     ],
     [
-      new Argument('array', { name: 'self' }),
-      new Argument('regexp', { name: 'regexp' }),
-      new Argument('string', { name: 'replacement' }),
+      new Argument(Kind.Array, { name: 'self' }),
+      new Argument(Kind.RegExp, { name: 'regexp' }),
+      new Argument(Kind.String, { name: 'replacement' }),
     ],
   ]),
   handler: ({ instance, args, location }) => {
@@ -226,15 +227,15 @@ routinesRegistry.registerMethod(FormulaString, 'replaceAll', {
   ]),
   arguments: createRoutineArguments([
     [
-      new Argument('array', { name: 'self' }),
-      new Argument('string', { name: 'pattern' }),
-      new Argument('string', { name: 'replacement' }),
-      new Argument('string', { name: 'flags', optional: true }),
+      new Argument(Kind.Array, { name: 'self' }),
+      new Argument(Kind.String, { name: 'pattern' }),
+      new Argument(Kind.String, { name: 'replacement' }),
+      new Argument(Kind.String, { name: 'flags', optional: true }),
     ],
     [
-      new Argument('array', { name: 'self' }),
-      new Argument('regexp', { name: 'regexp' }),
-      new Argument('string', { name: 'replacement' }),
+      new Argument(Kind.Array, { name: 'self' }),
+      new Argument(Kind.RegExp, { name: 'regexp' }),
+      new Argument(Kind.String, { name: 'replacement' }),
     ],
   ]),
   handler: ({ instance, args, location }) => {
@@ -274,13 +275,13 @@ routinesRegistry.registerMethod(FormulaString, 'contains', {
   ]),
   arguments: createRoutineArguments([
     [
-      new Argument('array', { name: 'self' }),
-      new Argument('string', { name: 'pattern' }),
-      new Argument('string', { name: 'flags', optional: true }),
+      new Argument(Kind.Array, { name: 'self' }),
+      new Argument(Kind.String, { name: 'pattern' }),
+      new Argument(Kind.String, { name: 'flags', optional: true }),
     ],
     [
-      new Argument('array', { name: 'self' }),
-      new Argument('regexp', { name: 'regexp' }),
+      new Argument(Kind.Array, { name: 'self' }),
+      new Argument(Kind.RegExp, { name: 'regexp' }),
     ],
   ]),
   handler: ({ instance, args, location }) => {
