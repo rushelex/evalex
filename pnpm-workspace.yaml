@@ -1,2 +1,5 @@
 onlyBuiltDependencies:
   - esbuild
+
+patchedDependencies:
+  '@total-typescript/ts-reset@0.6.1': patches/@total-typescript__ts-reset@0.6.1.patch
