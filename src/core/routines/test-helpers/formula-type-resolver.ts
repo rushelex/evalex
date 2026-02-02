@@ -91,7 +91,7 @@ export class ASTBasedFormulaTypeResolver implements FormulaTypeResolver {
       }
 
       const ctx = new FormulaEvaluationContext();
-      const visitor = new FormulaEvaluatorVisitor(ctx);
+      const visitor = new FormulaEvaluatorVisitor(formula, ctx);
       return visitor.evaluateNode(ast.callee.object);
     }
 

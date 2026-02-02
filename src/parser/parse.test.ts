@@ -388,21 +388,21 @@ describe(parse, () => {
     });
 
     it('should throw SyntaxError when parsing a member expression with dot notation', () => {
-      expect(
-        () => parse('object.property'),
-      ).toThrowSyntaxError('Expected function \'property()\' to be called.', [6, 15]);
+      expect(() => {
+        parse('object.property');
+      }).toThrow('Expected function \'property()\' to be called. [6,15]');
     });
 
     it('should throw SyntaxError when parsing a member expression with bracket notation (string literal)', () => {
-      expect(
-        () => parse('object["property"]'),
-      ).toThrowSyntaxError('Expected end of input but "[" found.', [6, 7]);
+      expect(() => {
+        parse('object["property"]');
+      }).toThrow('Expected end of input but "[" found. [6,7]');
     });
 
     it('should throw SyntaxError when parsing a member expression with bracket notation (identifier)', () => {
-      expect(
-        () => parse('object[prop]'),
-      ).toThrowSyntaxError('Expected end of input but "[" found.', [6, 7]);
+      expect(() => {
+        parse('object[prop]');
+      }).toThrow('Expected end of input but "[" found. [6,7]');
     });
 
     it('should parse a chained member function expression with dot notation (object.prop1().prop2())', () => {
@@ -433,9 +433,9 @@ describe(parse, () => {
     });
 
     it('should throw SyntaxError when parsing a chained member expression with dot notation', () => {
-      expect(
-        () => parse('object.prop1.prop2'),
-      ).toThrowSyntaxError('Expected function \'prop1()\' to be called.', [6, 12]);
+      expect(() => {
+        parse('object.prop1.prop2');
+      }).toThrow('Expected function \'prop1()\' to be called. [6,12]');
     });
   });
 
@@ -519,75 +519,75 @@ describe(parse, () => {
 
   describe('Syntax Errors', () => {
     it('should throw SyntaxError for an incomplete expression', () => {
-      expect(
-        () => parse('1 +'),
-      ).toThrowSyntaxError('Expected end of input but "+" found.', [2, 3]);
+      expect(() => {
+        parse('1 +');
+      }).toThrow('Expected end of input but "+" found. [2,3]');
     });
 
     it('should throw SyntaxError for an unexpected token', () => {
-      expect(
-        () => parse('1 $ 2'),
-      ).toThrowSyntaxError('Expected end of input but "$" found.', [2, 3]);
+      expect(() => {
+        parse('1 $ 2');
+      }).toThrow('Expected end of input but "$" found. [2,3]');
     });
 
     it('should throw SyntaxError for empty parentheses', () => {
-      expect(
-        () => parse('()'),
-      ).toThrowSyntaxError('Empty parentheses "()" are not a valid expression.', [0, 2]);
+      expect(() => {
+        parse('()');
+      }).toThrow('Empty parentheses "()" are not a valid expression. [0,2]');
     });
 
     it('should throw SyntaxError for trailing comma in function call: func(a,)', () => {
-      expect(
-        () => parse('func(a,)'),
-      ).toThrowSyntaxError('Unexpected comma or missing argument in function call.', [6, 7]);
+      expect(() => {
+        parse('func(a,)');
+      }).toThrow('Unexpected comma or missing argument in function call. [6,7]');
     });
 
     it('should throw SyntaxError for leading comma in function call: func(,a)', () => {
-      expect(
-        () => parse('func(,a)'),
-      ).toThrowSyntaxError('Arguments cannot start with a comma.', [5, 6]);
+      expect(() => {
+        parse('func(,a)');
+      }).toThrow('Arguments cannot start with a comma. [5,6]');
     });
 
     it('should throw SyntaxError for double comma in function call: func(a,,b)', () => {
-      expect(
-        () => parse('func(a,,b)'),
-      ).toThrowSyntaxError('Unexpected comma or missing argument in function call.', [6, 7]);
+      expect(() => {
+        parse('func(a,,b)');
+      }).toThrow('Unexpected comma or missing argument in function call. [6,7]');
     });
 
     it('should throw SyntaxError for standalone member access without function call', () => {
-      expect(
-        () => parse('user.name'),
-      ).toThrowSyntaxError('Expected function \'name()\' to be called.', [4, 9]);
+      expect(() => {
+        parse('user.name');
+      }).toThrow('Expected function \'name()\' to be called. [4,9]');
     });
 
     it('should throw SyntaxError for unclosed parentheses for direct function call', () => {
-      expect(
-        () => parse('name('),
-      ).toThrowSyntaxError('Expected token ")".', [4, 5]);
+      expect(() => {
+        parse('name(');
+      }).toThrow('Expected token ")". [4,5]');
     });
 
     it('should throw SyntaxError for unclosed parentheses for member function call', () => {
-      expect(
-        () => parse('user.name('),
-      ).toThrowSyntaxError('Expected token ")".', [9, 10]);
+      expect(() => {
+        parse('user.name(');
+      }).toThrow('Expected token ")". [9,10]');
     });
 
     it('should throw SyntaxError for unclosed parentheses with arguments for direct function call', () => {
-      expect(
-        () => parse('name("abc"'),
-      ).toThrowSyntaxError('Expected token ")".', [4, 10]);
+      expect(() => {
+        parse('name("abc"');
+      }).toThrow('Expected token ")". [4,10]');
     });
 
     it('should throw SyntaxError for unclosed parentheses with arguments for member function call', () => {
-      expect(
-        () => parse('user.name("abc"'),
-      ).toThrowSyntaxError('Expected token ")".', [9, 15]);
+      expect(() => {
+        parse('user.name("abc"');
+      }).toThrow('Expected token ")". [9,15]');
     });
 
     it('should throw SyntaxError for unexpected token after closing parentheses', () => {
-      expect(
-        () => parse('name("abc")x'),
-      ).toThrowSyntaxError('Expected end of input but "x" found.', [11, 12]);
+      expect(() => {
+        parse('name("abc")x');
+      }).toThrow('Expected end of input but "x" found. [11,12]');
     });
   });
 });

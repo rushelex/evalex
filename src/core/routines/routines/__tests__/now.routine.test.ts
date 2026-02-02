@@ -24,7 +24,7 @@ describe('now routine', tester.examples.only([
     formula: 'now(1)',
     expected: {
       function: {
-        message: 'Expected 0 argument(s).',
+        message: 'Expected no arguments.',
         location: [0, 6],
       },
     },

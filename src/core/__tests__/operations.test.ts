@@ -1,5 +1,8 @@
-import { evaluate } from '../../testing-library';
-import { FormulaBoolean, FormulaNumber, FormulaString } from '../data-types';
+import { Temporal } from 'temporal-polyfill';
+
+import { evaluate, loc } from '../../testing-library';
+import { FormulaBoolean, FormulaDate, FormulaNumber, FormulaString } from '../data-types';
+import { Errors } from '../errors';
 
 describe('Operations', () => {
   describe('Binary - Arithmetic', () => {
@@ -24,10 +27,12 @@ describe('Operations', () => {
     });
 
     it('should throw FormulaError when doing division by zero', () => {
-      expect(() => evaluate('10 / 0')).toThrowFormulaError(
-        'Division by zero.',
-        [0, 6],
-      );
+      expect(() => {
+        evaluate('10 / 0');
+      }).toThrow(Errors.Arithmetic.DivisionByZero.create(
+        { dividend: 10 },
+        { location: loc(0, 6) },
+      ));
     });
 
     it('should calculate modulo of two numbers', () => {
@@ -36,10 +41,12 @@ describe('Operations', () => {
     });
 
     it('should throw FormulaError when doing modulo by zero', () => {
-      expect(() => evaluate('10 % 0')).toThrowFormulaError(
-        'Division by zero (modulo).',
-        [0, 6],
-      );
+      expect(() => {
+        evaluate('10 % 0');
+      }).toThrow(Errors.Arithmetic.ModuloByZero.create(
+        { dividend: 10 },
+        { location: loc(0, 6) },
+      ));
     });
 
     it('should concatenate strings with +', () => {
@@ -61,35 +68,47 @@ describe('Operations', () => {
     });
 
     it('should throw FormulaError when doing math on non-number', () => {
-      expect(() => evaluate('10 - "5"')).toThrowFormulaError(
-        'Cannot perform math operation on a non-numeric value.',
-        [0, 8],
-      );
+      expect(() => {
+        evaluate('10 - "5"');
+      }).toThrowError(Errors.Evaluation.NonNumericMath.create(
+        { expression: '10 - "5"' },
+        { location: loc(0, 8) },
+      ));
 
-      expect(() => evaluate('"5" - 10')).toThrowFormulaError(
-        'Cannot perform math operation on a non-numeric value.',
-        [0, 8],
-      );
+      expect(() => {
+        evaluate('"5" - 10');
+      }).toThrowError(Errors.Evaluation.NonNumericMath.create(
+        { expression: '"5" - 10' },
+        { location: loc(0, 8) },
+      ));
 
-      expect(() => evaluate('"5" - "10"')).toThrowFormulaError(
-        'Cannot perform math operation on a non-numeric value.',
-        [0, 10],
-      );
+      expect(() => {
+        evaluate('"5" - "10"');
+      }).toThrow(Errors.Evaluation.NonNumericMath.create(
+        { expression: '"5" - "10"' },
+        { location: loc(0, 10) },
+      ));
 
-      expect(() => evaluate('10 * "5"')).toThrowFormulaError(
-        'Cannot perform math operation on a non-numeric value.',
-        [0, 8],
-      );
+      expect(() => {
+        evaluate('10 * "5"');
+      }).toThrow(Errors.Evaluation.NonNumericMath.create(
+        { expression: '10 * "5"' },
+        { location: loc(0, 8) },
+      ));
 
-      expect(() => evaluate('10 / "5"')).toThrowFormulaError(
-        'Cannot perform math operation on a non-numeric value.',
-        [0, 8],
-      );
+      expect(() => {
+        evaluate('10 / "5"');
+      }).toThrow(Errors.Evaluation.NonNumericMath.create(
+        { expression: '10 / "5"' },
+        { location: loc(0, 8) },
+      ));
 
-      expect(() => evaluate('10 % "5"')).toThrowFormulaError(
-        'Cannot perform math operation on a non-numeric value.',
-        [0, 8],
-      );
+      expect(() => {
+        evaluate('10 % "5"');
+      }).toThrow(Errors.Evaluation.NonNumericMath.create(
+        { expression: '10 % "5"' },
+        { location: loc(0, 8) },
+      ));
     });
 
     it('should correctly evaluate precedence and parentheses', () => {
@@ -156,25 +175,131 @@ describe('Operations', () => {
     });
 
     it('should throw FormulaError when doing comparison on non-boolean', () => {
-      expect(() => evaluate('10 < "5"')).toThrowFormulaError(
-        'Comparison operands must be of the same type (Number or Date).',
-        [0, 8],
+      expect(() => {
+        evaluate('10 < "5"');
+      }).toThrow(Errors.Evaluation.ComparisonTypeMismatch.create(
+        { expression: '10 < "5"' },
+        { location: loc(0, 8) },
+      ));
+
+      expect(() => {
+        evaluate('10 <= "5"');
+      }).toThrow(Errors.Evaluation.ComparisonTypeMismatch.create(
+        { expression: '10 <= "5"' },
+        { location: loc(0, 9) },
+      ));
+
+      expect(() => {
+        evaluate('10 > "5"');
+      }).toThrow(Errors.Evaluation.ComparisonTypeMismatch.create(
+        { expression: '10 > "5"' },
+        { location: loc(0, 8) },
+      ));
+
+      expect(() => {
+        evaluate('10 >= "5"');
+      }).toThrow(Errors.Evaluation.ComparisonTypeMismatch.create(
+        { expression: '10 >= "5"' },
+        { location: loc(0, 9) },
+      ));
+    });
+
+    describe('Date comparison', () => {
+      const earlierDate = new FormulaDate(
+        Temporal.ZonedDateTime.from({
+          year: 2024,
+          month: 1,
+          day: 15,
+          hour: 10,
+          minute: 0,
+          second: 0,
+          timeZone: 'UTC',
+        }),
       );
 
-      expect(() => evaluate('10 <= "5"')).toThrowFormulaError(
-        'Comparison operands must be of the same type (Number or Date).',
-        [0, 9],
+      const laterDate = new FormulaDate(
+        Temporal.ZonedDateTime.from({
+          year: 2024,
+          month: 6,
+          day: 20,
+          hour: 14,
+          minute: 30,
+          second: 0,
+          timeZone: 'UTC',
+        }),
       );
 
-      expect(() => evaluate('10 > "5"')).toThrowFormulaError(
-        'Comparison operands must be of the same type (Number or Date).',
-        [0, 8],
+      const sameDate = new FormulaDate(
+        Temporal.ZonedDateTime.from({
+          year: 2024,
+          month: 1,
+          day: 15,
+          hour: 10,
+          minute: 0,
+          second: 0,
+          timeZone: 'UTC',
+        }),
       );
 
-      expect(() => evaluate('10 >= "5"')).toThrowFormulaError(
-        'Comparison operands must be of the same type (Number or Date).',
-        [0, 9],
-      );
+      it('should compare dates with < operator', () => {
+        const result = evaluate('d1 < d2', { context: { d1: earlierDate, d2: laterDate } });
+        expect(result).toBeFormulaDataType(FormulaBoolean, true);
+
+        const result2 = evaluate('d1 < d2', { context: { d1: laterDate, d2: earlierDate } });
+        expect(result2).toBeFormulaDataType(FormulaBoolean, false);
+
+        const result3 = evaluate('d1 < d2', { context: { d1: earlierDate, d2: sameDate } });
+        expect(result3).toBeFormulaDataType(FormulaBoolean, false);
+      });
+
+      it('should compare dates with <= operator', () => {
+        const result = evaluate('d1 <= d2', { context: { d1: earlierDate, d2: laterDate } });
+        expect(result).toBeFormulaDataType(FormulaBoolean, true);
+
+        const result2 = evaluate('d1 <= d2', { context: { d1: laterDate, d2: earlierDate } });
+        expect(result2).toBeFormulaDataType(FormulaBoolean, false);
+
+        const result3 = evaluate('d1 <= d2', { context: { d1: earlierDate, d2: sameDate } });
+        expect(result3).toBeFormulaDataType(FormulaBoolean, true);
+      });
+
+      it('should compare dates with > operator', () => {
+        const result = evaluate('d1 > d2', { context: { d1: laterDate, d2: earlierDate } });
+        expect(result).toBeFormulaDataType(FormulaBoolean, true);
+
+        const result2 = evaluate('d1 > d2', { context: { d1: earlierDate, d2: laterDate } });
+        expect(result2).toBeFormulaDataType(FormulaBoolean, false);
+
+        const result3 = evaluate('d1 > d2', { context: { d1: earlierDate, d2: sameDate } });
+        expect(result3).toBeFormulaDataType(FormulaBoolean, false);
+      });
+
+      it('should compare dates with >= operator', () => {
+        const result = evaluate('d1 >= d2', { context: { d1: laterDate, d2: earlierDate } });
+        expect(result).toBeFormulaDataType(FormulaBoolean, true);
+
+        const result2 = evaluate('d1 >= d2', { context: { d1: earlierDate, d2: laterDate } });
+        expect(result2).toBeFormulaDataType(FormulaBoolean, false);
+
+        const result3 = evaluate('d1 >= d2', { context: { d1: earlierDate, d2: sameDate } });
+        expect(result3).toBeFormulaDataType(FormulaBoolean, true);
+      });
+
+      it('should throw error when comparing date with non-date', () => {
+        expect(() => {
+          evaluate('d1 < 5', { context: { d1: earlierDate } });
+        }).toThrow(Errors.Evaluation.ComparisonTypeMismatch.create(
+          { expression: 'd1 < 5' },
+          { location: loc(0, 6) },
+        ));
+
+        expect(() => {
+          evaluate('5 > d1', { context: { d1: earlierDate } });
+        }).toThrow(Errors.Evaluation.ComparisonTypeMismatch.create(
+          { expression: '5 > d1' },
+          { location: loc(0, 6) },
+        ));
+      });
     });
   });
 
@@ -251,20 +376,26 @@ describe('Operations', () => {
     });
 
     it('should throw FormulaError for unary minus on non-number', () => {
-      expect(() => evaluate('-"text"')).toThrowFormulaError(
-        'Cannot apply unary minus to a non-numeric value.',
-        [0, 7],
-      );
+      expect(() => {
+        evaluate('-"text"');
+      }).toThrow(Errors.Evaluation.UnaryMinusNonNumeric.create(
+        { expression: '-"text"' },
+        { location: loc(0, 7) },
+      ));
 
-      expect(() => evaluate('-true')).toThrowFormulaError(
-        'Cannot apply unary minus to a non-numeric value.',
-        [0, 5],
-      );
+      expect(() => {
+        evaluate('-true');
+      }).toThrow(Errors.Evaluation.UnaryMinusNonNumeric.create(
+        { expression: '-true' },
+        { location: loc(0, 5) },
+      ));
 
-      expect(() => evaluate('-[1, 2]')).toThrowFormulaError(
-        'Cannot apply unary minus to a non-numeric value.',
-        [0, 7],
-      );
+      expect(() => {
+        evaluate('-[1, 2]');
+      }).toThrow(Errors.Evaluation.UnaryMinusNonNumeric.create(
+        { expression: '-[1, 2]' },
+        { location: loc(0, 7) },
+      ));
     });
   });
 });

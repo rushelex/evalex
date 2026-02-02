@@ -1,4 +1,6 @@
-import { evaluate } from '../../../testing-library';
+import { Errors } from '~/core/errors';
+
+import { evaluate, loc } from '../../../testing-library';
 import { FormulaArray } from '../array';
 import { FormulaBoolean } from '../boolean';
 import { FormulaRegExp } from '../regexp';
@@ -25,10 +27,12 @@ describe('FormulaString', () => {
       });
 
       it('should throw error when upper() method is called with arguments', () => {
-        expect(() => evaluate('"hello".upper("arg")')).toThrowFormulaError(
-          'Expected 0 argument(s).',
-          [8, 13],
-        );
+        expect(() => {
+          evaluate('"hello".upper("arg")');
+        }).toThrow(Errors.Argument.ExactCount.create(
+          { actual: 1, expected: 0 },
+          { location: loc(8, 13) },
+        ));
       });
     });
 
@@ -44,9 +48,13 @@ describe('FormulaString', () => {
       });
 
       it('should throw error when lower() method is called with arguments', () => {
-        expect(() => evaluate('"hello".lower("arg")')).toThrowFormulaError(
-          'Expected 0 argument(s).',
-          [8, 13],
+        expect(() => {
+          evaluate('"hello".lower("arg")');
+        }).toThrow(
+          Errors.Argument.ExactCount.create(
+            { actual: 1, expected: 0 },
+            { location: loc(8, 13) },
+          ),
         );
       });
     });
@@ -74,9 +82,13 @@ describe('FormulaString', () => {
       });
 
       it('should throw error when trim() method is called with arguments', () => {
-        expect(() => evaluate('"hello".trim("arg")')).toThrowFormulaError(
-          'Expected 0 argument(s).',
-          [8, 12],
+        expect(() => {
+          evaluate('"hello".trim("arg")');
+        }).toThrow(
+          Errors.Argument.ExactCount.create(
+            { actual: 1, expected: 0 },
+            { location: loc(8, 12) },
+          ),
         );
       });
     });
@@ -111,25 +123,41 @@ describe('FormulaString', () => {
       });
 
       it('should throw error for unsupported arguments', () => {
-        expect(() => evaluate('"test".match(42)')).toThrowFormulaError(
-          'Arguments don\'t match. Pattern 1: Expected type String.; Pattern 2: Expected type Regexp.',
-          [7, 12],
+        expect(() => {
+          evaluate('"test".match(42)');
+        }).toThrow(
+          Errors.Argument.PatternMismatch.create(
+            {
+              patterns: [
+                { patternIndex: 0, message: 'Expected type String.', location: loc(13, 15) },
+                { patternIndex: 1, message: 'Expected type RegExp.', location: loc(13, 15) },
+              ],
+            },
+            { location: loc(7, 12) },
+          ),
         );
 
-        expect(() => evaluate(
-          '"test".match(regexp, "g")',
-          { context: { regexp: new FormulaRegExp('test', 'i') } },
-        )).toThrowFormulaError(
-          'Expected type String.',
-          [13, 19],
-        );
+        expect(() => {
+          evaluate(
+            '"test".match(regexp, "g")',
+            { context: { regexp: new FormulaRegExp('test', 'i') } },
+          );
+        }).toThrow(Errors.Argument.TypeMismatch.create(
+          { actual: 'RegExp', expected: ['String'], argumentPosition: 1 },
+          { location: loc(13, 19) },
+        ));
       });
 
       it('should throw error for invalid regex pattern', () => {
-        expect(() => evaluate('"test".match("[")')).toThrowFormulaError(
-          'Invalid regular expression: /[/: Unterminated character class.',
-          [7, 12],
-        );
+        expect(() => {
+          evaluate('"test".match("[")');
+        }).toThrow(Errors.Evaluation.InvalidRegExp.create(
+          {
+            reason: 'Invalid regular expression: /[/: Unterminated character class',
+            expression: '"test".match("[")',
+          },
+          { location: loc(7, 12) },
+        ));
       });
     });
 
@@ -150,10 +178,15 @@ describe('FormulaString', () => {
       });
 
       it('should throw error for invalid regex pattern', () => {
-        expect(() => evaluate('"test".test("[")')).toThrowFormulaError(
-          'Invalid regular expression: /[/: Unterminated character class.',
-          [7, 11],
-        );
+        expect(() => {
+          evaluate('"test".test("[")');
+        }).toThrow(Errors.Evaluation.InvalidRegExp.create(
+          {
+            reason: 'Invalid regular expression: /[/: Unterminated character class',
+            expression: '"test".test("[")',
+          },
+          { location: loc(7, 11) },
+        ));
       });
     });
 
@@ -179,10 +212,15 @@ describe('FormulaString', () => {
       });
 
       it('should throw error for invalid regex pattern', () => {
-        expect(() => evaluate('"test".replace("[", "replacement")')).toThrowFormulaError(
-          'Invalid regular expression: /[/: Unterminated character class.',
-          [7, 14],
-        );
+        expect(() => {
+          evaluate('"test".replace("[", "replacement")');
+        }).toThrow(Errors.Evaluation.InvalidRegExp.create(
+          {
+            reason: 'Invalid regular expression: /[/: Unterminated character class',
+            expression: '"test".replace("[", "replacement")',
+          },
+          { location: loc(7, 14) },
+        ));
       });
     });
 
@@ -208,10 +246,15 @@ describe('FormulaString', () => {
       });
 
       it('should throw error for invalid regex pattern', () => {
-        expect(() => evaluate('"test".replaceAll("[", "replacement")')).toThrowFormulaError(
-          'Invalid regular expression: /[/: Unterminated character class.',
-          [7, 17],
-        );
+        expect(() => {
+          evaluate('"test".replaceAll("[", "replacement")');
+        }).toThrow(Errors.Evaluation.InvalidRegExp.create(
+          {
+            reason: 'Invalid regular expression: /[/: Unterminated character class',
+            expression: '"test".replaceAll("[", "replacement")',
+          },
+          { location: loc(7, 17) },
+        ));
       });
     });
 
@@ -237,10 +280,15 @@ describe('FormulaString', () => {
       });
 
       it('should throw error for invalid regex pattern', () => {
-        expect(() => evaluate('"test".contains("[")')).toThrowFormulaError(
-          'Invalid regular expression: /[/: Unterminated character class.',
-          [7, 15],
-        );
+        expect(() => {
+          evaluate('"test".contains("[")');
+        }).toThrow(Errors.Evaluation.InvalidRegExp.create(
+          {
+            reason: 'Invalid regular expression: /[/: Unterminated character class',
+            expression: '"test".contains("[")',
+          },
+          { location: loc(7, 15) },
+        ));
       });
     });
   });

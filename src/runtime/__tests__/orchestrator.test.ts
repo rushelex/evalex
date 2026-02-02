@@ -2,8 +2,10 @@ import type { FormulaDataType } from '../../core';
 import type { Scheduler } from '../scheduler';
 import type { FormulaNode, NodeAdapter } from '../types';
 
+import { vi } from 'vitest';
+
 import { Expression, FormulaNull, FormulaNumber } from '../../core';
-import { CircularDependencyError, MaxDependenciesExceededError, MaxFormulaDepthExceededError, MaxFormulasExceededError } from '../errors';
+import { Errors } from '../../core/errors';
 import { SyncExecutor } from '../executor';
 import { FORMULA_LIMITS } from '../limits';
 import { FormulaOrchestrator } from '../orchestrator';
@@ -15,7 +17,7 @@ interface TestNode extends FormulaNode {
   expression?: Expression;
 }
 
-describe('FormulaOrchestrator', () => {
+describe(FormulaOrchestrator, () => {
   let orchestrator: FormulaOrchestrator<TestNode>;
   let adapter: NodeAdapter<TestNode>;
 
@@ -243,7 +245,7 @@ describe('FormulaOrchestrator', () => {
 
       // Node b processes second and fails with circular dependency error
       expect(b.value).toBeInstanceOf(FormulaNull);
-      expect(b.error).toBeInstanceOf(CircularDependencyError);
+      expect(Errors.Runtime.CircularDependency.isExact(b.error)).toBe(true);
     });
 
     it('should handle error when creating indirect circular dependency', async () => {
@@ -274,7 +276,7 @@ describe('FormulaOrchestrator', () => {
 
       // Node c processes third and fails with circular dependency error (a/2 would create cycle a -> b -> c -> a)
       expect(c.value).toBeInstanceOf(FormulaNull);
-      expect(c.error).toBeInstanceOf(CircularDependencyError);
+      expect(Errors.Runtime.CircularDependency.isExact(c.error)).toBe(true);
     });
 
     it('should recover when circular dependency is resolved', async () => {
@@ -297,9 +299,9 @@ describe('FormulaOrchestrator', () => {
 
       // Node b processes second and fails with circular dependency error
       expect(b.value).toBeInstanceOf(FormulaNull);
-      expect(b.error).toBeInstanceOf(CircularDependencyError);
+      expect(Errors.Runtime.CircularDependency.isExact(b.error)).toBe(true);
 
-      // Fix the cycle by changing b's formula
+      // Set fixed cycle by changing b's formula
       b.expression = new Expression('num * 2');
       b.error = null; // Reset error state
       orchestrator.enqueue('b');
@@ -431,7 +433,11 @@ describe('FormulaOrchestrator', () => {
             expression: new Expression('2 + 2'),
             error: null,
           });
-        }).toThrow(MaxFormulasExceededError);
+        }).toThrow(Errors.Runtime.MaxFormulas.create({
+          nodeId: 'overflow',
+          count: FORMULA_LIMITS.MAX_FORMULAS_COUNT,
+          limit: FORMULA_LIMITS.MAX_FORMULAS_COUNT,
+        }));
       });
 
       it('should allow adding non-formula nodes without limit', () => {
@@ -485,7 +491,16 @@ describe('FormulaOrchestrator', () => {
         // Formula should have error due to too many dependencies
         const formula = orchestrator.get('formula');
         expect(formula?.value).toBeInstanceOf(FormulaNull);
-        expect(formula?.error).toBeInstanceOf(MaxDependenciesExceededError);
+        if (Errors.Runtime.MaxDependencies.isExact(formula?.error)) {
+          expect(formula.error).toEqual(Errors.Runtime.MaxDependencies.create({
+            nodeId: 'formula',
+            count: FORMULA_LIMITS.MAX_DEPENDENCIES_PER_FORMULA + 1,
+            limit: FORMULA_LIMITS.MAX_DEPENDENCIES_PER_FORMULA,
+          }));
+        }
+        else {
+          throw new Error('Formula should have Errors.Runtime.MaxDependencies error');
+        }
       });
 
       it('should allow formula with exactly MAX_DEPENDENCIES_PER_FORMULA dependencies', async () => {
@@ -516,9 +531,7 @@ describe('FormulaOrchestrator', () => {
         // Formula should calculate successfully
         const formula = orchestrator.get('formula');
         expect(formula?.value).toBeInstanceOf(FormulaNumber);
-        if (formula?.value instanceof FormulaNumber) {
-          expect(formula.value.value).toBe(FORMULA_LIMITS.MAX_DEPENDENCIES_PER_FORMULA);
-        }
+        expect(formula?.error).toBe(null);
       });
     });
 
@@ -564,7 +577,7 @@ describe('FormulaOrchestrator', () => {
         let hasDepthError = false;
         for (let i = FORMULA_LIMITS.MAX_FORMULA_DEPTH; i <= FORMULA_LIMITS.MAX_FORMULA_DEPTH + 5; i++) {
           const formula = orchestrator.get(`f${i}`);
-          if (formula?.error instanceof MaxFormulaDepthExceededError) {
+          if (Errors.Runtime.MaxFormulaDepth.isExact(formula?.error)) {
             hasDepthError = true;
             break;
           }

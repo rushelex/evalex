@@ -1,4 +1,4 @@
-import { CircularDependencyError } from './errors';
+import { Errors } from '../core/errors';
 
 // Shared empty set to avoid allocations
 const EMPTY_SET: ReadonlySet<string> = new Set();
@@ -50,11 +50,9 @@ export class DependencyGraph {
     // Batch cycle detection - check all deps at once using single BFS
     const cycleTarget = this.#wouldCreateCycleBatch(nodeId, deps);
     if (cycleTarget !== null) {
-      throw new CircularDependencyError(`Circular dependency detected between ${nodeId} and ${cycleTarget}.`, {
-        context: {
-          nodeId,
-          dependsOnId: cycleTarget,
-        },
+      throw Errors.Runtime.CircularDependency.create({
+        nodeId,
+        dependsOnId: cycleTarget,
       });
     }
 
@@ -91,11 +89,9 @@ export class DependencyGraph {
   addDependency(nodeId: string, dependsOnId: string): void {
     // Detect potential cycles before mutating the graph
     if (this.#wouldCreateCycleSingle(nodeId, dependsOnId)) {
-      throw new CircularDependencyError(`Circular dependency detected between ${nodeId} and ${dependsOnId}.`, {
-        context: {
-          nodeId,
-          dependsOnId,
-        },
+      throw Errors.Runtime.CircularDependency.create({
+        nodeId,
+        dependsOnId,
       });
     }
 

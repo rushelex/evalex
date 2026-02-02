@@ -1,26 +1,18 @@
 import type { AST } from '../../../parser';
 import type { FormulaError } from '../../errors';
 import type { Argument } from './argument';
-import type { ArgumentsPattern } from './arguments-definitions';
 import type { CallbackArgument } from './callback-argument';
 
 import type { CallbackExecutor } from './callback-executor';
 
-import { ArgumentFormulaError } from '../../errors';
+import { Errors } from '../../errors';
 import { ProcessedArgument } from './processed-argument';
-import { TypeFormatter } from './type-formatter';
 
 /**
  * Factory class for creating validation error messages.
  * Centralizes error creation logic with consistent formatting.
  */
 export class ValidationErrorFactory {
-  readonly #typeFormatter: TypeFormatter;
-
-  constructor() {
-    this.#typeFormatter = new TypeFormatter();
-  }
-
   /**
    * Creates an error for incorrect argument count.
    * @param expected Array of [min, max] expected argument counts
@@ -38,46 +30,41 @@ export class ValidationErrorFactory {
     const [requiredCount, maxCount] = expected;
 
     if (actual < requiredCount) {
-      return new ArgumentFormulaError(
-        `Expected at least ${requiredCount} argument(s).`,
-        {
-          context: {
-            expected: [requiredCount, maxCount],
-            actual,
-          },
-          location: globalLocation,
-        },
-      );
+      return Errors.Argument.TooFew.create({
+        expectedMin: requiredCount,
+        expectedMax: maxCount,
+        actual,
+      }, {
+        location: globalLocation,
+      });
     }
 
     if (actual > maxCount) {
-      const expectedText = hasRepeatable
-        ? `at least ${requiredCount}`
-        : maxCount === 0
-          ? '0'
-          : `at most ${maxCount}`;
+      if (maxCount === 0 || requiredCount === maxCount) {
+        return Errors.Argument.ExactCount.create(
+          { actual, expected: maxCount },
+          { location: globalLocation },
+        );
+      }
 
-      return new ArgumentFormulaError(
-        `Expected ${expectedText} argument(s).`,
+      return Errors.Argument.TooMany.create(
         {
-          context: {
-            expected: [requiredCount, hasRepeatable ? Infinity : maxCount],
-            actual,
-          },
+          expectedMin: requiredCount,
+          expectedMax: maxCount,
+          actual,
+          hasRepeatable,
+        },
+        {
           location: globalLocation,
         },
       );
     }
 
-    return new ArgumentFormulaError(
-      'Unknown count validation error.',
-      {
-        context: {
-          expected: [requiredCount, maxCount],
-          actual,
-        },
-        location: globalLocation,
-      },
+    // A fallback error that should never occur.
+    // The condition is already checked in ValidationErrorCollector.#getPatternValidationError.
+    return Errors.Argument.ExactCount.create(
+      { actual, expected: maxCount },
+      { location: globalLocation },
     );
   }
 
@@ -93,19 +80,13 @@ export class ValidationErrorFactory {
     argDef: Argument,
     position: number,
   ): FormulaError {
-    const expectedTypeStr = this.#typeFormatter.formatTypes(argDef.types);
-
-    return new ArgumentFormulaError(
-      `Expected type ${expectedTypeStr}.`,
-      {
-        context: {
-          argumentPosition: position,
-          expected: Array.isArray(argDef.types) ? [...argDef.types] : argDef.types,
-          actual: arg.dataType.kind,
-        },
-        location: arg.location,
-      },
-    );
+    return Errors.Argument.TypeMismatch.create({
+      actual: arg.dataType.kind,
+      expected: Array.isArray(argDef.types) ? [...argDef.types] : [argDef.types],
+      argumentPosition: position,
+    }, {
+      location: arg.location,
+    });
   }
 
   /**
@@ -120,23 +101,20 @@ export class ValidationErrorFactory {
     argDef: Argument,
     position: number,
   ): FormulaError | undefined {
-    const message = argDef.validation?.(arg.dataType);
+    const payload = argDef.validation?.(arg.dataType);
 
-    if (!message) {
+    if (!payload) {
       return;
     }
 
-    return new ArgumentFormulaError(
-      message,
-      {
-        context: {
-          argumentPosition: position,
-          expected: 'unknown',
-          actual: String(arg.dataType.value),
-        },
-        location: arg.location,
-      },
-    );
+    return Errors.Argument.Validation.create({
+      actual: String(arg.dataType.value),
+      expected: ['valid value'],
+      argumentPosition: position,
+      ...payload,
+    }, {
+      location: arg.location,
+    });
   }
 
   /**
@@ -149,17 +127,13 @@ export class ValidationErrorFactory {
     arg: ProcessedArgument | CallbackExecutor,
     position: number,
   ): FormulaError {
-    return new ArgumentFormulaError(
-      `Unexpected argument at position ${position}`,
-      {
-        context: {
-          argumentPosition: position,
-          expected: 'no more arguments',
-          actual: arg instanceof ProcessedArgument ? arg.dataType.kind : 'callback',
-        },
-        location: arg.location,
-      },
-    );
+    return Errors.Argument.Unexpected.create({
+      actual: arg instanceof ProcessedArgument ? arg.dataType.kind : 'callback',
+      expected: ['no more arguments'],
+      argumentPosition: position,
+    }, {
+      location: arg.location,
+    });
   }
 
   /**
@@ -174,17 +148,13 @@ export class ValidationErrorFactory {
     argDef: CallbackArgument,
     position: number,
   ): FormulaError {
-    return new ArgumentFormulaError(
-      `Expected callback for ${argDef.name || 'an argument'}`,
-      {
-        context: {
-          argumentPosition: position,
-          expected: 'callback',
-          actual: arg.dataType.kind,
-        },
-        location: arg.location,
-      },
-    );
+    return Errors.Argument.CallbackExpected.create({
+      argumentPosition: position,
+      argumentName: argDef.name,
+      actual: arg.dataType.kind,
+    }, {
+      location: arg.location,
+    });
   }
 
   /**
@@ -199,57 +169,47 @@ export class ValidationErrorFactory {
     argDef: Argument,
     position: number,
   ): FormulaError {
-    return new ArgumentFormulaError(
-      `Expected type ${this.#typeFormatter.formatTypes(argDef.types)}, but got callback.`,
-      {
-        context: {
-          argumentPosition: position,
-          expected: Array.isArray(argDef.types) ? [...argDef.types] : argDef.types,
-          actual: 'callback',
-        },
-        location: arg.location,
-      },
-    );
+    return Errors.Argument.UnexpectedCallback.create({
+      argumentPosition: position,
+      argumentName: argDef.name,
+      expected: Array.isArray(argDef.types) ? [...argDef.types] : [argDef.types],
+    }, {
+      location: arg.location,
+    });
   }
 
   /**
    * Creates an error for multiple pattern mismatch.
-   * @param patterns All available patterns
    * @param patternErrors Individual errors for each pattern
    * @param globalLocation The location of the global error
    * @returns Validation error info
    */
   createPatternMismatchError(
-    patterns: readonly ArgumentsPattern[],
     patternErrors: FormulaError[],
     globalLocation: AST.Location,
   ): FormulaError {
-    // Keep only unique errors
+    // Keep only unique errors by message
     const uniqueErrors = patternErrors.filter((error, index, array) => {
-      return array.findIndex((error2) => error2.rawMessage === error.rawMessage) === index;
+      return array.findIndex((error2) => error2.message === error.message) === index;
     });
 
     // Check if all errors are the same
-    const areTheSameErrors = uniqueErrors.every((error) => {
-      return error.rawMessage === patternErrors[0].rawMessage;
-    });
+    const areTheSameErrors = uniqueErrors.length === 1;
 
     if (areTheSameErrors) {
       return patternErrors[0];
     }
 
-    const errorMessages = patternErrors.map((error, i) => `Pattern ${i + 1}: ${error.rawMessage}`).join('; ');
+    // Convert FormulaError[] to PatternError[] for the new API
+    const patternErrorsPayload = patternErrors.map((error, i) => ({
+      patternIndex: i,
+      message: error.message.replace(/\s*\[\d+,\d+\]\.?$/, ''), // Remove location suffix from message
+      location: error.location,
+    }));
 
-    return new ArgumentFormulaError(
-      `Arguments don't match. ${errorMessages}`,
-      {
-        context: {
-          expected: `one of ${patterns.length} patterns`,
-          actual: 'invalid',
-        },
-        location: globalLocation,
-      },
-    );
+    return Errors.Argument.PatternMismatch.create({ patterns: patternErrorsPayload }, {
+      location: globalLocation,
+    });
   }
 
   /**
@@ -258,15 +218,12 @@ export class ValidationErrorFactory {
    * @returns Validation error info for unknown errors
    */
   createUnknownError(globalLocation: AST.Location): FormulaError {
-    return new ArgumentFormulaError(
-      'Unknown validation error.',
-      {
-        context: {
-          expected: 'unknown',
-          actual: 'unknown',
-        },
-        location: globalLocation,
-      },
-    );
+    return Errors.Argument.Unknown.create({
+      actual: ['unknown'],
+      expected: ['unknown'],
+      argumentPosition: -1,
+    }, {
+      location: globalLocation,
+    });
   }
 }

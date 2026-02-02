@@ -1,4 +1,4 @@
-import { ArgumentFormulaError } from '../../errors';
+import { Errors } from '../../errors';
 import { routinesRegistry } from '../../routines/registry';
 import { createRoutineExamples } from '../../routines/routine-examples';
 import { defineCoreMethods } from '../core-methods';
@@ -22,16 +22,11 @@ routinesRegistry.registerMethod(FormulaNumber, 'log2', {
     const number = instance.value;
 
     if (number <= 0) {
-      throw new ArgumentFormulaError(
-        'Expected positive number.',
-        {
-          context: {
-            actual: number,
-            expected: 'positive number',
-          },
-          location,
-        },
-      );
+      throw Errors.Validation.PositiveNumberExpected.create({
+        value: number,
+      }, {
+        location,
+      });
     }
 
     return new FormulaNumber(Math.log2(number));
@@ -54,16 +49,11 @@ routinesRegistry.registerMethod(FormulaNumber, 'log10', {
     const number = instance.value;
 
     if (number <= 0) {
-      throw new ArgumentFormulaError(
-        'Expected positive number.',
-        {
-          context: {
-            actual: number,
-            expected: 'positive number',
-          },
-          location,
-        },
-      );
+      throw Errors.Validation.PositiveNumberExpected.create({
+        value: number,
+      }, {
+        location,
+      });
     }
 
     return new FormulaNumber(Math.log10(number));

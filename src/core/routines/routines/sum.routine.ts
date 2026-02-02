@@ -1,5 +1,5 @@
 import { FormulaArray, FormulaNumber, Kind } from '../../data-types';
-import { ArgumentFormulaError } from '../../errors';
+import { Errors } from '../../errors';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
@@ -50,31 +50,21 @@ routinesRegistry.registerMethod(FormulaArray, 'sum', {
     const flattenInstanceValues = FormulaArray.flatValues(instance);
 
     if (flattenInstanceValues.some((num) => typeof num.value !== 'number')) {
-      throw new ArgumentFormulaError(
-        'All numbers must be numbers',
-        {
-          context: {
-            actual: flattenInstanceValues.map((num) => typeof num.value),
-            expected: 'numbers',
-          },
-          location,
-        },
-      );
+      throw Errors.Argument.AllMustBeNumbers.create({
+        actual: flattenInstanceValues.map((num): string => typeof num.value).join(', '),
+      }, {
+        location,
+      });
     }
 
     const flattenInstanceNumberValues = flattenInstanceValues as FormulaNumber[];
 
     if (flattenInstanceNumberValues.some((num) => !Number.isFinite(num.value))) {
-      throw new ArgumentFormulaError(
-        'All numbers must be finite',
-        {
-          context: {
-            actual: flattenInstanceNumberValues.map((num) => num.value),
-            expected: 'finite numbers',
-          },
-          location,
-        },
-      );
+      throw Errors.Argument.AllMustBeFinite.create({
+        actual: flattenInstanceNumberValues.map((num): string => typeof num.value).join(', '),
+      }, {
+        location,
+      });
     }
 
     const numbers = visitor.evaluateNodes<FormulaNumber[]>(utils.flatArgs(args));

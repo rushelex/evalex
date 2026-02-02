@@ -37,7 +37,12 @@ const routineArguments = createRoutineArguments([
     name: 'unit',
     validation: (dataType) => {
       if (!DURATION_UNITS.includes(dataType.value)) {
-        return `Expected ${DURATION_UNITS.map((u) => `"${u}"`).join(', ')}.`;
+        return {
+          message: `Expected ${DURATION_UNITS.map((u) => `"${u}"`).join(', ')}.`,
+          actual: dataType.value,
+          expected: DURATION_UNITS,
+          argumentPosition: 2,
+        };
       }
     },
   }),

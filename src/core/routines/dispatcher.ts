@@ -5,7 +5,7 @@ import type { FormulaDataType } from '../data-types';
 import type { FormulaEvaluatorVisitor } from '../evaluator.visitor';
 
 import { FormulaObject } from '../data-types';
-import { ArgumentFormulaError, ReferenceFormulaError } from '../errors';
+import { Errors } from '../errors';
 import { routinesRegistry } from './registry';
 
 export type MethodResolveResult = { handled: true; result: FormulaDataType } | { handled: false };
@@ -31,15 +31,9 @@ export class RoutineDispatcher {
     const fn = routinesRegistry.getFunction(functionName);
 
     if (!fn) {
-      throw new ReferenceFormulaError(
-        `Function "${functionName}" is not defined.`,
-        {
-          location: node.location,
-          context: {
-            name: functionName,
-            type: 'function',
-          },
-        },
+      throw Errors.Reference.FunctionNotDefined.create(
+        { name: functionName },
+        { location: node.location },
       );
     }
 
@@ -64,16 +58,9 @@ export class RoutineDispatcher {
       }
     }
 
-    throw new ReferenceFormulaError(
-      `Method "${methodNode.name}" is not defined.`,
-      {
-        location: methodNode.location,
-        context: {
-          name: methodNode.name,
-          type: 'method',
-          target: instance.displayType,
-        },
-      },
+    throw Errors.Reference.MethodNotDefined.create(
+      { name: methodNode.name, target: instance.displayType },
+      { location: methodNode.location },
     );
   }
 
@@ -111,29 +98,16 @@ export class RoutineDispatcher {
     const fieldName = methodNode.name;
 
     if (!Object.prototype.hasOwnProperty.call(instance.value, fieldName)) {
-      throw new ReferenceFormulaError(
-        `Field "${fieldName}" is not defined.`,
-        {
-          location: methodNode.location,
-          context: {
-            name: fieldName,
-            type: 'method',
-            target: instance.displayType,
-          },
-        },
+      throw Errors.Reference.FieldNotDefined.create(
+        { name: fieldName, target: instance.displayType },
+        { location: methodNode.location },
       );
     }
 
     if (node.args.length > 0) {
-      throw new ArgumentFormulaError(
-        `Expected 0 arguments.`,
-        {
-          location: methodNode.location,
-          context: {
-            expected: 0,
-            actual: node.args.length,
-          },
-        },
+      throw Errors.Argument.ExactCount.create(
+        { actual: node.args.length, expected: 0 },
+        { location: methodNode.location },
       );
     }
 

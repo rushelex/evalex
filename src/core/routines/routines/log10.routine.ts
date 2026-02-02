@@ -22,7 +22,12 @@ routinesRegistry.registerFunction('log10', {
       name: 'number',
       validation: (value) => {
         if (value.value <= 0) {
-          return 'Expected positive number.';
+          return {
+            message: 'Expected positive number.',
+            actual: value.value,
+            expected: ['positive number'],
+            argumentPosition: 0,
+          };
         }
       },
     }),

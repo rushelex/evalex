@@ -1,5 +1,6 @@
-import { playwright } from '@vitest/browser-playwright';
 import path from 'node:path';
+
+import { playwright } from '@vitest/browser-playwright';
 import circularDependency from 'vite-plugin-circular-dependency';
 import { defineConfig } from 'vitest/config';
 

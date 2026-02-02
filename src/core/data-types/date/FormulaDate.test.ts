@@ -2,7 +2,9 @@ import type { EvaluateOptions } from '../../expression';
 
 import { Temporal } from 'temporal-polyfill';
 
-import { evaluate } from '../../../testing-library';
+import { Errors } from '~/core/errors';
+
+import { evaluate, loc } from '../../../testing-library';
 import { FormulaDuration } from '../duration';
 import { FormulaNumber } from '../number';
 import { FormulaDate } from './FormulaDate';
@@ -192,10 +194,12 @@ describe('FormulaDate', () => {
     });
 
     it('should return an error when calling a method with arguments', () => {
-      expect(() => evaluate('d.year(1)', contextOptions)).toThrowFormulaError(
-        'Expected 0 argument(s).',
-        [2, 6],
-      );
+      expect(() => {
+        evaluate('d.year(1)', contextOptions);
+      }).toThrow(Errors.Argument.ExactCount.create(
+        { actual: 1, expected: 0 },
+        { location: loc(2, 6) },
+      ));
     });
 
     describe('add', () => {
@@ -222,23 +226,45 @@ describe('FormulaDate', () => {
       });
 
       it('should throw an error when provided duration and unit', () => {
-        expect(() => evaluate('d.add(duration, "hours")', contextOptions)).toThrowFormulaError(
-          'Expected type Number.',
-          [6, 14],
+        expect(() => {
+          evaluate('d.add(duration, "hours")', contextOptions);
+        }).toThrow(
+          Errors.Argument.TypeMismatch.create(
+            { actual: 'Duration', expected: ['Number'], argumentPosition: 1 },
+            { location: loc(6, 14) },
+          ),
         );
       });
 
       it('should throw an error when provided number without unit', () => {
-        expect(() => evaluate('d.add(1)', contextOptions)).toThrowFormulaError(
-          'Arguments don\'t match. Pattern 1: Expected type Duration.; Pattern 2: Expected at least 2 argument(s).',
-          [2, 5],
+        expect(() => {
+          evaluate('d.add(1)', contextOptions);
+        }).toThrow(
+          Errors.Argument.PatternMismatch.create(
+            {
+              patterns: [
+                { message: 'Expected type Duration.', patternIndex: 0, location: loc(6, 7) },
+                { message: 'Expected at least 2 argument(s).', patternIndex: 1, location: loc(2, 5) },
+              ],
+            },
+            { location: loc(2, 5) },
+          ),
         );
       });
 
       it('should throw an error when provided incorrect unit', () => {
-        expect(() => evaluate('d.add(1, "minute")', contextOptions)).toThrowFormulaError(
-          'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".',
-          [9, 17],
+        expect(() => {
+          evaluate('d.add(1, "minute")', contextOptions);
+        }).toThrow(
+          Errors.Argument.Validation.create(
+            {
+              message: 'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".',
+              actual: 'minute',
+              expected: ['years', 'months', 'weeks', 'days', 'hours', 'minutes', 'seconds'],
+              argumentPosition: 2,
+            },
+            { location: loc(9, 17) },
+          ),
         );
       });
     });
@@ -267,23 +293,44 @@ describe('FormulaDate', () => {
       });
 
       it('should throw an error when provided duration and unit', () => {
-        expect(() => evaluate('d.subtract(duration, "hours")', contextOptions)).toThrowFormulaError(
-          'Expected type Number.',
-          [11, 19],
-        );
+        expect(() => {
+          evaluate('d.subtract(duration, "hours")', contextOptions);
+        }).toThrow(Errors.Argument.TypeMismatch.create(
+          { actual: 'Duration', expected: ['Number'], argumentPosition: 1 },
+          { location: loc(11, 19) },
+        ));
       });
 
       it('should throw an error when provided number without unit', () => {
-        expect(() => evaluate('d.subtract(1)', contextOptions)).toThrowFormulaError(
-          'Arguments don\'t match. Pattern 1: Expected type Duration.; Pattern 2: Expected at least 2 argument(s).',
-          [2, 10],
+        expect(() => {
+          evaluate('d.subtract(1)', contextOptions);
+        }).toThrow(
+          Errors.Argument.PatternMismatch.create(
+            {
+              patterns: [
+                { message: 'Expected type Duration.', patternIndex: 0, location: loc(11, 12) },
+                { message: 'Expected at least 2 argument(s).', patternIndex: 1, location: loc(2, 10) },
+              ],
+            },
+            { location: loc(2, 10) },
+          ),
         );
       });
 
       it('should throw an error when provided incorrect unit', () => {
-        expect(() => evaluate('d.subtract(1, "minute")', contextOptions)).toThrowFormulaError(
-          'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".',
-          [14, 22],
+        expect(() => {
+          evaluate('d.subtract(1, "minute")', contextOptions);
+        }).toThrow(
+          Errors.Argument.Validation.create(
+            {
+              message: 'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".',
+              actual: 'minute',
+              expected: ['years', 'months', 'weeks', 'days', 'hours', 'minutes', 'seconds'],
+              argumentPosition: 2,
+              argumentName: 'unit',
+            },
+            { location: loc(14, 22) },
+          ),
         );
       });
     });

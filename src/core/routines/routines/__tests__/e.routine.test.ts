@@ -12,7 +12,7 @@ describe('e routine', tester.examples([
     formula: 'e(1)',
     expected: {
       function: {
-        message: 'Expected 0 argument(s).',
+        message: 'Expected no arguments.',
         location: [0, 4],
       },
     },

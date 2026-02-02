@@ -1,5 +1,5 @@
+import { Errors } from '../../core/errors';
 import { DependencyGraph } from '../dependency-graph';
-import { CircularDependencyError } from '../errors';
 
 describe('DependencyGraph', () => {
   let graph: DependencyGraph;
@@ -30,7 +30,12 @@ describe('DependencyGraph', () => {
       graph.addDependency('A', 'B');
       graph.addDependency('B', 'C');
 
-      expect(() => graph.addDependency('C', 'A')).toThrow(CircularDependencyError);
+      expect(() => {
+        graph.addDependency('C', 'A');
+      }).toThrow(Errors.Runtime.CircularDependency.create({
+        nodeId: 'C',
+        dependsOnId: 'A',
+      }));
     });
 
     it('handles non-existent nodes gracefully', () => {
@@ -99,7 +104,12 @@ describe('DependencyGraph', () => {
       graph.addDependency('B', 'C');
 
       // Attempting to create cycle through replacement
-      expect(() => graph.replaceDependencies('C', new Set(['A']))).toThrow(CircularDependencyError);
+      expect(() => {
+        graph.replaceDependencies('C', new Set(['A']));
+      }).toThrow(Errors.Runtime.CircularDependency.create({
+        nodeId: 'C',
+        dependsOnId: 'A',
+      }));
     });
   });
 

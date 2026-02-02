@@ -84,7 +84,7 @@ describe('Profile: Raw Visitor evaluation', () => {
         ast = expression.parse();
         const props = new Map([['A1', new FormulaNumber(20) as FormulaDataType]]);
         ctx = new FormulaEvaluationContext(props);
-        visitor = new FormulaEvaluatorVisitor(ctx);
+        visitor = new FormulaEvaluatorVisitor(expression.formula, ctx);
       },
     },
   );

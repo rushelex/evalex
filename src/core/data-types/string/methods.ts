@@ -1,7 +1,6 @@
-import type { AST } from '../../../parser';
 import type { ProcessedArgument } from '../../routines/arguments';
 
-import { ArgumentFormulaError } from '../../errors';
+import { getRegExpFallbackError } from '../../errors';
 import { Argument, createRoutineArguments } from '../../routines/arguments';
 import { routinesRegistry } from '../../routines/registry';
 import { createRoutineExamples } from '../../routines/routine-examples';
@@ -75,28 +74,6 @@ routinesRegistry.registerMethod(FormulaString, 'trim', {
   },
 });
 
-function getRegExpFallbackError(error: unknown, location: AST.Location) {
-  if (error instanceof ArgumentFormulaError) {
-    return error;
-  }
-
-  return new ArgumentFormulaError(
-    error instanceof SyntaxError
-      ? error.message
-      : `Invalid regular expression: ${error instanceof Error
-        ? error.message
-        : 'Unknown error'}`,
-    {
-      location,
-      context: {
-        expected: 'valid regex pattern',
-        actual: error instanceof ArgumentFormulaError ? error.context.actual : 'invalid pattern',
-      },
-      cause: error,
-    },
-  );
-}
-
 routinesRegistry.registerMethod(FormulaString, 'match', {
   description: 'Returns an array of all matches found by the regular expression.',
   examples: createRoutineExamples([
@@ -120,7 +97,7 @@ routinesRegistry.registerMethod(FormulaString, 'match', {
       new Argument(Kind.RegExp, { name: 'regexp' }),
     ],
   ]),
-  handler: ({ instance, args, location }) => {
+  handler: ({ instance, args, location, visitor }) => {
     try {
       const [patternOrRegExpArg, flagsArg] = args as [ProcessedArgument<FormulaString>, ProcessedArgument<FormulaString>?] | [ProcessedArgument<FormulaRegExp>];
 
@@ -134,7 +111,7 @@ routinesRegistry.registerMethod(FormulaString, 'match', {
       return new FormulaArray(matches.map((match) => new FormulaString(match)));
     }
     catch (error) {
-      throw getRegExpFallbackError(error, location);
+      throw getRegExpFallbackError(error, location, visitor.formula);
     }
   },
 });
@@ -162,7 +139,7 @@ routinesRegistry.registerMethod(FormulaString, 'test', {
       new Argument(Kind.RegExp, { name: 'regexp' }),
     ],
   ]),
-  handler: ({ instance, args, location }) => {
+  handler: ({ instance, args, location, visitor }) => {
     try {
       const [patternOrRegExpArg, flagsArg] = args as [ProcessedArgument<FormulaString>, ProcessedArgument<FormulaString>?] | [ProcessedArgument<FormulaRegExp>];
 
@@ -171,7 +148,7 @@ routinesRegistry.registerMethod(FormulaString, 'test', {
       return new FormulaBoolean(regexp.toRegExp().test(instance.value));
     }
     catch (error) {
-      throw getRegExpFallbackError(error, location);
+      throw getRegExpFallbackError(error, location, visitor.formula);
     }
   },
 });
@@ -201,7 +178,7 @@ routinesRegistry.registerMethod(FormulaString, 'replace', {
       new Argument(Kind.String, { name: 'replacement' }),
     ],
   ]),
-  handler: ({ instance, args, location }) => {
+  handler: ({ instance, args, location, visitor }) => {
     try {
       const [patternOrRegExpArg, replacementArg, flagsArg] = args as [ProcessedArgument<FormulaString>, ProcessedArgument<FormulaString>, ProcessedArgument<FormulaString>?] | [ProcessedArgument<FormulaRegExp>, ProcessedArgument<FormulaString>];
 
@@ -212,7 +189,7 @@ routinesRegistry.registerMethod(FormulaString, 'replace', {
       return new FormulaString(instance.value.replace(regexp.toRegExp(), replacement));
     }
     catch (error) {
-      throw getRegExpFallbackError(error, location);
+      throw getRegExpFallbackError(error, location, visitor.formula);
     }
   },
 });
@@ -238,7 +215,7 @@ routinesRegistry.registerMethod(FormulaString, 'replaceAll', {
       new Argument(Kind.String, { name: 'replacement' }),
     ],
   ]),
-  handler: ({ instance, args, location }) => {
+  handler: ({ instance, args, location, visitor }) => {
     try {
       const [patternOrRegExpArg, replacementArg, flagsArg] = args as [ProcessedArgument<FormulaString>, ProcessedArgument<FormulaString>, ProcessedArgument<FormulaString>?] | [ProcessedArgument<FormulaRegExp>, ProcessedArgument<FormulaString>];
 
@@ -256,7 +233,7 @@ routinesRegistry.registerMethod(FormulaString, 'replaceAll', {
       return new FormulaString(instance.value.replace(regex, replacement));
     }
     catch (error) {
-      throw getRegExpFallbackError(error, location);
+      throw getRegExpFallbackError(error, location, visitor.formula);
     }
   },
 });
@@ -284,7 +261,7 @@ routinesRegistry.registerMethod(FormulaString, 'contains', {
       new Argument(Kind.RegExp, { name: 'regexp' }),
     ],
   ]),
-  handler: ({ instance, args, location }) => {
+  handler: ({ instance, args, location, visitor }) => {
     try {
       const [patternOrRegExpArg, flagsArg] = args as [ProcessedArgument<FormulaString>, ProcessedArgument<FormulaString>?] | [ProcessedArgument<FormulaRegExp>];
 
@@ -293,7 +270,7 @@ routinesRegistry.registerMethod(FormulaString, 'contains', {
       return new FormulaBoolean(regexp.toRegExp().test(instance.value));
     }
     catch (error) {
-      throw getRegExpFallbackError(error, location);
+      throw getRegExpFallbackError(error, location, visitor.formula);
     }
   },
 });

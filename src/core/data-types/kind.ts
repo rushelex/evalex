@@ -8,5 +8,5 @@ export const enum Kind {
   String = 'String',
   Date = 'Date',
   Duration = 'Duration',
-  RegExp = 'Regexp',
+  RegExp = 'RegExp',
 };

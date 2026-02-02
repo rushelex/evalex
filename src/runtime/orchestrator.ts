@@ -2,7 +2,7 @@ import type { Executor } from './executor';
 import type { Scheduler } from './scheduler';
 import type { FormulaNode, NodeAdapter } from './types';
 
-import { MaxFormulasExceededError } from './errors';
+import { Errors } from '../core/errors';
 import { SyncExecutor } from './executor';
 import { FORMULA_LIMITS } from './limits';
 import { FormulaRuntime } from './runtime';
@@ -101,16 +101,11 @@ export class FormulaOrchestrator<T extends FormulaNode> {
         .length;
 
       if (formulasCount >= FORMULA_LIMITS.MAX_FORMULAS_COUNT) {
-        throw new MaxFormulasExceededError(
-          `Maximum formulas count of ${FORMULA_LIMITS.MAX_FORMULAS_COUNT} exceeded. `
-          + `Cannot add formula "${node.id}".`,
-          {
-            context: {
-              nodeId: node.id,
-              count: formulasCount,
-            },
-          },
-        );
+        throw Errors.Runtime.MaxFormulas.create({
+          nodeId: node.id,
+          count: formulasCount,
+          limit: FORMULA_LIMITS.MAX_FORMULAS_COUNT,
+        });
       }
     }
 

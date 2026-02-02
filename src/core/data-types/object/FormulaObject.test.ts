@@ -1,6 +1,8 @@
 import type { ToFormulaDataType } from '../types';
 
-import { evaluate } from '../../../testing-library';
+import { Errors } from '~/core/errors';
+
+import { evaluate, loc } from '../../../testing-library';
 import { createRoutineArguments } from '../../routines/arguments';
 import { routinesRegistry } from '../../routines/registry';
 import { createRoutineExamples } from '../../routines/routine-examples';
@@ -289,29 +291,30 @@ describe('FormulaObject', () => {
     });
 
     it('should return error for non-existent fields', () => {
-      expect(() => evaluate('obj.nonExistent()', {
-        context: {
-          obj: new FormulaObject({
-            name: new FormulaString('John'),
-          }),
-        },
-      })).toThrowFormulaError(
-        'Field "nonExistent" is not defined.',
-        [4, 15],
-      );
+      expect(() => {
+        evaluate('obj.nonExistent()', {
+          context: {
+            obj: new FormulaObject({
+              name: new FormulaString('John'),
+            }),
+          },
+        });
+      }).toThrow(Errors.Reference.FieldNotDefined.create({ name: 'nonExistent', target: 'Object' }, { location: loc(4, 15) }));
     });
 
     it('should return error when field access has arguments', () => {
-      expect(() => evaluate('obj.name("arg")', {
-        context: {
-          obj: new FormulaObject({
-            name: new FormulaString('John'),
-          }),
-        },
-      })).toThrowFormulaError(
-        'Expected 0 arguments.',
-        [4, 8],
-      );
+      expect(() => {
+        evaluate('obj.name("arg")', {
+          context: {
+            obj: new FormulaObject({
+              name: new FormulaString('John'),
+            }),
+          },
+        });
+      }).toThrow(Errors.Argument.ExactCount.create(
+        { actual: 1, expected: 0 },
+        { location: loc(4, 8) },
+      ));
     });
   });
 
@@ -534,16 +537,20 @@ describe('FormulaObject', () => {
       const context = { obj };
 
       // Test accessing non-existent property
-      expect(() => evaluate('obj.nonExistent()', { context })).toThrowFormulaError(
-        'Field "nonExistent" is not defined.',
-        [4, 15],
-      );
+      expect(() => {
+        evaluate('obj.nonExistent()', { context });
+      }).toThrow(Errors.Reference.FieldNotDefined.create(
+        { name: 'nonExistent', target: 'Object' },
+        { location: loc(4, 15) },
+      ));
 
       // Test accessing property with arguments (should fail)
-      expect(() => evaluate('obj.user("invalid")', { context })).toThrowFormulaError(
-        'Expected 0 arguments.',
-        [4, 8],
-      );
+      expect(() => {
+        evaluate('obj.user("invalid")', { context });
+      }).toThrow(Errors.Argument.ExactCount.create(
+        { actual: 1, expected: 0 },
+        { location: loc(4, 8) },
+      ));
     });
   });
 

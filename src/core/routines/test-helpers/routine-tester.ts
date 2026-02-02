@@ -238,7 +238,7 @@ export class RoutineTester {
           });
         };
         if (isExpectedError(testCase.expected)) {
-          expect(throwingFn).toThrowFormulaError(testCase.expected.function!.message, testCase.expected.function!.location);
+          expect(throwingFn).toThrow(`${testCase.expected.function!.message} [${testCase.expected.function!.location[0]},${testCase.expected.function!.location[1]}]`);
         }
       });
     });
@@ -278,7 +278,7 @@ export class RoutineTester {
           };
 
           if (isExpectedError(testCase.expected)) {
-            expect(throwingFn).toThrowFormulaError(testCase.expected.method!.message, testCase.expected.method!.location);
+            expect(throwingFn).toThrow(`${testCase.expected.method!.message} [${testCase.expected.method!.location[0]},${testCase.expected.method!.location[1]}]`);
           }
         });
       });

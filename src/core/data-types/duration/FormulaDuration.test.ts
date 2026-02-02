@@ -2,7 +2,9 @@ import type { EvaluateOptions } from '../../expression';
 
 import { Temporal } from 'temporal-polyfill';
 
-import { evaluate } from '../../../testing-library';
+import { Errors } from '~/core/errors';
+
+import { evaluate, loc } from '../../../testing-library';
 import { FormulaNumber } from '../number';
 import { FormulaDuration } from './FormulaDuration';
 
@@ -44,9 +46,11 @@ describe('FormulaDuration', () => {
   });
 
   it('should return an error when calling a method with arguments', () => {
-    expect(() => evaluate('d.years(1)', contextOptions)).toThrowFormulaError(
-      'Expected 0 argument(s).',
-      [2, 7],
-    );
+    expect(() => {
+      evaluate('d.years(1)', contextOptions);
+    }).toThrow(Errors.Argument.ExactCount.create(
+      { actual: 1, expected: 0 },
+      { location: loc(2, 7) },
+    ));
   });
 });

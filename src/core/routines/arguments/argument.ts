@@ -1,10 +1,12 @@
+import type { ArgumentTypeMismatchPayload } from '~/core/errors/error-payloads';
+
 import type { InferFormulaDataTypeByKind, Kind } from '../../data-types';
 
 interface ArgumentOptions<T extends Kind> {
   name?: string;
   optional?: boolean;
   repeatable?: boolean;
-  validation?: (dataType: InferFormulaDataTypeByKind<T>) => string | undefined;
+  validation?: (dataType: InferFormulaDataTypeByKind<T>) => Partial<ArgumentTypeMismatchPayload> | undefined;
 }
 
 export class Argument<T extends Kind = Kind> {
@@ -12,7 +14,7 @@ export class Argument<T extends Kind = Kind> {
   readonly name?: string;
   readonly optional: boolean;
   readonly repeatable: boolean;
-  readonly validation?: (dataType: InferFormulaDataTypeByKind<T>) => string | undefined;
+  readonly validation?: (dataType: InferFormulaDataTypeByKind<T>) => Partial<ArgumentTypeMismatchPayload> | undefined;
 
   constructor(
     types: T | T[],

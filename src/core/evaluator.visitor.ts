@@ -2,20 +2,18 @@ import type { AST } from '../parser';
 import type { FormulaEvaluationContext } from './context';
 import type { RoutineDispatcher } from './routines/dispatcher';
 
+import { Temporal } from 'temporal-polyfill';
+
 import {
   FormulaArray,
   FormulaBoolean,
   FormulaDataType,
+  FormulaDate,
   FormulaNull,
   FormulaNumber,
   FormulaString,
 } from './data-types';
-import {
-  ArithmeticFormulaError,
-  RangeFormulaError,
-  ReferenceFormulaError,
-  TypeFormulaError,
-} from './errors';
+import { Errors } from './errors';
 import { routineDispatcher } from './routines/dispatcher';
 
 export interface EvaluationHooks {
@@ -23,15 +21,18 @@ export interface EvaluationHooks {
 }
 
 export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
+  readonly formula: string;
   context: FormulaEvaluationContext;
   readonly #hooks?: EvaluationHooks;
   readonly #dispatcher: RoutineDispatcher = routineDispatcher;
 
   constructor(
+    formula: string,
     context: FormulaEvaluationContext,
     hooks?: EvaluationHooks,
     dispatcher: RoutineDispatcher = routineDispatcher,
   ) {
+    this.formula = formula;
     this.context = context;
     this.#hooks = hooks;
     this.#dispatcher = dispatcher;
@@ -57,7 +58,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
    */
   cloneWithContext(newContext: FormulaEvaluationContext): FormulaEvaluatorVisitor {
     // Important: create a new instance to avoid mutating the current visitor
-    return new FormulaEvaluatorVisitor(newContext, this.#hooks, this.#dispatcher);
+    return new FormulaEvaluatorVisitor(this.formula, newContext, this.#hooks, this.#dispatcher);
   }
 
   visitLiteralNode(node: AST.ILiteralNode): FormulaDataType {
@@ -94,52 +95,40 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
         }
 
         // Numeric addition
-        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location);
+        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location, this.formula);
         return FormulaNumber.from(leftNum.value + rightNum.value);
       }
       case '-': {
-        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location);
+        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location, this.formula);
         return FormulaNumber.from(leftNum.value - rightNum.value);
       }
       case '*': {
-        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location);
+        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location, this.formula);
         return FormulaNumber.from(leftNum.value * rightNum.value);
       }
       case '/': {
-        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location);
+        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location, this.formula);
 
         if (rightNum.value === 0) {
-          throw new ArithmeticFormulaError(
-            'Division by zero.',
-            {
-              location: node.location,
-              context: {
-                operation: 'division',
-                dividend: leftNum.value,
-              },
-            },
+          throw Errors.Arithmetic.DivisionByZero.create(
+            { dividend: leftNum.value },
+            { location: node.location },
           );
         }
 
         return FormulaNumber.from(leftNum.value / rightNum.value);
       }
       case '^': {
-        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location);
+        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location, this.formula);
         return FormulaNumber.from(leftNum.value ** rightNum.value);
       }
       case '%': {
-        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location);
+        const { leftNum, rightNum } = checkNumericOperands(left, right, node.location, this.formula);
 
         if (rightNum.value === 0) {
-          throw new ArithmeticFormulaError(
-            'Division by zero (modulo).',
-            {
-              location: node.location,
-              context: {
-                operation: 'modulo',
-                dividend: leftNum.value,
-              },
-            },
+          throw Errors.Arithmetic.ModuloByZero.create(
+            { dividend: leftNum.value },
+            { location: node.location },
           );
         }
 
@@ -176,16 +165,13 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           || (left instanceof FormulaString && right instanceof FormulaString)) {
           return FormulaBoolean.from(left.value < right.value);
         }
+        if (left instanceof FormulaDate && right instanceof FormulaDate) {
+          return FormulaBoolean.from(Temporal.ZonedDateTime.compare(left.value, right.value) < 0);
+        }
 
-        throw new TypeFormulaError(
-          'Comparison operands must be of the same type (Number or Date).',
-          {
-            location: node.location,
-            context: {
-              expected: 'Number | Date',
-              actual: `${left.displayType} and ${right.displayType}`,
-            },
-          },
+        throw Errors.Evaluation.ComparisonTypeMismatch.create(
+          { expression: this.formula },
+          { location: node.location },
         );
       }
       case '<=': {
@@ -193,16 +179,13 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           || (left instanceof FormulaString && right instanceof FormulaString)) {
           return FormulaBoolean.from(left.value <= right.value);
         }
+        if (left instanceof FormulaDate && right instanceof FormulaDate) {
+          return FormulaBoolean.from(Temporal.ZonedDateTime.compare(left.value, right.value) <= 0);
+        }
 
-        throw new TypeFormulaError(
-          'Comparison operands must be of the same type (Number or Date).',
-          {
-            location: node.location,
-            context: {
-              expected: 'Number | Date',
-              actual: `${left.displayType} and ${right.displayType}`,
-            },
-          },
+        throw Errors.Evaluation.ComparisonTypeMismatch.create(
+          { expression: this.formula },
+          { location: node.location },
         );
       }
       case '>': {
@@ -210,16 +193,13 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           || (left instanceof FormulaString && right instanceof FormulaString)) {
           return FormulaBoolean.from(left.value > right.value);
         }
+        if (left instanceof FormulaDate && right instanceof FormulaDate) {
+          return FormulaBoolean.from(Temporal.ZonedDateTime.compare(left.value, right.value) > 0);
+        }
 
-        throw new TypeFormulaError(
-          'Comparison operands must be of the same type (Number or Date).',
-          {
-            location: node.location,
-            context: {
-              expected: 'Number | Date',
-              actual: `${left.displayType} and ${right.displayType}`,
-            },
-          },
+        throw Errors.Evaluation.ComparisonTypeMismatch.create(
+          { expression: this.formula },
+          { location: node.location },
         );
       }
       case '>=': {
@@ -227,16 +207,13 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           || (left instanceof FormulaString && right instanceof FormulaString)) {
           return FormulaBoolean.from(left.value >= right.value);
         }
+        if (left instanceof FormulaDate && right instanceof FormulaDate) {
+          return FormulaBoolean.from(Temporal.ZonedDateTime.compare(left.value, right.value) >= 0);
+        }
 
-        throw new TypeFormulaError(
-          'Comparison operands must be of the same type (Number or Date).',
-          {
-            location: node.location,
-            context: {
-              expected: 'Number | Date',
-              actual: `${left.displayType} and ${right.displayType}`,
-            },
-          },
+        throw Errors.Evaluation.ComparisonTypeMismatch.create(
+          { expression: this.formula },
+          { location: node.location },
         );
       }
       case 'and':
@@ -249,16 +226,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
       }
 
       default: {
-        throw new RangeFormulaError(
-          `Unsupported binary operator: ${node.operator}`,
-          {
-            location: node.location,
-            context: {
-              actual: node.operator,
-              expected: ['+', '-', '*', '/', '^', '%', '==', '!=', '<', '<=', '>', '>=', 'and', '&&', 'or', '||'],
-            },
-          },
-        );
+        throw Errors.Operators.UnsupportedBinary.create(node.operator, { location: node.location });
       }
     }
   }
@@ -269,15 +237,9 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
     switch (node.operator) {
       case '-': {
         if (!(arg instanceof FormulaNumber)) {
-          throw new TypeFormulaError(
-            `Cannot apply unary minus to a non-numeric value.`,
-            {
-              location: node.location,
-              context: {
-                expected: 'Number',
-                actual: arg.displayType,
-              },
-            },
+          throw Errors.Evaluation.UnaryMinusNonNumeric.create(
+            { expression: this.formula },
+            { location: node.location },
           );
         }
 
@@ -288,16 +250,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
         return FormulaBoolean.from(!arg.value);
       }
       default: {
-        throw new RangeFormulaError(
-          `Unsupported unary operator: ${node.operator}`,
-          {
-            location: node.location,
-            context: {
-              actual: node.operator,
-              expected: ['-', 'not', '!'],
-            },
-          },
-        );
+        throw Errors.Operators.UnsupportedUnary.create(node.operator, { location: node.location });
       }
     }
   }
@@ -315,15 +268,9 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
     }
 
     // If the identifier is not found in the context, it's an error.
-    throw new ReferenceFormulaError(
-      `Variable "${node.name}" is not defined.`,
-      {
-        location: node.location,
-        context: {
-          name: node.name,
-          type: 'variable',
-        },
-      },
+    throw Errors.Reference.VariableNotDefined.create(
+      { name: node.name },
+      { location: node.location },
     );
   }
 
@@ -367,17 +314,12 @@ function checkNumericOperands(
   l: FormulaDataType,
   r: FormulaDataType,
   location: AST.IBinaryExpressionNode['location'],
+  formula: string,
 ): { leftNum: FormulaNumber; rightNum: FormulaNumber } {
   if (!(l instanceof FormulaNumber) || !(r instanceof FormulaNumber)) {
-    throw new TypeFormulaError(
-      'Cannot perform math operation on a non-numeric value.',
-      {
-        location,
-        context: {
-          expected: 'Number',
-          actual: 'Non-Number',
-        },
-      },
+    throw Errors.Evaluation.NonNumericMath.create(
+      { expression: formula },
+      { location },
     );
   }
 

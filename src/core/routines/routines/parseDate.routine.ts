@@ -28,7 +28,12 @@ routinesRegistry.registerFunction('parseDate', {
           FormulaDate.from(value.value);
         }
         catch {
-          return 'Expected valid date string.';
+          return {
+            message: 'Expected valid date string.',
+            actual: value.value,
+            expected: ['valid date string'],
+            argumentPosition: 0,
+          };
         }
       },
     }),

@@ -1,6 +1,4 @@
 import {
-  buildErrorMessageWithLocation,
-  captureThrow,
   checkInstance,
   getTypeName,
   stringify,
@@ -35,23 +33,6 @@ describe('utils', () => {
     });
   });
 
-  describe('buildErrorMessageWithLocation', () => {
-    it('should add period and location suffix', () => {
-      expect(buildErrorMessageWithLocation('Division by zero', [5, 10]))
-        .toBe('Division by zero. [5,10]');
-    });
-
-    it('should not duplicate period', () => {
-      expect(buildErrorMessageWithLocation('Already ends with period.', [0, 5]))
-        .toBe('Already ends with period. [0,5]');
-    });
-
-    it('should handle empty message', () => {
-      expect(buildErrorMessageWithLocation('', [1, 2]))
-        .toBe('. [1,2]');
-    });
-  });
-
   describe('checkInstance', () => {
     it('should return true for matching instance', () => {
       const error = new Error('test');
@@ -66,25 +47,6 @@ describe('utils', () => {
       expect(result.isInstance).toBe(false);
       expect(result.actualTypeName).toBe('string');
       expect(result.expectedTypeName).toBe('Error');
-    });
-  });
-
-  describe('captureThrow', () => {
-    it('should capture thrown error', () => {
-      const error = new Error('test');
-      const result = captureThrow(() => {
-        throw error;
-      });
-      expect(result.didThrow).toBe(true);
-      expect(result.thrown).toBe(error);
-    });
-
-    it('should return didThrow false for non-throwing function', () => {
-      const result = captureThrow(() => {
-        // Does nothing
-      });
-      expect(result.didThrow).toBe(false);
-      expect(result.thrown).toBe(null);
     });
   });
 

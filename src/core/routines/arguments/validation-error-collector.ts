@@ -40,7 +40,6 @@ export class ValidationErrorCollector {
       }
 
       return this.#errorFactory.createPatternMismatchError(
-        this.#definitions.alternatives,
         patternErrors,
         globalLocation,
       );

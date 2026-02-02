@@ -1,7 +1,8 @@
 import type { EvaluateOptions } from '../expression';
 
-import { evaluate } from '../../testing-library';
+import { evaluate, loc } from '../../testing-library';
 import { FormulaBoolean, FormulaNull, FormulaNumber, FormulaString } from '../data-types';
+import { Errors } from '../errors';
 
 describe('Identifiers', () => {
   const contextOptions: EvaluateOptions = {
@@ -34,9 +35,11 @@ describe('Identifiers', () => {
   });
 
   it('should throw FormulaError if identifier is not found', () => {
-    expect(() => evaluate('unknownVar', contextOptions)).toThrowFormulaError(
-      'Variable "unknownVar" is not defined.',
-      [0, 10],
-    );
+    expect(() => {
+      evaluate('unknownVar', contextOptions);
+    }).toThrow(Errors.Reference.VariableNotDefined.create(
+      { name: 'unknownVar' },
+      { location: loc(0, 10) },
+    ));
   });
 });

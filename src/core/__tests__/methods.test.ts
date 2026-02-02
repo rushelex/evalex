@@ -2,8 +2,9 @@ import type { EvaluateOptions } from '../expression';
 
 import { Temporal } from 'temporal-polyfill';
 
-import { evaluate } from '../../testing-library';
+import { evaluate, loc } from '../../testing-library';
 import { FormulaArray, FormulaNumber, FormulaObject, FormulaString } from '../data-types';
+import { Errors } from '../errors';
 
 describe('Member Expressions and Method Calls', () => {
   const contextOptions: EvaluateOptions = {
@@ -51,18 +52,22 @@ describe('Member Expressions and Method Calls', () => {
   });
 
   it('should throw error for non-existent method on FormulaObject', () => {
-    expect(() => evaluate('person.nonExistentProp()', contextOptions)).toThrowFormulaError(
-      'Field "nonExistentProp" is not defined.',
-      [7, 22],
-    );
+    expect(() => {
+      evaluate('person.nonExistentProp()', contextOptions);
+    }).toThrow(Errors.Reference.FieldNotDefined.create(
+      { name: 'nonExistentProp', target: 'Object' },
+      { location: loc(7, 22) },
+    ));
   });
 
   it('should not leak methods from one entity to another', () => {
     // Call FormulaArray's method "map" on FormulaObject's property "name" (FormulaString)
-    expect(() => evaluate('person.name().map()', contextOptions)).toThrowFormulaError(
-      'Method "map" is not defined.',
-      [14, 17],
-    );
+    expect(() => {
+      evaluate('person.name().map()', contextOptions);
+    }).toThrow(Errors.Reference.MethodNotDefined.create(
+      { name: 'map', target: 'Text' },
+      { location: loc(14, 17) },
+    ));
   });
 });
 
@@ -78,9 +83,11 @@ describe('Global Functions', () => {
   });
 
   it('should throw error for non-existent function', () => {
-    expect(() => evaluate('nonExistentFunc()')).toThrowFormulaError(
-      'Function "nonExistentFunc" is not defined.',
-      [0, 17],
-    );
+    expect(() => {
+      evaluate('nonExistentFunc()');
+    }).toThrow(Errors.Reference.FunctionNotDefined.create(
+      { name: 'nonExistentFunc' },
+      { location: loc(0, 17) },
+    ));
   });
 });

@@ -110,7 +110,13 @@ routinesRegistry.registerMethod(FormulaDate, 'subtract', {
         name: 'unit',
         validation: (dataType) => {
           if (!DURATION_UNITS.includes(dataType.value)) {
-            return 'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".';
+            return {
+              message: 'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".',
+              actual: dataType.value,
+              expected: DURATION_UNITS,
+              argumentPosition: 2,
+              argumentName: 'unit',
+            };
           }
         },
       }),

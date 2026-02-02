@@ -79,9 +79,13 @@ export class Expression {
 
     const dependencies = new Set<string>();
 
-    const visitor = new FormulaEvaluatorVisitor(context, {
-      onIdentifier: (id) => dependencies.add(id),
-    });
+    const visitor = new FormulaEvaluatorVisitor(
+      this.formula,
+      context,
+      {
+        onIdentifier: (id) => dependencies.add(id),
+      },
+    );
 
     const result = visitor.evaluateNode(ast);
 

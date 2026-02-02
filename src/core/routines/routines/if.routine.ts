@@ -1,5 +1,5 @@
 import { FormulaBoolean, FormulaString } from '../../data-types';
-import { ArgumentFormulaError } from '../../errors';
+import { Errors } from '../../errors';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
@@ -20,15 +20,9 @@ routinesRegistry.registerFunction('if', {
   handler: ({ node, visitor }) => {
     // Use simple inline validation to avoid evaluate all static args
     if (node.args.length !== 3) {
-      throw new ArgumentFormulaError(
-        'Expected 3 arguments.',
-        {
-          location: node.location,
-          context: {
-            expected: 3,
-            actual: node.args.length,
-          },
-        },
+      throw Errors.Argument.ExactCount.create(
+        { actual: node.args.length, expected: 3 },
+        { location: node.location },
       );
     }
 

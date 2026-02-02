@@ -1,15 +1,17 @@
 import type { AST } from '../../../../parser';
 
 import { AstNodes } from '../../../../parser';
+
 import { FormulaEvaluationContext } from '../../../context';
 import { FormulaString, Kind } from '../../../data-types';
+import { Errors } from '../../../errors';
 import { FormulaEvaluatorVisitor } from '../../../evaluator.visitor';
 import { Argument } from '../argument';
 import { ArgumentsProcessor } from '../arguments-processor';
 import { CallbackArgument } from '../callback-argument';
 import { ProcessedArgument } from '../processed-argument';
 
-describe('ArgumentsProcessor', () => {
+describe(ArgumentsProcessor, () => {
   const loc = (location: [start: number, end: number]): AST.Location => ({
     start: { line: 0, offset: location[0], column: location[0] + 1 },
     end: { line: 0, offset: location[1], column: location[1] + 1 },
@@ -34,7 +36,7 @@ describe('ArgumentsProcessor', () => {
       ['test', new FormulaString('test_value')],
       ['current', new FormulaString('current_value')],
     ]));
-    return new FormulaEvaluatorVisitor(context);
+    return new FormulaEvaluatorVisitor('test_formula', context);
   };
 
   const validateArgs = (processor: ArgumentsProcessor, args: AST.AstNode[]) => {
@@ -103,11 +105,12 @@ describe('ArgumentsProcessor', () => {
 
         const error = getValidationError(processor, [num([9, 11])]);
 
-        expect(error).toBeFormulaError('Expected type String.', [9, 11]);
-        expect(error.context).toEqual(expect.objectContaining({
+        expect(error).toEqual(Errors.Argument.TypeMismatch.create({
           argumentPosition: 1,
-          expected: Kind.String,
+          expected: [Kind.String],
           actual: Kind.Number,
+        }, {
+          location: loc([9, 11]),
         }));
       });
 
@@ -118,10 +121,12 @@ describe('ArgumentsProcessor', () => {
 
         const error = getValidationError(processor, [], loc([0, 100]));
 
-        expect(error).toBeFormulaError('Expected at least 1 argument(s).', [0, 100]);
-        expect(error.context).toEqual(expect.objectContaining({
+        expect(error).toEqual(Errors.Argument.TooFew.create({
+          expectedMin: 1,
+          expectedMax: 1,
           actual: 0,
-          expected: [1, 1],
+        }, {
+          location: loc([0, 100]),
         }));
       });
     });
@@ -143,7 +148,13 @@ describe('ArgumentsProcessor', () => {
 
         it('should provide error for wrong type with location', () => {
           const error = getValidationError(processor, [num([5, 7])]);
-          expect(error).toBeFormulaError('Expected type String.', [5, 7]);
+          expect(error).toEqual(Errors.Argument.TypeMismatch.create({
+            argumentPosition: 1,
+            expected: [Kind.String],
+            actual: Kind.Number,
+          }, {
+            location: loc([5, 7]),
+          }));
         });
       });
 
@@ -177,11 +188,12 @@ describe('ArgumentsProcessor', () => {
 
       it('should provide error for wrong optional type with location', () => {
         const error = getValidationError(processor, [str([0, 4]), str([5, 9])]);
-        expect(error).toBeFormulaError('Expected type Number.', [5, 9]);
-        expect(error.context).toEqual(expect.objectContaining({
+        expect(error).toEqual(Errors.Argument.TypeMismatch.create({
           argumentPosition: 2,
-          expected: Kind.Number,
+          expected: [Kind.Number],
           actual: Kind.String,
+        }, {
+          location: loc([5, 9]),
         }));
       });
     });
@@ -202,11 +214,12 @@ describe('ArgumentsProcessor', () => {
 
       it('should provide error for wrong repeatable type with location', () => {
         const error = getValidationError(processor, [num(), str([9, 12])]);
-        expect(error).toBeFormulaError('Expected type Number.', [9, 12]);
-        expect(error.context).toEqual(expect.objectContaining({
+        expect(error).toEqual(Errors.Argument.TypeMismatch.create({
           argumentPosition: 2,
-          expected: Kind.Number,
+          expected: [Kind.Number],
           actual: Kind.String,
+        }, {
+          location: loc([9, 12]),
         }));
       });
     });
@@ -236,27 +249,35 @@ describe('ArgumentsProcessor', () => {
 
       it('should provide collected error for multiple patterns', () => {
         const error = getValidationError(processor, [str()], loc([0, 100]));
-        expect(error).toBeFormulaError('Arguments don\'t match. Pattern 1: Expected type Array.; Pattern 2: Expected type Number.', [0, 100]);
-        expect(error.context).toEqual(expect.objectContaining({
-          expected: 'one of 2 patterns',
-          actual: 'invalid',
-        }));
+        expect(error).toEqual(Errors.Argument.PatternMismatch.create(
+          {
+            patterns: [
+              { patternIndex: 0, message: 'Expected type Array.', location: loc([0, 4]) },
+              { patternIndex: 1, message: 'Expected type Number.', location: loc([0, 4]) },
+            ],
+          },
+          {
+            location: loc([0, 100]),
+          },
+        ));
       });
 
       it('should provide errors for multiple patterns', () => {
         const errors = getValidationErrors(processor, [str()], loc([0, 100]));
         expect(errors).toHaveLength(2);
-        expect(errors[0]).toBeFormulaError('Expected type Array.', [0, 4]);
-        expect(errors[0].context).toEqual(expect.objectContaining({
+        expect(errors[0]).toEqual(Errors.Argument.TypeMismatch.create({
           argumentPosition: 1,
-          expected: Kind.Array,
+          expected: [Kind.Array],
           actual: Kind.String,
+        }, {
+          location: loc([0, 4]),
         }));
-        expect(errors[1]).toBeFormulaError('Expected type Number.', [0, 4]);
-        expect(errors[1].context).toEqual(expect.objectContaining({
+        expect(errors[1]).toEqual(Errors.Argument.TypeMismatch.create({
           argumentPosition: 1,
-          expected: Kind.Number,
+          expected: [Kind.Number],
           actual: Kind.String,
+        }, {
+          location: loc([0, 4]),
         }));
       });
     });
@@ -314,11 +335,12 @@ describe('ArgumentsProcessor', () => {
 
       it('should provide error for wrong union type with location', () => {
         const error = getValidationError(processor, [bool([5, 9])]);
-        expect(error).toBeFormulaError('Expected type String | Number.', [5, 9]);
-        expect(error.context).toEqual(expect.objectContaining({
+        expect(error).toEqual(Errors.Argument.TypeMismatch.create({
           argumentPosition: 1,
           expected: [Kind.String, Kind.Number],
           actual: Kind.Boolean,
+        }, {
+          location: loc([5, 9]),
         }));
       });
     });
@@ -415,11 +437,12 @@ describe('ArgumentsProcessor', () => {
 
       it('should provide specific error for wrong regular argument position', () => {
         const error = getValidationError(processor, [str([0, 4]), identifier('current')]);
-        expect(error).toBeFormulaError('Expected type Array.', [0, 4]);
-        expect(error.context).toEqual(expect.objectContaining({
+        expect(error).toEqual(Errors.Argument.TypeMismatch.create({
           argumentPosition: 1,
-          expected: Kind.Array,
+          expected: [Kind.Array],
           actual: Kind.String,
+        }, {
+          location: loc([0, 4]),
         }));
       });
 
@@ -436,7 +459,7 @@ describe('ArgumentsProcessor', () => {
       const processor = new ArgumentsProcessor([
         new Argument(Kind.String, {
           name: 'text',
-          validation: (dataType) => dataType.value === 'test' ? undefined : 'Invalid value',
+          validation: (dataType) => dataType.value === 'test' ? undefined : { message: 'Invalid value' },
         }),
       ]);
 
@@ -448,7 +471,14 @@ describe('ArgumentsProcessor', () => {
       const processor = new ArgumentsProcessor([
         new Argument(Kind.String, {
           name: 'text',
-          validation: (dataType) => dataType.value === 'invalid' ? `Expected "test", but got "${dataType.value}".` : undefined,
+          validation: (dataType) => dataType.value === 'invalid'
+            ? {
+                message: `Expected "test", but got "${dataType.value}".`,
+                actual: dataType.value,
+                expected: ['test'],
+                argumentPosition: 1,
+              }
+            : undefined,
         }),
       ]);
 
@@ -456,11 +486,13 @@ describe('ArgumentsProcessor', () => {
 
       const error = getValidationError(processor, [invalidStr([5, 9])]);
 
-      expect(error).toBeFormulaError('Expected "test", but got "invalid".', [5, 9]);
-      expect(error.context).toEqual(expect.objectContaining({
+      expect(error).toEqual(Errors.Argument.Validation.create({
         argumentPosition: 1,
         actual: 'invalid',
-        expected: 'unknown',
+        expected: ['test'],
+        message: 'Expected "test", but got "invalid".',
+      }, {
+        location: loc([5, 9]),
       }));
     });
 
@@ -470,7 +502,12 @@ describe('ArgumentsProcessor', () => {
           name: 'unit',
           validation: (dataType) => {
             if (!['years', 'months', 'days'].includes(dataType.value)) {
-              return `Expected "years", "months", "days", but got "${dataType.value}".`;
+              return {
+                message: `Expected "years", "months", "days", but got "${dataType.value}".`,
+                actual: dataType.value,
+                expected: ['years', 'months', 'days'],
+                argumentPosition: 1,
+              };
             }
           },
         }),
@@ -490,11 +527,13 @@ describe('ArgumentsProcessor', () => {
       it('should provide proper error message for invalid string literal with location', () => {
         const error = getValidationError(processor, [literal('invalid', [10, 17])]);
 
-        expect(error).toBeFormulaError('Expected "years", "months", "days", but got "invalid".', [10, 17]);
-        expect(error.context).toEqual(expect.objectContaining({
+        expect(error).toEqual(Errors.Argument.Validation.create({
           argumentPosition: 1,
           actual: 'invalid',
-          expected: 'unknown',
+          expected: ['years', 'months', 'days'],
+          message: 'Expected "years", "months", "days", but got "invalid".',
+        }, {
+          location: loc([10, 17]),
         }));
       });
     });
@@ -505,7 +544,12 @@ describe('ArgumentsProcessor', () => {
           name: 'level',
           validation: (dataType) => {
             if (![1, 2, 3].includes(dataType.value)) {
-              return `Expected "1", "2", "3", but got "${dataType.value}".`;
+              return {
+                message: `Expected "1", "2", "3", but got "${dataType.value}".`,
+                actual: dataType.value,
+                expected: [1, 2, 3],
+                argumentPosition: 1,
+              };
             }
           },
         }),
@@ -525,11 +569,13 @@ describe('ArgumentsProcessor', () => {
       it('should provide proper error message for invalid number literal with location', () => {
         const error = getValidationError(processor, [literal(4, [10, 11])]);
 
-        expect(error).toBeFormulaError('Expected "1", "2", "3", but got "4".', [10, 11]);
-        expect(error.context).toEqual(expect.objectContaining({
+        expect(error).toEqual(Errors.Argument.Validation.create({
           argumentPosition: 1,
-          actual: '4',
-          expected: 'unknown',
+          actual: 4,
+          expected: [1, 2, 3],
+          message: 'Expected "1", "2", "3", but got "4".',
+        }, {
+          location: loc([10, 11]),
         }));
       });
     });
@@ -540,7 +586,12 @@ describe('ArgumentsProcessor', () => {
           name: 'flag',
           validation: (dataType) => {
             if (dataType.value !== true) {
-              return 'Expected "true", but got "false".';
+              return {
+                message: 'Expected "true", but got "false".',
+                actual: dataType.value,
+                expected: [true],
+                argumentPosition: 1,
+              };
             }
           },
         }),
@@ -562,7 +613,12 @@ describe('ArgumentsProcessor', () => {
           name: 'unit',
           validation: (dataType) => {
             if (!['hours', 'minutes', 'seconds'].includes(dataType.value)) {
-              return `Expected "hours", "minutes", "seconds", but got "${dataType.value}".`;
+              return {
+                message: `Expected "hours", "minutes", "seconds", but got "${dataType.value}".`,
+                actual: dataType.value,
+                expected: ['hours', 'minutes', 'seconds'],
+                argumentPosition: 2,
+              };
             }
           },
         }),
@@ -591,7 +647,12 @@ describe('ArgumentsProcessor', () => {
               name: 'unit',
               validation: (dataType) => {
                 if (!['hours', 'minutes', 'seconds'].includes(dataType.value)) {
-                  return 'Expected "hours", "minutes", "seconds".';
+                  return {
+                    message: `Expected "hours", "minutes", "seconds", but got "${dataType.value}".`,
+                    actual: dataType.value,
+                    expected: ['hours', 'minutes', 'seconds'],
+                    argumentPosition: 2,
+                  };
                 }
               },
             }),
@@ -605,9 +666,13 @@ describe('ArgumentsProcessor', () => {
           literal('minute', [10, 16]), // Wrong literal (should be 'minutes')
         ]);
 
-        expect(error).toBeFormulaError('Expected "hours", "minutes", "seconds".', [10, 16]);
-        expect(error.context).toEqual(expect.objectContaining({
+        expect(error).toEqual(Errors.Argument.Validation.create({
           argumentPosition: 2,
+          actual: 'minute',
+          expected: ['hours', 'minutes', 'seconds'],
+          message: 'Expected "hours", "minutes", "seconds", but got "minute".',
+        }, {
+          location: loc([10, 16]),
         }));
       });
     });
@@ -621,16 +686,38 @@ describe('ArgumentsProcessor', () => {
         ]);
 
         const error = getValidationError(processor, [num([15, 17])]);
-        expect(error).toBeFormulaError('Expected type String.', [15, 17]);
+        expect(error).toEqual(Errors.Argument.TypeMismatch.create({
+          argumentPosition: 1,
+          expected: [Kind.String],
+          actual: Kind.Number,
+        }, {
+          location: loc([15, 17]),
+        }));
       });
 
       it('should track location for custom validation errors', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { validation: (dataType) => dataType.value === 'valid' ? undefined : 'Invalid value.' }),
+          new Argument(Kind.String, {
+            validation: (dataType) => dataType.value === 'valid'
+              ? undefined
+              : {
+                  message: 'Invalid value.',
+                  actual: dataType.value,
+                  expected: ['valid value'],
+                  argumentPosition: 1,
+                },
+          }),
         ]);
 
         const error = getValidationError(processor, [literal('invalid', [20, 27])]);
-        expect(error).toBeFormulaError('Invalid value.', [20, 27]);
+        expect(error).toEqual(Errors.Argument.Validation.create({
+          argumentPosition: 1,
+          expected: ['valid value'],
+          actual: 'invalid',
+          message: 'Invalid value.',
+        }, {
+          location: loc([20, 27]),
+        }));
       });
 
       it('should return null location for count errors', () => {
@@ -640,7 +727,13 @@ describe('ArgumentsProcessor', () => {
 
         const error = getValidationError(processor, [], loc([0, 100]));
 
-        expect(error).toBeFormulaError('Expected at least 1 argument(s).', [0, 100]);
+        expect(error).toEqual(Errors.Argument.TooFew.create({
+          expectedMin: 1,
+          expectedMax: 1,
+          actual: 0,
+        }, {
+          location: loc([0, 100]),
+        }));
       });
 
       it('should return fallback location for pattern mismatch errors', () => {
@@ -663,17 +756,39 @@ describe('ArgumentsProcessor', () => {
 
         const error = getValidationError(processor, [num()]);
 
-        expect(error).toBeFormulaError('Expected type String.', [0, 2]);
+        expect(error).toEqual(Errors.Argument.TypeMismatch.create({
+          argumentPosition: 1,
+          expected: [Kind.String],
+          actual: Kind.Number,
+        }, {
+          location: loc([0, 2]),
+        }));
       });
 
       it('should provide clear custom validation error messages', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { validation: (dataType) => dataType.value === 'valid' ? undefined : 'Invalid value.' }),
+          new Argument(Kind.String, {
+            validation: (dataType) => dataType.value === 'valid'
+              ? undefined
+              : {
+                  message: 'Invalid value.',
+                  actual: dataType.value,
+                  expected: ['valid value'],
+                  argumentPosition: 1,
+                },
+          }),
         ]);
 
         const error = getValidationError(processor, [literal('invalid')]);
 
-        expect(error).toBeFormulaError('Invalid value.', [0, 4]);
+        expect(error).toEqual(Errors.Argument.Validation.create({
+          argumentPosition: 1,
+          expected: ['valid value'],
+          actual: 'invalid',
+          message: 'Invalid value.',
+        }, {
+          location: loc([0, 4]),
+        }));
       });
 
       it('should provide clear count error messages', () => {
@@ -684,47 +799,63 @@ describe('ArgumentsProcessor', () => {
 
         const error = getValidationError(processor, [str()]);
 
-        expect(error).toBeFormulaError('Expected at least 2 argument(s).', [0, 100]);
+        expect(error).toEqual(Errors.Argument.TooFew.create({
+          expectedMin: 2,
+          expectedMax: 2,
+          actual: 1,
+        }, {
+          location: loc([0, 100]),
+        }));
       });
     });
 
     describe('Error Context', () => {
-      it('should provide argument position in context', () => {
+      it('should provide argument position in payload', () => {
         const processor = new ArgumentsProcessor([
           new Argument(Kind.String),
           new Argument(Kind.Number),
         ]);
 
-        const error = getValidationError(processor, [str(), str()]);
+        const error = getValidationError(processor, [str(), str([9, 11])]);
 
-        expect(error.context).toEqual(expect.objectContaining({
+        expect(error).toEqual(Errors.Argument.TypeMismatch.create({
           argumentPosition: 2,
+          expected: [Kind.Number],
+          actual: Kind.String,
+        }, {
+          location: loc([9, 11]),
         }));
       });
 
-      it('should provide expected and actual types in context', () => {
+      it('should provide expected and actual types in payload', () => {
         const processor = new ArgumentsProcessor([
           new Argument(Kind.String),
         ]);
 
-        const error = getValidationError(processor, [num()]);
+        const error = getValidationError(processor, [num([0, 2])]);
 
-        expect(error.context).toEqual(expect.objectContaining({
-          expected: Kind.String,
+        expect(error).toEqual(Errors.Argument.TypeMismatch.create({
+          argumentPosition: 1,
+          expected: [Kind.String],
           actual: Kind.Number,
+        }, {
+          location: loc([0, 2]),
         }));
       });
 
-      it('should provide expected and actual arguments count in context', () => {
+      it('should provide expected and actual arguments count in payload', () => {
         const processor = new ArgumentsProcessor([
           new Argument(Kind.String),
         ]);
 
-        const error = getValidationError(processor, []);
+        const error = getValidationError(processor, [], loc([0, 100]));
 
-        expect(error.context).toEqual(expect.objectContaining({
-          expected: [1, 1],
+        expect(error).toEqual(Errors.Argument.TooFew.create({
+          expectedMin: 1,
+          expectedMax: 1,
           actual: 0,
+        }, {
+          location: loc([0, 100]),
         }));
       });
     });
