@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Browser-based performance test for formula evaluation UX.
  * Measures real-time perceived latency during typing.
@@ -27,7 +28,7 @@ describe('UX Performance: Formula Evaluation Latency', () => {
     const maxLatency = Math.max(...latencies);
 
     // Report results
-    console.warn(`[UX Test] Avg latency: ${avgLatency.toFixed(4)}ms, Max: ${maxLatency.toFixed(4)}ms`);
+    console.log(`[UX Test] Avg latency: ${avgLatency.toFixed(4)}ms, Max: ${maxLatency.toFixed(4)}ms`);
 
     // Assertions
     expect(avgLatency).toBeLessThan(1); // Should be sub-millisecond
@@ -53,7 +54,7 @@ describe('UX Performance: Formula Evaluation Latency', () => {
     const avgLatency = latencies.reduce((a, b) => a + b, 0) / latencies.length;
     const maxLatency = Math.max(...latencies);
 
-    console.warn(`[UX Test Complex] Avg latency: ${avgLatency.toFixed(4)}ms, Max: ${maxLatency.toFixed(4)}ms`);
+    console.log(`[UX Test Complex] Avg latency: ${avgLatency.toFixed(4)}ms, Max: ${maxLatency.toFixed(4)}ms`);
 
     expect(avgLatency).toBeLessThan(5);
     expect(maxLatency).toBeLessThan(16); // Under 60fps threshold
@@ -99,9 +100,9 @@ describe('UX Performance: Formula Evaluation Latency', () => {
     const avgLatency = latencies.reduce((a, b) => a + b, 0) / latencies.length;
     const totalTime = latencies.reduce((a, b) => a + b, 0);
 
-    console.warn(`[UX Typing Sim] Total: ${totalTime.toFixed(2)}ms for ${formulas.length} keystrokes`);
-    console.warn(`[UX Typing Sim] Avg per keystroke: ${avgLatency.toFixed(4)}ms`);
-    console.warn(`[UX Typing Sim] Parse errors (expected): ${errors.length}`);
+    console.log(`[UX Typing Sim] Total: ${totalTime.toFixed(2)}ms for ${formulas.length} keystrokes`);
+    console.log(`[UX Typing Sim] Avg per keystroke: ${avgLatency.toFixed(4)}ms`);
+    console.log(`[UX Typing Sim] Parse errors (expected): ${errors.length}`);
 
     // Total processing time should be under 50ms for all keystrokes
     expect(totalTime).toBeLessThan(50);
@@ -135,8 +136,8 @@ describe('UX Performance: Formula Evaluation Latency', () => {
     const maxLatency = Math.max(...latencies);
     const over16ms = latencies.filter((l) => l > 16.67).length;
 
-    console.warn(`[60fps Budget] Avg: ${avgLatency.toFixed(4)}ms, Max: ${maxLatency.toFixed(4)}ms`);
-    console.warn(`[60fps Budget] Frames over budget: ${over16ms}/${updates}`);
+    console.log(`[60fps Budget] Avg: ${avgLatency.toFixed(4)}ms, Max: ${maxLatency.toFixed(4)}ms`);
+    console.log(`[60fps Budget] Frames over budget: ${over16ms}/${updates}`);
 
     // Should have zero frames over 16.67ms
     expect(over16ms).toBe(0);
@@ -168,11 +169,11 @@ describe('UX Performance: Formula Evaluation Latency', () => {
     const p95 = latencies[Math.floor(latencies.length * 0.95)];
     const p99 = latencies[Math.floor(latencies.length * 0.99)];
 
-    console.warn(`[Latency Percentiles]`);
-    console.warn(`  p50: ${p50.toFixed(4)}ms`);
-    console.warn(`  p90: ${p90.toFixed(4)}ms`);
-    console.warn(`  p95: ${p95.toFixed(4)}ms`);
-    console.warn(`  p99: ${p99.toFixed(4)}ms`);
+    console.log(`[Latency Percentiles]`);
+    console.log(`  p50: ${p50.toFixed(4)}ms`);
+    console.log(`  p90: ${p90.toFixed(4)}ms`);
+    console.log(`  p95: ${p95.toFixed(4)}ms`);
+    console.log(`  p99: ${p99.toFixed(4)}ms`);
 
     // 99th percentile should still be under 16ms
     expect(p99).toBeLessThan(16);

@@ -1,5 +1,10 @@
-onlyBuiltDependencies:
-  - esbuild
+shellEmulator: true
+
+trustPolicy: no-downgrade
 
 patchedDependencies:
-  '@total-typescript/ts-reset@0.6.1': patches/@total-typescript__ts-reset@0.6.1.patch
+  "@total-typescript/ts-reset@0.6.1": patches/@total-typescript__ts-reset@0.6.1.patch
+
+onlyBuiltDependencies:
+  - esbuild
+  - lefthook

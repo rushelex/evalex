@@ -3,8 +3,6 @@ import type { FormulaExecRequest } from '../executor';
 import type { FormulaRuntimeOptions } from '../runtime';
 import type { FormulaNode, NodeAdapter } from '../types';
 
-import LeakDetector from 'jest-leak-detector';
-
 import { Expression, FormulaNull, FormulaNumber } from '../../core';
 import { AsyncExecutor, SyncExecutor } from '../executor';
 import { FormulaRuntime } from '../runtime';
@@ -231,27 +229,6 @@ describe('FormulaRuntime', () => {
     });
   });
 
-  describe('Garbage Collection Cleanup', () => {
-    it('should clean graph and registry after properties are GCed', async () => {
-      const { registry, runtime } = setup();
-
-      let node: Node | undefined = { id: 'N1', value: new FormulaNumber(1) };
-      registry.set(node.id, node);
-      runtime.register(node.id, node);
-
-      const detector = new LeakDetector(node);
-
-      runtime.unregister(node);
-      registry.delete(node.id);
-
-      node = undefined;
-
-      await runtime.waitForProcessing();
-
-      await expect(detector.isLeaking()).resolves.toBe(false);
-    });
-  });
-
   describe('Edge Cases', () => {
     describe('Deep Dependency Chains', () => {
       it('should handle deep formula chains up to 50 levels', async () => {
@@ -362,7 +339,7 @@ describe('FormulaRuntime', () => {
   });
 });
 
-function setup(options?: Partial<FormulaRuntimeOptions<Node>>) {
+export function setup(options?: Partial<FormulaRuntimeOptions<Node>>) {
   const adapter: NodeAdapter<Node> = {
     shouldProcess: (node) => !!node.expression,
     toFormulaDataType: (node) => node.value,

@@ -2,6 +2,12 @@ import antfu from '@antfu/eslint-config';
 
 export default antfu(
   {
+    ignores: [
+      'node_modules',
+      'dist',
+      'src/**/__generated__',
+      '**/*.md',
+    ],
     typescript: {
       tsconfigPath: 'tsconfig.json',
     },
@@ -13,12 +19,6 @@ export default antfu(
       quotes: 'single',
       indent: 2,
     },
-    ignores: [
-      'node_modules',
-      'dist',
-      'src/**/__generated__',
-      '**/*.md',
-    ],
   },
 )
   .override('antfu/jsdoc/rules', {
@@ -107,5 +107,10 @@ export default antfu(
         ignore: ['describe'],
         ignoreTopLevelDescribe: true,
       }],
+    },
+  })
+  .override('antfu/yaml/rules', {
+    rules: {
+      'yaml/quotes': ['error', { prefer: 'double' }],
     },
   });
