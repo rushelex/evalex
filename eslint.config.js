@@ -11,9 +11,6 @@ export default antfu(
     typescript: {
       tsconfigPath: 'tsconfig.json',
     },
-    formatters: {
-      markdown: true,
-    },
     stylistic: {
       semi: true,
       quotes: 'single',
