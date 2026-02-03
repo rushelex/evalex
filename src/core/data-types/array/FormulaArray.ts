@@ -1,6 +1,6 @@
 import type { ToStringOptions } from '../FormulaDataType';
 
-import type { InferFormulaDataTypeByKind, ToFormulaDataType } from '../types';
+import type { FormulaDataTypeByKind, ToFormulaDataType } from '../types';
 
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
@@ -41,7 +41,7 @@ export class FormulaArray<TItem extends FormulaDataType = FormulaDataType> exten
     return Array.isArray(input) && input.every((item) => item instanceof FormulaDataType);
   }
 
-  static isOfType<T extends Kind = Kind.Any>(instance: FormulaDataType, kind?: T): instance is FormulaArray<InferFormulaDataTypeByKind<T>> {
+  static isOfType<T extends Kind = Kind.Any>(instance: FormulaDataType, kind?: T): instance is FormulaArray<FormulaDataTypeByKind<T>> {
     if (!kind || kind === Kind.Any) {
       return instance instanceof FormulaArray;
     }

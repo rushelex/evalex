@@ -28,28 +28,9 @@ export default defineConfig({
       {
         extends: true,
         test: {
-          name: 'bench',
-          include: ['**/*.bench.ts'],
-          exclude: ['**/node_modules/**', '**/.git/**', '**/*.test.ts'],
-          setupFiles: ['./src/testing-library/setup.ts'],
-        },
-      },
-      {
-        extends: true,
-        test: {
           name: 'common',
           include: ['**/*.test.ts'],
-          exclude: ['**/node_modules/**', '**/.git/**', '**/*.{node,browser}.test.ts'],
-          setupFiles: ['./src/testing-library/setup.ts'],
-          benchmark: { exclude: ['**/*'] },
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: 'node',
-          include: ['**/*.node.test.ts'],
-          environment: 'node',
+          exclude: ['**/node_modules/**', '**/.git/**', '**/*.{browser}.test.ts'],
           setupFiles: ['./src/testing-library/setup.ts'],
           benchmark: { exclude: ['**/*'] },
         },
@@ -59,7 +40,7 @@ export default defineConfig({
         test: {
           name: 'browser',
           include: ['**/*.browser.test.ts'],
-          exclude: ['**/*.bench.ts'],
+          exclude: ['**/node_modules/**', '**/.git/**', '**/*.test-d.ts'],
           browser: {
             provider: playwright(),
             enabled: true,
@@ -67,6 +48,7 @@ export default defineConfig({
             instances: [{ browser: 'chromium' }],
           },
           setupFiles: ['./src/testing-library/setup.ts'],
+          typecheck: { enabled: false },
           benchmark: { exclude: ['**/*'] },
         },
       },

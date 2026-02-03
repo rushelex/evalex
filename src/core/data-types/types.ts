@@ -12,50 +12,55 @@ import type { FormulaObject } from './object';
 import type { FormulaRegExp } from './regexp';
 import type { FormulaString } from './string';
 
-export type ToFormulaDataType<T, ShouldWrapObject extends boolean = false>
-  = T extends null
-    ? FormulaNull
-    : T extends undefined
-      ? FormulaNull
-      : T extends string
-        ? FormulaString
-        : T extends number
-          ? FormulaNumber
-          : T extends boolean
-            ? FormulaBoolean
-            : T extends Date | Temporal.ZonedDateTime
-              ? FormulaDate
-              : T extends Temporal.Duration
-                ? FormulaDuration
-                : T extends RegExp
-                  ? FormulaRegExp
-                  : T extends Array<infer I> | ReadonlyArray<infer I>
-                    ? FormulaArray<ToFormulaDataType<I, true>>
-                    : T extends { [key in keyof T]: any }
-                      ? ShouldWrapObject extends true
-                        ? FormulaObject<{ [key in keyof T]: ToFormulaDataType<T[key], true> }>
-                        : { [key in keyof T]: ToFormulaDataType<T[key], true> }
-                      : never;
+type NonMappableObject
+  = Function // eslint-disable-line ts/no-unsafe-function-type
+    | Promise<unknown>
+    | Error
+    | Map<unknown, unknown>
+    | ReadonlyMap<unknown, unknown>
+    | Set<unknown>
+    | ReadonlySet<unknown>
+    | WeakMap<object, unknown>
+    | WeakSet<object>;
 
-export type InferFormulaDataTypeByKind<T extends Kind>
-  = T extends Kind.Null
-    ? FormulaNull
-    : T extends Kind.Boolean
-      ? FormulaBoolean
-      : T extends Kind.Number
-        ? FormulaNumber
-        : T extends Kind.String
-          ? FormulaString
-          : T extends Kind.Date
-            ? FormulaDate
-            : T extends Kind.Duration
-              ? FormulaDuration
-              : T extends Kind.RegExp
-                ? FormulaRegExp
-                : T extends Kind.Array
-                  ? FormulaArray
-                  : T extends Kind.Object
-                    ? FormulaObject
-                    : T extends Kind.Any
-                      ? FormulaDataType
-                      : never;
+type FunctionPropertyKeys<T extends object> = {
+  [K in keyof T]-?: T[K] extends (...args: readonly unknown[]) => unknown ? K : never
+}[keyof T];
+
+type HasFunctionProperties<T extends object>
+  = FunctionPropertyKeys<T> extends never ? false : true;
+
+type MapObjectPropertiesToFormula<T> = { [K in keyof T]: ToFormulaDataType<T[K], true> };
+
+type WrapObjectConditionally<T, ShouldWrap extends boolean>
+  = ShouldWrap extends true
+    ? FormulaObject<MapObjectPropertiesToFormula<T>>
+    : MapObjectPropertiesToFormula<T>;
+
+export type ToFormulaDataType<T, ShouldWrapObject extends boolean = false>
+  = T extends null | undefined ? FormulaNull
+  : T extends string ? FormulaString
+  : T extends number ? FormulaNumber
+  : T extends boolean ? FormulaBoolean
+  : T extends Date | Temporal.ZonedDateTime ? FormulaDate
+  : T extends Temporal.Duration ? FormulaDuration
+  : T extends RegExp ? FormulaRegExp
+  : T extends Array<infer I> | ReadonlyArray<infer I> ? FormulaArray<ToFormulaDataType<I, true>>
+  : T extends object
+    ? T extends NonMappableObject ? never
+    : HasFunctionProperties<T> extends true ? never
+    : WrapObjectConditionally<T, ShouldWrapObject>
+    : never;
+
+export type FormulaDataTypeByKind<T extends Kind>
+  = T extends Kind.Null ? FormulaNull
+  : T extends Kind.Boolean ? FormulaBoolean
+  : T extends Kind.Number ? FormulaNumber
+  : T extends Kind.String ? FormulaString
+  : T extends Kind.Date ? FormulaDate
+  : T extends Kind.Duration ? FormulaDuration
+  : T extends Kind.RegExp ? FormulaRegExp
+  : T extends Kind.Array ? FormulaArray
+  : T extends Kind.Object ? FormulaObject
+  : T extends Kind.Any ? FormulaDataType
+  : never;

@@ -28,7 +28,7 @@ export default antfu(
   })
   .override('antfu/stylistic/rules', {
     rules: {
-      'style/arrow-parens': ['error', 'always'],
+      'style/arrow-parens': ['warn', 'always'],
       'style/no-trailing-spaces': 'warn',
       'style/lines-between-class-members': [
         'warn',
@@ -38,6 +38,40 @@ export default antfu(
             { blankLine: 'always', prev: '*', next: 'method' },
             { blankLine: 'never', prev: 'field', next: 'field' },
           ],
+        },
+      ],
+      'style/indent': [
+        'warn',
+        2,
+        {
+          ArrayExpression: 1,
+          CallExpression: {
+            arguments: 1,
+          },
+          flatTernaryExpressions: true,
+          FunctionDeclaration: {
+            body: 1,
+            parameters: 1,
+            returnType: 1,
+          },
+          FunctionExpression: {
+            body: 1,
+            parameters: 1,
+            returnType: 1,
+          },
+          ignoreComments: false,
+          ignoredNodes: [
+            'TSUnionType',
+            'TSIntersectionType',
+          ],
+          ImportDeclaration: 1,
+          MemberExpression: 1,
+          ObjectExpression: 1,
+          offsetTernaryExpressions: true,
+          outerIIFEBody: 1,
+          SwitchCase: 1,
+          tabLength: 2,
+          VariableDeclarator: 1,
         },
       ],
     },

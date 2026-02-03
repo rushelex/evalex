@@ -1,4 +1,4 @@
-import type { InferFormulaDataTypeByKind, Kind } from '../../data-types';
+import type { FormulaDataTypeByKind, Kind } from '../../data-types';
 import type { Argument } from './argument';
 import type { ArgumentsPattern } from './arguments-definitions';
 import type { CallbackArgument } from './callback-argument';
@@ -6,10 +6,10 @@ import type { CallbackExecutor } from './callback-executor';
 import type { ProcessedArgument } from './processed-argument';
 import type { RoutineArguments } from './routine-arguments';
 
-export type InferArgument<T extends Argument<any>>
+export type InferArgument<T extends Argument>
   = T extends Argument<infer K>
     ? K extends Kind
-      ? InferFormulaDataTypeByKind<K>
+      ? FormulaDataTypeByKind<K>
       : never
     : never;
 
