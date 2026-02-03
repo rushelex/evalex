@@ -7,7 +7,12 @@ export default defineConfig({
     parser: 'src/parser/index.ts',
     runtime: 'src/runtime/index.ts',
   },
+  platform: 'browser',
   exports: true,
+  minify: true,
+  dts: true,
+  attw: { profile: 'esm-only' },
+  inlineOnly: ['type-fest'],
   alias: {
     '~/*': './src/*',
   },

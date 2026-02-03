@@ -14,10 +14,10 @@
     "url": "https://github.com/rushelex/evalex/issues"
   },
   "exports": {
-    "./bootstrap": "./dist/bootstrap.mjs",
-    "./core": "./dist/core.mjs",
-    "./parser": "./dist/parser.mjs",
-    "./runtime": "./dist/runtime.mjs",
+    "./bootstrap": "./dist/bootstrap.js",
+    "./core": "./dist/core.js",
+    "./parser": "./dist/parser.js",
+    "./runtime": "./dist/runtime.js",
     "./package.json": "./package.json"
   },
   "files": [
@@ -41,12 +41,11 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "es-toolkit": "^1.44.0",
-    "temporal-polyfill": "^0.3.0",
-    "valibot": "^1.2.0"
+    "temporal-polyfill": "^0.3.0"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^7.2.0",
+    "@arethetypeswrong/core": "^0.18.2",
     "@commitlint/cli": "^20.4.1",
     "@commitlint/config-conventional": "^20.4.1",
     "@eslint-react/eslint-plugin": "^2.9.4",
