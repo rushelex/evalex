@@ -1,4 +1,5 @@
-import { FormulaEvaluationContext, FormulaEvaluatorVisitor } from '~/core';
+import { FormulaEvaluationContext } from '~/core/context';
+import { FormulaEvaluatorVisitor } from '~/core/evaluator.visitor';
 
 import { FormulaDataType } from '../../data-types';
 import { convertValueToFormulaType } from '../../data-types/converter';

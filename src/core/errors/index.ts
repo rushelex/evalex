@@ -1,7 +1,8 @@
 import * as Defs from './definitions';
 
-export type * from './formula-error';
-export * from './utils';
+export type { FormulaErrorOptions } from './formula-error';
+export { FormulaError } from './formula-error';
+export { formatTypes, getRegExpFallbackError } from './utils';
 
 /**
  * Namespace containing all formula errors grouped by domain.

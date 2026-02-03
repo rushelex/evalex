@@ -16,7 +16,7 @@ import {
 import { Errors } from './errors';
 import { routineDispatcher } from './routines/dispatcher';
 
-export interface EvaluationHooks {
+interface EvaluationHooks {
   onIdentifier?: (name: string) => void;
 }
 

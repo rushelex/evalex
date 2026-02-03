@@ -14,10 +14,7 @@
     "url": "https://github.com/rushelex/evalex/issues"
   },
   "exports": {
-    "./bootstrap": "./dist/bootstrap.js",
-    "./core": "./dist/core.js",
-    "./parser": "./dist/parser.js",
-    "./runtime": "./dist/runtime.js",
+    ".": "./dist/index.js",
     "./package.json": "./package.json"
   },
   "files": [
