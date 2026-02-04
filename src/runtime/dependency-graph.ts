@@ -369,15 +369,16 @@ export class DependencyGraph {
   }
 
   /**
-   * Invalidate depth cache for a node and all its dependents
+   * Invalidate depth cache for a node and all its dependents (nodes that depend on it).
+   * Uses BFS to propagate invalidation through the dependent chain.
+   * Visits dependents even if intermediate nodes are not cached, because
+   * dependent nodes further up the chain may have cached values that need invalidation.
    *
    * @param nodeId - The node to invalidate depth cache for
    */
   #invalidateDepthCache(nodeId: string): void {
-    if (!this.#depthCache.has(nodeId))
-      return;
-
     const toInvalidate = [nodeId];
+    const visited = new Set<string>([nodeId]);
     let idx = 0;
 
     while (idx < toInvalidate.length) {
@@ -387,7 +388,8 @@ export class DependencyGraph {
       const dependents = this.#dependents.get(current);
       if (dependents) {
         for (const dep of dependents) {
-          if (this.#depthCache.has(dep)) {
+          if (!visited.has(dep)) {
+            visited.add(dep);
             toInvalidate.push(dep);
           }
         }

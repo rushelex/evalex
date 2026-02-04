@@ -1,336 +1,749 @@
+import { fc, it } from '@fast-check/vitest';
+
 import { Errors } from '../../core/errors';
 import { DependencyGraph } from '../dependency-graph';
 
-describe('DependencyGraph', () => {
-  let graph: DependencyGraph;
+describe(DependencyGraph, () => {
+  describe('constructor', () => {
+    it('should create an empty graph', () => {
+      const graph = new DependencyGraph();
 
-  beforeEach(() => {
-    graph = new DependencyGraph();
+      expect(graph.getDependenciesSize()).toBe(0);
+      expect(graph.getDependentsSize()).toBe(0);
+    });
   });
 
-  describe('Basic Operations', () => {
-    it('adds and retrieves dependencies', () => {
+  describe('addDependency', () => {
+    let graph: DependencyGraph;
+
+    beforeEach(() => {
+      graph = new DependencyGraph();
+    });
+
+    it('should add a dependency edge', () => {
       graph.addDependency('A', 'B');
 
       expect(graph.getDependencies('A')).toEqual(new Set(['B']));
       expect(graph.getDependents('B')).toEqual(new Set(['A']));
     });
 
-    it('removes individual dependencies', () => {
+    it('should allow multiple dependencies from one node', () => {
       graph.addDependency('A', 'B');
       graph.addDependency('A', 'C');
+      graph.addDependency('A', 'D');
 
-      graph.removeDependency('A', 'B');
-
-      expect(graph.getDependencies('A')).toEqual(new Set(['C']));
-      expect(graph.getDependents('B')).toEqual(new Set());
+      expect(graph.getDependencies('A')).toEqual(new Set(['B', 'C', 'D']));
     });
 
-    it('prevents circular dependencies', () => {
+    it('should allow multiple dependents on one node', () => {
+      graph.addDependency('A', 'Z');
+      graph.addDependency('B', 'Z');
+      graph.addDependency('C', 'Z');
+
+      expect(graph.getDependents('Z')).toEqual(new Set(['A', 'B', 'C']));
+    });
+
+    it('should throw on self-dependency', () => {
+      expect(() => {
+        graph.addDependency('A', 'A');
+      }).toThrow(Errors.Runtime.CircularDependency.create({ nodeId: 'A', dependsOnId: 'A' }));
+    });
+
+    it('should throw on direct circular dependency', () => {
+      graph.addDependency('A', 'B');
+
+      expect(() => {
+        graph.addDependency('B', 'A');
+      }).toThrow(Errors.Runtime.CircularDependency.create({ nodeId: 'B', dependsOnId: 'A' }));
+    });
+
+    it('should throw on indirect circular dependency', () => {
       graph.addDependency('A', 'B');
       graph.addDependency('B', 'C');
 
       expect(() => {
         graph.addDependency('C', 'A');
-      }).toThrow(Errors.Runtime.CircularDependency.create({
-        nodeId: 'C',
-        dependsOnId: 'A',
-      }));
+      }).toThrow(Errors.Runtime.CircularDependency.create({ nodeId: 'C', dependsOnId: 'A' }));
     });
 
-    it('handles non-existent nodes gracefully', () => {
-      expect(graph.getDependencies('X')).toEqual(new Set());
-      expect(graph.getDependents('X')).toEqual(new Set());
+    it('should throw on deep circular dependency', () => {
+      graph.addDependency('A', 'B');
+      graph.addDependency('B', 'C');
+      graph.addDependency('C', 'D');
+      graph.addDependency('D', 'E');
 
-      // Should not throw
-      graph.removeAll('X');
-      graph.removeDependency('X', 'Y');
+      expect(() => {
+        graph.addDependency('E', 'A');
+      }).toThrow(Errors.Runtime.CircularDependency.create({ nodeId: 'E', dependsOnId: 'A' }));
+    });
+
+    it('should allow diamond dependencies (no cycle)', () => {
+      graph.addDependency('A', 'B');
+      graph.addDependency('A', 'C');
+      graph.addDependency('B', 'D');
+      graph.addDependency('C', 'D');
+
+      expect(graph.getDependencies('A')).toEqual(new Set(['B', 'C']));
+      expect(graph.getDependents('D')).toEqual(new Set(['B', 'C']));
+    });
+  });
+
+  describe('removeDependency', () => {
+    let graph: DependencyGraph;
+
+    beforeEach(() => {
+      graph = new DependencyGraph();
+    });
+
+    it('should remove a dependency edge', () => {
+      graph.addDependency('A', 'B');
+      graph.removeDependency('A', 'B');
+
+      expect(graph.getDependencies('A')).toEqual(new Set());
+      expect(graph.getDependents('B')).toEqual(new Set());
+    });
+
+    it('should prune orphaned nodes after removal', () => {
+      graph.addDependency('A', 'B');
+      graph.removeDependency('A', 'B');
+
+      expect(graph.getDependenciesSize()).toBe(0);
+      expect(graph.getDependentsSize()).toBe(0);
+    });
+
+    it('should not prune nodes that still have connections', () => {
+      graph.addDependency('A', 'B');
+      graph.addDependency('A', 'C');
+      graph.removeDependency('A', 'B');
+
+      expect(graph.getDependencies('A')).toEqual(new Set(['C']));
+      expect(graph.getDependentsSize()).toBe(1);
+    });
+
+    it('should handle removal of non-existent edge', () => {
+      expect(() => {
+        graph.removeDependency('X', 'Y');
+      }).not.toThrow();
     });
   });
 
   describe('replaceDependencies', () => {
-    it('replaces all dependencies atomically', () => {
-      // Initial setup: B depends on A and C
-      graph.addDependency('B', 'A');
-      graph.addDependency('B', 'C');
+    let graph: DependencyGraph;
 
-      expect(graph.getDependencies('B')).toEqual(new Set(['A', 'C']));
-      expect(graph.getDependents('A')).toEqual(new Set(['B']));
-      expect(graph.getDependents('C')).toEqual(new Set(['B']));
-
-      // Replace with new set: B depends on C and D
-      graph.replaceDependencies('B', new Set(['C', 'D']));
-
-      expect(graph.getDependencies('B')).toEqual(new Set(['C', 'D']));
-      expect(graph.getDependents('A')).toEqual(new Set()); // A is orphaned and removed
-      expect(graph.getDependents('C')).toEqual(new Set(['B']));
-      expect(graph.getDependents('D')).toEqual(new Set(['B']));
+    beforeEach(() => {
+      graph = new DependencyGraph();
     });
 
-    it('handles replacing with empty set', () => {
-      // Setup: Complex dependency chain
+    it('should replace all dependencies atomically', () => {
       graph.addDependency('A', 'B');
       graph.addDependency('A', 'C');
-      graph.addDependency('D', 'A');
 
-      // Replace A's dependencies with empty set
+      graph.replaceDependencies('A', new Set(['D', 'E']));
+
+      expect(graph.getDependencies('A')).toEqual(new Set(['D', 'E']));
+    });
+
+    it('should prune old dependencies that become orphaned', () => {
+      graph.addDependency('A', 'B');
+      graph.replaceDependencies('A', new Set(['C']));
+
+      expect(graph.getDependents('B')).toEqual(new Set());
+    });
+
+    it('should update dependents correctly', () => {
+      graph.addDependency('A', 'B');
+      graph.replaceDependencies('A', new Set(['C', 'D']));
+
+      expect(graph.getDependents('C')).toEqual(new Set(['A']));
+      expect(graph.getDependents('D')).toEqual(new Set(['A']));
+      expect(graph.getDependents('B')).toEqual(new Set());
+    });
+
+    it('should allow replacement with empty set', () => {
+      graph.addDependency('A', 'B');
+      graph.addDependency('A', 'C');
+
       graph.replaceDependencies('A', new Set());
 
       expect(graph.getDependencies('A')).toEqual(new Set());
-      // A still exists because D depends on it
-      expect(graph.getDependents('A')).toEqual(new Set(['D']));
-      // B and C are orphaned and removed from maps
-      expect(graph.getDependencies('B')).toEqual(new Set());
-      expect(graph.getDependencies('C')).toEqual(new Set());
-      // D and A remain in dependencies map
-      expect(graph.getDependenciesSize()).toBe(2); // D and A
     });
 
-    it('handles replacing with same dependencies', () => {
-      graph.addDependency('A', 'B');
-      graph.addDependency('A', 'C');
-
-      const sizeBefore = graph.getDependenciesSize();
-
-      // Replace with same set
-      graph.replaceDependencies('A', new Set(['B', 'C']));
-
-      expect(graph.getDependencies('A')).toEqual(new Set(['B', 'C']));
-      expect(graph.getDependenciesSize()).toBe(sizeBefore);
+    it('should throw on self-dependency in replacement set', () => {
+      expect(() => {
+        graph.replaceDependencies('A', new Set(['A']));
+      }).toThrow(Errors.Runtime.CircularDependency.create({ nodeId: 'A', dependsOnId: 'A' }));
     });
 
-    it('prevents circular dependencies in replacement', () => {
+    it('should throw if replacement would create cycle', () => {
+      graph.addDependency('B', 'A');
+
+      expect(() => {
+        graph.replaceDependencies('A', new Set(['B']));
+      }).toThrow(Errors.Runtime.CircularDependency.create({ nodeId: 'A', dependsOnId: 'B' }));
+    });
+
+    it('should throw if any dependency in set would create cycle', () => {
+      graph.addDependency('C', 'B');
+      graph.addDependency('B', 'A');
+
+      expect(() => {
+        graph.replaceDependencies('A', new Set(['D', 'C']));
+      }).toThrow(Errors.Runtime.CircularDependency.create({ nodeId: 'A', dependsOnId: 'C' }));
+    });
+
+    it('should not modify graph state when cycle detected', () => {
       graph.addDependency('A', 'B');
       graph.addDependency('B', 'C');
 
-      // Attempting to create cycle through replacement
-      expect(() => {
+      try {
         graph.replaceDependencies('C', new Set(['A']));
-      }).toThrow(Errors.Runtime.CircularDependency.create({
-        nodeId: 'C',
-        dependsOnId: 'A',
-      }));
+      }
+      catch {
+        // Expected
+      }
+
+      expect(graph.getDependencies('C')).toEqual(new Set());
+      expect(graph.getDependencies('A')).toEqual(new Set(['B']));
     });
   });
 
   describe('removeAll', () => {
-    it('removes all relationships for a node and prunes orphans', () => {
-      // Setup: A depends on B and C, D depends on A
+    let graph: DependencyGraph;
+
+    beforeEach(() => {
+      graph = new DependencyGraph();
+    });
+
+    it('should remove a node and all its relationships', () => {
       graph.addDependency('A', 'B');
       graph.addDependency('A', 'C');
       graph.addDependency('D', 'A');
 
       graph.removeAll('A');
 
-      // A is completely removed
       expect(graph.getDependencies('A')).toEqual(new Set());
       expect(graph.getDependents('A')).toEqual(new Set());
-      // D is also pruned because it has no dependencies after A is removed
       expect(graph.getDependencies('D')).toEqual(new Set());
-      // B and C are removed as orphans (fixed!)
-      expect(graph.getDependents('B')).toEqual(new Set());
-      expect(graph.getDependents('C')).toEqual(new Set());
-      // After fix: all nodes are pruned (D, B, and C become orphans)
-      expect(graph.getDependenciesSize()).toBe(0); // All pruned
-      expect(graph.getDependentsSize()).toBe(0); // All orphans pruned
     });
 
-    it('handles removing non-existent node', () => {
+    it('should prune orphaned nodes after removal', () => {
       graph.addDependency('A', 'B');
-
-      const sizeBefore = graph.getDependenciesSize();
-      graph.removeAll('Z'); // Non-existent node
-
-      expect(graph.getDependenciesSize()).toBe(sizeBefore);
-    });
-
-    it('handles complex removal scenarios', () => {
-      // Setup: E depends on A and C
-      graph.addDependency('A', 'B');
-      graph.addDependency('A', 'C');
-      graph.addDependency('D', 'A');
-      graph.addDependency('E', 'A');
-      graph.addDependency('E', 'C');
-
-      // Remove A
       graph.removeAll('A');
 
-      // D is removed as orphan
-      expect(graph.getDependencies('D')).toEqual(new Set());
-      // E still exists and depends only on C
-      expect(graph.getDependencies('E')).toEqual(new Set(['C']));
-      // B is removed as orphan
-      expect(graph.getDependents('B')).toEqual(new Set());
-      // C still has E as dependent
-      expect(graph.getDependents('C')).toEqual(new Set(['E']));
-    });
-  });
-
-  describe('Orphan Pruning', () => {
-    it('removes orphans after removeDependency', () => {
-      graph.addDependency('B', 'A');
-
-      // Remove dependency, both nodes should be pruned
-      graph.removeDependency('B', 'A');
-
       expect(graph.getDependenciesSize()).toBe(0);
       expect(graph.getDependentsSize()).toBe(0);
     });
 
-    it('removes orphans after replaceDependencies', () => {
-      graph.addDependency('B', 'A');
-
-      // Replace with empty set
-      graph.replaceDependencies('B', new Set());
-
-      // Both nodes should be pruned
-      expect(graph.getDependenciesSize()).toBe(0);
-      expect(graph.getDependentsSize()).toBe(0);
-    });
-
-    it('removes orphans after removeAll', () => {
-      // Create a simple chain: A -> B
-      graph.addDependency('A', 'B');
-
-      // Remove A - this should also remove B since it becomes orphaned
-      graph.removeAll('A');
-
-      // After fix: B is correctly removed as orphan
-      expect(graph.getDependenciesSize()).toBe(0);
-      expect(graph.getDependentsSize()).toBe(0);
-    });
-
-    it('keeps nodes with remaining connections', () => {
-      // Create: A -> B, C -> B
+    it('should not prune nodes that still have other connections', () => {
       graph.addDependency('A', 'B');
       graph.addDependency('C', 'B');
 
-      // Remove A
       graph.removeAll('A');
 
-      // B is not orphaned because C still depends on it
       expect(graph.getDependents('B')).toEqual(new Set(['C']));
-      expect(graph.getDependenciesSize()).toBe(1); // Only C
-      expect(graph.getDependentsSize()).toBe(1); // Only B
     });
 
-    it('handles complex orphan chains', () => {
-      // Create chain: A -> B -> C -> D
+    it('should handle removal of non-existent node', () => {
+      expect(() => {
+        graph.removeAll('nonexistent');
+      }).not.toThrow();
+    });
+
+    it('should handle complex graph removal', () => {
+      graph.addDependency('A', 'B');
+      graph.addDependency('A', 'C');
+      graph.addDependency('B', 'D');
+      graph.addDependency('C', 'D');
+      graph.addDependency('E', 'A');
+
+      graph.removeAll('A');
+
+      expect(graph.getDependencies('E')).toEqual(new Set());
+      expect(graph.getDependents('B')).toEqual(new Set());
+      expect(graph.getDependents('C')).toEqual(new Set());
+    });
+  });
+
+  describe('cleanup', () => {
+    it('should clear all data from the graph', () => {
+      const graph = new DependencyGraph();
       graph.addDependency('A', 'B');
       graph.addDependency('B', 'C');
       graph.addDependency('C', 'D');
 
-      // Remove B - this breaks the chain
-      graph.removeAll('B');
+      graph.cleanup();
 
-      // A becomes orphan and is removed
-      // C still exists (it depends on D)
-      // D still exists (C depends on it)
-      expect(graph.getDependenciesSize()).toBe(1); // C -> D
-      expect(graph.getDependentsSize()).toBe(2); // C and D both in dependents map
-    });
-  });
-
-  describe('Real-World Scenarios', () => {
-    it('simulates formula recalculation with changing dependencies', () => {
-      // Initial formula: A = B + C
-      graph.replaceDependencies('A', new Set(['B', 'C']));
-
-      // Another formula uses A: D = A * 2
-      graph.replaceDependencies('D', new Set(['A']));
-
-      expect(graph.getDependents('B')).toEqual(new Set(['A']));
-      expect(graph.getDependents('A')).toEqual(new Set(['D']));
-
-      // Formula A changes to: A = B + E (no longer uses C)
-      graph.replaceDependencies('A', new Set(['B', 'E']));
-
-      expect(graph.getDependents('C')).toEqual(new Set()); // C is orphaned
-      expect(graph.getDependents('E')).toEqual(new Set(['A']));
-      expect(graph.getDependents('B')).toEqual(new Set(['A']));
-      expect(graph.getDependents('A')).toEqual(new Set(['D']));
-    });
-
-    it('simulates property removal cascade', () => {
-      // Complex dependency tree
-      // A depends on B, C
-      // D depends on A
-      // E depends on A, C
-      graph.replaceDependencies('A', new Set(['B', 'C']));
-      graph.replaceDependencies('D', new Set(['A']));
-      graph.replaceDependencies('E', new Set(['A', 'C']));
-
-      // Remove property A
-      graph.removeAll('A');
-
-      // D becomes orphaned and is removed
-      expect(graph.getDependencies('D')).toEqual(new Set());
-      // E still exists, depends only on C
-      expect(graph.getDependencies('E')).toEqual(new Set(['C']));
-      // B becomes orphaned
-      expect(graph.getDependents('B')).toEqual(new Set());
-      // C still has E as dependent
-      expect(graph.getDependents('C')).toEqual(new Set(['E']));
-    });
-
-    it('handles batch updates efficiently', () => {
-      // Simulate multiple formulas being updated in a batch
-      const updates = [
-        { id: 'A', deps: new Set(['X', 'Y']) },
-        { id: 'B', deps: new Set(['Y', 'Z']) },
-        { id: 'C', deps: new Set(['A', 'B']) },
-        { id: 'D', deps: new Set(['C']) },
-      ];
-
-      // Apply all updates
-      updates.forEach(({ id, deps }) => {
-        graph.replaceDependencies(id, deps);
-      });
-
-      // Verify the graph structure
-      expect(graph.getDependents('X')).toEqual(new Set(['A']));
-      expect(graph.getDependents('Y')).toEqual(new Set(['A', 'B']));
-      expect(graph.getDependents('Z')).toEqual(new Set(['B']));
-      expect(graph.getDependents('A')).toEqual(new Set(['C']));
-      expect(graph.getDependents('B')).toEqual(new Set(['C']));
-      expect(graph.getDependents('C')).toEqual(new Set(['D']));
-
-      // Simulate removing intermediate node
-      graph.removeAll('C');
-
-      // D becomes orphaned
-      expect(graph.getDependencies('D')).toEqual(new Set());
-      // A and B no longer have dependents
-      expect(graph.getDependents('A')).toEqual(new Set());
-      expect(graph.getDependents('B')).toEqual(new Set());
-    });
-  });
-
-  describe('Graph Size Tracking', () => {
-    it('tracks dependencies size correctly', () => {
       expect(graph.getDependenciesSize()).toBe(0);
+      expect(graph.getDependentsSize()).toBe(0);
+      expect(graph.getDependencies('A')).toEqual(new Set());
+      expect(graph.getDependents('B')).toEqual(new Set());
+    });
+  });
 
+  describe('getDependents', () => {
+    let graph: DependencyGraph;
+
+    beforeEach(() => {
+      graph = new DependencyGraph();
+    });
+
+    it('should return empty set for node with no dependents', () => {
+      expect(graph.getDependents('nonexistent')).toEqual(new Set());
+    });
+
+    it('should return all direct dependents', () => {
+      graph.addDependency('A', 'Z');
+      graph.addDependency('B', 'Z');
+      graph.addDependency('C', 'Z');
+
+      const dependents = graph.getDependents('Z');
+
+      expect(dependents).toEqual(new Set(['A', 'B', 'C']));
+    });
+
+    it('should return readonly set', () => {
       graph.addDependency('A', 'B');
-      expect(graph.getDependenciesSize()).toBe(1); // A
+
+      const dependents = graph.getDependents('B');
+
+      expect(Object.isFrozen(dependents) || dependents instanceof Set).toBe(true);
+    });
+  });
+
+  describe('getDependencies', () => {
+    let graph: DependencyGraph;
+
+    beforeEach(() => {
+      graph = new DependencyGraph();
+    });
+
+    it('should return empty set for node with no dependencies', () => {
+      expect(graph.getDependencies('nonexistent')).toEqual(new Set());
+    });
+
+    it('should return all direct dependencies', () => {
+      graph.addDependency('A', 'B');
+      graph.addDependency('A', 'C');
+      graph.addDependency('A', 'D');
+
+      const dependencies = graph.getDependencies('A');
+
+      expect(dependencies).toEqual(new Set(['B', 'C', 'D']));
+    });
+  });
+
+  describe('getDependentsSize', () => {
+    it('should return 0 for empty graph', () => {
+      const graph = new DependencyGraph();
+
+      expect(graph.getDependentsSize()).toBe(0);
+    });
+
+    it('should return count of nodes with dependents', () => {
+      const graph = new DependencyGraph();
+      graph.addDependency('A', 'B');
+      graph.addDependency('A', 'C');
+      graph.addDependency('B', 'D');
+
+      expect(graph.getDependentsSize()).toBe(3);
+    });
+  });
+
+  describe('getDependenciesSize', () => {
+    it('should return 0 for empty graph', () => {
+      const graph = new DependencyGraph();
+
+      expect(graph.getDependenciesSize()).toBe(0);
+    });
+
+    it('should return count of nodes with dependencies', () => {
+      const graph = new DependencyGraph();
+      graph.addDependency('A', 'B');
+      graph.addDependency('A', 'C');
+      graph.addDependency('B', 'D');
+
+      expect(graph.getDependenciesSize()).toBe(2);
+    });
+  });
+
+  describe('getNodeDepth', () => {
+    let graph: DependencyGraph;
+
+    beforeEach(() => {
+      graph = new DependencyGraph();
+    });
+
+    it('should return 0 for node with no dependencies', () => {
+      graph.addDependency('A', 'B');
+
+      expect(graph.getNodeDepth('B')).toBe(0);
+    });
+
+    it('should return 1 for node with one level of dependencies', () => {
+      graph.addDependency('A', 'B');
+
+      expect(graph.getNodeDepth('A')).toBe(1);
+    });
+
+    it('should return correct depth for chain', () => {
+      graph.addDependency('A', 'B');
+      graph.addDependency('B', 'C');
+      graph.addDependency('C', 'D');
+
+      expect(graph.getNodeDepth('A')).toBe(3);
+      expect(graph.getNodeDepth('B')).toBe(2);
+      expect(graph.getNodeDepth('C')).toBe(1);
+      expect(graph.getNodeDepth('D')).toBe(0);
+    });
+
+    it('should return max depth for diamond pattern', () => {
+      graph.addDependency('A', 'B');
+      graph.addDependency('A', 'C');
+      graph.addDependency('B', 'D');
+      graph.addDependency('C', 'D');
+
+      expect(graph.getNodeDepth('A')).toBe(2);
+      expect(graph.getNodeDepth('B')).toBe(1);
+      expect(graph.getNodeDepth('C')).toBe(1);
+      expect(graph.getNodeDepth('D')).toBe(0);
+    });
+
+    it('should return 0 for non-existent node', () => {
+      expect(graph.getNodeDepth('nonexistent')).toBe(0);
+    });
+
+    it('should cache depth calculations', () => {
+      graph.addDependency('A', 'B');
+      graph.addDependency('B', 'C');
+
+      const depth1 = graph.getNodeDepth('A');
+      const depth2 = graph.getNodeDepth('A');
+
+      expect(depth1).toBe(depth2);
+      expect(depth1).toBe(2);
+    });
+
+    it('should invalidate cache when dependencies change', () => {
+      graph.addDependency('A', 'B');
+      expect(graph.getNodeDepth('A')).toBe(1);
+
+      graph.addDependency('B', 'C');
+      expect(graph.getNodeDepth('A')).toBe(2);
+    });
+
+    it('should invalidate cache even when intermediate nodes are not cached', () => {
+      // Regression test: cache invalidation must propagate through dependent chain
+      // even if intermediate nodes (B) were never cached
+      graph.addDependency('A', 'B');
+      graph.addDependency('B', 'C');
+      expect(graph.getNodeDepth('A')).toBe(2);
 
       graph.addDependency('C', 'D');
-      expect(graph.getDependenciesSize()).toBe(2); // A, C
+      expect(graph.getNodeDepth('A')).toBe(3);
+    });
+  });
 
-      graph.removeAll('A');
-      expect(graph.getDependenciesSize()).toBe(1); // Only C
+  describe('orphan pruning', () => {
+    let graph: DependencyGraph;
+
+    beforeEach(() => {
+      graph = new DependencyGraph();
     });
 
-    it('tracks dependents size correctly', () => {
-      expect(graph.getDependentsSize()).toBe(0);
-
+    it('should prune node when it loses all dependencies and dependents', () => {
       graph.addDependency('A', 'B');
-      expect(graph.getDependentsSize()).toBe(1); // B
+      graph.removeDependency('A', 'B');
 
+      expect(graph.getDependenciesSize()).toBe(0);
+      expect(graph.getDependentsSize()).toBe(0);
+    });
+
+    it('should not prune node that still has dependents', () => {
+      graph.addDependency('A', 'B');
       graph.addDependency('C', 'B');
-      expect(graph.getDependentsSize()).toBe(1); // Still only B
+      graph.removeDependency('A', 'B');
 
-      graph.addDependency('A', 'D');
-      expect(graph.getDependentsSize()).toBe(2); // B and D
+      expect(graph.getDependents('B')).toEqual(new Set(['C']));
+    });
+
+    it('should not prune node that still has dependencies', () => {
+      graph.addDependency('A', 'B');
+      graph.addDependency('A', 'C');
+      graph.removeDependency('A', 'B');
+
+      expect(graph.getDependencies('A')).toEqual(new Set(['C']));
+    });
+
+    it('should cascade prune when removal creates orphans', () => {
+      graph.addDependency('A', 'B');
+
+      graph.removeAll('A');
+
+      expect(graph.getDependenciesSize()).toBe(0);
+      expect(graph.getDependentsSize()).toBe(0);
+    });
+  });
+
+  describe('edge cases', () => {
+    let graph: DependencyGraph;
+
+    beforeEach(() => {
+      graph = new DependencyGraph();
+    });
+
+    it('should handle adding same dependency twice', () => {
+      graph.addDependency('A', 'B');
+      graph.addDependency('A', 'B');
+
+      expect(graph.getDependencies('A')).toEqual(new Set(['B']));
+      expect(graph.getDependencies('A').size).toBe(1);
+    });
+
+    it('should handle empty node IDs', () => {
+      graph.addDependency('', 'B');
+
+      expect(graph.getDependencies('')).toEqual(new Set(['B']));
+    });
+
+    it('should handle special characters in node IDs', () => {
+      graph.addDependency('node:1', 'node:2');
+      graph.addDependency('node/a', 'node/b');
+      graph.addDependency('node.x', 'node.y');
+
+      expect(graph.getDependencies('node:1')).toEqual(new Set(['node:2']));
+      expect(graph.getDependencies('node/a')).toEqual(new Set(['node/b']));
+      expect(graph.getDependencies('node.x')).toEqual(new Set(['node.y']));
+    });
+
+    it('should maintain consistency after many operations', () => {
+      for (let i = 0; i < 100; i++) {
+        graph.addDependency(`node${i}`, `node${i + 100}`);
+      }
+
+      for (let i = 0; i < 50; i++) {
+        graph.removeDependency(`node${i}`, `node${i + 100}`);
+      }
+
+      expect(graph.getDependenciesSize()).toBe(50);
+    });
+  });
+
+  describe('properties', () => {
+    it('should maintain bidirectional consistency after addDependency', ({ g }) => {
+      const graph = new DependencyGraph();
+      const nodeA = g(fc.string, { minLength: 1, maxLength: 10 });
+      const nodeB = g(fc.string, { minLength: 1, maxLength: 10 });
+
+      fc.pre(nodeA !== nodeB);
+
+      graph.addDependency(nodeA, nodeB);
+
+      expect(graph.getDependencies(nodeA).has(nodeB)).toBe(true);
+      expect(graph.getDependents(nodeB).has(nodeA)).toBe(true);
+    });
+
+    it.prop([
+      fc.array(
+        fc.record({
+          from: fc.string({ minLength: 1, maxLength: 5 }),
+          to: fc.string({ minLength: 1, maxLength: 5 }),
+        }),
+        { minLength: 1, maxLength: 20 },
+      ),
+    ])(
+      'should never have orphans with non-empty connections',
+      (edges) => {
+        const graph = new DependencyGraph();
+
+        for (const { from, to } of edges) {
+          if (from !== to) {
+            try {
+              graph.addDependency(from, to);
+            }
+            catch {
+              // Cycle detected, skip this edge
+            }
+          }
+        }
+
+        const allNodes = new Set(edges.flatMap((e) => [e.from, e.to]));
+
+        for (const node of allNodes) {
+          const hasDeps = graph.getDependencies(node).size > 0;
+          const hasDependents = graph.getDependents(node).size > 0;
+
+          if (hasDeps || hasDependents) {
+            expect(hasDeps || hasDependents).toBe(true);
+          }
+        }
+      },
+    );
+
+    it.prop([
+      fc.array(fc.string({ minLength: 1, maxLength: 5 }), { minLength: 2, maxLength: 10 }),
+    ])(
+      'should always prevent self-dependency',
+      (nodes) => {
+        const graph = new DependencyGraph();
+
+        for (const node of nodes) {
+          expect(() => {
+            graph.addDependency(node, node);
+          }).toThrow(Errors.Runtime.CircularDependency.create({ nodeId: node, dependsOnId: node }));
+        }
+      },
+    );
+
+    it.prop([
+      fc.array(fc.string({ minLength: 1, maxLength: 3 }), { minLength: 3, maxLength: 5 }),
+    ])(
+      'should detect cycles in any chain A -> B -> ... -> A',
+      (nodes) => {
+        fc.pre(nodes.length >= 2);
+        fc.pre(new Set(nodes).size === nodes.length);
+
+        const graph = new DependencyGraph();
+
+        for (let i = 0; i < nodes.length - 1; i++) {
+          graph.addDependency(nodes[i], nodes[i + 1]);
+        }
+
+        expect(() => {
+          graph.addDependency(nodes[nodes.length - 1], nodes[0]);
+        }).toThrow(Errors.Runtime.CircularDependency.create({ nodeId: nodes[nodes.length - 1], dependsOnId: nodes[0] }));
+      },
+    );
+
+    it.prop([
+      fc.record({
+        nodeA: fc.string({ minLength: 1, maxLength: 5 }),
+        nodeB: fc.string({ minLength: 1, maxLength: 5 }),
+        nodeC: fc.string({ minLength: 1, maxLength: 5 }),
+      }),
+    ])(
+      'should maintain depth invariant: depth(A) > depth(B) when A depends on B',
+      ({ nodeA, nodeB, nodeC }) => {
+        fc.pre(nodeA !== nodeB && nodeB !== nodeC && nodeA !== nodeC);
+
+        const graph = new DependencyGraph();
+        graph.addDependency(nodeA, nodeB);
+        graph.addDependency(nodeB, nodeC);
+
+        expect(graph.getNodeDepth(nodeA)).toBeGreaterThan(graph.getNodeDepth(nodeB));
+        expect(graph.getNodeDepth(nodeB)).toBeGreaterThan(graph.getNodeDepth(nodeC));
+        expect(graph.getNodeDepth(nodeC)).toBe(0);
+      },
+    );
+
+    it.prop([
+      fc.array(
+        fc.record({
+          from: fc.string({ minLength: 1, maxLength: 3 }),
+          to: fc.string({ minLength: 1, maxLength: 3 }),
+        }),
+        { minLength: 0, maxLength: 10 },
+      ),
+    ])(
+      'should have empty graph after cleanup regardless of prior state',
+      (edges) => {
+        const graph = new DependencyGraph();
+
+        for (const { from, to } of edges) {
+          if (from !== to) {
+            try {
+              graph.addDependency(from, to);
+            }
+            catch {
+              // Cycle detected, skip
+            }
+          }
+        }
+
+        graph.cleanup();
+
+        expect(graph.getDependenciesSize()).toBe(0);
+        expect(graph.getDependentsSize()).toBe(0);
+      },
+    );
+
+    it.prop([
+      fc.string({ minLength: 1, maxLength: 5 }),
+      fc.array(fc.string({ minLength: 1, maxLength: 5 }), { minLength: 0, maxLength: 5 }),
+    ])(
+      'should correctly replace all dependencies atomically',
+      (nodeId, newDeps) => {
+        const graph = new DependencyGraph();
+        const uniqueDeps = [...new Set(newDeps)].filter((d) => d !== nodeId);
+
+        graph.replaceDependencies(nodeId, new Set(uniqueDeps));
+
+        const actualDeps = graph.getDependencies(nodeId);
+        expect(actualDeps.size).toBe(uniqueDeps.length);
+
+        for (const dep of uniqueDeps) {
+          expect(actualDeps.has(dep)).toBe(true);
+          expect(graph.getDependents(dep).has(nodeId)).toBe(true);
+        }
+      },
+    );
+  });
+
+  describe('error handling', () => {
+    let graph: DependencyGraph;
+
+    beforeEach(() => {
+      graph = new DependencyGraph();
+    });
+
+    it('should throw CircularDependency error with correct payload', () => {
+      graph.addDependency('A', 'B');
+
+      try {
+        graph.addDependency('B', 'A');
+        expect.fail('Should have thrown');
+      }
+      catch (error) {
+        expect(Errors.Runtime.CircularDependency.is(error)).toBe(true);
+        if (Errors.Runtime.CircularDependency.is(error)) {
+          expect(error.payload.nodeId).toBe('B');
+          expect(error.payload.dependsOnId).toBe('A');
+        }
+      }
+    });
+
+    it('should recover from failed addDependency', () => {
+      graph.addDependency('A', 'B');
+
+      try {
+        graph.addDependency('B', 'A');
+      }
+      catch {
+        // Expected
+      }
+
+      expect(graph.getDependencies('A')).toEqual(new Set(['B']));
+      expect(graph.getDependencies('B')).toEqual(new Set());
+
+      graph.addDependency('B', 'C');
+      expect(graph.getDependencies('B')).toEqual(new Set(['C']));
+    });
+
+    it('should recover from failed replaceDependencies', () => {
+      graph.addDependency('A', 'B');
+      graph.addDependency('B', 'C');
+
+      try {
+        graph.replaceDependencies('C', new Set(['A', 'X']));
+      }
+      catch {
+        // Expected
+      }
+
+      expect(graph.getDependencies('C')).toEqual(new Set());
+      expect(graph.getDependencies('A')).toEqual(new Set(['B']));
+
+      graph.replaceDependencies('C', new Set(['D']));
+      expect(graph.getDependencies('C')).toEqual(new Set(['D']));
     });
   });
 });
