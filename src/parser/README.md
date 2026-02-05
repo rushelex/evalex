@@ -337,7 +337,6 @@ parse('arr[0]');        // Ошибка: квадратные скобки не 
 interface Location {
   start: { offset: number; line: number; column: number };
   end: { offset: number; line: number; column: number };
-  source?: any;
 }
 ```
 

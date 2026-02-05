@@ -832,6 +832,5 @@ function createLocation(start: number, end: number): Location {
   return {
     start: { offset: start, line: 1, column: start + 1 },
     end: { offset: end, line: 1, column: end + 1 },
-    source: undefined,
   };
 }

@@ -15,7 +15,6 @@ export type AstNode
     | IArrayExpressionNode;
 
 export interface Location {
-  source?: any;
   start: { offset: number; line: number; column: number };
   end: { offset: number; line: number; column: number };
 }
