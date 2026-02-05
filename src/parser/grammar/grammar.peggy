@@ -10,15 +10,14 @@
     }, head);
   }
 
-  function buildUnaryExpression(operators, operand, ruleLocation) {
-    return operators.reduceRight((result, operator) => {
-      return new Nodes.UnaryExpressionNode(
-        operator,
-        result,
-        true,
-        ruleLocation,
-      );
-    }, operand);
+  function throwUnclosedParen(lparen, args) {
+    const errorStartLocation = lparen.location.start;
+    const errorEndLocation = args && args.length > 0 ? args[args.length - 1].location.end : lparen.location.end;
+    error('Expected token ")".', {
+      source: lparen.location.source,
+      start: errorStartLocation,
+      end: errorEndLocation
+    });
   }
 }
 
@@ -30,10 +29,10 @@ Start "entry point"
   = _ expr:Expression? _ { return expr || new Nodes.LiteralNode(null, 'null', location()); }
 
 //==============================
-// WHITESPACE & BASIC PUNCTUATION
+// WHITESPACE & BASIC TOKENS
 //==============================
 
-_ = t:[ \t\n\r]* { return { token: t, location: location() }; }
+_ = [ \t\n\r]*
 DOT = t:"." { return { token: t, location: location() }; }
 COMMA = t:"," { return { token: t, location: location() }; }
 LPAREN = t:"(" { return { token: t, location: location() }; }
@@ -62,7 +61,8 @@ BooleanLiteral
   = val:("true" / "false") !IdentifierChar { return new Nodes.LiteralNode(val === "true", val, location()); }
 
 NumberLiteral
-  = num:$("-"? [0-9]+ ("." [0-9]+)?) { return new Nodes.LiteralNode(parseFloat(num), num, location()); }
+  = num:$([0-9]+ ("." [0-9]+)? ([eE] [+-]? [0-9]+)?) { return new Nodes.LiteralNode(parseFloat(num), num, location()); }
+  / num:$("." [0-9]+ ([eE] [+-]? [0-9]+)?) { return new Nodes.LiteralNode(parseFloat(num), num, location()); }
 
 StringLiteral
   = '"' chars:DoubleQuotedChar* '"' { return new Nodes.LiteralNode(chars.join(""), '"' + chars.join("") + '"', location()); }
@@ -86,6 +86,8 @@ EscapeSequence
   / "r" { return "\r"; }
   / "t" { return "\t"; }
   / "v" { return "\v"; }
+  / "u" digits:$([0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F])
+    { return String.fromCharCode(parseInt(digits, 16)); }
 
 //==============================
 // IDENTIFIERS & KEYWORDS
@@ -107,14 +109,14 @@ Keyword
 // OPERATORS
 //==============================
 
-LogicalOrOperator = "||" / "or"
-LogicalAndOperator = "&&" / "and"
+LogicalOrOperator = "||" / "or" !IdentifierChar { return "or"; }
+LogicalAndOperator = "&&" / "and" !IdentifierChar { return "and"; }
 ComparisonOperator = "==" / "!=" / "<=" / ">=" / "<" / ">"
-InOperator = "in"
+InOperator = "in" !IdentifierChar { return "in"; }
 AdditiveOperator = "+" / "-"
 MultiplicativeOperator = "*" / "/" / "%"
 PowerOperator = "^"
-UnaryOperator = "-" / "not" / "!"
+UnaryOperator = "-" / "not" !IdentifierChar { return "not"; } / "!"
 
 //==============================
 // ATOMIC EXPRESSIONS & RELATED
@@ -148,9 +150,7 @@ ArrayLiteral "array literal"
 // ARGUMENTS HELPER (FOR CALLS & ARRAYS)
 //==============================
 
-// Arguments rule depends on Expression, so it's placed after Atom/Primary but before full Expression hierarchy that uses it.
 Arguments "argument list"
-  // Case 1: Starts with an Expression (handles valid arguments, (a,), (a,,b))
   = head:Expression _ tail:(_ COMMA _ Expression)* _ trailingComma:(COMMA _)? {
       if (trailingComma) {
         const errorLocation = trailingComma[0].location;
@@ -160,22 +160,32 @@ Arguments "argument list"
       tail.forEach(item => result.push(item[3]));
       return result;
     }
-  // Case 2: Starts with a Comma (handles leading comma error like (,a))
-  / leadingComma:COMMA { // If the first non-whitespace token is a comma
+  / leadingComma:COMMA {
       error(`Arguments cannot start with a comma.`, leadingComma.location);
     }
-  // Case 3: Empty argument list (e.g., "()" or "[]" or just whitespace inside)
-  / _ { // Matches if only whitespace or if it's immediately followed by RPAREN/RBRACKET
+  / _ {
       return [];
     }
 
 //==============================
-// ERROR HANDLING RULES (USED IN PRIMARY EXPRESSION)
+// EXPRESSION HIERARCHY (HIGHEST TO LOWEST PRECEDENCE)
 //==============================
 
-InvalidStandaloneMemberAccess "invalid standalone member access"
-  = head:Atom _ dot:DOT _ prop:Identifier !(_ LPAREN) // Ensure it's not a call
-    {
+// Suffixes for PrimaryExpression
+MemberCallSuffix
+  = _ DOT _ p:Identifier _ lparen:LPAREN _ args:Arguments _ rparen:RPAREN? {
+      if (!rparen) { throwUnclosedParen(lparen, args); }
+      return { type: "MemberCallSuffix", property: p, args: args };
+    }
+
+DirectCallSuffix
+  = _ lparen:LPAREN _ args:Arguments _ rparen:RPAREN? {
+      if (!rparen) { throwUnclosedParen(lparen, args); }
+      return { type: "DirectCallSuffix", args: args };
+    }
+
+StandaloneMemberAccess "invalid standalone member access"
+  = _ dot:DOT _ prop:Identifier !(_ LPAREN) {
       const errorLocation = {
         source: dot.location.source,
         start: dot.location.start,
@@ -184,55 +194,13 @@ InvalidStandaloneMemberAccess "invalid standalone member access"
       error(`Expected function '${prop.name}()' to be called.`, errorLocation);
     }
 
-
-//==============================
-// EXPRESSION HIERARCHY (HIGHEST TO LOWEST PRECEDENCE, THEN MAIN EXPRESSION RULE)
-//==============================
-
-// Suffixes for LeftHandSideExpression
-MemberCallSuffix
-  = _ DOT _ p:Identifier _ lparen:LPAREN _ args:Arguments _ rparen:RPAREN? {
-      if (!rparen) {
-        const errorStartLocation = lparen.location.start;
-        const errorEndLocation = args && args.length > 0 ? args[args.length - 1].location.end : lparen.location.end;
-        error('Expected token ")".', {
-          source: lparen.location.source,
-          start: errorStartLocation,
-          end: errorEndLocation
-        });
-      }
-      return {
-        type: "MemberCallSuffix",
-        property: p,
-        args: args
-      };
-    }
-
-DirectCallSuffix
-  = _ lparen:LPAREN _ args:Arguments _ rparen:RPAREN? {
-      if (!rparen) {
-        const errorStartLocation = lparen.location.start;
-        const errorEndLocation = args && args.length > 0 ? args[args.length - 1].location.end : lparen.location.end;
-        error('Expected token ")".', {
-          source: lparen.location.source,
-          start: errorStartLocation,
-          end: errorEndLocation
-        });
-      }
-      return {
-        type: "DirectCallSuffix",
-        args: args
-      };
-    }
-
-// Primary Expression (Handles calls, member access, and basic atoms)
-// This is effectively the highest precedence part of the expression chain.
+// Primary Expression (handles atoms, function calls, and method calls)
 PrimaryExpression
-  = InvalidStandaloneMemberAccess // Check for specific errors first
-  / head:Atom
+  = head:Atom
     tail:(
         MemberCallSuffix
       / DirectCallSuffix
+      / StandaloneMemberAccess
     )*
     {
       return tail.reduce((currentLHS, suffixInfo) => {
@@ -240,83 +208,68 @@ PrimaryExpression
           const memberExpr = new Nodes.MemberExpressionNode(currentLHS, suffixInfo.property, false, location());
           return new Nodes.CallExpressionNode(memberExpr, suffixInfo.args, location());
         }
-        else if (suffixInfo.type === "DirectCallSuffix") {
+        if (suffixInfo.type === "DirectCallSuffix") {
           return new Nodes.CallExpressionNode(currentLHS, suffixInfo.args, location());
         }
-        return currentLHS; // Should not happen with current grammar for suffixes
+        return currentLHS;
       }, head);
     }
 
-// Unary
+// Unary (recursive for correct handling of chained unary operators: --5, not not x)
 UnaryExpression
-  = operators:(UnaryOperator)* _ operand:PrimaryExpression
-    { return operators.length > 0 ? buildUnaryExpression(operators, operand, location()) : operand; }
-  / PrimaryExpression // Fallback if no unary operator is present
+  = op:UnaryOperator _ operand:UnaryExpression
+    { return new Nodes.UnaryExpressionNode(op, operand, true, location()); }
+  / PrimaryExpression
 
-// Power (Right Associative)
+// Power (right-associative)
 PowerExpression
   = head:UnaryExpression _ tail:(PowerOperator _ PowerExpression)?
     {
       if (!tail) { return head; }
-      const leftOperandNode = head;
-      const operatorString = tail[0];
-      const rightOperandNode = tail[2];
-      const preciseLocation = {
-        source: leftOperandNode.location.source,
-        start: location().start, // Correctly uses current rule's start for the whole op
-        end: rightOperandNode.location.end
-      };
-      return new Nodes.BinaryExpressionNode(operatorString, leftOperandNode, rightOperandNode, preciseLocation);
+      return new Nodes.BinaryExpressionNode(tail[0], head, tail[2], {
+        source: head.location.source,
+        start: location().start,
+        end: tail[2].location.end
+      });
     }
 
 // Multiplicative
 MultiplicativeExpression
-  = head:PowerExpression tail:(_ MultiplicativeOperator _ PowerExpression)* _
+  = head:PowerExpression tail:(_ MultiplicativeOperator _ PowerExpression)*
     { return buildBinaryExpression(head, tail, location()); }
 
 // Additive
 AdditiveExpression
-  = head:MultiplicativeExpression tail:(_ AdditiveOperator _ MultiplicativeExpression)* _
+  = head:MultiplicativeExpression tail:(_ AdditiveOperator _ MultiplicativeExpression)*
     { return buildBinaryExpression(head, tail, location()); }
 
-// Comparison
+// Comparison (non-chainable: only one comparison operator per expression level)
 ComparisonExpression
-  = head:AdditiveExpression _ tail:(
-      ComparisonOperator _ AdditiveExpression /
-      InOperator _ AdditiveExpression
+  = head:AdditiveExpression tail:(
+      _ ComparisonOperator _ AdditiveExpression
+    / _ InOperator _ AdditiveExpression
     )?
     {
       if (!tail) { return head; }
-      const leftOperandNode = head;
-      const operatorString = tail[0];
-      const rightOperandNode = tail[2];
-      const preciseLocation = {
-        source: leftOperandNode.location.source,
-        start: leftOperandNode.location.start,
-        end: rightOperandNode.location.end
-      };
-      return new Nodes.BinaryExpressionNode(operatorString, leftOperandNode, rightOperandNode, preciseLocation);
+      return new Nodes.BinaryExpressionNode(tail[1], head, tail[3], {
+        source: head.location.source,
+        start: head.location.start,
+        end: tail[3].location.end
+      });
     }
 
 // Logical AND
 LogicalAndExpression
-  = head:ComparisonExpression tail:(_ LogicalAndOperator _ ComparisonExpression)* _
+  = head:ComparisonExpression tail:(_ LogicalAndOperator _ ComparisonExpression)*
     { return buildBinaryExpression(head, tail, location()); }
 
 // Logical OR
 LogicalOrExpression
-  = head:LogicalAndExpression tail:(_ LogicalOrOperator _ LogicalAndExpression)* _
+  = head:LogicalAndExpression tail:(_ LogicalOrOperator _ LogicalAndExpression)*
     { return buildBinaryExpression(head, tail, location()); }
 
-// Conditional (Ternary) Expression - This is the main 'Expression' entry for the hierarchy
-Expression "expression (conditional)"
+// Conditional (Ternary)
+Expression "expression"
   = condition:LogicalOrExpression _ "?" _ consequent:Expression _ ":" _ alternate:Expression
-    {
-      return new Nodes.ConditionalExpressionNode(
-        condition,
-        consequent,
-        alternate,
-        location()
-      );
-    }
+    { return new Nodes.ConditionalExpressionNode(condition, consequent, alternate, location()); }
   / LogicalOrExpression

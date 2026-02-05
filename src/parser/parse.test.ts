@@ -254,6 +254,79 @@ describe(parse, () => {
         location: createLocation(0, 5),
       });
     });
+
+    it('should parse "not x" as a unary NOT expression', () => {
+      const ast = parse('not x');
+      expect(ast).toEqual({
+        type: 'UnaryExpression',
+        operator: 'not',
+        prefix: true,
+        arg: { type: 'Identifier', name: 'x', location: createLocation(4, 5) },
+        location: createLocation(0, 5),
+      });
+    });
+
+    it('should parse "not(x)" without space as a unary NOT expression', () => {
+      const ast = parse('not(x)');
+      expect(ast).toEqual({
+        type: 'UnaryExpression',
+        operator: 'not',
+        prefix: true,
+        arg: { type: 'Identifier', name: 'x', location: createLocation(4, 5) },
+        location: createLocation(0, 6),
+      });
+    });
+
+    it('should parse chained unary negation: --5', () => {
+      const ast = parse('--5');
+      expect(ast).toEqual({
+        type: 'UnaryExpression',
+        operator: '-',
+        prefix: true,
+        arg: {
+          type: 'UnaryExpression',
+          operator: '-',
+          prefix: true,
+          arg: { type: 'Literal', value: 5, raw: '5', location: createLocation(2, 3) },
+          location: createLocation(1, 3),
+        },
+        location: createLocation(0, 3),
+      });
+    });
+
+    it('should parse chained unary negation with space: - - 5', () => {
+      const ast = parse('- - 5');
+      expect(ast).toEqual({
+        type: 'UnaryExpression',
+        operator: '-',
+        prefix: true,
+        arg: {
+          type: 'UnaryExpression',
+          operator: '-',
+          prefix: true,
+          arg: { type: 'Literal', value: 5, raw: '5', location: createLocation(4, 5) },
+          location: createLocation(2, 5),
+        },
+        location: createLocation(0, 5),
+      });
+    });
+
+    it('should parse chained "not not true"', () => {
+      const ast = parse('not not true');
+      expect(ast).toEqual({
+        type: 'UnaryExpression',
+        operator: 'not',
+        prefix: true,
+        arg: {
+          type: 'UnaryExpression',
+          operator: 'not',
+          prefix: true,
+          arg: { type: 'Literal', value: true, raw: 'true', location: createLocation(8, 12) },
+          location: createLocation(4, 12),
+        },
+        location: createLocation(0, 12),
+      });
+    });
   });
 
   describe('Function Calls', () => {
@@ -513,6 +586,169 @@ describe(parse, () => {
         },
         alternate: { type: 'Literal', value: 3, raw: '3', location: createLocation(18, 19) },
         location: createLocation(0, 19),
+      });
+    });
+  });
+
+  describe('Word boundary for keyword operators', () => {
+    it('should parse "nothing" as an identifier, not "not" + "hing"', () => {
+      const ast = parse('nothing');
+      expect(ast).toEqual({
+        type: 'Identifier',
+        name: 'nothing',
+        location: createLocation(0, 7),
+      });
+    });
+
+    it('should parse "android" as an identifier, not "and" + "roid"', () => {
+      const ast = parse('android');
+      expect(ast).toEqual({
+        type: 'Identifier',
+        name: 'android',
+        location: createLocation(0, 7),
+      });
+    });
+
+    it('should parse "orange" as an identifier, not "or" + "ange"', () => {
+      const ast = parse('orange');
+      expect(ast).toEqual({
+        type: 'Identifier',
+        name: 'orange',
+        location: createLocation(0, 6),
+      });
+    });
+
+    it('should parse "inside" as an identifier, not "in" + "side"', () => {
+      const ast = parse('inside');
+      expect(ast).toEqual({
+        type: 'Identifier',
+        name: 'inside',
+        location: createLocation(0, 6),
+      });
+    });
+
+    it('should parse "notify" as an identifier, not "not" + "ify"', () => {
+      const ast = parse('notify');
+      expect(ast).toEqual({
+        type: 'Identifier',
+        name: 'notify',
+        location: createLocation(0, 6),
+      });
+    });
+
+    it('should parse "inArray" as an identifier, not "in" + "Array"', () => {
+      const ast = parse('inArray');
+      expect(ast).toEqual({
+        type: 'Identifier',
+        name: 'inArray',
+        location: createLocation(0, 7),
+      });
+    });
+
+    it('should still parse "a or b" as a logical OR expression', () => {
+      const ast = parse('a or b');
+      expect(ast).toEqual({
+        type: 'BinaryExpression',
+        operator: 'or',
+        left: { type: 'Identifier', name: 'a', location: createLocation(0, 1) },
+        right: { type: 'Identifier', name: 'b', location: createLocation(5, 6) },
+        location: createLocation(0, 6),
+      });
+    });
+
+    it('should still parse "a and b" as a logical AND expression', () => {
+      const ast = parse('a and b');
+      expect(ast).toEqual({
+        type: 'BinaryExpression',
+        operator: 'and',
+        left: { type: 'Identifier', name: 'a', location: createLocation(0, 1) },
+        right: { type: 'Identifier', name: 'b', location: createLocation(6, 7) },
+        location: createLocation(0, 7),
+      });
+    });
+
+    it('should still parse "x in y" as an "in" expression', () => {
+      const ast = parse('x in y');
+      expect(ast).toEqual({
+        type: 'BinaryExpression',
+        operator: 'in',
+        left: { type: 'Identifier', name: 'x', location: createLocation(0, 1) },
+        right: { type: 'Identifier', name: 'y', location: createLocation(5, 6) },
+        location: createLocation(0, 6),
+      });
+    });
+  });
+
+  describe('Number literal extensions', () => {
+    it('should parse scientific notation: 1e10', () => {
+      const ast = parse('1e10');
+      expect(ast).toEqual({
+        type: 'Literal',
+        value: 1e10,
+        raw: '1e10',
+        location: createLocation(0, 4),
+      });
+    });
+
+    it('should parse scientific notation with decimal: 1.5e2', () => {
+      const ast = parse('1.5e2');
+      expect(ast).toEqual({
+        type: 'Literal',
+        value: 150,
+        raw: '1.5e2',
+        location: createLocation(0, 5),
+      });
+    });
+
+    it('should parse scientific notation with negative exponent: 1.5e-2', () => {
+      const ast = parse('1.5e-2');
+      expect(ast).toEqual({
+        type: 'Literal',
+        value: 0.015,
+        raw: '1.5e-2',
+        location: createLocation(0, 6),
+      });
+    });
+
+    it('should parse shorthand decimal: .5', () => {
+      const ast = parse('.5');
+      expect(ast).toEqual({
+        type: 'Literal',
+        value: 0.5,
+        raw: '.5',
+        location: createLocation(0, 2),
+      });
+    });
+
+    it('should parse capital E in scientific notation: 2E3', () => {
+      const ast = parse('2E3');
+      expect(ast).toEqual({
+        type: 'Literal',
+        value: 2000,
+        raw: '2E3',
+        location: createLocation(0, 3),
+      });
+    });
+  });
+
+  describe('Unicode escape sequences', () => {
+    it('should parse a string with unicode escape \\u0041 as "A"', () => {
+      const ast = parse('"\\u0041"');
+      expect(ast).toEqual({
+        type: 'Literal',
+        value: 'A',
+        raw: '"A"',
+        location: createLocation(0, 8),
+      });
+    });
+
+    it('should parse a string with unicode escape \\u0048\\u0049 as "HI"', () => {
+      const ast = parse('"\\u0048\\u0049"');
+      expect(ast).toEqual({
+        type: 'Literal',
+        value: 'HI',
+        raw: '"HI"',
+        location: createLocation(0, 14),
       });
     });
   });
