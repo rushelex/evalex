@@ -33,8 +33,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint --cache",
     "lint:fix": "pnpm lint --fix",
-    "generate:grammar": "peggy -o src/parser/grammar/__generated__/grammar.js src/parser/grammar/grammar.peggy --dts --format=es --source-map --dependency \"* as Nodes:../nodes\"",
-    "generate:grammar:watch": "pnpm generate:grammar --watch",
+    "generate:grammar": "node scripts/generate-grammar.ts",
+    "generate:grammar:watch": "node scripts/generate-grammar.ts --watch",
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
