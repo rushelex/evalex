@@ -131,6 +131,11 @@ Inside `filter` and `map`, the second argument is evaluated once per item with t
 | `sum(...values)` | Adds numbers and lists of numbers, flattening nested lists | `sum(1, [2, 3, [4, 5]])` → `15` |
 | `min(...values)` / `max(...values)` | Smallest or largest number, taking values like `sum` | `max(1, [2, 3])` → `3` |
 | `mean(...values)` / `median(...values)` | Arithmetic average or middle value, taking values like `sum` | `median([1, 2, 3], 4)` → `2.5` |
+| `abs(n)` / `sign(n)` | Absolute value, or `1`, `-1` or `0` by the sign | `abs(-10)` → `10` |
+| `round(n, places?)` | Rounds half up; negative `places` round to tens, hundreds and so on | `round(1234, -2)` → `1200` |
+| `ceil(n)` / `floor(n)` | Rounds up or down to an integer | `floor(-0.6)` → `-1` |
+| `sqrt(n)` / `cbrt(n)` | Square or cube root | `sqrt(4)` → `2` |
+| `exp(n)` / `ln(n)` | `e` raised to the number, or the natural logarithm | `ln(e())` → `1` |
 | `log2(n)` / `log10(n)` | Logarithm in base 2 or 10 | `log2(1024)` → `10` |
 | `pi()` / `e()` | Mathematical constants | `pi()` → `3.141592653589793` |
 
@@ -152,6 +157,7 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 | --- | --- | --- |
 | `now()` / `today()` | Current date and time, or today at midnight | `today().add(1, "days")` |
 | `parseDate(text)` | Parses an ISO 8601 date | `parseDate("2023-07-10T17:35Z")` |
+| `fromTimestamp(ms)` | Date in UTC from a Unix timestamp in milliseconds, without seconds | `fromTimestamp(1689024900000)` |
 | `dateAdd(date, amount, unit)` | Adds a number of units, or a duration | `parseDate("2023-08-30").add(2, "months")` |
 | `dateSubtract(date, amount, unit)` | Subtracts a number of units, or a duration | `parseDate("2023-07-10").subtract(1, "years")` |
 | `dateBetween(a, b, unit)` | Difference between two dates as a duration | `dateBetween(end, start, "days").days()` |
