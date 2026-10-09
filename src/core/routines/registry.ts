@@ -22,10 +22,13 @@ export type RoutineName = string | { readonly function: string; readonly method:
 export interface RegisterSubjectRoutineOptions<TDataType extends Class<FormulaDataType>> {
   /** Data types that get the method form. */
   readonly on: readonly TDataType[];
+  /** One sentence shown in UI tooltips for both forms. */
   readonly description: string;
+  /** Examples written once with `name(subject, ...args)` and run in both forms. */
   readonly examples: (routineName: string) => RoutineExamples;
   /** Signatures of the function form; the first argument of each is the call subject. */
   readonly arguments: () => RoutineArguments;
+  /** Implementation shared by both forms; receives the call subject apart from the remaining arguments. */
   readonly handler: SubjectRoutineHandler<InstanceType<TDataType>>;
 }
 
@@ -38,6 +41,14 @@ export class RoutinesRegistry {
   readonly #methodRegistry: Map<Class<FormulaDataType>, Map<string, Routine>> = new Map();
   #resolvedMethodsCache: WeakMap<Class<FormulaDataType>, Map<string, Routine>> | null = null;
 
+  /**
+   * Registers a routine that exists only as a function, such as `if`, `now` or `pi`.
+   *
+   * @remarks
+   * A routine with a call subject is registered with {@link RoutinesRegistry.registerRoutine} instead,
+   * so that `f(x)` and `x.f()` share one description and cannot drift apart.
+   * A second registration under the same name replaces the first.
+   */
   registerFunction(name: string, options: RegisterRoutineOptions): void {
     const examplesOption = options.examples(name).toFunctionExamples();
     const argumentsOption = typeof options.arguments === 'function' ? options.arguments() : options.arguments;
@@ -48,6 +59,15 @@ export class RoutinesRegistry {
     }));
   }
 
+  /**
+   * Registers a routine that exists only as a method of one data type, such as `date.subtract()`.
+   *
+   * @remarks
+   * The method is inherited by subclasses of the data type. Its arguments are the function signatures without
+   * the first one, which is the call subject; the handler reads the subject from `instance`.
+   * A routine with both forms is registered with {@link RoutinesRegistry.registerRoutine} instead.
+   * A second registration under the same name on the same type replaces the first.
+   */
   registerMethod<TInstance extends FormulaDataType>(
     dataTypeCtor: Class<TInstance>,
     name: string,
@@ -134,6 +154,7 @@ export class RoutinesRegistry {
     this.#invalidateCache();
   }
 
+  /** Resolves inherited methods of every registered type up front, so that lookups during evaluation hit a cache. */
   finalize(): void {
     const cache = new WeakMap<Class<FormulaDataType>, Map<string, Routine>>();
 
@@ -144,14 +165,17 @@ export class RoutinesRegistry {
     this.#resolvedMethodsCache = cache;
   }
 
+  /** Returns the function form registered under the name, or `undefined` when there is none. */
   getFunction(name: string): Routine | undefined {
     return this.#functionRegistry.get(name);
   }
 
+  /** Returns every function form by name, for autocompletion and documentation. */
   getFunctions(): ReadonlyMap<string, Routine> {
     return this.#functionRegistry;
   }
 
+  /** Returns the method of the type, inherited ones included, or `undefined` when there is none. */
   getMethod(ctor: Class<FormulaDataType>, name: string): Routine | undefined {
     const methods = this.getMethods(ctor);
     return methods.get(name);
@@ -165,6 +189,7 @@ export class RoutinesRegistry {
     return Array.from(this.#methodRegistry.keys());
   }
 
+  /** Returns every method of the type by name, inherited ones included. */
   getMethods(ctor: Class<FormulaDataType>): Map<string, Routine> {
     if (this.#resolvedMethodsCache?.has(ctor)) {
       // Use finalized cache when available

@@ -1,5 +1,4 @@
-import { FormulaString, Kind } from '../../data-types';
-import { ALL_DATA_TYPES } from '../all-data-types';
+import { ALL_DATA_TYPES, FormulaString, Kind } from '../../data-types';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';

@@ -1,10 +1,10 @@
 import type { ProcessedArgument } from '../arguments';
 
 import {
+  ALL_DATA_TYPES,
   FormulaBoolean,
   Kind,
 } from '../../data-types';
-import { ALL_DATA_TYPES } from '../all-data-types';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';

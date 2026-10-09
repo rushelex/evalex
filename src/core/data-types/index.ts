@@ -1,3 +1,4 @@
+export { ALL_DATA_TYPES } from './all-data-types';
 export { FormulaArray } from './array';
 export { FormulaBoolean } from './boolean';
 export { FormulaDate } from './date';
