@@ -1,21 +1,15 @@
-import { FormulaString, Kind } from '../../data-types';
-import { Argument, createRoutineArguments } from '../arguments';
+import { FormulaString } from '../../data-types';
+import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
 routinesRegistry.registerRoutine('trim', {
-  on: [FormulaString],
   description: 'Returns the string with leading and trailing whitespace removed.',
-  examples: createRoutineExamples([
+  examples: [
     {
       formula: (name) => name('"  hello  "'),
       result: () => new FormulaString('hello'),
     },
-  ]),
-  arguments: createRoutineArguments([
-    new Argument(Kind.String, { name: 'text' }),
-  ]),
-  handler: ({ subject }) => {
-    return new FormulaString(subject.value.trim());
-  },
+  ],
+  arguments: [arg.string('text')],
+  handler: ({ subject }) => new FormulaString(subject.value.trim()),
 });

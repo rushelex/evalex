@@ -1,13 +1,12 @@
 import type { FormulaDataType } from '../../data-types';
-import type { ProcessedArgument } from '../arguments';
+import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaArray, FormulaNumber, Kind } from '../../data-types';
 import { Errors } from '../../errors';
-import { Argument, createRoutineArguments } from '../arguments';
+import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
-const routineExamples = createRoutineExamples([
+const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name('[1, 2, 3]'),
     result: () => new FormulaNumber(6),
@@ -20,21 +19,18 @@ const routineExamples = createRoutineExamples([
     formula: (name) => name('1', '[2, 3, [4, 5]]'),
     result: () => new FormulaNumber(15),
   },
-]);
+];
 
 routinesRegistry.registerRoutine('sum', {
-  on: [FormulaArray, FormulaNumber],
   description: 'Returns the sum of its arguments.',
   examples: routineExamples,
-  arguments: createRoutineArguments([
-    new Argument([Kind.Array, Kind.Number], { name: 'numbers', repeatable: true }),
-  ]),
+  arguments: [arg.oneOf('numbers', [Kind.Array, Kind.Number], { repeatable: true })],
   handler: ({ subject, args, location }) => {
-    const values = [subject, ...(args as ProcessedArgument[]).map((arg) => arg.dataType)].flatMap(flatten);
+    const values = [subject, ...args].flatMap(flatten);
 
     if (values.some((value) => !(value instanceof FormulaNumber))) {
       throw Errors.Argument.AllMustBeNumbers.create({
-        actual: values.map((value): string => typeof value.value).join(', '),
+        actual: values.map((value) => typeof value.value).join(', '),
       }, {
         location,
       });

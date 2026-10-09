@@ -1,9 +1,10 @@
-import { ALL_DATA_TYPES, FormulaBoolean, Kind } from '../../data-types';
-import { Argument, createRoutineArguments } from '../arguments';
-import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
+import type { RoutineExampleOptions } from '../routine-example';
 
-const routineExamples = createRoutineExamples([
+import { FormulaBoolean } from '../../data-types';
+import { arg } from '../arguments';
+import { routinesRegistry } from '../registry';
+
+const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name('1234'),
     result: () => new FormulaBoolean(false),
@@ -16,16 +17,13 @@ const routineExamples = createRoutineExamples([
     formula: (name) => name('[]'),
     result: () => new FormulaBoolean(true),
   },
-]);
-
-const routineArguments = createRoutineArguments([
-  new Argument(Kind.Any, { name: 'value' }),
-]);
+];
 
 routinesRegistry.registerRoutine('empty', {
-  on: ALL_DATA_TYPES,
   description: 'Returns true if the value is empty: 0, "", false or [].',
   examples: routineExamples,
-  arguments: routineArguments,
+  arguments: [
+    arg.any('value'),
+  ],
   handler: ({ subject }) => new FormulaBoolean(subject.isEmpty()),
 });

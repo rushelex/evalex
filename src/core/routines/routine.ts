@@ -1,22 +1,16 @@
 import type { AST } from '../../parser';
 import type { FormulaEvaluatorVisitor } from '../evaluator.visitor';
-import type { ArgumentsPattern, ProcessedArguments } from './arguments';
+import type { ArgumentsPattern, CallArguments, ProcessedArguments, Signatures, SubjectCalls, SubjectSignatures } from './arguments';
 import type { RoutineExample } from './routine-example';
 
-import { AstNodes } from '../../parser';
 import { FormulaDataType } from '../data-types';
-import { ArgumentsProcessor, CallbackArgument, CallbackExecutor, ProcessedArgument, RoutineArguments } from './arguments';
-
-interface ContextUtils {
-  flatArgs: (args: AST.AstNode[] | ProcessedArguments) => AST.AstNode[];
-}
+import { ArgumentsProcessor, CallbackArgument, ProcessedArgument } from './arguments';
 
 interface FormulaDataTypeRoutineHandlerContext<TInstance extends FormulaDataType | unknown> {
   instance: TInstance;
   args: ProcessedArguments;
   visitor: FormulaEvaluatorVisitor;
   location: AST.Location;
-  utils: ContextUtils;
 }
 
 interface GlobalRoutineHandlerContext {
@@ -24,7 +18,6 @@ interface GlobalRoutineHandlerContext {
   args: ProcessedArguments | undefined;
   visitor: FormulaEvaluatorVisitor;
   location: AST.Location;
-  utils: ContextUtils;
 }
 
 export type RoutineHandlerContext<TInstance extends FormulaDataType | unknown> = TInstance extends FormulaDataType
@@ -34,15 +27,32 @@ export type RoutineHandlerContext<TInstance extends FormulaDataType | unknown> =
 export type RoutineHandler<TInstance extends FormulaDataType | unknown> = (context: RoutineHandlerContext<TInstance>) => FormulaDataType;
 
 /** Context of a routine registered for both forms: `subject` is `x` in `f(x, a)` and in `x.f(a)`, `args` are the rest. */
-export interface SubjectRoutineHandlerContext<TSubject extends FormulaDataType> {
-  readonly subject: TSubject;
-  readonly args: ProcessedArguments;
+export type SubjectRoutineHandlerContext<TSignatures extends SubjectSignatures> = SubjectCalls<TSignatures> & {
   readonly visitor: FormulaEvaluatorVisitor;
   readonly location: AST.Location;
-  readonly utils: ContextUtils;
+};
+
+export type SubjectRoutineHandler<TSignatures extends SubjectSignatures> = (context: SubjectRoutineHandlerContext<TSignatures>) => FormulaDataType;
+
+/** Context of a function-only routine; without declared arguments it reads the call syntax from `node` itself. */
+export interface FunctionRoutineHandlerContext<TSignatures extends Signatures | undefined> {
+  readonly node: AST.ICallExpressionNode;
+  readonly args: TSignatures extends Signatures ? CallArguments<TSignatures> : undefined;
+  readonly visitor: FormulaEvaluatorVisitor;
+  readonly location: AST.Location;
 }
 
-export type SubjectRoutineHandler<TSubject extends FormulaDataType> = (context: SubjectRoutineHandlerContext<TSubject>) => FormulaDataType;
+export type FunctionRoutineHandler<TSignatures extends Signatures | undefined> = (context: FunctionRoutineHandlerContext<TSignatures>) => FormulaDataType;
+
+/** Context of a method-only routine: `instance` is the value before the dot, `args` are those in the parentheses. */
+export interface MethodRoutineHandlerContext<TInstance extends FormulaDataType, TSignatures extends Signatures | undefined> {
+  readonly instance: TInstance;
+  readonly args: TSignatures extends Signatures ? CallArguments<TSignatures> : FormulaDataType[];
+  readonly visitor: FormulaEvaluatorVisitor;
+  readonly location: AST.Location;
+}
+
+export type MethodRoutineHandler<TInstance extends FormulaDataType, TSignatures extends Signatures | undefined> = (context: MethodRoutineHandlerContext<TInstance, TSignatures>) => FormulaDataType;
 
 export interface RoutineExecuteParams<TInstance extends FormulaDataType | unknown> {
   instance: TInstance;
@@ -54,7 +64,7 @@ export interface RoutineExecuteParams<TInstance extends FormulaDataType | unknow
 export interface RoutineOptions<TInstance extends Routine | FormulaDataType | unknown = unknown> {
   readonly description: string;
   readonly examples: RoutineExample[];
-  readonly arguments?: ArgumentsPattern | readonly ArgumentsPattern[] | RoutineArguments;
+  readonly arguments?: ArgumentsPattern | readonly ArgumentsPattern[];
   readonly handler: RoutineHandler<TInstance>;
 }
 
@@ -67,8 +77,7 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
   constructor(options: RoutineOptions<TInstance>) {
     this.description = options.description;
     this.examples = options.examples;
-    const args = options.arguments instanceof RoutineArguments ? options.arguments.alternatives : options.arguments;
-    this.#argumentsProcessor = args ? new ArgumentsProcessor(args) : undefined;
+    this.#argumentsProcessor = options.arguments ? new ArgumentsProcessor(options.arguments) : undefined;
     this.#handler = options.handler;
   }
 
@@ -79,15 +88,12 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
 
     this.#validate(processedArgs, location);
 
-    const utils = this.#buildContextUtils();
-
     if (instance instanceof FormulaDataType) {
       const context = {
         instance,
         args: processedArgs || node.args.map((arg) => new ProcessedArgument(visitor.evaluateNode(arg), arg)),
         visitor,
         location,
-        utils,
       } satisfies FormulaDataTypeRoutineHandlerContext<FormulaDataType>;
 
       return this.#handler(context as RoutineHandlerContext<TInstance>);
@@ -98,7 +104,6 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
       args: processedArgs,
       visitor,
       location,
-      utils,
     } satisfies GlobalRoutineHandlerContext;
 
     return this.#handler(context as RoutineHandlerContext<TInstance>);
@@ -153,18 +158,5 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
     }
 
     throw this.#argumentsProcessor.getValidationError(processedArgs, location);
-  }
-
-  #buildContextUtils(): ContextUtils {
-    function flatArgs(args: AST.AstNode[] | ProcessedArguments): AST.AstNode[] {
-      return args.flatMap((arg) => {
-        const node = arg instanceof ProcessedArgument ? arg.node : arg instanceof CallbackExecutor ? arg.node : arg;
-        return node instanceof AstNodes.ArrayExpressionNode ? flatArgs(node.elements) : node;
-      });
-    }
-
-    return {
-      flatArgs,
-    };
   }
 }

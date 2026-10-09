@@ -1,15 +1,11 @@
-import type { ProcessedArgument } from '../arguments';
-
-import { FormulaArray, FormulaRegExp, FormulaString, Kind } from '../../data-types';
+import { FormulaArray, FormulaRegExp, FormulaString } from '../../data-types';
 import { getRegExpFallbackError } from '../../errors';
-import { Argument, createRoutineArguments } from '../arguments';
+import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
 routinesRegistry.registerRoutine('match', {
-  on: [FormulaString],
   description: 'Returns all matches of the regular expression as a list.',
-  examples: createRoutineExamples([
+  examples: [
     {
       formula: (name) => name('"Order 123 Order 456"', '"\\\\d+"'),
       result: () => new FormulaArray([new FormulaString('123'), new FormulaString('456')]),
@@ -22,16 +18,14 @@ routinesRegistry.registerRoutine('match', {
       formula: (name) => name('"test@example.com"', '"@"'),
       result: () => new FormulaArray([new FormulaString('@')]),
     },
-  ]),
-  arguments: createRoutineArguments([
-    new Argument(Kind.String, { name: 'text' }),
-    new Argument([Kind.String, Kind.RegExp], { name: 'pattern' }),
-  ]),
-  handler: ({ subject, args, location, visitor }) => {
+  ],
+  arguments: [
+    arg.string('text'),
+    arg.pattern('pattern'),
+  ],
+  handler: ({ subject, args: [pattern], location, visitor }) => {
     try {
-      const [patternArg] = args as [ProcessedArgument<FormulaString | FormulaRegExp>];
-
-      const regexp = patternArg.dataType instanceof FormulaRegExp ? patternArg.dataType : new FormulaRegExp(patternArg.dataType.value);
+      const regexp = pattern instanceof FormulaRegExp ? pattern : new FormulaRegExp(pattern.value);
 
       let regex = regexp.toRegExp();
 

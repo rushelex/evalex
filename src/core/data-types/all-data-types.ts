@@ -1,6 +1,7 @@
 import type { Class } from 'type-fest';
 
 import type { FormulaDataType } from './FormulaDataType';
+import type { Kind } from './kind';
 
 import { FormulaArray } from './array';
 import { FormulaBoolean } from './boolean';
@@ -15,7 +16,7 @@ import { FormulaString } from './string';
 /**
  * Every formula data type, for routines whose method form exists on any value.
  */
-export const ALL_DATA_TYPES: ReadonlyArray<Class<FormulaDataType>> = [
+export const ALL_DATA_TYPES: ReadonlyArray<Class<FormulaDataType> & { readonly kind: Kind }> = [
   FormulaArray,
   FormulaBoolean,
   FormulaDate,

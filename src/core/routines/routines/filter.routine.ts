@@ -1,11 +1,10 @@
-import type { CallbackExecutor } from '../arguments';
+import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaArray, FormulaNumber, FormulaString, Kind } from '../../data-types';
-import { Argument, CallbackArgument, createRoutineArguments } from '../arguments';
+import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
-const routineExamples = createRoutineExamples([
+const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name('[1, 2, 3, 4, 5]', 'current > 3'),
     result: () => new FormulaArray([new FormulaNumber(4), new FormulaNumber(5)]),
@@ -18,30 +17,17 @@ const routineExamples = createRoutineExamples([
     formula: (name) => name('["a", "b", "c"]', 'current == "a"'),
     result: () => new FormulaArray([new FormulaString('a')]),
   },
-]);
+];
 
 routinesRegistry.registerRoutine('filter', {
-  on: [FormulaArray],
   description: 'Returns the values in the list for which the condition is true.',
   examples: routineExamples,
-  arguments: createRoutineArguments([
-    new Argument(Kind.Array, { name: 'list' }),
-    new CallbackArgument(['current', 'index'], {
-      name: 'predicate',
-      returnType: Kind.Boolean,
-    }),
-  ]),
-  handler: ({ subject, args }) => {
-    const [predicateArg] = args as [CallbackExecutor];
-
-    const results = subject.value.filter((current, index) => {
-      const result = predicateArg.execute({
-        current,
-        index: new FormulaNumber(index),
-      });
-
-      return !!result.value;
-    });
+  arguments: [
+    arg.array('list'),
+    arg.eachItem('predicate', { returns: Kind.Boolean }),
+  ],
+  handler: ({ subject, args: [predicate] }) => {
+    const results = subject.value.filter((current, index) => predicate.execute({ current, index: new FormulaNumber(index) }).value);
 
     return new FormulaArray(results);
   },

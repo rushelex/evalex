@@ -1,9 +1,10 @@
+import type { RoutineExampleOptions } from '../routine-example';
+
 import { FormulaBoolean, FormulaString } from '../../data-types';
 import { Errors } from '../../errors';
 import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
-const routineExamples = createRoutineExamples([
+const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name('1 > 0', 'true', 'false'),
     result: () => new FormulaBoolean(true),
@@ -12,7 +13,7 @@ const routineExamples = createRoutineExamples([
     formula: (name) => name('"a" == "b"', '"Equal"', '"Not Equal"'),
     result: () => new FormulaString('Not Equal'),
   },
-]);
+];
 
 routinesRegistry.registerFunction('if', {
   description: 'Returns the first value if the condition is true, else the second.',

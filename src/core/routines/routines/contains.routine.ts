@@ -1,15 +1,10 @@
-import type { FormulaRegExp } from '../../data-types';
-import type { ProcessedArgument } from '../arguments';
-
-import { FormulaBoolean, FormulaString, Kind } from '../../data-types';
-import { Argument, createRoutineArguments } from '../arguments';
+import { FormulaBoolean, FormulaString } from '../../data-types';
+import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
 routinesRegistry.registerRoutine('contains', {
-  on: [FormulaString],
   description: 'Tests whether the string contains the text or a regex match.',
-  examples: createRoutineExamples([
+  examples: [
     {
       formula: (name) => name('"Hello world"', '"wor"'),
       result: () => new FormulaBoolean(true),
@@ -22,19 +17,17 @@ routinesRegistry.registerRoutine('contains', {
       formula: (name) => name('"v1.2"', '/\\d\\.\\d/'),
       result: () => new FormulaBoolean(true),
     },
-  ]),
-  arguments: createRoutineArguments([
-    new Argument(Kind.String, { name: 'text' }),
-    new Argument([Kind.String, Kind.RegExp], { name: 'search' }),
-  ]),
-  handler: ({ subject, args }) => {
-    const [searchArg] = args as [ProcessedArgument<FormulaString | FormulaRegExp>];
-
+  ],
+  arguments: [
+    arg.string('text'),
+    arg.pattern('search'),
+  ],
+  handler: ({ subject, args: [search] }) => {
     // A string argument is plain text, so regex metacharacters like "." match literally
-    if (searchArg.dataType instanceof FormulaString) {
-      return new FormulaBoolean(subject.value.includes(searchArg.dataType.value));
+    if (search instanceof FormulaString) {
+      return new FormulaBoolean(subject.value.includes(search.value));
     }
 
-    return new FormulaBoolean(searchArg.dataType.toRegExp().test(subject.value));
+    return new FormulaBoolean(search.toRegExp().test(subject.value));
   },
 });

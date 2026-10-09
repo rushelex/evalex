@@ -1,14 +1,12 @@
-import type { FormulaNumber, FormulaString } from '../../data-types';
-import type { ProcessedArgument } from '../arguments';
+import type { RoutineExampleOptions } from '../routine-example';
 
 import { Temporal } from 'temporal-polyfill';
 
-import { FormulaDate, FormulaDuration, Kind } from '../../data-types';
-import { Argument, createRoutineArguments } from '../arguments';
+import { FormulaDate, FormulaDuration } from '../../data-types';
+import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
-const routineExamples = createRoutineExamples([
+const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name('parseDate("2023-08-30")', '1', '"days"'),
     result: () => FormulaDate.from(Temporal.ZonedDateTime.from({ year: 2023, month: 8, day: 31, timeZone: 'UTC' })),
@@ -21,46 +19,20 @@ const routineExamples = createRoutineExamples([
     formula: (name) => name('parseDate("2023-08-30")', '3', '"years"'),
     result: () => FormulaDate.from(Temporal.ZonedDateTime.from({ year: 2026, month: 8, day: 30, timeZone: 'UTC' })),
   },
-]);
+];
 
 const DURATION_UNITS = ['years', 'months', 'weeks', 'days', 'hours', 'minutes', 'seconds'] as const;
 
-const routineArguments = createRoutineArguments([
-  [
-    new Argument(Kind.Date, { name: 'date' }),
-    new Argument(Kind.Duration, { name: 'duration' }),
-  ],
-  [
-    new Argument(Kind.Date, { name: 'date' }),
-    new Argument(Kind.Number, { name: 'number' }),
-    new Argument(Kind.String, {
-      name: 'unit',
-      validation: (dataType) => {
-        if (!DURATION_UNITS.includes(dataType.value)) {
-          return {
-            message: `Expected ${DURATION_UNITS.map((u) => `"${u}"`).join(', ')}.`,
-            actual: dataType.value,
-            expected: DURATION_UNITS,
-            argumentPosition: 2,
-          };
-        }
-      },
-    }),
-  ],
-]);
-
 routinesRegistry.registerRoutine({ function: 'dateAdd', method: 'add' }, {
-  on: [FormulaDate],
   description: 'Adds a duration or a number of units to the date.',
   examples: routineExamples,
-  arguments: routineArguments,
-  handler: ({ subject, args }) => {
-    const [firstArg, secondArg] = args as [ProcessedArgument<FormulaDuration>] | [ProcessedArgument<FormulaNumber>, ProcessedArgument<FormulaString>];
+  arguments: [
+    [arg.date('date'), arg.duration('duration')],
+    [arg.date('date'), arg.number('number'), arg.choice('unit', DURATION_UNITS)],
+  ],
+  handler: ({ subject, args: [amount, unit] }) => {
+    const duration: Temporal.DurationLike = amount instanceof FormulaDuration ? amount.value : { [unit!.value]: amount.value };
 
-    const durationToAdd: Temporal.DurationLike = firstArg.dataType instanceof FormulaDuration
-      ? firstArg.dataType.value
-      : { [secondArg!.dataType.value]: firstArg.dataType.value };
-
-    return FormulaDate.from(subject.value.add(durationToAdd));
+    return FormulaDate.from(subject.value.add(duration));
   },
 });

@@ -1,3 +1,5 @@
+import type { FormulaDataType } from '../../data-types';
+
 import { Kind } from '../../data-types';
 
 interface CallbackArgumentOptions {
@@ -6,15 +8,23 @@ interface CallbackArgumentOptions {
   returnType?: Kind | Kind[];
 }
 
-export class CallbackArgument {
+/**
+ * Definition of an argument evaluated by the routine itself, once per call, with extra variables in scope.
+ *
+ * @remarks
+ * `TVariables` and `TReturn` exist only for types: they type `execute` of the {@link CallbackExecutor}
+ * the handler receives. The return type is enforced at run time by `returnType`.
+ */
+export class CallbackArgument<TVariables extends string = string, TReturn extends FormulaDataType = FormulaDataType> {
   readonly types = Kind.Any;
   readonly name?: string;
   readonly optional: boolean;
-  readonly contextVariables: string[];
+  readonly contextVariables: readonly TVariables[];
   readonly returnType: Kind | Kind[];
+  declare readonly returnValueType?: TReturn;
 
   constructor(
-    contextVariables: string[],
+    contextVariables: readonly TVariables[],
     options?: CallbackArgumentOptions,
   ) {
     this.name = options?.name;

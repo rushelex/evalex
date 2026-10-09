@@ -8,7 +8,7 @@ export class RoutineExamples {
 
   constructor(
     routineName: string,
-    examples: RoutineExampleOptions[],
+    examples: readonly RoutineExampleOptions[],
   ) {
     this.routineName = routineName;
     this.examples = examples.map((options) => {
@@ -45,10 +45,4 @@ export class RoutineExamples {
       });
     });
   }
-}
-
-export function createRoutineExamples(examples: RoutineExampleOptions[]): (routineName: string) => RoutineExamples {
-  return (routineName: string) => {
-    return new RoutineExamples(routineName, examples);
-  };
 }

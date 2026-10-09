@@ -1,44 +1,54 @@
-import type { FormulaDataTypeByKind, Kind } from '../../data-types';
+import type { Kind } from '../../data-types';
 import type { Argument } from './argument';
 import type { ArgumentsPattern } from './arguments-definitions';
 import type { CallbackArgument } from './callback-argument';
 import type { CallbackExecutor } from './callback-executor';
-import type { ProcessedArgument } from './processed-argument';
-import type { RoutineArguments } from './routine-arguments';
 
-export type InferArgument<T extends Argument>
-  = T extends Argument<infer K>
-    ? K extends Kind
-      ? FormulaDataTypeByKind<K>
-      : never
+/** One signature of a routine with a call subject: the subject comes first and is always a value. */
+export type SubjectSignature = readonly [Argument, ...(Argument | CallbackArgument)[]];
+
+/** The value a handler receives for an argument definition. */
+export type ArgumentValue<TArgument>
+  = TArgument extends Argument<Kind, infer TValue> ? TValue
+  : TArgument extends CallbackArgument<infer TVariables, infer TReturn> ? CallbackExecutor<TVariables, TReturn>
+  : never;
+
+/** Handler values for the arguments of a signature: optional ones may be missing, a repeatable one spreads. */
+export type ArgumentValues<TArguments extends readonly unknown[]>
+  = TArguments extends readonly [infer THead, ...infer TTail]
+    ? THead extends { readonly repeatable: true }
+      ? ArgumentValue<THead>[]
+      : THead extends { readonly optional: true }
+        ? [ArgumentValue<THead>?, ...ArgumentValues<TTail>]
+        : [ArgumentValue<THead>, ...ArgumentValues<TTail>]
+    : [];
+
+/** The subject and the remaining arguments of one signature; a repeatable subject spreads into `args`. */
+export type SubjectCall<TSignature extends SubjectSignature>
+  = TSignature extends readonly [infer TSubject, ...infer TRest]
+    ? TSubject extends { readonly repeatable: true }
+      ? { readonly subject: ArgumentValue<TSubject>; readonly args: ArgumentValue<TSubject>[] }
+      : { readonly subject: ArgumentValue<TSubject>; readonly args: ArgumentValues<TRest> }
     : never;
 
-type ToProcessedArgument<T extends Argument | CallbackArgument>
-  = T extends Argument
-    ? ProcessedArgument<InferArgument<T>>
-    : T extends CallbackArgument
-      ? CallbackExecutor
+/** Signatures given either as one signature or as a list of alternatives. */
+export type SubjectSignatures = SubjectSignature | readonly SubjectSignature[];
+
+/** One {@link SubjectCall} per alternative signature. */
+export type SubjectCalls<TSignatures extends SubjectSignatures>
+  = TSignatures extends SubjectSignature
+    ? SubjectCall<TSignatures>
+    : TSignatures extends readonly SubjectSignature[]
+      ? SubjectCall<TSignatures[number]>
       : never;
 
-type ExcludeHeadArgument<T extends ArgumentsPattern, ExcludeHead extends boolean = false>
-  = ExcludeHead extends true
-    ? T extends readonly [infer _THead, ...infer TTail]
-      ? TTail extends ArgumentsPattern
-        ? { +readonly [K in keyof TTail]: ToProcessedArgument<TTail[K]> }
-        : never
-      : T
-    : { +readonly [K in keyof T]: ToProcessedArgument<T[K]> };
+/** Signatures of a routine without a call subject: one signature or a list of alternatives. */
+export type Signatures = ArgumentsPattern | readonly ArgumentsPattern[];
 
-type UnwrapArguments<T extends ArgumentsPattern | ReadonlyArray<ArgumentsPattern>, ExcludeHead extends boolean = false>
-  = T extends ReadonlyArray<ArgumentsPattern>
-    ? { +readonly [K in keyof T]: ExcludeHeadArgument<T[K], ExcludeHead> }
-    : T extends ArgumentsPattern
-      ? ExcludeHeadArgument<T, ExcludeHead>
-      : never;
-
-export type InferRoutineArguments<T extends RoutineArguments | ArgumentsPattern | ReadonlyArray<ArgumentsPattern>, ExcludeHead extends boolean = false>
-  = T extends RoutineArguments<infer TPatterns>
-    ? UnwrapArguments<TPatterns, ExcludeHead>
-    : T extends ArgumentsPattern | ReadonlyArray<ArgumentsPattern>
-      ? UnwrapArguments<T, ExcludeHead>
+/** Handler values for the arguments, one tuple per alternative signature. */
+export type CallArguments<TSignatures extends Signatures>
+  = TSignatures extends ArgumentsPattern
+    ? ArgumentValues<TSignatures>
+    : TSignatures extends readonly ArgumentsPattern[]
+      ? ArgumentValues<TSignatures[number]>
       : never;

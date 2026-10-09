@@ -1,11 +1,10 @@
-import type { ProcessedArgument } from '../arguments';
+import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaArray, FormulaString, Kind } from '../../data-types';
-import { Argument, createRoutineArguments } from '../arguments';
+import { FormulaString } from '../../data-types';
+import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
-const routineExamples = createRoutineExamples([
+const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name('["a", "b", "c"]'),
     result: () => new FormulaString('abc'),
@@ -18,21 +17,18 @@ const routineExamples = createRoutineExamples([
     formula: (name) => name('["a", "b", "c"]', '""'),
     result: () => new FormulaString('abc'),
   },
-]);
+];
 
 routinesRegistry.registerRoutine('join', {
-  on: [FormulaArray],
   description: 'Returns the values of the list joined with the joiner.',
   examples: routineExamples,
-  arguments: createRoutineArguments([
-    new Argument(Kind.Array, { name: 'list' }),
-    new Argument(Kind.String, { name: 'separator', optional: true }),
-  ]),
-  handler: ({ subject, args }) => {
-    const [separatorArg] = args as [ProcessedArgument<FormulaString>?];
-    const separator = separatorArg?.dataType.value ?? '';
-    const stringValues = subject.value.map((item) => item.toString());
-
-    return new FormulaString(stringValues.join(separator));
-  },
+  arguments: [
+    arg.array('list'),
+    arg.string('separator', { optional: true }),
+  ],
+  handler: ({ subject, args: [separator] }) => new FormulaString(
+    subject.value
+      .map((item) => item.toString())
+      .join(separator?.value ?? ''),
+  ),
 });

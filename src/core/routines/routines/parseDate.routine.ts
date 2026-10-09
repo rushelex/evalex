@@ -1,12 +1,10 @@
-import type { FormulaString } from '../../data-types';
-import type { ProcessedArgument } from '../arguments';
+import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaDate, Kind } from '../../data-types';
-import { Argument, createRoutineArguments } from '../arguments';
+import { FormulaDate } from '../../data-types';
+import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
-const routineExamples = createRoutineExamples([
+const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name('"2023-07-10"'),
     result: () => FormulaDate.from('2023-07-10'),
@@ -15,31 +13,22 @@ const routineExamples = createRoutineExamples([
     formula: (name) => name('"2023-07-10T17:35Z"'),
     result: () => FormulaDate.from('2023-07-10T17:35Z'),
   },
-]);
+];
 
 routinesRegistry.registerFunction('parseDate', {
   description: 'Returns the date parsed according to the ISO 8601 standard.',
   examples: routineExamples,
-  arguments: createRoutineArguments([
-    new Argument(Kind.String, {
-      name: 'date',
+  arguments: [
+    arg.string('date', {
       validation: (value) => {
         try {
           FormulaDate.from(value.value);
         }
         catch {
-          return {
-            message: 'Expected valid date string.',
-            actual: value.value,
-            expected: ['valid date string'],
-            argumentPosition: 0,
-          };
+          return { message: 'Expected valid date string.', expected: ['valid date string'], actual: value.value };
         }
       },
     }),
-  ]),
-  handler: ({ args }) => {
-    const [dateStringArg] = args as [ProcessedArgument<FormulaString>];
-    return FormulaDate.from(dateStringArg.dataType.value);
-  },
+  ],
+  handler: ({ args: [date] }) => FormulaDate.from(date.value),
 });

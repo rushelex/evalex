@@ -1,18 +1,12 @@
-import type { ProcessedArgument } from '../arguments';
-
 import {
-  ALL_DATA_TYPES,
   FormulaBoolean,
-  Kind,
 } from '../../data-types';
-import { Argument, createRoutineArguments } from '../arguments';
+import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
 routinesRegistry.registerRoutine('equal', {
-  on: ALL_DATA_TYPES,
   description: 'Returns true if both values are equal and false otherwise.',
-  examples: createRoutineExamples([
+  examples: [
     {
       formula: (name) => name('1', '1'),
       result: () => new FormulaBoolean(true),
@@ -21,14 +15,7 @@ routinesRegistry.registerRoutine('equal', {
       formula: (name) => name('"1"', '"1"'),
       result: () => new FormulaBoolean(true),
     },
-  ]),
-  arguments: createRoutineArguments([
-    new Argument(Kind.Any, { name: 'a' }),
-    new Argument(Kind.Any, { name: 'b' }),
-  ]),
-  handler: ({ subject, args }) => {
-    const [bArg] = args as [ProcessedArgument<FormulaBoolean>];
-    const result = subject.value === bArg.dataType.value;
-    return new FormulaBoolean(result);
-  },
+  ],
+  arguments: [arg.any('a'), arg.any('b')],
+  handler: ({ subject, args: [other] }) => new FormulaBoolean(subject.value === other.value),
 });

@@ -1,35 +1,50 @@
-import type { Class, Merge } from 'type-fest';
+import type { Class } from 'type-fest';
 
 import type { AST } from '../../parser';
 import type { FormulaDataType } from '../data-types';
-import type { ArgumentsPattern, ProcessedArgument, RoutineArguments } from './arguments';
-import type { RoutineOptions, SubjectRoutineHandler } from './routine';
-import type { RoutineExamples } from './routine-examples';
+import type { ArgumentsPattern, ProcessedArguments, Signatures, SubjectSignature, SubjectSignatures } from './arguments';
+import type { FunctionRoutineHandler, MethodRoutineHandler, SubjectRoutineHandler } from './routine';
+import type { RoutineExampleOptions } from './routine-example';
 
-import { Kind } from '../data-types';
+import { ALL_DATA_TYPES, Kind } from '../data-types';
 import { Errors } from '../errors';
-import { Argument, ArgumentsDefinitions } from './arguments';
+import { Argument, ArgumentsDefinitions, ProcessedArgument } from './arguments';
 import { Routine } from './routine';
+import { RoutineExamples } from './routine-examples';
 
-type RegisterRoutineOptions<TInstance extends FormulaDataType | unknown = unknown> = Merge<RoutineOptions<TInstance>, {
-  examples: (routineName: string) => RoutineExamples;
-  arguments?: RoutineArguments | (() => RoutineArguments);
-}>;
+interface SingleFormDefinition<TSignatures extends Signatures | undefined> {
+  /** One sentence shown in UI tooltips. */
+  readonly description: string;
+  readonly examples: readonly RoutineExampleOptions[];
+  /** One signature, or a list of alternative signatures, built with `arg`; omitted when the handler reads the call syntax itself. */
+  readonly arguments?: TSignatures;
+}
+
+export interface FunctionDefinition<TSignatures extends Signatures | undefined> extends SingleFormDefinition<TSignatures> {
+  readonly handler: FunctionRoutineHandler<TSignatures>;
+}
+
+export interface MethodDefinition<TInstance extends FormulaDataType, TSignatures extends Signatures | undefined> extends SingleFormDefinition<TSignatures> {
+  readonly handler: MethodRoutineHandler<TInstance, TSignatures>;
+}
 
 /** A name shared by both forms, or separate names for the function and the method. */
 export type RoutineName = string | { readonly function: string; readonly method: string };
 
-export interface RegisterSubjectRoutineOptions<TDataType extends Class<FormulaDataType>> {
-  /** Data types that get the method form. */
-  readonly on: readonly TDataType[];
+export interface RoutineDefinition<TSignatures extends SubjectSignatures> {
   /** One sentence shown in UI tooltips for both forms. */
   readonly description: string;
   /** Examples written once with `name(subject, ...args)` and run in both forms. */
-  readonly examples: (routineName: string) => RoutineExamples;
-  /** Signatures of the function form; the first argument of each is the call subject. */
-  readonly arguments: () => RoutineArguments;
+  readonly examples: readonly RoutineExampleOptions[];
+  /**
+   * One signature, or a list of alternative signatures, built with `arg`.
+   *
+   * @remarks
+   * The first argument of each is the call subject; its types decide which data types get the method form.
+   */
+  readonly arguments: TSignatures;
   /** Implementation shared by both forms; receives the call subject apart from the remaining arguments. */
-  readonly handler: SubjectRoutineHandler<InstanceType<TDataType>>;
+  readonly handler: SubjectRoutineHandler<TSignatures>;
 }
 
 /**
@@ -49,13 +64,14 @@ export class RoutinesRegistry {
    * so that `f(x)` and `x.f()` share one description and cannot drift apart.
    * A second registration under the same name replaces the first.
    */
-  registerFunction(name: string, options: RegisterRoutineOptions): void {
-    const examplesOption = options.examples(name).toFunctionExamples();
-    const argumentsOption = typeof options.arguments === 'function' ? options.arguments() : options.arguments;
+  registerFunction<const TSignatures extends Signatures | undefined = undefined>(name: string, definition: FunctionDefinition<TSignatures>): void {
+    const handler = definition.handler as FunctionRoutineHandler<Signatures | undefined>;
+
     this.#functionRegistry.set(name, new Routine({
-      ...options,
-      examples: examplesOption,
-      arguments: argumentsOption,
+      description: definition.description,
+      examples: new RoutineExamples(name, definition.examples).toFunctionExamples(),
+      arguments: definition.arguments,
+      handler: ({ node, args, visitor, location }) => handler({ node, args: args && toValues(args), visitor, location } as Parameters<typeof handler>[0]),
     }));
   }
 
@@ -63,90 +79,82 @@ export class RoutinesRegistry {
    * Registers a routine that exists only as a method of one data type, such as `date.subtract()`.
    *
    * @remarks
-   * The method is inherited by subclasses of the data type. Its arguments are the function signatures without
-   * the first one, which is the call subject; the handler reads the subject from `instance`.
+   * The method is inherited by subclasses of the data type. Its arguments are those inside the parentheses;
+   * the handler reads the value before the dot from `instance`.
    * A routine with both forms is registered with {@link RoutinesRegistry.registerRoutine} instead.
    * A second registration under the same name on the same type replaces the first.
    */
-  registerMethod<TInstance extends FormulaDataType>(
+  registerMethod<TInstance extends FormulaDataType, const TSignatures extends Signatures | undefined = undefined>(
     dataTypeCtor: Class<TInstance>,
     name: string,
-    options: RegisterRoutineOptions<TInstance>,
+    definition: MethodDefinition<TInstance, TSignatures>,
   ): void {
+    const handler = definition.handler as MethodRoutineHandler<FormulaDataType, Signatures | undefined>;
+
     if (!this.#methodRegistry.has(dataTypeCtor)) {
       this.#methodRegistry.set(dataTypeCtor, new Map());
     }
 
-    const typeMethods = this.#methodRegistry.get(dataTypeCtor)!;
-
-    const examplesOption = options.examples(name).toMethodExamples();
-
-    const argumentsOption = typeof options.arguments === 'function' ? options.arguments() : options.arguments;
-
-    typeMethods.set(name, new Routine({
-      ...options,
-      examples: examplesOption,
-      arguments: argumentsOption?.toMethodArgs(),
-    } as RoutineOptions<unknown>));
+    this.#methodRegistry.get(dataTypeCtor)!.set(name, new Routine<FormulaDataType>({
+      description: definition.description,
+      examples: new RoutineExamples(name, definition.examples).toMethodExamples(),
+      arguments: definition.arguments,
+      handler: ({ instance, args, visitor, location }) => handler({ instance, args: toValues(args), visitor, location } as Parameters<typeof handler>[0]),
+    }) as Routine);
 
     this.#invalidateCache();
   }
 
   /**
-   * Registers a routine once for both call forms: `f(x, a)` as a function and `x.f(a)` as a method on each type in `on`.
+   * Registers a routine once for both call forms: `f(x, a)` as a function and `x.f(a)` as a method.
    *
    * @remarks
-   * The handler receives the call subject (`x`) and the remaining arguments (`a`) the same way for both forms.
-   * The method on a type gets only the signatures whose first argument accepts that type.
+   * The method exists on every data type the first argument accepts, and on a type it gets only the signatures
+   * that accept that type. The handler receives the call subject (`x`) and the remaining arguments (`a`)
+   * the same way for both forms, typed from the signatures.
    *
-   * @throws Error when a name is already registered, or when no signature accepts a type from `on` as the subject.
+   * @throws Error when the function or the method name is already registered.
    */
-  registerRoutine<TDataType extends Class<FormulaDataType>>(name: RoutineName, options: RegisterSubjectRoutineOptions<TDataType>): void {
+  registerRoutine<const TSignatures extends SubjectSignatures>(name: RoutineName, definition: RoutineDefinition<TSignatures>): void {
     const functionName = typeof name === 'string' ? name : name.function;
     const methodName = typeof name === 'string' ? name : name.method;
-    const signatures = new ArgumentsDefinitions(options.arguments().alternatives).alternatives;
+    const signatures = new ArgumentsDefinitions(definition.arguments).alternatives as readonly SubjectSignature[];
+    const handler = definition.handler as SubjectRoutineHandler<SubjectSignatures>;
 
-    const methodSignatures = options.on.map((ctor) => {
-      const kind = (ctor as { kind?: Kind }).kind;
-      const accepted = signatures.filter(([subject]) => subject instanceof Argument && acceptsKind(subject, kind));
+    const methods = subjectDataTypes(signatures).map((ctor) => {
+      const accepted = signatures.filter(([subject]) => acceptsKind(subject, ctor.kind));
 
-      if (accepted.length === 0) {
-        throw new Error(`Routine "${methodName}" has no signature whose first argument accepts ${kind ?? ctor.name}.`);
-      }
-
-      return { ctor, subjects: accepted.map(([subject]) => subject as Argument), signatures: accepted.map(toMethodSignature) };
+      return { ctor, subjects: accepted.map(([subject]) => subject), signatures: accepted.map(toMethodSignature) };
     });
 
-    if (this.#functionRegistry.has(functionName) || options.on.some((ctor) => this.#methodRegistry.get(ctor)?.has(methodName))) {
+    if (this.#functionRegistry.has(functionName) || methods.some(({ ctor }) => this.#methodRegistry.get(ctor)?.has(methodName))) {
       throw new Error(`Routine "${typeof name === 'string' ? name : `${functionName}/${methodName}`}" is already registered.`);
     }
 
     this.#functionRegistry.set(functionName, new Routine({
-      description: options.description,
-      examples: options.examples(functionName).toFunctionExamples(),
+      description: definition.description,
+      examples: new RoutineExamples(functionName, definition.examples).toFunctionExamples(),
       arguments: signatures,
-      handler: ({ args, visitor, location, utils }) => {
-        const [subject, ...rest] = args!;
+      handler: ({ args, visitor, location }) => {
+        const [subject, ...rest] = toValues(args!);
 
-        // Argument validation has already matched the subject against the signatures.
-        return options.handler({ subject: (subject as ProcessedArgument).dataType as InstanceType<TDataType>, args: rest, visitor, location, utils });
+        return handler({ subject, args: rest, visitor, location } as Parameters<typeof handler>[0]);
       },
     }));
 
-    for (const { ctor, subjects, signatures: ctorSignatures } of methodSignatures) {
+    for (const { ctor, subjects, signatures: ctorSignatures } of methods) {
       if (!this.#methodRegistry.has(ctor)) {
         this.#methodRegistry.set(ctor, new Map());
       }
 
       this.#methodRegistry.get(ctor)!.set(methodName, new Routine<FormulaDataType>({
-        description: options.description,
-        examples: options.examples(methodName).toMethodExamples(),
+        description: definition.description,
+        examples: new RoutineExamples(methodName, definition.examples).toMethodExamples(),
         arguments: ctorSignatures,
-        handler: ({ instance, args, visitor, location, utils }) => {
+        handler: ({ instance, args, visitor, location }) => {
           validateSubject(subjects, instance, location);
 
-          // The method is registered only on the types from `on`.
-          return options.handler({ subject: instance as InstanceType<TDataType>, args, visitor, location, utils });
+          return handler({ subject: instance, args: toValues(args), visitor, location } as Parameters<typeof handler>[0]);
         },
       }) as Routine);
     }
@@ -260,23 +268,33 @@ export class RoutinesRegistry {
 
 export const routinesRegistry = new RoutinesRegistry();
 
-function acceptsKind(argument: Argument, kind: Kind | undefined): boolean {
+function acceptsKind(argument: Argument, kind: Kind): boolean {
   const kinds = Array.isArray(argument.types) ? argument.types : [argument.types];
 
-  return kinds.includes(Kind.Any) || (kind !== undefined && kinds.includes(kind));
+  return kinds.includes(Kind.Any) || kinds.includes(kind);
+}
+
+// Data types whose values some signature accepts as the subject, in the order of `ALL_DATA_TYPES`.
+function subjectDataTypes(signatures: readonly SubjectSignature[]): typeof ALL_DATA_TYPES {
+  return ALL_DATA_TYPES.filter((ctor) => signatures.some(([subject]) => acceptsKind(subject, ctor.kind)));
+}
+
+// Handlers receive values, not their syntax: a callback stays an executor, anything else becomes its data type.
+function toValues(args: ProcessedArguments): unknown[] {
+  return args.map((arg) => (arg instanceof ProcessedArgument ? arg.dataType : arg));
 }
 
 // The method form drops the subject argument, so its custom validation runs here, as it does for the function form.
 function validateSubject(subjects: readonly Argument[], instance: FormulaDataType, location: AST.Location): void {
   for (const subject of subjects) {
-    const payload = subject.validation?.(instance);
+    const failure = subject.validation?.(instance);
 
-    if (payload) {
+    if (failure) {
       throw Errors.Argument.Validation.create({
         actual: String(instance.value),
         expected: ['valid value'],
+        ...failure,
         argumentPosition: 0,
-        ...payload,
       }, { location });
     }
   }

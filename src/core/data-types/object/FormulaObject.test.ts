@@ -3,9 +3,7 @@ import type { ToFormulaDataType } from '../types';
 import { Errors } from '~/core/errors';
 
 import { evaluate, loc } from '../../../testing-library';
-import { createRoutineArguments } from '../../routines/arguments';
 import { routinesRegistry } from '../../routines/registry';
-import { createRoutineExamples } from '../../routines/routine-examples';
 import { FormulaArray } from '../array';
 import { FormulaBoolean } from '../boolean';
 import { FormulaDate } from '../date';
@@ -572,13 +570,13 @@ describe('FormulaObject', () => {
 
       routinesRegistry.registerMethod(FormulaPerson, 'isAdult', {
         description: 'Checks if the user is an adult',
-        examples: createRoutineExamples([
+        examples: [
           {
             formula: (name) => name('person'),
             result: () => new FormulaBoolean(true),
           },
-        ]),
-        arguments: createRoutineArguments([]),
+        ],
+        arguments: [],
         handler: ({ instance }) => {
           return new FormulaBoolean(instance.value.age.value >= 18);
         },

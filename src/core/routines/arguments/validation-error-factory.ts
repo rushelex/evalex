@@ -110,8 +110,8 @@ export class ValidationErrorFactory {
     return Errors.Argument.Validation.create({
       actual: String(arg.dataType.value),
       expected: ['valid value'],
-      argumentPosition: position,
       ...payload,
+      argumentPosition: position,
     }, {
       location: arg.location,
     });
@@ -150,7 +150,6 @@ export class ValidationErrorFactory {
   ): FormulaError {
     return Errors.Argument.CallbackExpected.create({
       argumentPosition: position,
-      argumentName: argDef.name,
       actual: arg.dataType.kind,
     }, {
       location: arg.location,
@@ -171,7 +170,6 @@ export class ValidationErrorFactory {
   ): FormulaError {
     return Errors.Argument.UnexpectedCallback.create({
       argumentPosition: position,
-      argumentName: argDef.name,
       expected: Array.isArray(argDef.types) ? [...argDef.types] : [argDef.types],
     }, {
       location: arg.location,

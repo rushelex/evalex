@@ -1,15 +1,11 @@
-import type { ProcessedArgument } from '../arguments';
-
-import { FormulaRegExp, FormulaString, Kind } from '../../data-types';
+import { FormulaRegExp, FormulaString } from '../../data-types';
 import { getRegExpFallbackError } from '../../errors';
-import { Argument, createRoutineArguments } from '../arguments';
+import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
 routinesRegistry.registerRoutine('replace', {
-  on: [FormulaString],
   description: 'Replaces the first match, or every match with the "g" flag.',
-  examples: createRoutineExamples([
+  examples: [
     {
       formula: (name) => name('"Hello world"', '"world"', '"universe"'),
       result: () => new FormulaString('Hello universe'),
@@ -22,21 +18,17 @@ routinesRegistry.registerRoutine('replace', {
       formula: (name) => name('"Hello 123 world 456"', '/\\d+/g', '"XXX"'),
       result: () => new FormulaString('Hello XXX world XXX'),
     },
-  ]),
-  arguments: createRoutineArguments([
-    new Argument(Kind.String, { name: 'text' }),
-    new Argument([Kind.String, Kind.RegExp], { name: 'pattern' }),
-    new Argument(Kind.String, { name: 'replacement' }),
-  ]),
-  handler: ({ subject, args, location, visitor }) => {
+  ],
+  arguments: [
+    arg.string('text'),
+    arg.pattern('pattern'),
+    arg.string('replacement'),
+  ],
+  handler: ({ subject, args: [pattern, replacement], location, visitor }) => {
     try {
-      const [patternArg, replacementArg] = args as [ProcessedArgument<FormulaString | FormulaRegExp>, ProcessedArgument<FormulaString>];
+      const regexp = pattern instanceof FormulaRegExp ? pattern : new FormulaRegExp(pattern.value);
 
-      const regexp = patternArg.dataType instanceof FormulaRegExp ? patternArg.dataType : new FormulaRegExp(patternArg.dataType.value);
-
-      const replacement = replacementArg.dataType.value;
-
-      return new FormulaString(subject.value.replace(regexp.toRegExp(), replacement));
+      return new FormulaString(subject.value.replace(regexp.toRegExp(), replacement.value));
     }
     catch (error) {
       throw getRegExpFallbackError(error, location, visitor.formula);

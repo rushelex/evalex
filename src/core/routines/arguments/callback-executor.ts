@@ -11,7 +11,8 @@ interface CallbackExecutorOptions {
   readonly argumentName?: string;
 }
 
-export class CallbackExecutor {
+/** Evaluates a callback argument with the variables its routine provides; the result is checked against the declared return type. */
+export class CallbackExecutor<TVariables extends string = string, TReturn extends FormulaDataType = FormulaDataType> {
   readonly node: AST.AstNode;
   readonly #visitor: FormulaEvaluatorVisitor;
   readonly returnType?: Kind | Kind[];
@@ -30,7 +31,7 @@ export class CallbackExecutor {
     this.#argumentName = options.argumentName;
   }
 
-  execute(context: Record<string, FormulaDataType>): FormulaDataType {
+  execute(context: Readonly<Record<TVariables, FormulaDataType>>): TReturn {
     const nestedContext = this.#visitor.context.createNestedContext(context);
     const callbackVisitor = this.#visitor.cloneWithContext(nestedContext);
     const result = callbackVisitor.evaluateNode(this.node);
@@ -51,7 +52,8 @@ export class CallbackExecutor {
       );
     }
 
-    return result;
+    // The return type check above guarantees the declared type.
+    return result as TReturn;
   }
 
   get location(): AST.Location {

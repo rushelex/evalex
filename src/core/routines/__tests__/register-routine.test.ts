@@ -1,61 +1,49 @@
-import type { ProcessedArgument } from '../arguments';
-
 import { evaluate, loc } from '../../../testing-library';
-import { FormulaArray, FormulaNumber, FormulaString, Kind } from '../../data-types';
+import { FormulaNumber, FormulaString, Kind } from '../../data-types';
 import { Errors } from '../../errors';
-import { Argument, createRoutineArguments } from '../arguments';
+import { arg } from '../arguments';
 import { RoutinesRegistry, routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
 routinesRegistry.registerRoutine('measure', {
-  on: [FormulaString, FormulaArray],
   description: 'Returns the size of the text or list.',
-  examples: createRoutineExamples([]),
-  arguments: createRoutineArguments([
-    [new Argument(Kind.String, { name: 'text' })],
-    [new Argument(Kind.Array, { name: 'list' }), new Argument(Kind.Number, { name: 'extra', optional: true })],
-  ]),
-  handler: ({ subject, args }) => {
-    const [extraArg] = args as [ProcessedArgument<FormulaNumber>?];
-    return new FormulaNumber(subject.value.length + (extraArg?.dataType.value ?? 0));
-  },
+  examples: [],
+  arguments: [
+    [arg.string('text')],
+    [arg.array('list'), arg.number('extra', { optional: true })],
+  ],
+  handler: ({ subject, args: [extra] }) => new FormulaNumber(subject.value.length + (extra?.value ?? 0)),
 });
 
 routinesRegistry.registerRoutine({ function: 'textShout', method: 'shout' }, {
-  on: [FormulaString],
   description: 'Returns the text in upper case.',
-  examples: createRoutineExamples([]),
-  arguments: createRoutineArguments([
-    new Argument(Kind.String, { name: 'text' }),
-  ]),
+  examples: [],
+  arguments: [arg.string('text')],
   handler: ({ subject }) => new FormulaString(subject.value.toUpperCase()),
 });
 
 routinesRegistry.registerRoutine('total', {
-  on: [FormulaNumber],
   description: 'Returns the sum of the numbers.',
-  examples: createRoutineExamples([]),
-  arguments: createRoutineArguments([
-    new Argument(Kind.Number, { name: 'numbers', repeatable: true }),
-  ]),
-  handler: ({ subject, args }) => {
-    const rest = (args as ProcessedArgument<FormulaNumber>[]).map((arg) => arg.dataType.value);
-
-    return new FormulaNumber(rest.reduce((sum, value) => sum + value, subject.value));
-  },
+  examples: [],
+  arguments: [arg.number('numbers', { repeatable: true })],
+  handler: ({ subject, args }) => new FormulaNumber(args.reduce((sum, number) => sum + number.value, subject.value)),
 });
 
 routinesRegistry.registerRoutine('half', {
-  on: [FormulaNumber],
   description: 'Returns half of a positive number.',
-  examples: createRoutineExamples([]),
-  arguments: createRoutineArguments([
-    new Argument(Kind.Number, {
-      name: 'number',
+  examples: [],
+  arguments: [
+    arg.number('number', {
       validation: (value) => (value.value > 0 ? undefined : { message: 'Expected positive number.' }),
     }),
-  ]),
+  ],
   handler: ({ subject }) => new FormulaNumber(subject.value / 2),
+});
+
+routinesRegistry.registerRoutine('shift', {
+  description: 'Returns the number moved by a step in the given direction.',
+  examples: [],
+  arguments: [arg.number('number'), arg.choice('direction', ['up', 'down'])],
+  handler: ({ subject, args: [direction] }) => new FormulaNumber(direction.value === 'up' ? subject.value + 1 : subject.value - 1),
 });
 
 describe('RoutinesRegistry.registerRoutine', () => {
@@ -67,6 +55,27 @@ describe('RoutinesRegistry.registerRoutine', () => {
       { message: 'Expected positive number.', expected: ['valid value'], actual: '-2', argumentPosition },
       { location },
     ));
+  });
+
+  it.each([
+    { formula: 'shift(1, "up")', expected: 2 },
+    { formula: '(1).shift("down")', expected: 0 },
+  ])('should accept a listed word for a choice: $formula', ({ formula, expected }) => {
+    expect(evaluate(formula)).toBeFormulaDataType(FormulaNumber, expected);
+  });
+
+  it.each([
+    { formula: 'shift(1, "left")', location: loc(9, 15), argumentPosition: 2 },
+    { formula: '(1).shift("left")', location: loc(10, 16), argumentPosition: 1 },
+  ])('should reject a word a choice does not list: $formula', ({ formula, location, argumentPosition }) => {
+    expect(() => evaluate(formula)).toThrow(Errors.Argument.Validation.create(
+      { message: 'Expected "up", "down".', expected: ['up', 'down'], actual: 'left', argumentPosition },
+      { location },
+    ));
+  });
+
+  it('should give the method form only to the types the subject accepts', () => {
+    expect(() => evaluate('(1).measure()')).toThrow(Errors.Reference.MethodNotDefined.create({ name: 'measure', target: 'Number' }, { location: loc(4, 11) }));
   });
 
   it.each([
@@ -109,28 +118,15 @@ describe('RoutinesRegistry.registerRoutine', () => {
 
   it('should reject a second registration under the same name', () => {
     const registry = new RoutinesRegistry();
-    const options = {
-      on: [FormulaString],
+    const definition = {
       description: 'Returns the text.',
-      examples: createRoutineExamples([]),
-      arguments: createRoutineArguments([new Argument(Kind.String, { name: 'text' })]),
+      examples: [],
+      arguments: [arg.string('text')],
       handler: ({ subject }: { subject: FormulaString }) => subject,
-    };
+    } as const;
 
-    registry.registerRoutine('echo', options);
+    registry.registerRoutine('echo', definition);
 
-    expect(() => registry.registerRoutine('echo', options)).toThrow('Routine "echo" is already registered.');
-  });
-
-  it('should reject a type that no signature accepts as the subject', () => {
-    const registry = new RoutinesRegistry();
-
-    expect(() => registry.registerRoutine('echo', {
-      on: [FormulaNumber],
-      description: 'Returns the text.',
-      examples: createRoutineExamples([]),
-      arguments: createRoutineArguments([new Argument(Kind.String, { name: 'text' })]),
-      handler: ({ subject }) => subject,
-    })).toThrow('Routine "echo" has no signature whose first argument accepts Number.');
+    expect(() => registry.registerRoutine('echo', definition)).toThrow('Routine "echo" is already registered.');
   });
 });

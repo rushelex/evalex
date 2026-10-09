@@ -1,13 +1,11 @@
 import { Temporal } from 'temporal-polyfill';
 
 import { FormulaDate } from '../../data-types';
-import { createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
 routinesRegistry.registerFunction('today', {
   description: 'Returns the current date without the time.',
-  examples: createRoutineExamples([
+  examples: [
     {
       formula: (name) => name(),
       result: () => FormulaDate.from(Temporal.ZonedDateTime.from({
@@ -17,9 +15,7 @@ routinesRegistry.registerFunction('today', {
         timeZone: 'UTC',
       })),
     },
-  ]),
-  arguments: createRoutineArguments([]),
-  handler: () => {
-    return FormulaDate.from(Temporal.Now.zonedDateTimeISO('UTC').startOfDay());
-  },
+  ],
+  arguments: [],
+  handler: () => FormulaDate.from(Temporal.Now.zonedDateTimeISO('UTC').startOfDay()),
 });

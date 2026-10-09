@@ -1,15 +1,11 @@
-import type { ProcessedArgument } from '../arguments';
-
-import { FormulaRegExp, FormulaString, Kind } from '../../data-types';
+import { FormulaRegExp, FormulaString } from '../../data-types';
 import { getRegExpFallbackError } from '../../errors';
-import { Argument, createRoutineArguments } from '../arguments';
+import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
-import { createRoutineExamples } from '../routine-examples';
 
 routinesRegistry.registerRoutine('replaceAll', {
-  on: [FormulaString],
   description: 'Replaces every match with the replacement string.',
-  examples: createRoutineExamples([
+  examples: [
     {
       formula: (name) => name('"Hello 123 world 456"', '"\\\\d+"', '"XXX"'),
       result: () => new FormulaString('Hello XXX world XXX'),
@@ -18,28 +14,24 @@ routinesRegistry.registerRoutine('replaceAll', {
       formula: (name) => name('"Hello HELLO"', '/hello/i', '"hi"'),
       result: () => new FormulaString('hi hi'),
     },
-  ]),
-  arguments: createRoutineArguments([
-    new Argument(Kind.String, { name: 'text' }),
-    new Argument([Kind.String, Kind.RegExp], { name: 'pattern' }),
-    new Argument(Kind.String, { name: 'replacement' }),
-  ]),
-  handler: ({ subject, args, location, visitor }) => {
+  ],
+  arguments: [
+    arg.string('text'),
+    arg.pattern('pattern'),
+    arg.string('replacement'),
+  ],
+  handler: ({ subject, args: [pattern, replacement], location, visitor }) => {
     try {
-      const [patternArg, replacementArg] = args as [ProcessedArgument<FormulaString | FormulaRegExp>, ProcessedArgument<FormulaString>];
-
-      const regexp = patternArg.dataType instanceof FormulaRegExp ? patternArg.dataType : new FormulaRegExp(patternArg.dataType.value);
+      const regexp = pattern instanceof FormulaRegExp ? pattern : new FormulaRegExp(pattern.value);
 
       let regex = regexp.toRegExp();
-
-      const replacement = replacementArg.dataType.value;
 
       // Ensure global flag for replaceAll
       if (!regex.global) {
         regex = new RegExp(regex.source, `g${regex.flags}`);
       }
 
-      return new FormulaString(subject.value.replace(regex, replacement));
+      return new FormulaString(subject.value.replace(regex, replacement.value));
     }
     catch (error) {
       throw getRegExpFallbackError(error, location, visitor.formula);
