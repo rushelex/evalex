@@ -3,7 +3,7 @@ import { Temporal } from 'temporal-polyfill';
 import { FormulaDate, FormulaDuration } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
-describe('"dateBetween" function routine', new RoutineTester('dateBetween').examples.only({
+describe('"dateBetween" function routine', new RoutineTester('dateBetween').examples({
   skipMethod: true,
 }, [
   {
@@ -11,72 +11,46 @@ describe('"dateBetween" function routine', new RoutineTester('dateBetween').exam
     expected: FormulaDuration.from(Temporal.Duration.from({ years: 2 })),
   },
   {
-    formula: 'dateAdd(parseDate("2025-08-23"), duration)',
-    context: {
-      duration: new FormulaDuration(Temporal.Duration.from({ years: 1 })),
-    },
-    expected: FormulaDate.from(Temporal.ZonedDateTime.from({
-      year: 2026,
-      month: 8,
-      day: 23,
-      hour: 0,
-      minute: 0,
-      second: 0,
-      millisecond: 0,
-      timeZone: 'UTC',
-    })),
-  },
-  {
-    formula: 'dateAdd(parseDate("2025-08-23"), 1, "hour")',
+    formula: 'dateBetween(parseDate("2025-08-23"), parseDate("2023-08-23"), "hour")',
     expected: {
       function: {
-        message: 'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".',
-        location: [36, 42],
+        message: 'Expected "years", "months", "weeks", "days", "hours", "minutes".',
+        location: [62, 68],
       },
     },
   },
 ]));
 
-// TODO: Replace "add" tests with "between"
-describe('"between" method routine', new RoutineTester('between').examples.only({
+describe('"between" method routine', new RoutineTester('between').examples({
   skipFunction: true,
 }, [
   {
-    formula: 'parseDate("2025-08-23").add(1, "days")',
-    expected: FormulaDate.from(Temporal.ZonedDateTime.from({
-      year: 2025,
-      month: 8,
-      day: 24,
-      hour: 0,
-      minute: 0,
-      second: 0,
-      millisecond: 0,
-      timeZone: 'UTC',
-    })),
+    formula: 'parseDate("2025-08-23").between(parseDate("2023-08-23"), "years")',
+    expected: FormulaDuration.from(Temporal.Duration.from({ years: 2 })),
   },
   {
-    formula: 'parseDate("2025-08-23").add(duration)',
-    context: {
-      duration: new FormulaDuration(Temporal.Duration.from({ years: 1 })),
-    },
-    expected: FormulaDate.from(Temporal.ZonedDateTime.from({
-      year: 2026,
-      month: 8,
-      day: 23,
-      hour: 0,
-      minute: 0,
-      second: 0,
-      millisecond: 0,
-      timeZone: 'UTC',
-    })),
-  },
-  {
-    formula: 'parseDate("2025-08-23").add(1, "hour")',
+    formula: 'parseDate("2025-08-23").between(parseDate("2023-08-23"), "hour")',
     expected: {
-      function: {
-        message: 'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".',
-        location: [31, 37],
+      method: {
+        message: 'Expected "years", "months", "weeks", "days", "hours", "minutes".',
+        location: [57, 63],
       },
     },
+  },
+  {
+    formula: 'start.between(end, "days")',
+    context: {
+      start: new FormulaDate(Temporal.ZonedDateTime.from({ year: 2024, month: 7, day: 1, timeZone: 'UTC' })),
+      end: new FormulaDate(Temporal.ZonedDateTime.from({ year: 2024, month: 7, day: 15, timeZone: 'UTC' })),
+    },
+    expected: new FormulaDuration(Temporal.Duration.from('-P14D')),
+  },
+  {
+    formula: 'later.between(earlier, "days")',
+    context: {
+      later: new FormulaDate(Temporal.ZonedDateTime.from({ year: 2024, month: 7, day: 15, timeZone: 'UTC' })),
+      earlier: new FormulaDate(Temporal.ZonedDateTime.from({ year: 2024, month: 7, day: 1, timeZone: 'UTC' })),
+    },
+    expected: new FormulaDuration(Temporal.Duration.from('P14D')),
   },
 ]));
