@@ -7,9 +7,7 @@ const context = {
   d: new FormulaDate(Temporal.ZonedDateTime.from({ timeZone: 'UTC', year: 2024, month: 7, day: 28 })),
 };
 
-describe('"year" method routine', new RoutineTester('year').examples({
-  skipFunction: true,
-}, [
+describe('year routine', new RoutineTester('year').examples([
   {
     formula: 'd.year()',
     context,

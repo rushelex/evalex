@@ -6,7 +6,8 @@ import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
-routinesRegistry.registerMethod(FormulaString, 'contains', {
+routinesRegistry.registerRoutine('contains', {
+  on: [FormulaString],
   description: 'Tests whether the string contains the text or a regex match.',
   examples: createRoutineExamples([
     {
@@ -23,17 +24,17 @@ routinesRegistry.registerMethod(FormulaString, 'contains', {
     },
   ]),
   arguments: createRoutineArguments([
-    new Argument(Kind.String, { name: 'self' }),
+    new Argument(Kind.String, { name: 'text' }),
     new Argument([Kind.String, Kind.RegExp], { name: 'search' }),
   ]),
-  handler: ({ instance, args }) => {
+  handler: ({ subject, args }) => {
     const [searchArg] = args as [ProcessedArgument<FormulaString | FormulaRegExp>];
 
     // A string argument is plain text, so regex metacharacters like "." match literally
     if (searchArg.dataType instanceof FormulaString) {
-      return new FormulaBoolean(instance.value.includes(searchArg.dataType.value));
+      return new FormulaBoolean(subject.value.includes(searchArg.dataType.value));
     }
 
-    return new FormulaBoolean(searchArg.dataType.toRegExp().test(instance.value));
+    return new FormulaBoolean(searchArg.dataType.toRegExp().test(subject.value));
   },
 });

@@ -1,9 +1,7 @@
 import { FormulaArray, FormulaRegExp, FormulaString } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
-describe('"match" method routine', new RoutineTester('match').examples({
-  skipFunction: true,
-}, [
+describe('match routine', new RoutineTester('match').examples([
   {
     formula: '"Hello 42 world 101".match(/\\d+/g)',
     expected: new FormulaArray([new FormulaString('42'), new FormulaString('101')]),

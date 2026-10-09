@@ -1,9 +1,10 @@
-import { FormulaString } from '../../data-types';
-import { createRoutineArguments } from '../arguments';
+import { FormulaString, Kind } from '../../data-types';
+import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
-routinesRegistry.registerMethod(FormulaString, 'lower', {
+routinesRegistry.registerRoutine('lower', {
+  on: [FormulaString],
   description: 'Converts the string to lowercase.',
   examples: createRoutineExamples([
     {
@@ -11,8 +12,10 @@ routinesRegistry.registerMethod(FormulaString, 'lower', {
       result: () => new FormulaString('hello'),
     },
   ]),
-  arguments: createRoutineArguments([]),
-  handler: ({ instance }) => {
-    return new FormulaString(instance.value.toLowerCase());
+  arguments: createRoutineArguments([
+    new Argument(Kind.String, { name: 'text' }),
+  ]),
+  handler: ({ subject }) => {
+    return new FormulaString(subject.value.toLowerCase());
   },
 });

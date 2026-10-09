@@ -6,7 +6,8 @@ import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
-routinesRegistry.registerMethod(FormulaString, 'test', {
+routinesRegistry.registerRoutine('test', {
+  on: [FormulaString],
   description: 'Tests whether the string matches the regular expression.',
   examples: createRoutineExamples([
     {
@@ -23,16 +24,16 @@ routinesRegistry.registerMethod(FormulaString, 'test', {
     },
   ]),
   arguments: createRoutineArguments([
-    new Argument(Kind.String, { name: 'self' }),
+    new Argument(Kind.String, { name: 'text' }),
     new Argument([Kind.String, Kind.RegExp], { name: 'pattern' }),
   ]),
-  handler: ({ instance, args, location, visitor }) => {
+  handler: ({ subject, args, location, visitor }) => {
     try {
       const [patternArg] = args as [ProcessedArgument<FormulaString | FormulaRegExp>];
 
       const regexp = patternArg.dataType instanceof FormulaRegExp ? patternArg.dataType : new FormulaRegExp(patternArg.dataType.value);
 
-      return new FormulaBoolean(regexp.toRegExp().test(instance.value));
+      return new FormulaBoolean(regexp.toRegExp().test(subject.value));
     }
     catch (error) {
       throw getRegExpFallbackError(error, location, visitor.formula);

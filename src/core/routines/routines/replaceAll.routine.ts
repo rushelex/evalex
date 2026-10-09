@@ -6,7 +6,8 @@ import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
-routinesRegistry.registerMethod(FormulaString, 'replaceAll', {
+routinesRegistry.registerRoutine('replaceAll', {
+  on: [FormulaString],
   description: 'Replaces every match with the replacement string.',
   examples: createRoutineExamples([
     {
@@ -19,11 +20,11 @@ routinesRegistry.registerMethod(FormulaString, 'replaceAll', {
     },
   ]),
   arguments: createRoutineArguments([
-    new Argument(Kind.String, { name: 'self' }),
+    new Argument(Kind.String, { name: 'text' }),
     new Argument([Kind.String, Kind.RegExp], { name: 'pattern' }),
     new Argument(Kind.String, { name: 'replacement' }),
   ]),
-  handler: ({ instance, args, location, visitor }) => {
+  handler: ({ subject, args, location, visitor }) => {
     try {
       const [patternArg, replacementArg] = args as [ProcessedArgument<FormulaString | FormulaRegExp>, ProcessedArgument<FormulaString>];
 
@@ -38,7 +39,7 @@ routinesRegistry.registerMethod(FormulaString, 'replaceAll', {
         regex = new RegExp(regex.source, `g${regex.flags}`);
       }
 
-      return new FormulaString(instance.value.replace(regex, replacement));
+      return new FormulaString(subject.value.replace(regex, replacement));
     }
     catch (error) {
       throw getRegExpFallbackError(error, location, visitor.formula);

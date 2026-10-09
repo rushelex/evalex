@@ -1,9 +1,7 @@
 import { FormulaBoolean, FormulaRegExp } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
-describe('"contains" method routine', new RoutineTester('contains').examples({
-  skipFunction: true,
-}, [
+describe('contains routine', new RoutineTester('contains').examples([
   {
     formula: '"Hello world".contains("wor")',
     expected: new FormulaBoolean(true),

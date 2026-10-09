@@ -1,9 +1,10 @@
-import { FormulaString } from '../../data-types';
-import { createRoutineArguments } from '../arguments';
+import { FormulaString, Kind } from '../../data-types';
+import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
-routinesRegistry.registerMethod(FormulaString, 'upper', {
+routinesRegistry.registerRoutine('upper', {
+  on: [FormulaString],
   description: 'Converts the string to uppercase.',
   examples: createRoutineExamples([
     {
@@ -11,8 +12,10 @@ routinesRegistry.registerMethod(FormulaString, 'upper', {
       result: () => new FormulaString('HELLO'),
     },
   ]),
-  arguments: createRoutineArguments([]),
-  handler: ({ instance }) => {
-    return new FormulaString(instance.value.toUpperCase());
+  arguments: createRoutineArguments([
+    new Argument(Kind.String, { name: 'text' }),
+  ]),
+  handler: ({ subject }) => {
+    return new FormulaString(subject.value.toUpperCase());
   },
 });

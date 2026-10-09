@@ -3,9 +3,7 @@ import { Temporal } from 'temporal-polyfill';
 import { FormulaDate, FormulaNumber } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
-describe('"week" method routine', new RoutineTester('week').examples({
-  skipFunction: true,
-}, [
+describe('week routine', new RoutineTester('week').examples([
   {
     formula: 'd.week()',
     context: {

@@ -1,9 +1,10 @@
-import { FormulaDate, FormulaNull, FormulaNumber } from '../../data-types';
-import { createRoutineArguments } from '../arguments';
+import { FormulaDate, FormulaNull, FormulaNumber, Kind } from '../../data-types';
+import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
-routinesRegistry.registerMethod(FormulaDate, 'week', {
+routinesRegistry.registerRoutine('week', {
+  on: [FormulaDate],
   description: 'Returns the ISO week of the year of the date (1-53).',
   examples: createRoutineExamples([
     {
@@ -11,8 +12,10 @@ routinesRegistry.registerMethod(FormulaDate, 'week', {
       result: () => new FormulaNumber(28),
     },
   ]),
-  arguments: createRoutineArguments([]),
-  handler: ({ instance }) => {
-    return instance.value.weekOfYear === undefined ? new FormulaNull() : new FormulaNumber(instance.value.weekOfYear);
+  arguments: createRoutineArguments([
+    new Argument(Kind.Date, { name: 'date' }),
+  ]),
+  handler: ({ subject }) => {
+    return subject.value.weekOfYear === undefined ? new FormulaNull() : new FormulaNumber(subject.value.weekOfYear);
   },
 });

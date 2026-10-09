@@ -1,9 +1,7 @@
 import { FormulaString } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
-describe('"trim" method routine', new RoutineTester('trim').examples({
-  skipFunction: true,
-}, [
+describe('trim routine', new RoutineTester('trim').examples([
   {
     formula: '"  hello  ".trim()',
     expected: new FormulaString('hello'),

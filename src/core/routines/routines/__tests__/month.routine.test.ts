@@ -3,9 +3,7 @@ import { Temporal } from 'temporal-polyfill';
 import { FormulaDate, FormulaNumber } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
-describe('"month" method routine', new RoutineTester('month').examples({
-  skipFunction: true,
-}, [
+describe('month routine', new RoutineTester('month').examples([
   {
     formula: 'd.month()',
     context: {

@@ -6,7 +6,8 @@ import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
-routinesRegistry.registerMethod(FormulaString, 'match', {
+routinesRegistry.registerRoutine('match', {
+  on: [FormulaString],
   description: 'Returns all matches of the regular expression as a list.',
   examples: createRoutineExamples([
     {
@@ -23,10 +24,10 @@ routinesRegistry.registerMethod(FormulaString, 'match', {
     },
   ]),
   arguments: createRoutineArguments([
-    new Argument(Kind.String, { name: 'self' }),
+    new Argument(Kind.String, { name: 'text' }),
     new Argument([Kind.String, Kind.RegExp], { name: 'pattern' }),
   ]),
-  handler: ({ instance, args, location, visitor }) => {
+  handler: ({ subject, args, location, visitor }) => {
     try {
       const [patternArg] = args as [ProcessedArgument<FormulaString | FormulaRegExp>];
 
@@ -39,7 +40,7 @@ routinesRegistry.registerMethod(FormulaString, 'match', {
         regex = new RegExp(regex.source, `g${regex.flags}`);
       }
 
-      const matches = Array.from(instance.value.matchAll(regex), (match) => new FormulaString(match[0]));
+      const matches = Array.from(subject.value.matchAll(regex), (match) => new FormulaString(match[0]));
       if (!matches.length) {
         return new FormulaArray([], 'string');
       }

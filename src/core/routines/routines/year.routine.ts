@@ -1,9 +1,10 @@
-import { FormulaDate, FormulaNumber } from '../../data-types';
-import { createRoutineArguments } from '../arguments';
+import { FormulaDate, FormulaNumber, Kind } from '../../data-types';
+import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
-routinesRegistry.registerMethod(FormulaDate, 'year', {
+routinesRegistry.registerRoutine('year', {
+  on: [FormulaDate],
   description: 'Returns the year of the date (4 digits).',
   examples: createRoutineExamples([
     {
@@ -11,8 +12,10 @@ routinesRegistry.registerMethod(FormulaDate, 'year', {
       result: () => new FormulaNumber(2023),
     },
   ]),
-  arguments: createRoutineArguments([]),
-  handler: ({ instance }) => {
-    return new FormulaNumber(instance.value.year);
+  arguments: createRoutineArguments([
+    new Argument(Kind.Date, { name: 'date' }),
+  ]),
+  handler: ({ subject }) => {
+    return new FormulaNumber(subject.value.year);
   },
 });

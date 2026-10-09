@@ -1,9 +1,10 @@
-import { FormulaDate, FormulaNumber } from '../../data-types';
-import { createRoutineArguments } from '../arguments';
+import { FormulaDate, FormulaNumber, Kind } from '../../data-types';
+import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
-routinesRegistry.registerMethod(FormulaDate, 'date', {
+routinesRegistry.registerRoutine('date', {
+  on: [FormulaDate],
   description: 'Returns the day of the month from the date (1-31).',
   examples: createRoutineExamples([
     {
@@ -11,8 +12,10 @@ routinesRegistry.registerMethod(FormulaDate, 'date', {
       result: () => new FormulaNumber(10),
     },
   ]),
-  arguments: createRoutineArguments([]),
-  handler: ({ instance }) => {
-    return new FormulaNumber(instance.value.day);
+  arguments: createRoutineArguments([
+    new Argument(Kind.Date, { name: 'date' }),
+  ]),
+  handler: ({ subject }) => {
+    return new FormulaNumber(subject.value.day);
   },
 });

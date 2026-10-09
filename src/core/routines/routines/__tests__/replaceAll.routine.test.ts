@@ -1,9 +1,7 @@
 import { FormulaRegExp, FormulaString } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
-describe('"replaceAll" method routine', new RoutineTester('replaceAll').examples({
-  skipFunction: true,
-}, [
+describe('replaceAll routine', new RoutineTester('replaceAll').examples([
   {
     formula: '"Hello 123 world 456".replaceAll("\\\\d+", "XXX")',
     expected: new FormulaString('Hello XXX world XXX'),

@@ -1,9 +1,7 @@
 import { FormulaRegExp, FormulaString } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
-describe('"replace" method routine', new RoutineTester('replace').examples({
-  skipFunction: true,
-}, [
+describe('replace routine', new RoutineTester('replace').examples([
   {
     formula: '"Hello world".replace("world", "universe")',
     expected: new FormulaString('Hello universe'),

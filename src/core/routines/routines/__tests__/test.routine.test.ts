@@ -1,9 +1,7 @@
 import { FormulaBoolean, FormulaRegExp } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
-describe('"test" method routine', new RoutineTester('test').examples({
-  skipFunction: true,
-}, [
+describe('test routine', new RoutineTester('test').examples([
   {
     formula: '"Hello 123".test("\\\\d+")',
     expected: new FormulaBoolean(true),

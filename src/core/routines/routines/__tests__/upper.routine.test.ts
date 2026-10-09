@@ -1,9 +1,7 @@
 import { FormulaString } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
-describe('"upper" method routine', new RoutineTester('upper').examples({
-  skipFunction: true,
-}, [
+describe('upper routine', new RoutineTester('upper').examples([
   {
     formula: '"hello".upper()',
     expected: new FormulaString('HELLO'),
