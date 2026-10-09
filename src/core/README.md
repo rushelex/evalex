@@ -1,491 +1,216 @@
-# Formula Core
+<div align="center">
 
-Ядро системы evalex для чистых вычислений с расширяемыми типами данных, выражениями формул и stateless обработкой. Основа для построения реактивных формульных систем.
+# evalex / core
 
-## 🏗️ Архитектура
+**Evaluates formulas into typed values — data types, built-in routines, errors and dependency tracking.**
 
-Модуль core предоставляет **framework-agnostic** реализацию формульного движка:
+[Expression](#expression) · [Data types](#data-types) · [Built-in routines](#built-in-routines) · [Errors](#errors) · [Debugging](#debugging)
 
-```
-┌────────────────────────────────┐
-│            runtime             │  <- Reactive orchestration, dependency management
-│  FormulaOrchestrator           │
-│  FormulaRuntime                │
-└───────────────┬────────────────┘
-                │ uses
-┌───────────────┴────────────────┐
-│            core                │  <- This package
-│  • Data types                  │
-│  • Evaluation visitors         │
-│  • Dependency extractor        │
-│  • Error helpers               │
-│  • Global functions            │
-│  • Expression evaluator        │
-└───────────────┬────────────────┘
-                │ uses
-┌───────────────┴────────────────┐
-│            parser              │  <- AST & grammar
-│  • AST types & nodes           │
-│  • Grammar                     │
-│  • Syntax parsing              │
-└────────────────────────────────┘
-```
-
-_Core не знает о UI, хранилище или асинхронном выполнении – только детерминистический код._
-
-## 📊 Типы данных
-
-Все типы данных наследуются от [`FormulaDataType`](data-types/FormulaDataType.ts:27) и имеют встроенные методы.
-
-### FormulaNumber
-Числовой тип данных для математических операций.
-
-```typescript
-import { FormulaNumber } from '~/shared/libs/formula/core';
-
-const num = new FormulaNumber(42);
-console.log(num.toString()); // "42"
-console.log(num.isEmpty()); // false (0 считается пустым)
-```
-
-**Встроенные методы:**
-- [`empty()`](routines/routines/empty.routine.ts) - проверка на пустоту (0 = true)
-- [`format()`](routines/routines/format.routine.ts) - форматирование в строку
-
-### FormulaString
-Строковый тип для работы с текстом.
-
-```typescript
-import { FormulaString } from '~/shared/libs/formula/core';
-
-const text = new FormulaString("Hello World");
-```
-
-**Встроенные методы:**
-- [`empty()`](routines/routines/empty.routine.ts) - проверка на пустоту ("" = true)
-- [`format()`](routines/routines/format.routine.ts) - форматирование в строку
-- [`upper()`](routines/routines/upper.routine.ts) - преобразование в верхний регистр
-- [`lower()`](routines/routines/lower.routine.ts) - преобразование в нижний регистр
-- [`length()`](routines/routines/length.routine.ts) - длина строки
-- [`trim()`](routines/routines/trim.routine.ts) - удаление пробелов
-
-**Примеры использования:**
-```typescript
-import { Expression } from '~/shared/libs/formula/core';
-
-// В формулах
-new Expression('"hello".upper()').evaluate(); // FormulaString("HELLO")
-new Expression('"  text  ".trim().length()').evaluate(); // FormulaNumber(4)
-```
-
-### FormulaBoolean
-Логический тип для условных операций.
-
-```typescript
-import { FormulaBoolean } from '~/shared/libs/formula/core';
-
-const flag = new FormulaBoolean(true);
-console.log(flag.isEmpty()); // false (false = true)
-```
-
-**Встроенные методы:**
-- [`empty()`](routines/routines/empty.routine.ts) - проверка на пустоту (false = true)
-- [`format()`](routines/routines/format.routine.ts) - форматирование в строку
-
-### FormulaArray
-Типизированный массив элементов с функциональными методами.
-
-```typescript
-import { FormulaArray, FormulaNumber } from '~/shared/libs/formula/core';
-
-const numbers = new FormulaArray([
-  new FormulaNumber(1),
-  new FormulaNumber(2),
-  new FormulaNumber(3)
-], 'Number');
-```
-
-**Встроенные методы:**
-- [`empty()`](routines/routines/empty.routine.ts) - проверка на пустоту ([] = true)
-- [`format()`](routines/routines/format.routine.ts) - форматирование в строку
-- [`map(callback)`](routines/routines/map.routine.ts) - применение функции к каждому элементу
-- [`join(separator?)`](routines/routines/join.routine.ts) - объединение в строку
-- [`length()`](routines/routines/length.routine.ts) - количество элементов
-
-**Примеры использования:**
-```typescript
-import { Expression } from '~/shared/libs/formula/core';
-
-// В формулах с контекстными переменными
-new Expression('[1, 2, 3].map(current * 2)').evaluate(); // [2, 4, 6]
-new Expression('[1, 2, 3].map(current + index)').evaluate(); // [1, 3, 5]
-new Expression('["a", "b", "c"].join(", ")').evaluate(); // "a, b, c"
-```
-
-### FormulaObject
-Универсальный объектный тип для работы с произвольными JavaScript объектами.
-
-```typescript
-import { FormulaObject, Expression } from '~/shared/libs/formula/core';
-
-// Создание из обычного объекта
-const user = FormulaObject.from({
-  name: "John Doe",
-  age: 30,
-  profile: {
-    city: "New York",
-    preferences: { theme: "dark" }
-  }
-});
-
-// Использование в формулах
-new Expression('user.name()').evaluate({ context: { user } }); // FormulaString("John Doe")
-new Expression('user.profile().city()').evaluate({ context: { user } }); // FormulaString("New York")
-```
-
-**Особенности:**
-- **Динамический доступ к полям**: `object.field()` синтаксис
-- **Автоматическая конвертация**: [`FormulaObject.from()`](data-types/object/FormulaObject.ts:213) преобразует обычные объекты
-- **Безопасная обработка**: Циклические ссылки и специальные значения обрабатываются корректно
-
-**Встроенные методы:**
-- [`empty()`](routines/routines/empty.routine.ts) - проверка на пустоту ({} = true)
-- [`format()`](routines/routines/format.routine.ts) - форматирование в строку
-- Динамические методы для доступа к полям объекта
-
-### FormulaDate
-Тип для работы с датами, основанный на Temporal API.
-
-```typescript
-import { FormulaDate } from '~/shared/libs/formula/core';
-
-const date = FormulaDate.from("2024-01-01");
-const jsDate = FormulaDate.from(new Date());
-```
-
-**Встроенные методы:**
-- [`empty()`](routines/routines/empty.routine.ts) - всегда false для дат
-- [`format()`](routines/routines/format.routine.ts) - локализованное форматирование
-- Дополнительные методы для работы с датами (определены в [`routines/routines/`](routines/routines/))
-
-### FormulaNull
-Специальный тип для представления отсутствующих значений.
-
-```typescript
-import { FormulaNull } from '~/shared/libs/formula/core';
-
-const empty = new FormulaNull();
-console.log(empty.isEmpty()); // true
-```
-
-## 🔧 Глобальные функции
-
-Система предоставляет глобальные функции, доступные в любой формуле.
-
-### if(condition, trueValue, falseValue)
-Условная функция для выбора значения на основе условия.
-
-```typescript
-import { Expression } from '~/shared/libs/formula/core';
-
-// Примеры использования
-new Expression('if(1 > 0, "yes", "no")').evaluate(); // FormulaString("yes")
-new Expression('if(user.age() >= 18, "adult", "minor")').evaluate();
-```
-
-**Особенности:**
-- **Ленивое вычисление**: Вычисляется только нужная ветка
-- **Условие пустоты**: Использует метод [`isEmpty()`](data-types/FormulaDataType.ts:69) для определения истинности
-
-### sum(...numbers)
-Функция суммирования чисел и массивов.
-
-```typescript
-import { Expression } from '~/shared/libs/formula/core';
-
-// Примеры использования
-new Expression('sum(1, 2, 3)').evaluate(); // FormulaNumber(6)
-new Expression('sum([1, 2, 3])').evaluate(); // FormulaNumber(6)
-new Expression('sum([1, 2], 3, 4, 5)').evaluate(); // FormulaNumber(15)
-```
-
-**Особенности:**
-- **Гибкие аргументы**: Принимает числа и массивы в любых комбинациях
-- **Автоматическое разворачивание**: Массивы автоматически разворачиваются
-
-## 🚀 Использование Core API
-
-### Базовая интерпретация
-
-```typescript
-import { Expression, FormulaNumber } from '~/shared/libs/formula/core';
-
-// Простое вычисление
-new Expression('2 + 3 * 4').evaluate(); // FormulaNumber(14)
-
-// С контекстом
-const context = {
-  price: new FormulaNumber(100),
-  quantity: new FormulaNumber(2),
-  tax: new FormulaNumber(0.1)
-};
-
-const { result, dependencies } = new Expression('price * quantity * (1 + tax)').evaluate({ context });
-console.log(result); // FormulaNumber(220)
-console.log(dependencies); // Set(['price', 'quantity', 'tax'])
-```
-
-### Работа с объектами
-
-```typescript
-import { FormulaObject, Expression } from '~/shared/libs/formula/core';
-
-// Создание сложного объекта
-const order = FormulaObject.from({
-  items: [
-    { name: "Widget A", price: 10, quantity: 2 },
-    { name: "Widget B", price: 15, quantity: 1 }
-  ],
-  customer: { tier: "premium", discount: 0.1 },
-  shipping: { cost: 5, method: "express" }
-});
-
-// Сложные вычисления
-const totalFormula = `
-  sum(order.items().map(current.price() * current.quantity())) *
-  (1 - order.customer().discount()) +
-  order.shipping().cost()
-`;
-
-new Expression(totalFormula).evaluate({ context: { order } }); // FormulaNumber(32.5)
-```
-
-### Отслеживание зависимостей
-
-```typescript
-import { Expression, FormulaNumber, FormulaBoolean } from '~/shared/libs/formula/core';
-
-// Контекст с переменными
-const context = {
-  flag: new FormulaBoolean(false),
-  a: new FormulaNumber(10),
-  b: new FormulaNumber(20)
-};
-
-// Условная формула
-const result = new Expression('if(flag, a, b)').evaluate({ context });
-
-console.log(result.result); // FormulaNumber(20) - так как flag = false
-console.log(result.dependencies); // Set(['flag', 'b']) - только используемые зависимости
-```
-
-### Извлечение статических зависимостей
-
-```typescript
-const staticDeps = new Expression('if(flag, a, b)').extractDependencies();
-console.log(staticDeps); // Set(['flag', 'a', 'b']) - все возможные зависимости
-```
-
-## 🛡️ Обработка ошибок
-
-### Типы ошибок
-
-```typescript
-import {
-  FormulaError,
-  ArgumentFormulaError,
-  ArithmeticFormulaError,
-  NameNotFoundFormulaError,
-  TypeFormulaError
-} from '~/shared/libs/formula/core';
-```
-
-### Обработка ошибок
-
-```typescript
-import { Expression } from '~/shared/libs/formula/core';
-
-try {
-  const { result } = new Expression('10 / 0').evaluate();
-} catch (error) {
-  if (error instanceof ArithmeticFormulaError) {
-    console.log(error.message); // "Division by zero"
-    console.log(error.location); // [3, 6] - позиция в формуле
-    console.log(error.context);  // Контекст ошибки
-  }
-}
-```
-
-## 🔮 Расширяемость
-
-### Добавление новых типов данных
-
-```typescript
-import { FormulaDataType, FormulaDataTypeKind, RoutineArguments, RoutineExamples } from '~/shared/libs/formula/core';
-
-class FormulaCustomType extends FormulaDataType<string> {
-  readonly kind = 'Custom' as FormulaDataTypeKind;
-
-  constructor(value: string) {
-    super(value, 'Custom');
-  }
-
-  isEmpty(): boolean {
-    return this.value === '';
-  }
-
-  toString(): string {
-    return `Custom(${this.value})`;
-  }
-}
-
-// Регистрация методов
-routinesRegistry.registerMethod(FormulaCustomType, 'customMethod', {
-  description: 'Custom method example',
-  examples: createRoutineExamples([
-    {
-      formula: (name) => name('custom'),
-      result: () => new FormulaCustomType('processed'),
-    },
-  ]),
-  arguments: createRoutineArguments([]),
-  handler: (instance) => {
-    return new FormulaCustomType(`processed_${instance.value}`);
-  },
-});
-```
-
-### Добавление глобальных функций
-
-```typescript
-import { FormulaGlobalFunctions, ArgumentsProcessor, Argument, Kind } from '~/shared/libs/formula/core';
-
-routinesRegistry.registerFunction('customFunction', {
-  description: 'Custom global function',
-  examples: createRoutineExamples([
-    {
-      formula: (name) => name('value'),
-      result: () => new FormulaString('Custom: value'),
-    },
-  ]),
-  arguments: createRoutineArguments([
-    new Argument(Kind.String, { name: 'input' }),
-  ]),
-  handler: ({ args }) => {
-    const [stringArg] = args as [ProcessedArgument<FormulaString>];
-    const value = stringArg.dataType.value;
-    return new FormulaString(`Custom: ${value}`);
-  }
-});
-```
-
-## 🎯 Visitor Pattern
-
-Core использует паттерн Visitor для обхода AST:
-
-### FormulaEvaluatorVisitor
-Основной visitor для вычисления формул.
-
-```typescript
-import { FormulaEvaluatorVisitor, FormulaEvaluationContext } from '~/shared/libs/formula/core';
-
-const context = new FormulaEvaluationContext(/* ... */);
-const visitor = new FormulaEvaluatorVisitor(context);
-
-// Вычисление узла AST
-const result = visitor.evaluateNode(astNode);
-```
-
-### DependencyExtractorVisitor
-Visitor для извлечения зависимостей без вычисления.
-
-```typescript
-import { DependencyExtractorVisitor } from '~/shared/libs/formula/core';
-
-const dependencies = DependencyExtractorVisitor.getDependencies(astNode);
-console.log(dependencies); // Set<string>
-```
-
-## 📚 Контекст вычислений
-
-### FormulaEvaluationContext
-Управляет областями видимости переменных.
-
-```typescript
-import { FormulaEvaluationContext, FormulaNumber } from '~/shared/libs/formula/core';
-
-// Создание контекста
-const globalProps = new Map([
-  ['x', new FormulaNumber(10)],
-  ['y', new FormulaNumber(20)]
-]);
-
-const context = new FormulaEvaluationContext(globalProps);
-
-// Создание вложенного контекста (для map, filter и т.д.)
-const nestedContext = context.createNestedContext({
-  current: new FormulaNumber(5),
-  index: new FormulaNumber(0)
-});
-```
-
-## 🔍 Отладка
-
-### FormulaDebugger
-Утилита для отладки вычислений.
-
-```typescript
-import { FormulaDebugger } from '~/shared/libs/formula/core';
-
-// Включение отладки
-FormulaDebugger.enable();
-
-// Теперь все вычисления будут логироваться в консоль
-new Expression('2 + 3').evaluate(); // Выведет: "Formula: 2 + 3 => Number: 5"
-
-// Отключение отладки
-FormulaDebugger.disable();
-```
-
-## 📝 Примеры использования
-
-### Бизнес-логика
-```typescript
-import { Expression, FormulaNumber } from '~/shared/libs/formula/core';
-
-// RICE scoring для приоритизации задач
-const context = {
-  priority: new FormulaNumber(4),
-  reach: new FormulaNumber(100),
-  impact: new FormulaNumber(3),
-  confidence: new FormulaNumber(0.8),
-  effort: new FormulaNumber(5)
-};
-
-new Expression('if(priority > 3, reach * impact * confidence / effort, 0)')
-  .evaluate({ context }); // FormulaNumber(48)
-```
-
-### Аналитика команды
-```typescript
-// Анализ производительности команды
-const teamData = FormulaObject.from({
-  members: [
-    { name: "Alice", tasksCompleted: 15, hoursWorked: 40 },
-    { name: "Bob", tasksCompleted: 12, hoursWorked: 38 }
-  ]
-});
-
-const productivity = new Expression(
-  'sum(team.members().map(current.tasksCompleted() / current.hoursWorked()))'
-).evaluate({ context: { team: teamData } }); // (15 / 40) + (12 / 38) => FormulaNumber(0.69)
-```
-
-## 📚 Связанные модули
-
-- **[Parser](../parser/README.md)**: Предоставляет AST для интерпретации
-- **[Runtime](../runtime/README.md)**: Использует Core для реактивных вычислений
+</div>
 
 ---
 
-**Примечание**: Core модуль является чистым и не зависит от фреймворков. Он предоставляет только детерминистические вычисления - реактивность и управление жизненным циклом реализованы в модуле Runtime.
+`core` takes formula text, parses it with the [parser](../parser/README.md), and evaluates the result against a context of typed values. It holds no state between calls: the same formula with the same context always produces the same value. For formulas that depend on each other, use the [runtime](../runtime/README.md) on top of it.
+
+Everything below is imported from the package root:
+
+```ts
+import { Expression, FormulaNumber, FormulaString } from 'evalex';
+```
+
+## Expression
+
+`Expression` is the entry point. It wraps one formula and exposes three operations:
+
+| Method | Returns | Notes |
+| --- | --- | --- |
+| `evaluate({ context })` | `{ result, dependencies }` | Throws `SyntaxError` or `FormulaError` |
+| `extractDependencies()` | `ReadonlySet<string>` | Every identifier in the formula, found without evaluating it |
+| `parse()` | AST root node | Throws `SyntaxError` |
+
+ASTs and static dependencies are cached per formula text, so recreating an `Expression` for the same string is cheap.
+
+```ts
+const expression = new Expression('if(score >= 50, "pass", "fail")');
+
+const { result, dependencies } = expression.evaluate({
+  context: { score: new FormulaNumber(72) },
+});
+
+result.value;    // 'pass'
+dependencies;    // Set { 'score' }
+```
+
+`context` accepts a plain object or a `Map` of `FormulaDataType` values. Pass a prebuilt `Map` when evaluating many formulas against the same values — it is used as is, without copying.
+
+### Static vs. runtime dependencies
+
+`extractDependencies()` lists every identifier the formula mentions. `evaluate()` returns only the ones it actually read, which is narrower when branches are skipped:
+
+```ts
+const expression = new Expression('if(flag, a, b)');
+
+expression.extractDependencies();
+// Set { 'if', 'flag', 'a', 'b' }
+
+expression.evaluate({
+  context: { flag: new FormulaBoolean(false), a: new FormulaNumber(1), b: new FormulaNumber(2) },
+}).dependencies;
+// Set { 'flag', 'b' }
+```
+
+> [!TIP]
+> Use static dependencies to validate a formula before saving it, and runtime dependencies to decide what to recalculate.
+
+## Data types
+
+Every value inside a formula is an instance of a `FormulaDataType` subclass. Wrap your data with constructors or `from()` factories before putting it into a context, and read `.value` from results.
+
+| Kind | Class | JS value | Create with |
+| --- | --- | --- | --- |
+| `Number` | `FormulaNumber` | `number` | `new FormulaNumber(42)` |
+| `String` | `FormulaString` | `string` | `new FormulaString('hi')` |
+| `Boolean` | `FormulaBoolean` | `boolean` | `new FormulaBoolean(true)` |
+| `Date` | `FormulaDate` | `Temporal.ZonedDateTime` | `FormulaDate.from('2026-10-01T00:00:00Z')` — also a `Date`, a timestamp or a `ZonedDateTime` |
+| `Duration` | `FormulaDuration` | `Temporal.Duration` | `FormulaDuration.from(Temporal.Duration.from({ days: 3 }))` |
+| `Array` | `FormulaArray` | `FormulaDataType[]` | `FormulaArray.from([1, 2, 3])` |
+| `Object` | `FormulaObject` | `Record<string, FormulaDataType>` | `FormulaObject.from({ name: 'Ada' })` |
+| `RegExp` | `FormulaRegExp` | pattern and flags | `FormulaRegExp.from(/^[A-Z]{3}-\d+$/)` |
+| `Null` | `FormulaNull` | `null` | `FormulaNull.instance()` |
+
+`FormulaArray.from` and `FormulaObject.from` convert nested plain values recursively. Object fields are read with method syntax:
+
+```ts
+const order = FormulaObject.from({
+  customer: { name: 'Ada' },
+  lines: [{ qty: 2 }, { qty: 3 }],
+});
+
+new Expression('order.customer().name()').evaluate({ context: { order } }).result.value;           // 'Ada'
+new Expression('order.lines().map(current.qty()).sum()').evaluate({ context: { order } }).result.value; // 5
+```
+
+Dates are backed by [`Temporal`](https://tc39.es/proposal-temporal/docs/) through `temporal-polyfill`.
+
+## Built-in routines
+
+Routines come in two forms: **functions** called by name, like `sum(1, 2)`, and **methods** called on a value, like `"text".upper()`. Most list and text routines exist in both forms.
+
+Inside `filter` and `map`, the second argument is evaluated once per item with two extra variables: `current` holds the item and `index` its zero-based position.
+
+### Text
+
+| Method | Description | Example |
+| --- | --- | --- |
+| `contains(search)` | Tests whether the text contains a substring or a regex match | `"v1.2".contains(".")` → `true` |
+| `test(pattern)` | Tests whether the text matches the pattern | `"Hello".test(/hello/i)` → `true` |
+| `match(pattern)` | Returns every match as a list | `"Order #1, #2".match(/#\d/)` → `["#1", "#2"]` |
+| `replace(pattern, replacement)` | Replaces the first match, or every match with the `g` flag | `"a.b.c".replace(/\./g, "-")` → `"a-b-c"` |
+| `replaceAll(pattern, replacement)` | Replaces every match | `"2026-10-09".replaceAll(/-/, "/")` → `"2026/10/09"` |
+| `length()` | Counts user-perceived characters, so an emoji counts as one | `"Hello".length()` → `5` |
+| `upper()` / `lower()` | Changes the letter case | `"hello".upper()` → `"HELLO"` |
+| `trim()` | Removes leading and trailing whitespace | `"  hi  ".trim()` → `"hi"` |
+
+`pattern` accepts a regex literal or text. Text is compiled into a regular expression, so `"\\d+"` matches digits; `contains` is the exception and treats text as a plain substring.
+
+### Numbers and math
+
+| Routine | Description | Example |
+| --- | --- | --- |
+| `sum(...values)` | Adds numbers and lists of numbers, flattening nested lists | `sum(1, [2, 3, [4, 5]])` → `15` |
+| `log2(n)` / `log10(n)` | Logarithm in base 2 or 10 | `log2(1024)` → `10` |
+| `pi()` / `e()` | Mathematical constants | `pi()` → `3.141592653589793` |
+
+`sum`, `log2` and `log10` also work as methods: `[1, 2, 3].sum()`, `8.log2()`.
+
+### Lists
+
+| Routine | Description | Example |
+| --- | --- | --- |
+| `filter(list, condition)` | Keeps the items for which the condition is true | `[1, 2, 3, 4].filter(current > 2)` → `[3, 4]` |
+| `map(list, expression)` | Transforms every item | `[1, 2, 3].map(current * index)` → `[0, 2, 6]` |
+| `join(list, separator?)` | Joins the items into text | `["a", "b"].join(", ")` → `"a, b"` |
+| `length(list)` | Number of items | `[3, 1].length()` → `2` |
+| `sum(list)` | Adds the items | `[1, 2, 3].sum()` → `6` |
+
+### Dates and durations
+
+| Routine | Description | Example |
+| --- | --- | --- |
+| `now()` / `today()` | Current date and time, or today at midnight | `today().add(1, "days")` |
+| `parseDate(text)` | Parses an ISO 8601 date | `parseDate("2023-07-10T17:35Z")` |
+| `dateAdd(date, amount, unit)` | Adds a number of units, or a duration | `parseDate("2023-08-30").add(2, "months")` |
+| `date.subtract(amount, unit)` | Subtracts a number of units, a duration or a date | `parseDate("2023-07-10").subtract(1, "years")` |
+| `dateBetween(a, b, unit)` | Difference between two dates as a duration | `dateBetween(end, start, "days").days()` |
+| `year()` `month()` `week()` `date()` `day()` `hour()` `minute()` | Date parts: `month` is 1–12, `week` is the ISO week, `day` is 1 (Monday) to 7 (Sunday) | `parseDate("2023-07-10").month()` → `7` |
+| `years()` … `milliseconds()` | Reads one unit of a duration | `dateBetween(a, b, "years").months()` |
+
+`add`, `subtract` and `between` are the method forms of the date functions. Units are `"years"`, `"months"`, `"weeks"`, `"days"`, `"hours"`, `"minutes"` and, except for `between`, `"seconds"`.
+
+### Any value
+
+| Routine | Description | Example |
+| --- | --- | --- |
+| `if(condition, then, else)` | Evaluates only the chosen branch | `if(stock > 0, "In stock", "Sold out")` |
+| `empty(value)` | True for `0`, `""`, `false`, `[]` and `null` | `empty([])` → `true` |
+| `format(value)` | Converts the value to text | `[1, 2, 3].format()` → `"1, 2, 3"` |
+| `value.equal(other)` | Compares two values | `"1".equal("1")` → `true` |
+
+## Errors
+
+Parse errors throw `SyntaxError`, a subclass of the built-in one. Evaluation errors throw `FormulaError`:
+
+| Property | Contents |
+| --- | --- |
+| `code` | One of the codes below |
+| `payload` | Structured details, e.g. `{ actual: 'String', expected: ['Array', 'Number'], argumentPosition: 1 }` |
+| `location` | `{ start, end }`, each with `offset`, `line` and `column` |
+| `message` | Human-readable text ending with `[start,end]` offsets |
+
+| Code | Raised when |
+| --- | --- |
+| `REFERENCE_ERROR` | A variable, function, method or object field does not exist |
+| `ARGUMENT_TYPE_MISMATCH` | An argument has the wrong type or an invalid value, such as an unknown date unit |
+| `ARGUMENT_COUNT_MISMATCH` | Too few or too many arguments |
+| `PATTERN_MISMATCH` | The arguments fit none of the routine's accepted signatures |
+| `ARITHMETIC_ERROR` | Division or remainder by zero |
+| `EVALUATE_ERROR` | An operator gets operands it cannot combine, or text is not a valid regular expression |
+| `RANGE_ERROR` | An unsupported operator or an out-of-range value |
+
+The runtime adds `TYPE_MISMATCH`, `CIRCULAR_DEPENDENCY`, `MAX_DEPENDENCIES_EXCEEDED`, `MAX_FORMULA_DEPTH_EXCEEDED` and `MAX_FORMULAS_EXCEEDED`; see the [runtime README](../runtime/README.md#errors-and-limits).
+
+```ts
+try {
+  new Expression('price * qty').evaluate({ context: { price: new FormulaNumber(10) } });
+}
+catch (error) {
+  if (error instanceof FormulaError && error.code === 'REFERENCE_ERROR') {
+    error.payload;  // { referenceType: 'variable', name: 'qty' }
+    error.location; // points at `qty`
+  }
+}
+```
+
+## Debugging
+
+```ts
+import { FormulaDebugger } from 'evalex';
+
+FormulaDebugger.enable();
+// [Formula Queue] Enqueued total: Manual enqueue
+// [Formula Process] Evaluating total: price * 2
+```
+
+While enabled, the runtime logs every enqueue, cascade, evaluation and error with `console.info`. Call `FormulaDebugger.disable()` to stop.
+
+## Source layout
+
+| Path | Contents |
+| --- | --- |
+| [`expression.ts`](./expression.ts) | `Expression` and its caches |
+| [`evaluator.visitor.ts`](./evaluator.visitor.ts) | Walks the AST and computes values |
+| [`dependency-extractor.visitor.ts`](./dependency-extractor.visitor.ts) | Collects identifiers for static dependencies |
+| [`context.ts`](./context.ts) | Variable scopes, including the nested scopes used by callbacks |
+| [`data-types/`](./data-types) | One folder per data type |
+| [`routines/`](./routines) | Routine registry, argument validation and one file per routine in `routines/routines/` |
+| [`errors/`](./errors) | `FormulaError`, error codes and the `Errors` factory namespace |
