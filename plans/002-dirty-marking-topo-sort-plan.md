@@ -1,40 +1,40 @@
-# Dirty Marking + Topological Sort + Batching Migration Plan
+# Dirty Marking + Topological Sort + Batching: План миграции
 
-## Executive Summary
+## Резюме
 
-This document outlines the migration plan for implementing Dirty Marking + Topological Sort + Batching in the formula runtime. This plan **assumes SoA migration (Plan 001) is already complete**.
+Данный документ описывает план миграции на Dirty Marking + Topological Sort + Batching в рантайме формул. План **предполагает, что миграция на SoA (План 001) уже завершена**.
 
-### Prerequisites
-- SoA Value Store implemented (from Plan 001)
-- Internal evaluator working with ValueRef
-- Persistent store in FormulaRuntime
+### Предварительные условия
+- Реализован SoA Value Store (из Плана 001)
+- Внутренний evaluator работает с ValueRef
+- В FormulaRuntime есть persistent store
 
-### Goals
-- Eliminate redundant evaluations in cascade updates
-- Process formulas in correct dependency order
-- Enable parallel execution of independent formulas
-- Achieve additional 20-50x improvement over SoA alone
-
----
-
-## Table of Contents
-
-1. [Current State Analysis](#1-current-state-analysis)
-2. [Target Architecture](#2-target-architecture)
-3. [Phase 1: Dirty Marking](#3-phase-1-dirty-marking-1-week)
-4. [Phase 2: Topological Sort](#4-phase-2-topological-sort-1-week)
-5. [Phase 3: Batching](#5-phase-3-batching-1-week)
-6. [Phase 4: Persistent Store Integration](#6-phase-4-persistent-store-integration-1-week)
-7. [Phase 5: Stabilization](#7-phase-5-stabilization-1-week)
-8. [Performance Analysis](#8-performance-analysis)
-9. [Risk Mitigation](#9-risk-mitigation)
-10. [Success Metrics](#10-success-metrics)
+### Цели
+- Устранить избыточные вычисления при каскадных обновлениях
+- Обрабатывать формулы в правильном порядке зависимостей
+- Обеспечить параллельное выполнение независимых формул
+- Получить дополнительное ускорение в 20-50x сверх одного только SoA
 
 ---
 
-## 1. Current State Analysis
+## Содержание
 
-### 1.1 Current Processing Flow (After SoA)
+1. [Анализ текущего состояния](#1-анализ-текущего-состояния)
+2. [Целевая архитектура](#2-целевая-архитектура)
+3. [Этап 1: Dirty Marking](#3-этап-1-dirty-marking-1-неделя)
+4. [Этап 2: Topological Sort](#4-этап-2-topological-sort-1-неделя)
+5. [Этап 3: Batching](#5-этап-3-batching-1-неделя)
+6. [Этап 4: Интеграция с Persistent Store](#6-этап-4-интеграция-с-persistent-store-1-неделя)
+7. [Этап 5: Стабилизация](#7-этап-5-стабилизация-1-неделя)
+8. [Анализ производительности](#8-анализ-производительности)
+9. [Снижение рисков](#9-снижение-рисков)
+10. [Метрики успеха](#10-метрики-успеха)
+
+---
+
+## 1. Анализ текущего состояния
+
+### 1.1 Текущий поток обработки (после SoA)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -55,9 +55,9 @@ This document outlines the migration plan for implementing Dirty Marking + Topol
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 Problems with Current Approach
+### 1.2 Проблемы текущего подхода
 
-#### Problem 1: Non-Optimal Order
+#### Проблема 1: Неоптимальный порядок
 
 ```
 Dependency Graph:
@@ -75,7 +75,7 @@ Current processing (arbitrary order):
 Result: Multiple redundant evaluations
 ```
 
-#### Problem 2: Redundant Enqueueing
+#### Проблема 2: Избыточная постановка в очередь
 
 ```
 Diamond dependency:
@@ -94,7 +94,7 @@ When A changes:
         then C finishes, D is added again and processed twice!
 ```
 
-#### Problem 3: No Parallelism
+#### Проблема 3: Отсутствие параллелизма
 
 ```
 Independent formulas at same depth:
@@ -104,20 +104,20 @@ Current: Process B1, B2, B3, B4, B5 sequentially
 Optimal: Process all 5 in parallel!
 ```
 
-### 1.3 Current Implementation Files
+### 1.3 Текущие файлы реализации
 
-| File | Current Role | Changes Needed |
+| Файл | Текущая роль | Необходимые изменения |
 |------|--------------|----------------|
-| `runtime.ts` | Queue processing, cascade logic | Major refactoring |
-| `recalculation-queue.ts` | Simple Set-based queue | Replace with priority queue |
-| `dependency-graph.ts` | Graph structure, depth cache | Add topological sort |
-| `executor.ts` | Single formula execution | Add batch execution |
+| `runtime.ts` | Обработка очереди, логика каскада | Крупный рефакторинг |
+| `recalculation-queue.ts` | Простая очередь на основе Set | Заменить на priority queue |
+| `dependency-graph.ts` | Структура графа, кэш глубины | Добавить topological sort |
+| `executor.ts` | Выполнение одной формулы | Добавить пакетное выполнение |
 
 ---
 
-## 2. Target Architecture
+## 2. Целевая архитектура
 
-### 2.1 New Processing Flow
+### 2.1 Новый поток обработки
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -141,7 +141,7 @@ Optimal: Process all 5 in parallel!
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 Component Diagram
+### 2.2 Диаграмма компонентов
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -176,7 +176,7 @@ Optimal: Process all 5 in parallel!
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.3 Data Structures
+### 2.3 Структуры данных
 
 ```typescript
 // New interfaces for dirty tracking
@@ -203,11 +203,11 @@ interface BatchContext {
 
 ---
 
-## 3. Phase 1: Dirty Marking (1 week)
+## 3. Этап 1: Dirty Marking (1 неделя)
 
-### 3.1 Create DirtyTracker Class
+### 3.1 Создать класс DirtyTracker
 
-**File:** `src/runtime/dirty-tracker.ts`
+**Файл:** `src/runtime/dirty-tracker.ts`
 
 ```typescript
 /**
@@ -334,9 +334,9 @@ export class DirtyTracker {
 }
 ```
 
-### 3.2 Update FormulaRuntime to Use DirtyTracker
+### 3.2 Перевести FormulaRuntime на DirtyTracker
 
-**File:** `src/runtime/runtime.ts` (modified)
+**Файл:** `src/runtime/runtime.ts` (изменён)
 
 ```typescript
 import { DirtyTracker } from './dirty-tracker';
@@ -429,24 +429,24 @@ export class FormulaRuntime<T extends FormulaNode> {
 }
 ```
 
-### 3.3 Tasks Checklist for Phase 1
+### 3.3 Чек-лист задач для Этапа 1
 
-- [ ] Create `src/runtime/dirty-tracker.ts`
-- [ ] Implement DirtyTracker class
-- [ ] Add unit tests for DirtyTracker
-- [ ] Update FormulaRuntime to use DirtyTracker
-- [ ] Deprecate `enqueueDependents()` method
-- [ ] Add `markDirty()` method
-- [ ] Update existing tests to use new API
-- [ ] Benchmark: verify no regression from current approach
+- [ ] Создать `src/runtime/dirty-tracker.ts`
+- [ ] Реализовать класс DirtyTracker
+- [ ] Добавить unit-тесты для DirtyTracker
+- [ ] Перевести FormulaRuntime на DirtyTracker
+- [ ] Пометить метод `enqueueDependents()` как deprecated
+- [ ] Добавить метод `markDirty()`
+- [ ] Перевести существующие тесты на новый API
+- [ ] Бенчмарк: убедиться в отсутствии регрессии относительно текущего подхода
 
 ---
 
-## 4. Phase 2: Topological Sort (1 week)
+## 4. Этап 2: Topological Sort (1 неделя)
 
-### 4.1 Enhance DependencyGraph with Topological Sort
+### 4.1 Добавить topological sort в DependencyGraph
 
-**File:** `src/runtime/dependency-graph.ts` (modified)
+**Файл:** `src/runtime/dependency-graph.ts` (изменён)
 
 ```typescript
 export class DependencyGraph {
@@ -531,9 +531,9 @@ export class DependencyGraph {
 }
 ```
 
-### 4.2 Create TopoSorter Utility
+### 4.2 Создать утилиту TopoSorter
 
-**File:** `src/runtime/topo-sorter.ts`
+**Файл:** `src/runtime/topo-sorter.ts`
 
 ```typescript
 import type { DependencyGraph } from './dependency-graph';
@@ -637,7 +637,7 @@ export class TopoSorter {
 }
 ```
 
-### 4.3 Update FormulaRuntime with Topological Sort
+### 4.3 Добавить topological sort в FormulaRuntime
 
 ```typescript
 import { TopoSorter } from './topo-sorter';
@@ -676,24 +676,24 @@ export class FormulaRuntime<T extends FormulaNode> {
 }
 ```
 
-### 4.4 Tasks Checklist for Phase 2
+### 4.4 Чек-лист задач для Этапа 2
 
-- [ ] Add `topologicalSort()` method to DependencyGraph
-- [ ] Add `groupByDepth()` method to DependencyGraph
-- [ ] Create `src/runtime/topo-sorter.ts`
-- [ ] Implement TopoSorter class
-- [ ] Update FormulaRuntime to use topological sorting
-- [ ] Add unit tests for topological sort
-- [ ] Add integration tests for correct ordering
-- [ ] Benchmark: verify performance improvement
+- [ ] Добавить метод `topologicalSort()` в DependencyGraph
+- [ ] Добавить метод `groupByDepth()` в DependencyGraph
+- [ ] Создать `src/runtime/topo-sorter.ts`
+- [ ] Реализовать класс TopoSorter
+- [ ] Перевести FormulaRuntime на топологическую сортировку
+- [ ] Добавить unit-тесты для topological sort
+- [ ] Добавить интеграционные тесты на правильный порядок
+- [ ] Бенчмарк: подтвердить прирост производительности
 
 ---
 
-## 5. Phase 3: Batching (1 week)
+## 5. Этап 3: Batching (1 неделя)
 
-### 5.1 Create BatchExecutor
+### 5.1 Создать BatchExecutor
 
-**File:** `src/runtime/executor/batch-executor.ts`
+**Файл:** `src/runtime/executor/batch-executor.ts`
 
 ```typescript
 import type { FormulaValueStore, ValueRef } from '../../core/value-store';
@@ -809,7 +809,7 @@ export class BatchExecutor {
 }
 ```
 
-### 5.2 Update FormulaRuntime for Batch Processing
+### 5.2 Перевести FormulaRuntime на пакетную обработку
 
 ```typescript
 import { BatchExecutor } from './executor/batch-executor';
@@ -920,24 +920,24 @@ export class FormulaRuntime<T extends FormulaNode> {
 }
 ```
 
-### 5.3 Tasks Checklist for Phase 3
+### 5.3 Чек-лист задач для Этапа 3
 
-- [ ] Create `src/runtime/executor/batch-executor.ts`
-- [ ] Implement BatchExecutor class
-- [ ] Add concurrency control
-- [ ] Update FormulaRuntime for batch processing
-- [ ] Add configuration options for max concurrency
-- [ ] Add unit tests for batch executor
-- [ ] Add integration tests for parallel execution
-- [ ] Benchmark: measure parallelization speedup
+- [ ] Создать `src/runtime/executor/batch-executor.ts`
+- [ ] Реализовать класс BatchExecutor
+- [ ] Добавить контроль конкурентности
+- [ ] Перевести FormulaRuntime на пакетную обработку
+- [ ] Добавить опции конфигурации для максимальной конкурентности
+- [ ] Добавить unit-тесты для batch executor
+- [ ] Добавить интеграционные тесты на параллельное выполнение
+- [ ] Бенчмарк: измерить ускорение от распараллеливания
 
 ---
 
-## 6. Phase 4: Persistent Store Integration (1 week)
+## 6. Этап 4: Интеграция с Persistent Store (1 неделя)
 
-### 6.1 Optimize Result Storage
+### 6.1 Оптимизировать хранение результатов
 
-The key optimization is using ValueRef mutations instead of allocations:
+Ключевая оптимизация — мутация ValueRef вместо аллокаций:
 
 ```typescript
 class FormulaRuntime {
@@ -997,7 +997,7 @@ class FormulaValueStore {
 }
 ```
 
-### 6.2 Arena Allocation for Evaluation
+### 6.2 Arena-аллокация при вычислении
 
 ```typescript
 class FormulaRuntime {
@@ -1033,20 +1033,20 @@ class FormulaRuntime {
 }
 ```
 
-### 6.3 Tasks Checklist for Phase 4
+### 6.3 Чек-лист задач для Этапа 4
 
-- [ ] Add `copyValue()` method to FormulaValueStore
-- [ ] Implement arena allocation with mark/release
-- [ ] Update result storage to use mutations
-- [ ] Add memory usage tracking
-- [ ] Verify no memory leaks
-- [ ] Benchmark: measure memory efficiency
+- [ ] Добавить метод `copyValue()` в FormulaValueStore
+- [ ] Реализовать arena-аллокацию с mark/release
+- [ ] Перевести хранение результатов на мутации
+- [ ] Добавить отслеживание потребления памяти
+- [ ] Убедиться в отсутствии утечек памяти
+- [ ] Бенчмарк: измерить эффективность использования памяти
 
 ---
 
-## 7. Phase 5: Stabilization (1 week)
+## 7. Этап 5: Стабилизация (1 неделя)
 
-### 7.1 Error Handling
+### 7.1 Обработка ошибок
 
 ```typescript
 class FormulaRuntime {
@@ -1085,7 +1085,7 @@ class FormulaRuntime {
 }
 ```
 
-### 7.2 Debugging and Monitoring
+### 7.2 Отладка и мониторинг
 
 ```typescript
 interface ProcessingMetrics {
@@ -1131,22 +1131,22 @@ class FormulaRuntime {
 }
 ```
 
-### 7.3 Tasks Checklist for Phase 5
+### 7.3 Чек-лист задач для Этапа 5
 
-- [ ] Implement comprehensive error handling
-- [ ] Add retry logic for transient failures
-- [ ] Add processing metrics collection
-- [ ] Update FormulaDebugger for new flow
-- [ ] Documentation updates
-- [ ] Performance regression tests
-- [ ] Memory leak tests
-- [ ] Stress tests with large graphs
+- [ ] Реализовать всестороннюю обработку ошибок
+- [ ] Добавить логику повторов для временных сбоев
+- [ ] Добавить сбор метрик обработки
+- [ ] Обновить FormulaDebugger под новый поток
+- [ ] Обновить документацию
+- [ ] Тесты на регрессию производительности
+- [ ] Тесты на утечки памяти
+- [ ] Стресс-тесты на больших графах
 
 ---
 
-## 8. Performance Analysis
+## 8. Анализ производительности
 
-### 8.1 Theoretical Improvement
+### 8.1 Теоретический прирост
 
 ```
 Scenario: Spreadsheet with 1000 formulas, diamond dependencies
@@ -1218,7 +1218,7 @@ Single cell change → cascade update to 200 formulas
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 8.2 Benchmark Suite
+### 8.2 Набор бенчмарков
 
 ```typescript
 // benchmark/dirty-marking.bench.ts
@@ -1256,18 +1256,18 @@ describe('Dirty Marking + Topo Sort Benchmarks', () => {
 
 ---
 
-## 9. Risk Mitigation
+## 9. Снижение рисков
 
-### 9.1 Risks and Mitigations
+### 9.1 Риски и меры по снижению
 
-| Risk | Probability | Impact | Mitigation |
+| Риск | Вероятность | Влияние | Мера по снижению |
 |------|-------------|--------|------------|
-| Incorrect topological order | Low | High | Extensive testing, formal verification |
-| Race conditions in parallel execution | Medium | High | Careful synchronization, stress testing |
-| Memory pressure from large batches | Medium | Medium | Chunking, concurrency limits |
-| Compatibility with existing scheduler | Low | Medium | Adapter pattern, gradual migration |
+| Некорректный топологический порядок | Низкая | Высокое | Обширное тестирование, формальная верификация |
+| Race conditions при параллельном выполнении | Средняя | Высокое | Аккуратная синхронизация, стресс-тестирование |
+| Нагрузка на память от больших пакетов | Средняя | Среднее | Разбиение на чанки, лимиты конкурентности |
+| Совместимость с существующим scheduler | Низкая | Среднее | Паттерн Adapter, постепенная миграция |
 
-### 9.2 Feature Flags
+### 9.2 Feature-флаги
 
 ```typescript
 interface RuntimeFeatureFlags {
@@ -1287,7 +1287,7 @@ const DEFAULT_FLAGS: RuntimeFeatureFlags = {
 };
 ```
 
-### 9.3 Gradual Rollout
+### 9.3 Постепенная раскатка
 
 ```
 Week 1: Phase 1 (Dirty Marking) - 10% of traffic
@@ -1299,52 +1299,52 @@ Week 5: Phase 4 - 100%
 
 ---
 
-## 10. Success Metrics
+## 10. Метрики успеха
 
-### 10.1 Performance Targets
+### 10.1 Цели по производительности
 
-| Metric | Baseline (SoA only) | Target | Measurement |
+| Метрика | Baseline (только SoA) | Цель | Способ измерения |
 |--------|---------------------|--------|-------------|
-| Redundant evaluations | 20% | 0% | Counter |
-| 200-formula cascade | 0.044ms | 0.002ms | Benchmark |
-| Parallel speedup (1000 independent) | 1x | 8-10x | Benchmark |
-| Memory per cascade | O(n) allocs | O(1) allocs | Heap snapshot |
+| Избыточные вычисления | 20% | 0% | Счётчик |
+| Каскад на 200 формул | 0.044ms | 0.002ms | Бенчмарк |
+| Ускорение от параллелизма (1000 независимых) | 1x | 8-10x | Бенчмарк |
+| Память на каскад | O(n) аллокаций | O(1) аллокаций | Heap snapshot |
 
-### 10.2 Quality Targets
+### 10.2 Цели по качеству
 
-| Metric | Target |
+| Метрика | Цель |
 |--------|--------|
-| Test coverage | >95% |
-| Zero regressions | All existing tests pass |
-| Correct ordering | Formal verification of topo sort |
-| No race conditions | Stress test passes |
+| Покрытие тестами | >95% |
+| Ноль регрессий | Все существующие тесты проходят |
+| Правильный порядок | Формальная верификация topo sort |
+| Отсутствие race conditions | Стресс-тест проходит |
 
 ---
 
-## Timeline Summary
+## Сводка по срокам
 
-| Phase | Duration | Key Deliverables |
+| Этап | Длительность | Ключевые результаты |
 |-------|----------|------------------|
-| Phase 1: Dirty Marking | 1 week | DirtyTracker, generation tracking |
-| Phase 2: Topological Sort | 1 week | TopoSorter, optimal ordering |
-| Phase 3: Batching | 1 week | BatchExecutor, parallel execution |
-| Phase 4: Persistent Store | 1 week | Mutations, arena allocation |
-| Phase 5: Stabilization | 1 week | Error handling, monitoring |
-| **Total** | **5 weeks** | Full optimization |
+| Этап 1: Dirty Marking | 1 неделя | DirtyTracker, отслеживание поколений |
+| Этап 2: Topological Sort | 1 неделя | TopoSorter, оптимальный порядок |
+| Этап 3: Batching | 1 неделя | BatchExecutor, параллельное выполнение |
+| Этап 4: Persistent Store | 1 неделя | Мутации, arena-аллокация |
+| Этап 5: Стабилизация | 1 неделя | Обработка ошибок, мониторинг |
+| **Итого** | **5 недель** | Полная оптимизация |
 
 ---
 
-## Dependencies
+## Зависимости
 
-This plan requires:
-- ✅ SoA migration complete (Plan 001)
-- ✅ FormulaValueStore with persistent storage
-- ✅ Internal evaluator using ValueRef
-- ✅ toInternalRef/toPublicValue converters
+Для этого плана требуется:
+- ✅ Миграция на SoA завершена (План 001)
+- ✅ FormulaValueStore с persistent-хранилищем
+- ✅ Внутренний evaluator на ValueRef
+- ✅ Конвертеры toInternalRef/toPublicValue
 
 ---
 
-## File Structure After Migration
+## Структура файлов после миграции
 
 ```
 src/runtime/

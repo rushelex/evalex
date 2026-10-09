@@ -1,38 +1,38 @@
-# SoA Migration Plan: Formula Engine Optimization
+# План миграции на SoA: оптимизация формульного движка
 
-## Executive Summary
+## Резюме
 
-This document outlines a comprehensive plan for migrating the formula engine's internal data representation from **AoS (Array of Structures)** to **SoA (Structure of Arrays)** while preserving the public API. The goal is to achieve 5-10x performance improvement for high-volume formula evaluation scenarios.
+Данный документ описывает комплексный план миграции внутреннего представления данных формульного движка с **AoS (Array of Structures)** на **SoA (Structure of Arrays)** с сохранением публичного API. Цель — добиться прироста производительности в 5-10 раз в сценариях массового вычисления формул.
 
-### Current State
-- Each formula value creates a class instance (`FormulaNumber`, `FormulaString`, etc.)
-- 1000 formulas can create 100K+ objects
-- High GC pressure and memory fragmentation
+### Текущее состояние
+- Каждое значение формулы создаёт экземпляр класса (`FormulaNumber`, `FormulaString` и т. д.)
+- 1000 формул могут создать 100K+ объектов
+- Высокая нагрузка на GC и фрагментация памяти
 
-### Target State
-- Internal computation uses `ValueRef` (indices into typed arrays)
-- Public API remains unchanged (`FormulaDataType` classes)
-- Conversion only at API boundaries
-
----
-
-## Table of Contents
-
-1. [Architecture Overview](#1-architecture-overview)
-2. [Phase 1: Foundation](#2-phase-1-foundation-2-weeks)
-3. [Phase 2: Core Migration](#3-phase-2-core-migration-3-weeks)
-4. [Phase 3: Runtime Integration](#4-phase-3-runtime-integration-2-weeks)
-5. [Phase 4: Optimization](#5-phase-4-optimization-2-weeks)
-6. [Phase 5: Stabilization](#6-phase-5-stabilization-1-week)
-7. [Risk Mitigation](#7-risk-mitigation)
-8. [Rollback Strategy](#8-rollback-strategy)
-9. [Success Metrics](#9-success-metrics)
+### Целевое состояние
+- Внутренние вычисления используют `ValueRef` (индексы в типизированных массивах)
+- Публичный API остаётся без изменений (классы `FormulaDataType`)
+- Конвертация только на границах API
 
 ---
 
-## 1. Architecture Overview
+## Содержание
 
-### 1.1 Current Architecture (AoS)
+1. [Обзор архитектуры](#1-обзор-архитектуры)
+2. [Этап 1: Фундамент](#2-этап-1-фундамент-2-недели)
+3. [Этап 2: Миграция ядра](#3-этап-2-миграция-ядра-3-недели)
+4. [Этап 3: Интеграция с runtime](#4-этап-3-интеграция-с-runtime-2-недели)
+5. [Этап 4: Оптимизация](#5-этап-4-оптимизация-2-недели)
+6. [Этап 5: Стабилизация](#6-этап-5-стабилизация-1-неделя)
+7. [Снижение рисков](#7-снижение-рисков)
+8. [Стратегия отката](#8-стратегия-отката)
+9. [Метрики успеха](#9-метрики-успеха)
+
+---
+
+## 1. Обзор архитектуры
+
+### 1.1 Текущая архитектура (AoS)
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -50,13 +50,13 @@ This document outlines a comprehensive plan for migrating the formula engine's i
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**Problems:**
-- Each object is a separate heap allocation
-- Hidden class creation overhead
-- GC pressure from short-lived intermediates
-- Poor cache locality
+**Проблемы:**
+- Каждый объект — отдельная аллокация в куче
+- Накладные расходы на создание hidden classes
+- Нагрузка на GC от короткоживущих промежуточных значений
+- Плохая локальность кэша
 
-### 1.2 Target Architecture (SoA)
+### 1.2 Целевая архитектура (SoA)
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -79,13 +79,13 @@ This document outlines a comprehensive plan for migrating the formula engine's i
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**Benefits:**
-- Single allocation for arrays (grows as needed)
-- Sequential memory access
-- CPU cache-friendly iteration
-- Minimal GC pressure
+**Преимущества:**
+- Единая аллокация под массивы (растут по мере необходимости)
+- Последовательный доступ к памяти
+- Итерация, дружественная к кэшу CPU
+- Минимальная нагрузка на GC
 
-### 1.3 Hybrid Layer Diagram
+### 1.3 Схема гибридных слоёв
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -106,11 +106,11 @@ This document outlines a comprehensive plan for migrating the formula engine's i
 
 ---
 
-## 2. Phase 1: Foundation (2 weeks)
+## 2. Этап 1: Фундамент (2 недели)
 
-### 2.1 Create ValueStore Core
+### 2.1 Создание ядра ValueStore
 
-**File:** `src/core/value-store/value-store.ts`
+**Файл:** `src/core/value-store/value-store.ts`
 
 ```typescript
 /**
@@ -192,7 +192,7 @@ export class FormulaValueStore {
 }
 ```
 
-### 2.2 Implement Value Creation Methods
+### 2.2 Реализация методов создания значений
 
 ```typescript
 // In FormulaValueStore class
@@ -274,7 +274,7 @@ createRegExp(pattern: string, flags: string): ValueRef {
 }
 ```
 
-### 2.3 Implement Value Reading Methods
+### 2.3 Реализация методов чтения значений
 
 ```typescript
 // In FormulaValueStore class
@@ -316,7 +316,7 @@ getRegExp(ref: ValueRef): { pattern: string; flags: string } {
 }
 ```
 
-### 2.4 Type Guards
+### 2.4 Type guards
 
 ```typescript
 // In FormulaValueStore class
@@ -358,7 +358,7 @@ isRegExp(ref: ValueRef): boolean {
 }
 ```
 
-### 2.5 Utility Methods
+### 2.5 Вспомогательные методы
 
 ```typescript
 // In FormulaValueStore class
@@ -433,7 +433,7 @@ getValue(ref: ValueRef): unknown {
 }
 ```
 
-### 2.6 Memory Management
+### 2.6 Управление памятью
 
 ```typescript
 // In FormulaValueStore class
@@ -505,26 +505,26 @@ reset(): void {
 type TypedArray = Uint8Array | Uint32Array | Float64Array;
 ```
 
-### 2.7 Tasks Checklist for Phase 1
+### 2.7 Чек-лист задач этапа 1
 
-- [ ] Create `src/core/value-store/` directory
-- [ ] Implement `FormulaValueStore` class
-- [ ] Implement all Kind types
-- [ ] Implement value creation methods
-- [ ] Implement value reading methods
-- [ ] Implement type guards
-- [ ] Implement utility methods (isEmpty, toString)
-- [ ] Implement memory management (grow, reset)
-- [ ] Write unit tests for FormulaValueStore
-- [ ] Benchmark: compare creation speed with current approach
+- [ ] Создать директорию `src/core/value-store/`
+- [ ] Реализовать класс `FormulaValueStore`
+- [ ] Реализовать все типы Kind
+- [ ] Реализовать методы создания значений
+- [ ] Реализовать методы чтения значений
+- [ ] Реализовать type guards
+- [ ] Реализовать вспомогательные методы (isEmpty, toString)
+- [ ] Реализовать управление памятью (grow, reset)
+- [ ] Написать юнит-тесты для FormulaValueStore
+- [ ] Бенчмарк: сравнить скорость создания с текущим подходом
 
 ---
 
-## 3. Phase 2: Core Migration (3 weeks)
+## 3. Этап 2: Миграция ядра (3 недели)
 
-### 3.1 Create Boundary Converters
+### 3.1 Создание конвертеров на границе API
 
-**File:** `src/core/value-store/converters.ts`
+**Файл:** `src/core/value-store/converters.ts`
 
 ```typescript
 import type { FormulaDataType } from '../data-types';
@@ -642,9 +642,9 @@ export function toInternalRef(store: FormulaValueStore, value: FormulaDataType):
 }
 ```
 
-### 3.2 Create Internal Evaluator
+### 3.2 Создание внутреннего evaluator
 
-**File:** `src/core/evaluator-internal.visitor.ts`
+**Файл:** `src/core/evaluator-internal.visitor.ts`
 
 ```typescript
 import type { AST } from '../parser';
@@ -977,9 +977,9 @@ interface InternalEvaluationHooks {
 }
 ```
 
-### 3.3 Migrate Expression.evaluate()
+### 3.3 Миграция Expression.evaluate()
 
-**File:** `src/core/expression.ts` (modified)
+**Файл:** `src/core/expression.ts` (изменён)
 
 ```typescript
 import { FormulaValueStore } from './value-store/value-store';
@@ -1030,9 +1030,9 @@ export class Expression {
 }
 ```
 
-### 3.4 Migrate Array Methods
+### 3.4 Миграция методов массивов
 
-**File:** `src/core/routines/internal-handlers/array-methods.ts`
+**Файл:** `src/core/routines/internal-handlers/array-methods.ts`
 
 ```typescript
 import type { FormulaValueStore, ValueRef } from '../../value-store/value-store';
@@ -1111,32 +1111,32 @@ export function handleArrayJoin(
 }
 ```
 
-### 3.5 Tasks Checklist for Phase 2
+### 3.5 Чек-лист задач этапа 2
 
-- [ ] Create `src/core/value-store/converters.ts`
-- [ ] Implement `toPublicValue()` function
-- [ ] Implement `toInternalRef()` function
-- [ ] Create `src/core/evaluator-internal.visitor.ts`
-- [ ] Create `InternalEvaluationContext` class
-- [ ] Implement all visit methods in InternalEvaluatorVisitor
-- [ ] Migrate `Expression.evaluate()` to use internal evaluator
-- [ ] Create internal dispatcher for function/method calls
-- [ ] Migrate array methods to internal handlers
-- [ ] Migrate string methods to internal handlers
-- [ ] Migrate number methods to internal handlers
-- [ ] Migrate all other methods
-- [ ] Update tests to ensure backward compatibility
-- [ ] Benchmark: measure performance improvement
+- [ ] Создать `src/core/value-store/converters.ts`
+- [ ] Реализовать функцию `toPublicValue()`
+- [ ] Реализовать функцию `toInternalRef()`
+- [ ] Создать `src/core/evaluator-internal.visitor.ts`
+- [ ] Создать класс `InternalEvaluationContext`
+- [ ] Реализовать все visit-методы в InternalEvaluatorVisitor
+- [ ] Перевести `Expression.evaluate()` на внутренний evaluator
+- [ ] Создать внутренний диспетчер для вызовов функций и методов
+- [ ] Перенести методы массивов во внутренние обработчики
+- [ ] Перенести строковые методы во внутренние обработчики
+- [ ] Перенести числовые методы во внутренние обработчики
+- [ ] Перенести все остальные методы
+- [ ] Обновить тесты, чтобы гарантировать обратную совместимость
+- [ ] Бенчмарк: измерить прирост производительности
 
 ---
 
-## 4. Phase 3: Runtime Integration (2 weeks)
+## 4. Этап 3: Интеграция с runtime (2 недели)
 
-### 4.1 Runtime Store Strategy
+### 4.1 Стратегия хранения в runtime
 
-The runtime needs to store formula results. We have two options:
+Runtime должен хранить результаты формул. Есть два варианта:
 
-**Option A: Store as FormulaDataType (simpler)**
+**Вариант A: хранить как FormulaDataType (проще)**
 ```typescript
 class FormulaRuntime {
   private results: Map<string, FormulaDataType> = new Map();
@@ -1148,7 +1148,7 @@ class FormulaRuntime {
 }
 ```
 
-**Option B: Store as ValueRef with persistent store (faster)**
+**Вариант B: хранить как ValueRef в персистентном store (быстрее)**
 ```typescript
 class FormulaRuntime {
   private store: FormulaValueStore;
@@ -1166,11 +1166,11 @@ class FormulaRuntime {
 }
 ```
 
-**Recommendation:** Start with Option A, migrate to Option B later if needed.
+**Рекомендация:** начать с варианта A, при необходимости позже перейти на вариант B.
 
-### 4.2 Executor Integration
+### 4.2 Интеграция с executor
 
-**File:** `src/runtime/executor/executor.ts` (modified)
+**Файл:** `src/runtime/executor/executor.ts` (изменён)
 
 ```typescript
 export class FormulaExecutor {
@@ -1191,9 +1191,9 @@ export class FormulaExecutor {
 }
 ```
 
-### 4.3 Batch Evaluation with Arena
+### 4.3 Пакетное вычисление с ареной
 
-For batch evaluation, we can reuse a single store:
+Для пакетного вычисления можно переиспользовать один store:
 
 ```typescript
 class BatchEvaluator {
@@ -1225,22 +1225,22 @@ class BatchEvaluator {
 }
 ```
 
-### 4.4 Tasks Checklist for Phase 3
+### 4.4 Чек-лист задач этапа 3
 
-- [ ] Decide on runtime store strategy (Option A or B)
-- [ ] Update FormulaExecutor to work with new evaluate()
-- [ ] Update AsyncFormulaExecutor
-- [ ] Implement BatchEvaluator with arena allocation
-- [ ] Update dependency graph to work with internal refs (if using Option B)
-- [ ] Update recalculation queue
-- [ ] Integration tests with runtime
-- [ ] Performance benchmarks for batch scenarios
+- [ ] Выбрать стратегию хранения в runtime (вариант A или B)
+- [ ] Обновить FormulaExecutor для работы с новым evaluate()
+- [ ] Обновить AsyncFormulaExecutor
+- [ ] Реализовать BatchEvaluator с arena-аллокацией
+- [ ] Обновить граф зависимостей для работы с внутренними ссылками (при варианте B)
+- [ ] Обновить очередь пересчёта
+- [ ] Интеграционные тесты с runtime
+- [ ] Бенчмарки производительности для пакетных сценариев
 
 ---
 
-## 5. Phase 4: Optimization (2 weeks)
+## 5. Этап 4: Оптимизация (2 недели)
 
-### 5.1 Number Caching
+### 5.1 Кэширование чисел
 
 ```typescript
 class FormulaValueStore {
@@ -1263,7 +1263,7 @@ class FormulaValueStore {
 }
 ```
 
-### 5.2 String Interning Optimization
+### 5.2 Оптимизация интернирования строк
 
 ```typescript
 class FormulaValueStore {
@@ -1283,9 +1283,9 @@ class FormulaValueStore {
 }
 ```
 
-### 5.3 SIMD Operations (Future)
+### 5.3 SIMD-операции (на будущее)
 
-For numeric array operations:
+Для операций над числовыми массивами:
 
 ```typescript
 // Using WASM SIMD for bulk operations
@@ -1303,56 +1303,56 @@ async function sumNumbers(store: FormulaValueStore, arrayRef: ValueRef): Promise
 }
 ```
 
-### 5.4 Tasks Checklist for Phase 4
+### 5.4 Чек-лист задач этапа 4
 
-- [ ] Implement number caching for small integers
-- [ ] Optimize string interning
-- [ ] Profile and identify remaining bottlenecks
-- [ ] Implement specialized fast paths for common operations
-- [ ] Consider WASM SIMD for bulk numeric operations
-- [ ] Memory profiling and optimization
-- [ ] Final performance benchmarks
-
----
-
-## 6. Phase 5: Stabilization (1 week)
-
-### 6.1 Documentation
-
-- [ ] Update API documentation
-- [ ] Add internal architecture documentation
-- [ ] Document performance characteristics
-- [ ] Add migration guide for any API changes
-
-### 6.2 Testing
-
-- [ ] 100% test coverage for new code
-- [ ] Regression tests for all existing functionality
-- [ ] Stress tests for memory management
-- [ ] Fuzz testing for edge cases
-
-### 6.3 Monitoring
-
-- [ ] Add performance metrics collection
-- [ ] Memory usage monitoring
-- [ ] Error tracking for new code paths
+- [ ] Реализовать кэширование малых целых чисел
+- [ ] Оптимизировать интернирование строк
+- [ ] Провести профилирование и найти оставшиеся узкие места
+- [ ] Реализовать специализированные fast paths для частых операций
+- [ ] Рассмотреть WASM SIMD для массовых числовых операций
+- [ ] Профилирование и оптимизация памяти
+- [ ] Финальные бенчмарки производительности
 
 ---
 
-## 7. Risk Mitigation
+## 6. Этап 5: Стабилизация (1 неделя)
 
-### 7.1 Technical Risks
+### 6.1 Документация
 
-| Risk | Probability | Impact | Mitigation |
+- [ ] Обновить документацию API
+- [ ] Добавить документацию по внутренней архитектуре
+- [ ] Описать характеристики производительности
+- [ ] Добавить руководство по миграции на случай любых изменений API
+
+### 6.2 Тестирование
+
+- [ ] 100% покрытие тестами нового кода
+- [ ] Регрессионные тесты для всей существующей функциональности
+- [ ] Стресс-тесты управления памятью
+- [ ] Fuzz-тестирование граничных случаев
+
+### 6.3 Мониторинг
+
+- [ ] Добавить сбор метрик производительности
+- [ ] Мониторинг потребления памяти
+- [ ] Отслеживание ошибок в новых ветках кода
+
+---
+
+## 7. Снижение рисков
+
+### 7.1 Технические риски
+
+| Риск | Вероятность | Влияние | Митигация |
 |------|-------------|--------|------------|
-| Memory leaks in arena allocator | Medium | High | Extensive testing, memory profiling |
-| Type safety loss | Medium | Medium | Careful TypeScript typing, runtime checks |
-| Performance regression in edge cases | Low | Medium | Comprehensive benchmarking |
-| Incompatibility with existing routines | Medium | High | Gradual migration, adapter layer |
+| Утечки памяти в arena-аллокаторе | Средняя | Высокое | Обширное тестирование, профилирование памяти |
+| Потеря типобезопасности | Средняя | Среднее | Аккуратная типизация на TypeScript, проверки в runtime |
+| Регрессия производительности в граничных случаях | Низкая | Среднее | Всесторонний бенчмаркинг |
+| Несовместимость с существующими routines | Средняя | Высокое | Постепенная миграция, слой адаптеров |
 
-### 7.2 Mitigation Strategies
+### 7.2 Стратегии снижения рисков
 
-1. **Feature Flags:**
+1. **Feature-флаги:**
 ```typescript
 const USE_SOA = process.env.FORMULA_ENGINE_SOA === 'true';
 
@@ -1364,23 +1364,23 @@ export function evaluate(formula: string, options?: EvaluateOptions) {
 }
 ```
 
-2. **Gradual Rollout:**
-   - Week 1-2: 1% of traffic
-   - Week 3-4: 10% of traffic
-   - Week 5+: 100% if metrics are good
+2. **Постепенная раскатка:**
+   - Недели 1-2: 1% трафика
+   - Недели 3-4: 10% трафика
+   - Неделя 5+: 100%, если метрики в порядке
 
-3. **Monitoring:**
-   - Track evaluation time percentiles (p50, p95, p99)
-   - Monitor memory usage
-   - Alert on error rate increase
+3. **Мониторинг:**
+   - Отслеживать перцентили времени вычисления (p50, p95, p99)
+   - Мониторить потребление памяти
+   - Алертить при росте доли ошибок
 
 ---
 
-## 8. Rollback Strategy
+## 8. Стратегия отката
 
-### 8.1 Code Organization
+### 8.1 Организация кода
 
-Keep original implementation alongside new:
+Исходную реализацию сохранить рядом с новой:
 
 ```
 src/core/
@@ -1390,7 +1390,7 @@ src/core/
 └── value-store/                   # New SoA components
 ```
 
-### 8.2 Quick Rollback
+### 8.2 Быстрый откат
 
 ```typescript
 // In expression.ts
@@ -1404,34 +1404,34 @@ evaluate(options: EvaluateOptions = {}): EvaluateResult {
 }
 ```
 
-### 8.3 Data Migration
+### 8.3 Миграция данных
 
-Since public API doesn't change, no data migration needed.
+Поскольку публичный API не меняется, миграция данных не нужна.
 
 ---
 
-## 9. Success Metrics
+## 9. Метрики успеха
 
-### 9.1 Performance Targets
+### 9.1 Целевые показатели производительности
 
-| Metric | Current | Target | Measurement |
+| Метрика | Сейчас | Цель | Способ измерения |
 |--------|---------|--------|-------------|
-| 1000 simple formulas | ~50ms | <10ms | Benchmark suite |
-| 10K numbers creation | ~5ms | <1ms | Micro-benchmark |
-| Memory per 1K formulas | ~2MB | <500KB | Heap snapshot |
-| GC pause time | ~10ms | <2ms | Performance API |
-| map() on 1K items | ~15ms | <3ms | Benchmark suite |
+| 1000 простых формул | ~50ms | <10ms | Набор бенчмарков |
+| Создание 10K чисел | ~5ms | <1ms | Микробенчмарк |
+| Память на 1K формул | ~2MB | <500KB | Heap snapshot |
+| Длительность GC-паузы | ~10ms | <2ms | Performance API |
+| map() на 1K элементов | ~15ms | <3ms | Набор бенчмарков |
 
-### 9.2 Quality Targets
+### 9.2 Целевые показатели качества
 
-| Metric | Target |
+| Метрика | Цель |
 |--------|--------|
-| Test coverage | >95% |
-| Zero regressions | All existing tests pass |
-| No new memory leaks | Stable memory over time |
-| API compatibility | 100% backward compatible |
+| Покрытие тестами | >95% |
+| Ноль регрессий | Все существующие тесты проходят |
+| Никаких новых утечек памяти | Потребление памяти стабильно во времени |
+| Совместимость API | 100% обратная совместимость |
 
-### 9.3 Measurement Plan
+### 9.3 План измерений
 
 ```typescript
 // Benchmark configuration
@@ -1458,20 +1458,20 @@ const benchmarks = [
 
 ---
 
-## Timeline Summary
+## Сводка по срокам
 
-| Phase | Duration | Key Deliverables |
+| Этап | Длительность | Ключевые результаты |
 |-------|----------|------------------|
-| Phase 1: Foundation | 2 weeks | FormulaValueStore, basic operations |
-| Phase 2: Core Migration | 3 weeks | InternalEvaluator, converters, methods |
-| Phase 3: Runtime Integration | 2 weeks | Executor, batch evaluation |
-| Phase 4: Optimization | 2 weeks | Caching, fast paths, profiling |
-| Phase 5: Stabilization | 1 week | Docs, testing, monitoring |
-| **Total** | **10 weeks** | Full SoA migration |
+| Этап 1: Фундамент | 2 недели | FormulaValueStore, базовые операции |
+| Этап 2: Миграция ядра | 3 недели | InternalEvaluator, конвертеры, методы |
+| Этап 3: Интеграция с runtime | 2 недели | Executor, пакетное вычисление |
+| Этап 4: Оптимизация | 2 недели | Кэширование, fast paths, профилирование |
+| Этап 5: Стабилизация | 1 неделя | Документация, тестирование, мониторинг |
+| **Итого** | **10 недель** | Полная миграция на SoA |
 
 ---
 
-## Appendix A: File Structure
+## Приложение A: Структура файлов
 
 ```
 src/core/
@@ -1496,7 +1496,7 @@ src/core/
 
 ---
 
-## Appendix B: TypedArray Memory Layout
+## Приложение B: Раскладка памяти TypedArray
 
 ```
 FormulaValueStore Memory Layout (1024 initial capacity):
@@ -1519,9 +1519,9 @@ Memory savings: 50-75%
 
 ---
 
-## Appendix C: References
+## Приложение C: Ссылки
 
-- [V8 Hidden Classes](https://v8.dev/blog/fast-properties)
+- [Hidden classes в V8](https://v8.dev/blog/fast-properties)
 - [Data-Oriented Design](https://www.dataorienteddesign.com/dodbook/)
-- [TypedArray Performance](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray)
-- [Arena Allocation](https://en.wikipedia.org/wiki/Region-based_memory_management)
+- [Производительность TypedArray](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray)
+- [Arena-аллокация](https://en.wikipedia.org/wiki/Region-based_memory_management)
