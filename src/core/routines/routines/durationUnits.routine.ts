@@ -1,7 +1,7 @@
 import { Temporal } from 'temporal-polyfill';
 
-import { FormulaDuration, FormulaNumber } from '../../data-types';
-import { createRoutineArguments } from '../arguments';
+import { FormulaDuration, FormulaNumber, Kind } from '../../data-types';
+import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
@@ -24,7 +24,8 @@ for (const unit of DURATION_UNITS) {
   // Durations balanced up to years never carry weeks, so the weeks example balances up to weeks
   const largestUnit = unit === 'weeks' ? 'weeks' : 'years';
 
-  routinesRegistry.registerMethod(FormulaDuration, unit, {
+  routinesRegistry.registerRoutine(unit, {
+    on: [FormulaDuration],
     description: `Returns the number of ${unit} in the duration.`,
     examples: createRoutineExamples([
       {
@@ -36,9 +37,9 @@ for (const unit of DURATION_UNITS) {
         },
       },
     ]),
-    arguments: createRoutineArguments([]),
-    handler: ({ instance }) => {
-      return new FormulaNumber(instance.value[unit]);
-    },
+    arguments: createRoutineArguments([
+      new Argument(Kind.Duration, { name: 'duration' }),
+    ]),
+    handler: ({ subject }) => new FormulaNumber(subject.value[unit]),
   });
 }

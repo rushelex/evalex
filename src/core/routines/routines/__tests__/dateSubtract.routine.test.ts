@@ -10,6 +10,33 @@ const context = {
   duration: new FormulaDuration(Temporal.Duration.from({ years: 2, months: 5, days: 10, hours: 12, minutes: 30, seconds: 15 })),
 };
 
+describe('"dateSubtract" function routine', new RoutineTester('dateSubtract').examples({
+  skipMethod: true,
+}, [
+  {
+    formula: 'dateSubtract(d, 2, "days")',
+    context: {
+      d: new FormulaDate(base),
+    },
+    expected: new FormulaDate(base.subtract({ days: 2 })),
+  },
+  {
+    formula: 'dateSubtract(d, duration)',
+    context,
+    expected: new FormulaDate(context.d.value.subtract(context.duration.value)),
+  },
+  {
+    formula: 'dateSubtract(d, 1, "minute")',
+    context,
+    expected: {
+      function: {
+        message: 'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".',
+        location: [19, 27],
+      },
+    },
+  },
+]));
+
 describe('"subtract" method routine', new RoutineTester('subtract').examples({
   skipFunction: true,
 }, [

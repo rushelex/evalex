@@ -10,8 +10,9 @@ import { createRoutineExamples } from '../routine-examples';
 
 const DURATION_UNITS = ['years', 'months', 'weeks', 'days', 'hours', 'minutes', 'seconds'] as const;
 
-routinesRegistry.registerMethod(FormulaDate, 'subtract', {
-  description: 'Subtracts a duration or a date from the date.',
+routinesRegistry.registerRoutine({ function: 'dateSubtract', method: 'subtract' }, {
+  on: [FormulaDate],
+  description: 'Subtracts a duration or a number of units from the date.',
   examples: createRoutineExamples([
     {
       formula: (name) => name('parseDate("2023-07-10T17:35Z")', '1', '"years"'),
@@ -45,13 +46,13 @@ routinesRegistry.registerMethod(FormulaDate, 'subtract', {
       }),
     ],
   ]),
-  handler: ({ instance, args }) => {
+  handler: ({ subject, args }) => {
     const [firstArg, secondArg] = args as [ProcessedArgument<FormulaDuration>] | [ProcessedArgument<FormulaNumber>, ProcessedArgument<FormulaString>];
 
     if (firstArg.dataType instanceof FormulaDuration) {
-      return new FormulaDate(instance.value.subtract(firstArg.dataType.value));
+      return new FormulaDate(subject.value.subtract(firstArg.dataType.value));
     }
 
-    return new FormulaDate(instance.value.subtract({ [secondArg!.dataType.value]: firstArg.dataType.value }));
+    return new FormulaDate(subject.value.subtract({ [secondArg!.dataType.value]: firstArg.dataType.value }));
   },
 });

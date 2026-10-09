@@ -147,10 +147,10 @@ Inside `filter` and `map`, the second argument is evaluated once per item with t
 | `now()` / `today()` | Current date and time, or today at midnight | `today().add(1, "days")` |
 | `parseDate(text)` | Parses an ISO 8601 date | `parseDate("2023-07-10T17:35Z")` |
 | `dateAdd(date, amount, unit)` | Adds a number of units, or a duration | `parseDate("2023-08-30").add(2, "months")` |
-| `date.subtract(amount, unit)` | Subtracts a number of units, a duration or a date | `parseDate("2023-07-10").subtract(1, "years")` |
+| `dateSubtract(date, amount, unit)` | Subtracts a number of units, or a duration | `parseDate("2023-07-10").subtract(1, "years")` |
 | `dateBetween(a, b, unit)` | Difference between two dates as a duration | `dateBetween(end, start, "days").days()` |
 | `year()` `month()` `week()` `date()` `day()` `hour()` `minute()` | Date parts: `month` is 1–12, `week` is the ISO week, `day` is 1 (Monday) to 7 (Sunday) | `parseDate("2023-07-10").month()` → `7` |
-| `years()` … `milliseconds()` | Reads one unit of a duration | `dateBetween(a, b, "years").months()` |
+| `years(duration)` … `milliseconds(duration)` | Reads one unit of a duration | `dateBetween(a, b, "years").months()` |
 
 `add`, `subtract` and `between` are the method forms of the date functions. Units are `"years"`, `"months"`, `"weeks"`, `"days"`, `"hours"`, `"minutes"` and, except for `between`, `"seconds"`.
 
@@ -161,7 +161,7 @@ Inside `filter` and `map`, the second argument is evaluated once per item with t
 | `if(condition, then, else)` | Evaluates only the chosen branch | `if(stock > 0, "In stock", "Sold out")` |
 | `empty(value)` | True for `0`, `""`, `false`, `[]` and `null` | `empty([])` → `true` |
 | `format(value)` | Converts the value to text | `[1, 2, 3].format()` → `"1, 2, 3"` |
-| `value.equal(other)` | Compares two values | `"1".equal("1")` → `true` |
+| `equal(a, b)` | Compares two values | `"1".equal("1")` → `true` |
 
 ## Errors
 

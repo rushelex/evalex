@@ -7,9 +7,7 @@ const context = {
   d: new FormulaDuration(Temporal.Duration.from({ years: 2, months: 5, days: 10, hours: 12, minutes: 30, seconds: 15 })),
 };
 
-describe('"years" method routine', new RoutineTester('years').examples({
-  skipFunction: true,
-}, [
+describe('years routine', new RoutineTester('years').examples([
   {
     formula: 'd.years()',
     context,
@@ -25,11 +23,18 @@ describe('"years" method routine', new RoutineTester('years').examples({
       },
     },
   },
+  {
+    formula: 'years(1)',
+    expected: {
+      function: {
+        message: 'Expected type Duration.',
+        location: [6, 7],
+      },
+    },
+  },
 ]));
 
-describe('"months" method routine', new RoutineTester('months').examples({
-  skipFunction: true,
-}, [
+describe('months routine', new RoutineTester('months').examples([
   {
     formula: 'd.months()',
     context,
@@ -37,9 +42,7 @@ describe('"months" method routine', new RoutineTester('months').examples({
   },
 ]));
 
-describe('"days" method routine', new RoutineTester('days').examples({
-  skipFunction: true,
-}, [
+describe('days routine', new RoutineTester('days').examples([
   {
     formula: 'd.days()',
     context,
@@ -47,9 +50,7 @@ describe('"days" method routine', new RoutineTester('days').examples({
   },
 ]));
 
-describe('"hours" method routine', new RoutineTester('hours').examples({
-  skipFunction: true,
-}, [
+describe('hours routine', new RoutineTester('hours').examples([
   {
     formula: 'd.hours()',
     context,
@@ -57,9 +58,7 @@ describe('"hours" method routine', new RoutineTester('hours').examples({
   },
 ]));
 
-describe('"minutes" method routine', new RoutineTester('minutes').examples({
-  skipFunction: true,
-}, [
+describe('minutes routine', new RoutineTester('minutes').examples([
   {
     formula: 'd.minutes()',
     context,
@@ -67,9 +66,7 @@ describe('"minutes" method routine', new RoutineTester('minutes').examples({
   },
 ]));
 
-describe('"seconds" method routine', new RoutineTester('seconds').examples({
-  skipFunction: true,
-}, [
+describe('seconds routine', new RoutineTester('seconds').examples([
   {
     formula: 'd.seconds()',
     context,
