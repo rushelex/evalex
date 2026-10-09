@@ -16,7 +16,7 @@ const routineExamples: readonly RoutineExampleOptions[] = [
 ];
 
 routinesRegistry.registerFunction('if', {
-  description: 'Returns the first value if the condition is true, else the second.',
+  description: 'Returns the first value if the condition is true, or the second.',
   examples: routineExamples,
   handler: ({ node, visitor }) => {
     // Use simple inline validation to avoid evaluate all static args
