@@ -11,6 +11,7 @@ import {
   FormulaDate,
   FormulaNull,
   FormulaNumber,
+  FormulaRegExp,
   FormulaString,
 } from './data-types';
 import { Errors } from './errors';
@@ -72,6 +73,10 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
 
     if (typeof node.value === 'boolean') {
       return FormulaBoolean.from(node.value);
+    }
+
+    if (node.value instanceof RegExp) {
+      return FormulaRegExp.from(node.value);
     }
 
     if (node.value === null || node.value === undefined) {

@@ -14,12 +14,12 @@ import type {
 
 export class LiteralNode implements ILiteralNode {
   type = 'Literal' as const;
-  value: string | number | boolean | null;
+  value: string | number | boolean | RegExp | null;
   raw: string;
   location: Location;
 
   constructor(
-    value: string | number | boolean | null,
+    value: string | number | boolean | RegExp | null,
     raw: string,
     location: Location,
   ) {

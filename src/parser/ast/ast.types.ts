@@ -21,7 +21,7 @@ export interface Location {
 
 export interface ILiteralNode extends IVisitable {
   type: 'Literal';
-  value: string | number | boolean | null | undefined;
+  value: string | number | boolean | RegExp | null | undefined;
   raw: string;
   location: Location;
 }

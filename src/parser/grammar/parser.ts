@@ -401,6 +401,9 @@ class Parser {
     if (ch === '"' || ch === '\'') {
       return this.#parseString();
     }
+    if (ch === '/') {
+      return this.#parseRegExp();
+    }
     if (ch === '(') {
       return this.#parseGrouped();
     }
@@ -521,6 +524,51 @@ class Parser {
       default:
         return c;
     }
+  }
+
+  /**
+   * Parses a regular expression literal `/pattern/flags`.
+   *
+   * An atom never follows an operand, so a `/` here always starts a literal
+   * and never conflicts with division. As in JS, `/` inside a character class
+   * needs no escaping, and the literal cannot span lines.
+   */
+  #parseRegExp(): LiteralNode {
+    const s = this.#mark();
+    this.#advance();
+    const patternStart = this.#pos;
+    let inClass = false;
+    while (this.#peek() !== '/' || inClass) {
+      if (this.#isEnd() || this.#isLineBreak(this.#peek())) {
+        this.#fail('Unterminated regular expression.', this.#loc(s));
+      }
+      const c = this.#advance();
+      if (c === '\\' && !this.#isEnd() && !this.#isLineBreak(this.#peek())) {
+        this.#advance();
+      }
+      else if (c === '[') {
+        inClass = true;
+      }
+      else if (c === ']') {
+        inClass = false;
+      }
+    }
+    const pattern = this.#input.slice(patternStart, this.#pos);
+    this.#advance();
+    if (pattern === '') {
+      this.#fail('Empty regular expression.', this.#loc(s));
+    }
+    const flagsStart = this.#mark();
+    const flags = this.#readWord();
+    // Flags are checked against an empty pattern first so the error points at the flags, not the pattern
+    if (this.#createRegExp('', flags) instanceof Error) {
+      this.#fail(`Invalid regular expression flags "${flags}".`, this.#loc(flagsStart));
+    }
+    const regexp = this.#createRegExp(pattern, flags);
+    if (regexp instanceof Error) {
+      this.#fail(regexp.message, this.#loc(s));
+    }
+    return new LiteralNode(regexp, `/${pattern}/${flags}`, this.#loc(s));
   }
 
   /**
@@ -781,11 +829,26 @@ class Parser {
       || this.#isIdStart(c)
       || c === '"'
       || c === '\''
+      || c === '/'
       || c === '('
       || c === '['
       || c === '-'
       || c === '!'
       || c === '.';
+  }
+
+  #isLineBreak(c: string): boolean {
+    return c === '\n' || c === '\r';
+  }
+
+  /** Builds a RegExp, returning the engine's error instead of throwing when the pattern or flags are invalid. */
+  #createRegExp(pattern: string, flags: string): RegExp | Error {
+    try {
+      return new RegExp(pattern, flags);
+    }
+    catch (error) {
+      return error instanceof Error ? error : new Error(String(error));
+    }
   }
 
   /** Checks if the given keyword appears at the current position followed by a non-identifier character. */

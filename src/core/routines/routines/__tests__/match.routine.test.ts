@@ -5,7 +5,7 @@ describe('"match" method routine', new RoutineTester('match').examples({
   skipFunction: true,
 }, [
   {
-    formula: '"Hello 42 world 101".match("\\\\d+", "g")',
+    formula: '"Hello 42 world 101".match(/\\d+/g)',
     expected: new FormulaArray([new FormulaString('42'), new FormulaString('101')]),
   },
   {
@@ -32,11 +32,11 @@ describe('"match" method routine', new RoutineTester('match').examples({
     expected: new FormulaArray([]),
   },
   {
-    formula: '"Hello WORLD".match("hello", "i")',
+    formula: '"Hello WORLD".match(/hello/i)',
     expected: new FormulaArray([new FormulaString('Hello')]),
   },
   {
-    formula: '"A1 a2".match("a\\\\d", "i")',
+    formula: '"A1 a2".match(/a\\d/i)',
     expected: new FormulaArray([new FormulaString('A1'), new FormulaString('a2')]),
   },
   {
@@ -54,20 +54,21 @@ describe('"match" method routine', new RoutineTester('match').examples({
     formula: '"test".match(42)',
     expected: {
       method: {
-        message: 'Arguments don\'t match. Pattern 1: Expected type String.; Pattern 2: Expected type RegExp.',
-        location: [7, 12],
+        message: 'Expected type String | RegExp.',
+        location: [13, 15],
       },
     },
   },
   {
-    formula: '"test".match(regexp, "g")',
-    context: {
-      regexp: new FormulaRegExp('test', 'i'),
-    },
+    formula: '"a/b".match(/[/]/)',
+    expected: new FormulaArray([new FormulaString('/')]),
+  },
+  {
+    formula: '"Hello".match("hello", "i")',
     expected: {
       method: {
-        message: 'Expected type String.',
-        location: [13, 19],
+        message: 'Expected 1 argument.',
+        location: [8, 13],
       },
     },
   },

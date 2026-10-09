@@ -27,6 +27,10 @@ describe('format routine', tester.examples([
     expected: new FormulaString('true'),
   },
   {
+    formula: '/a.c/i.format()',
+    expected: new FormulaString('/a.c/i'),
+  },
+  {
     formula: 'false.format()',
     expected: new FormulaString('false'),
   },

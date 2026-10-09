@@ -223,7 +223,7 @@ it('Comparison: 1000 formulas initialization', async ({ bench }) => {
 
 /**
  * Scenario 5: Recalculation after value change (UPDATE scenario)
- * This is crucial for real-time editing like Notion
+ * This is crucial for real-time editing
  */
 it('Comparison: Recalculation after value change (50 dependents)', async ({ bench }) => {
   let evalexUpdateFn: () => Promise<void>;

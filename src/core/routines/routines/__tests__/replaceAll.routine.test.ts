@@ -13,8 +13,17 @@ describe('"replaceAll" method routine', new RoutineTester('replaceAll').examples
     expected: new FormulaString('qux bar qux baz'),
   },
   {
-    formula: '"Hello HELLO hello".replaceAll("hello", "hi", "i")',
+    formula: '"Hello HELLO hello".replaceAll(/hello/i, "hi")',
     expected: new FormulaString('hi hi hi'),
+  },
+  {
+    formula: '"Hello HELLO hello".replaceAll("hello", "hi", "i")',
+    expected: {
+      method: {
+        message: 'Expected 2 arguments.',
+        location: [20, 30],
+      },
+    },
   },
   {
     formula: '"Hello world".replaceAll("\\\\d+", "XXX")',

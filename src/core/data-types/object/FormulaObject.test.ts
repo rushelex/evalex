@@ -649,7 +649,7 @@ describe('FormulaObject', () => {
       expect(obj.value.pattern).toBeInstanceOf(FormulaRegExp);
 
       // Test using regex in formula evaluation
-      const result = evaluate('obj.text().match("\\\\d+", "g")', { context });
+      const result = evaluate('obj.text().match(obj.pattern())', { context });
 
       expect(result).toBeFormulaDataType(FormulaArray, [
         new FormulaString('42'),

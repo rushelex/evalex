@@ -17,11 +17,19 @@ describe('"test" method routine', new RoutineTester('test').examples({
     expected: new FormulaBoolean(false),
   },
   {
-    formula: '"Hello".test("hello", "i")',
+    formula: '"Hello".test(/hello/i)',
     expected: new FormulaBoolean(true),
   },
   {
     formula: '"abc".test("a.c")',
+    expected: new FormulaBoolean(true),
+  },
+  {
+    formula: '"abc".test(/a\\.c/)',
+    expected: new FormulaBoolean(false),
+  },
+  {
+    formula: '"a.c".test(/a\\.c/)',
     expected: new FormulaBoolean(true),
   },
   {
@@ -39,23 +47,11 @@ describe('"test" method routine', new RoutineTester('test').examples({
     expected: new FormulaBoolean(true),
   },
   {
-    formula: '"Hello".test(regexp, "i")',
-    context: {
-      regexp: new FormulaRegExp('hello', ''),
-    },
+    formula: '"Hello".test("hello", "i")',
     expected: {
       method: {
-        message: 'Expected type String.',
-        location: [13, 19],
-      },
-    },
-  },
-  {
-    formula: '"abc".test("b", "z")',
-    expected: {
-      method: {
-        message: 'Invalid flags supplied to RegExp constructor \'z\'.',
-        location: [6, 10],
+        message: 'Expected 1 argument.',
+        location: [8, 12],
       },
     },
   },

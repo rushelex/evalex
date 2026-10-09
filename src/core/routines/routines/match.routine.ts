@@ -10,12 +10,12 @@ routinesRegistry.registerMethod(FormulaString, 'match', {
   description: 'Returns all matches of the regular expression as a list.',
   examples: createRoutineExamples([
     {
-      formula: (name) => name('"Notion 123 Notion 456"', '"\\\\d+"'),
+      formula: (name) => name('"Order 123 Order 456"', '"\\\\d+"'),
       result: () => new FormulaArray([new FormulaString('123'), new FormulaString('456')]),
     },
     {
-      formula: (name) => name('"Hello 42 world 101"', '"\\\\d+"', '"g"'),
-      result: () => new FormulaArray([new FormulaString('42'), new FormulaString('101')]),
+      formula: (name) => name('"Hi hi"', '/hi/i'),
+      result: () => new FormulaArray([new FormulaString('Hi'), new FormulaString('hi')]),
     },
     {
       formula: (name) => name('"test@example.com"', '"@"'),
@@ -23,25 +23,18 @@ routinesRegistry.registerMethod(FormulaString, 'match', {
     },
   ]),
   arguments: createRoutineArguments([
-    [
-      new Argument(Kind.String, { name: 'self' }),
-      new Argument(Kind.String, { name: 'pattern' }),
-      new Argument(Kind.String, { name: 'flags', optional: true }),
-    ],
-    [
-      new Argument(Kind.String, { name: 'self' }),
-      new Argument(Kind.RegExp, { name: 'regexp' }),
-    ],
+    new Argument(Kind.String, { name: 'self' }),
+    new Argument([Kind.String, Kind.RegExp], { name: 'pattern' }),
   ]),
   handler: ({ instance, args, location, visitor }) => {
     try {
-      const [patternOrRegExpArg, flagsArg] = args as [ProcessedArgument<FormulaString>, ProcessedArgument<FormulaString>?] | [ProcessedArgument<FormulaRegExp>];
+      const [patternArg] = args as [ProcessedArgument<FormulaString | FormulaRegExp>];
 
-      const regexp = FormulaRegExp.from(patternOrRegExpArg.dataType.value, flagsArg?.dataType.value);
+      const regexp = patternArg.dataType instanceof FormulaRegExp ? patternArg.dataType : new FormulaRegExp(patternArg.dataType.value);
 
       let regex = regexp.toRegExp();
 
-      // Notion returns every match regardless of the global flag, without capture groups
+      // Every match is returned regardless of the global flag, without capture groups
       if (!regex.global) {
         regex = new RegExp(regex.source, `g${regex.flags}`);
       }

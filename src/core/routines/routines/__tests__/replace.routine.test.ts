@@ -13,7 +13,7 @@ describe('"replace" method routine', new RoutineTester('replace').examples({
     expected: new FormulaString('Hello XXX world 456'),
   },
   {
-    formula: '"Hello WORLD".replace("world", "universe", "i")',
+    formula: '"Hello WORLD".replace(/world/i, "universe")',
     expected: new FormulaString('Hello universe'),
   },
   {
@@ -29,8 +29,17 @@ describe('"replace" method routine', new RoutineTester('replace').examples({
     expected: new FormulaString('-.b.c'),
   },
   {
-    formula: '"a1b2".replace("\\\\d", "#", "g")',
+    formula: '"a1b2".replace(/\\d/g, "#")',
     expected: new FormulaString('a#b#'),
+  },
+  {
+    formula: '"a1b2".replace("\\\\d", "#", "g")',
+    expected: {
+      method: {
+        message: 'Expected 2 arguments.',
+        location: [7, 14],
+      },
+    },
   },
   {
     formula: '"John Smith".replace("(\\\\w+) (\\\\w+)", "$2 $1")',

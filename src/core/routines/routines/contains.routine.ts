@@ -7,7 +7,7 @@ import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
 routinesRegistry.registerMethod(FormulaString, 'contains', {
-  description: 'Tests whether the string contains the given text, or a match for the regular expression.',
+  description: 'Tests whether the string contains the text or a regex match.',
   examples: createRoutineExamples([
     {
       formula: (name) => name('"Hello world"', '"wor"'),
@@ -17,16 +17,14 @@ routinesRegistry.registerMethod(FormulaString, 'contains', {
       formula: (name) => name('"v1.2"', '"."'),
       result: () => new FormulaBoolean(true),
     },
+    {
+      formula: (name) => name('"v1.2"', '/\\d\\.\\d/'),
+      result: () => new FormulaBoolean(true),
+    },
   ]),
   arguments: createRoutineArguments([
-    [
-      new Argument(Kind.String, { name: 'self' }),
-      new Argument(Kind.String, { name: 'text' }),
-    ],
-    [
-      new Argument(Kind.String, { name: 'self' }),
-      new Argument(Kind.RegExp, { name: 'regexp' }),
-    ],
+    new Argument(Kind.String, { name: 'self' }),
+    new Argument([Kind.String, Kind.RegExp], { name: 'search' }),
   ]),
   handler: ({ instance, args }) => {
     const [searchArg] = args as [ProcessedArgument<FormulaString | FormulaRegExp>];

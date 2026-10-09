@@ -753,6 +753,93 @@ describe(parse, () => {
     });
   });
 
+  describe('Regular expression literals', () => {
+    it('should parse a pattern with flags without doubling backslashes', () => {
+      const ast = parse('/\\d[a-z]/gi');
+      expect(ast).toEqual({
+        type: 'Literal',
+        value: /\d[a-z]/gi,
+        raw: '/\\d[a-z]/gi',
+        location: createLocation(0, 11),
+      });
+    });
+
+    it('should parse a pattern without flags', () => {
+      const ast = parse('/a.c/');
+      expect(ast).toEqual({
+        type: 'Literal',
+        value: /a.c/,
+        raw: '/a.c/',
+        location: createLocation(0, 5),
+      });
+    });
+
+    it('should keep an unescaped slash inside a character class in the pattern', () => {
+      const ast = parse('/[/a]/');
+      expect(ast).toMatchObject({ type: 'Literal', value: /[/a]/, raw: '/[/a]/' });
+    });
+
+    it('should keep an escaped slash in the pattern', () => {
+      const ast = parse('/a\\/b/');
+      expect(ast).toMatchObject({ type: 'Literal', value: /a\/b/, raw: '/a\\/b/' });
+    });
+
+    it('should parse a literal as a method argument', () => {
+      const ast = parse('s.test(/a/i)');
+      expect(ast).toMatchObject({
+        type: 'CallExpression',
+        args: [{ type: 'Literal', value: /a/i, location: createLocation(7, 11) }],
+      });
+    });
+
+    it('should parse a method call on a literal', () => {
+      const ast = parse('/a/.format()');
+      expect(ast).toMatchObject({
+        type: 'CallExpression',
+        callee: {
+          type: 'MemberExpression',
+          object: { type: 'Literal', value: /a/ },
+          property: { name: 'format' },
+        },
+      });
+    });
+
+    it('should parse a slash after an operand as division and a slash in operand position as a literal', () => {
+      const ast = parse('a / /b/');
+      expect(ast).toMatchObject({
+        type: 'BinaryExpression',
+        operator: '/',
+        left: { type: 'Identifier', name: 'a' },
+        right: { type: 'Literal', value: /b/, location: createLocation(4, 7) },
+      });
+    });
+
+    it('should keep chained division as division', () => {
+      const ast = parse('a / b / c');
+      expect(ast).toMatchObject({
+        type: 'BinaryExpression',
+        operator: '/',
+        left: { type: 'BinaryExpression', operator: '/' },
+        right: { type: 'Identifier', name: 'c' },
+      });
+    });
+
+    it.each([
+      { desc: 'missing closing slash', formula: '/abc', message: 'Unterminated regular expression. [0,4]' },
+      { desc: 'closing slash only inside a character class', formula: '/[/', message: 'Unterminated regular expression. [0,3]' },
+      { desc: 'escaped closing slash', formula: '/a\\/', message: 'Unterminated regular expression. [0,4]' },
+      { desc: 'line break inside the pattern', formula: '/a\nb/', message: 'Unterminated regular expression. [0,2]' },
+      { desc: 'empty pattern', formula: '//', message: 'Empty regular expression. [0,2]' },
+      { desc: 'duplicated flag', formula: '/a/gg', message: 'Invalid regular expression flags "gg". [3,5]' },
+      { desc: 'unknown flag', formula: '/a/x', message: 'Invalid regular expression flags "x". [3,4]' },
+      { desc: 'invalid pattern', formula: '/(/', message: 'Invalid regular expression: /(/: Unterminated group. [0,3]' },
+    ])('should throw SyntaxError for $desc', ({ formula, message }) => {
+      expect(() => {
+        parse(formula);
+      }).toThrow(message);
+    });
+  });
+
   describe('Syntax Errors', () => {
     it('should throw SyntaxError for an incomplete expression', () => {
       expect(() => {

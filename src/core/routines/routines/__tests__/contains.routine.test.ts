@@ -33,6 +33,10 @@ describe('"contains" method routine', new RoutineTester('contains').examples({
     expected: new FormulaBoolean(true),
   },
   {
+    formula: '"abc".contains(/a.c/)',
+    expected: new FormulaBoolean(true),
+  },
+  {
     formula: '"abc".contains(regexp)',
     context: {
       regexp: new FormulaRegExp('a.c', ''),
@@ -59,8 +63,8 @@ describe('"contains" method routine', new RoutineTester('contains').examples({
     formula: '"abc".contains(42)',
     expected: {
       method: {
-        message: 'Arguments don\'t match. Pattern 1: Expected type String.; Pattern 2: Expected type RegExp.',
-        location: [6, 14],
+        message: 'Expected type String | RegExp.',
+        location: [15, 17],
       },
     },
   },
