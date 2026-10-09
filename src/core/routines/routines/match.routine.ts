@@ -7,8 +7,12 @@ import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
 routinesRegistry.registerMethod(FormulaString, 'match', {
-  description: 'Returns an array of all matches found by the regular expression.',
+  description: 'Returns all matches of the regular expression as a list.',
   examples: createRoutineExamples([
+    {
+      formula: (name) => name('"Notion 123 Notion 456"', '"\\\\d+"'),
+      result: () => new FormulaArray([new FormulaString('123'), new FormulaString('456')]),
+    },
     {
       formula: (name) => name('"Hello 42 world 101"', '"\\\\d+"', '"g"'),
       result: () => new FormulaArray([new FormulaString('42'), new FormulaString('101')]),
@@ -35,12 +39,19 @@ routinesRegistry.registerMethod(FormulaString, 'match', {
 
       const regexp = FormulaRegExp.from(patternOrRegExpArg.dataType.value, flagsArg?.dataType.value);
 
-      const matches = instance.value.match(regexp.toRegExp());
-      if (!matches) {
+      let regex = regexp.toRegExp();
+
+      // Notion returns every match regardless of the global flag, without capture groups
+      if (!regex.global) {
+        regex = new RegExp(regex.source, `g${regex.flags}`);
+      }
+
+      const matches = Array.from(instance.value.matchAll(regex), (match) => new FormulaString(match[0]));
+      if (!matches.length) {
         return new FormulaArray([], 'string');
       }
 
-      return new FormulaArray(matches.map((match) => new FormulaString(match)));
+      return new FormulaArray(matches);
     }
     catch (error) {
       throw getRegExpFallbackError(error, location, visitor.formula);

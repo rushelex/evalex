@@ -10,7 +10,18 @@ describe('"match" method routine', new RoutineTester('match').examples({
   },
   {
     formula: '"Hello 42 world 101".match("\\\\d+")',
-    expected: new FormulaArray([new FormulaString('42')]),
+    expected: new FormulaArray([new FormulaString('42'), new FormulaString('101')]),
+  },
+  {
+    formula: '"a1b2".match("([a-z])(\\\\d)")',
+    expected: new FormulaArray([new FormulaString('a1'), new FormulaString('b2')]),
+  },
+  {
+    formula: '"a1b2".match(regexp)',
+    context: {
+      regexp: new FormulaRegExp('[a-z]', ''),
+    },
+    expected: new FormulaArray([new FormulaString('a'), new FormulaString('b')]),
   },
   {
     formula: '"Hello world".match("\\\\d+")',
