@@ -2,10 +2,12 @@ import type { Constructor } from 'type-fest';
 
 import type { FormulaDataType } from '~/core';
 
+import { toBeCorrectRoutineExample } from './to-be-correct-routine-example';
 import { toBeFormulaDataType } from './to-be-formula-data-type';
 
 // Register all matchers with Vitest
 expect.extend({
+  toBeCorrectRoutineExample,
   toBeFormulaDataType,
 });
 
@@ -29,6 +31,18 @@ interface CustomMatchers<R = unknown> {
     expectedDataType: Constructor<FormulaDataType<TValue>>,
     expectedValue: TValue,
   ) => R;
+
+  /**
+   * Asserts that a routine example returns its result, or fails with its error, in the given call form.
+   *
+   * @param form - The call form the example is written in
+   *
+   * @example
+   * ```ts
+   * expect(example).toBeCorrectRoutineExample('method');
+   * ```
+   */
+  toBeCorrectRoutineExample: (form: 'function' | 'method') => R;
 }
 
 declare module 'vitest' {

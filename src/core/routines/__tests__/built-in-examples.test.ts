@@ -3,7 +3,6 @@ import type { RoutineExample } from '../routine-example';
 import { Temporal } from 'temporal-polyfill';
 
 import { routinesRegistry } from '../registry';
-import { checkRoutineExample } from '../test-helpers/check-routine-example';
 
 // Examples document the current date as 2025-08-02, so the clock is frozen on that day.
 vi.spyOn(Temporal.Now, 'zonedDateTimeISO').mockReturnValue(Temporal.ZonedDateTime.from('2025-08-02T10:30:00+00:00[UTC]'));
@@ -32,7 +31,7 @@ describe('built-in routine examples', () => {
   });
 
   it.each(examples)('$name as $label: $example.formula', ({ example, form }) => {
-    checkRoutineExample(example, form);
+    expect(example).toBeCorrectRoutineExample(form);
   });
 });
 
