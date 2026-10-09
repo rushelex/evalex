@@ -33,6 +33,17 @@ export type RoutineHandlerContext<TInstance extends FormulaDataType | unknown> =
 
 export type RoutineHandler<TInstance extends FormulaDataType | unknown> = (context: RoutineHandlerContext<TInstance>) => FormulaDataType;
 
+/** Context of a routine registered for both forms: `subject` is `x` in `f(x, a)` and in `x.f(a)`, `args` are the rest. */
+export interface SubjectRoutineHandlerContext<TSubject extends FormulaDataType> {
+  readonly subject: TSubject;
+  readonly args: ProcessedArguments;
+  readonly visitor: FormulaEvaluatorVisitor;
+  readonly location: AST.Location;
+  readonly utils: ContextUtils;
+}
+
+export type SubjectRoutineHandler<TSubject extends FormulaDataType> = (context: SubjectRoutineHandlerContext<TSubject>) => FormulaDataType;
+
 export interface RoutineExecuteParams<TInstance extends FormulaDataType | unknown> {
   instance: TInstance;
   node: AST.ICallExpressionNode;
