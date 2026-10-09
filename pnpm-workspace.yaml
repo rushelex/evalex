@@ -2,6 +2,11 @@ minimumReleaseAgeExcludePrune: true
 trustPolicy: no-downgrade
 shellEmulator: true
 
+# Security fixes for transitive dev dependencies pinned by their parents (pnpm audit)
+overrides:
+  katex@<0.18.2: ^0.18.2
+  tinypool@<2.1.2: ^2.1.2
+
 patchedDependencies:
   "@total-typescript/ts-reset@0.6.1": patches/@total-typescript__ts-reset@0.6.1.patch
 
