@@ -72,6 +72,21 @@ export class FormulaEvaluationContext {
   }
 
   /**
+   * Checks whether `getVariable` would resolve the name from a local scope rather than from global properties.
+   */
+  isLocalVariable(name: string): boolean {
+    if (this.#localScope.has(name)) {
+      return true;
+    }
+
+    if (this.#globalProperties.has(name)) {
+      return false;
+    }
+
+    return this.#parentContext?.isLocalVariable(name) ?? false;
+  }
+
+  /**
    * Adds or updates a variable in the current local scope.
    * @param name Variable name.
    * @param value Variable value (must be FormulaDataType).

@@ -1,7 +1,12 @@
 import type { AST } from '../parser';
+import type { Routine } from './routines/routine';
+
+import { routinesRegistry } from './routines/registry';
 
 export class DependencyExtractorVisitor implements AST.IVisitor<void> {
   #dependencies = new Set<string>();
+  // Names introduced by the enclosing callbacks, innermost last.
+  readonly #callbackScopes: ReadonlySet<string>[] = [];
 
   static getDependencies(node: AST.AstNode): ReadonlySet<string> {
     const visitor = new DependencyExtractorVisitor();
@@ -23,15 +28,36 @@ export class DependencyExtractorVisitor implements AST.IVisitor<void> {
   }
 
   visitIdentifierNode(node: AST.IIdentifierNode): void {
+    if (this.#callbackScopes.some((scope) => scope.has(node.name))) {
+      return;
+    }
+
     this.#dependencies.add(node.name);
   }
 
   visitCallExpressionNode(node: AST.ICallExpressionNode): void {
-    node.callee.accept(this);
+    const { callee } = node;
 
-    for (const arg of node.args) {
-      arg.accept(this);
+    if (callee.type === 'MemberExpression') {
+      callee.object.accept(this);
     }
+
+    const routines = callee.type === 'Identifier'
+      ? [routinesRegistry.getFunction(callee.name)].filter((routine) => routine !== undefined)
+      : getMethodsNamed(callee.property.name);
+
+    node.args.forEach((arg, index) => {
+      const callbackVariables = getSharedCallbackVariables(routines, index);
+
+      if (callbackVariables.size === 0) {
+        arg.accept(this);
+        return;
+      }
+
+      this.#callbackScopes.push(callbackVariables);
+      arg.accept(this);
+      this.#callbackScopes.pop();
+    });
   }
 
   visitMemberExpressionNode(node: AST.IMemberExpressionNode): void {
@@ -49,4 +75,24 @@ export class DependencyExtractorVisitor implements AST.IVisitor<void> {
       element.accept(this);
     }
   }
+}
+
+// The receiver type is unknown before evaluation, so every data type's method with this name is a candidate.
+function getMethodsNamed(name: string): Routine[] {
+  return routinesRegistry
+    .getRegisteredDataTypes()
+    .map((ctor) => routinesRegistry.getMethod(ctor, name))
+    .filter((routine) => routine !== undefined);
+}
+
+// Only names every candidate declares are excluded: a name kept by mistake costs a recalculation,
+// a name dropped by mistake leaves a stale result.
+function getSharedCallbackVariables(routines: readonly Routine[], argumentIndex: number): ReadonlySet<string> {
+  if (routines.length === 0) {
+    return new Set();
+  }
+
+  const [first, ...rest] = routines.map((routine) => routine.getCallbackVariables(argumentIndex));
+
+  return new Set(first.filter((name) => rest.every((variables) => variables.includes(name))));
 }

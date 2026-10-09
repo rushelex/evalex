@@ -4,7 +4,7 @@ import type { FormulaNode, NodeAdapter } from '../types';
 
 import { vi } from 'vitest';
 
-import { Expression, FormulaNull, FormulaNumber } from '../../core';
+import { Expression, FormulaArray, FormulaNull, FormulaNumber } from '../../core';
 import { Errors } from '../../core/errors';
 import { SyncExecutor } from '../executor';
 import { FORMULA_LIMITS } from '../limits';
@@ -357,6 +357,26 @@ describe(FormulaOrchestrator, () => {
       expect(b.value).toEqual(new FormulaNumber(10)); // 5 * 2
       expect(c.value).toEqual(new FormulaNumber(13)); // 10 + 3
       expect(d.value).toEqual(new FormulaNumber(6.5)); // 13 / 2
+    });
+
+    it('should not recalculate a formula when a node named like a callback variable changes', async () => {
+      const items: TestNode = { id: 'items', value: FormulaArray.from([1, 2]), error: null };
+      const index: TestNode = { id: 'index', value: new FormulaNumber(100), error: null };
+      const total: TestNode = { id: 'total', value: new FormulaNumber(0), expression: new Expression('items.map(current * index).sum()'), error: null };
+      const onCalculate = vi.spyOn(adapter, 'onCalculate');
+
+      orchestrator.add(items);
+      orchestrator.add(index);
+      orchestrator.add(total);
+      await orchestrator.waitForProcessing();
+      onCalculate.mockClear();
+
+      index.value = new FormulaNumber(200);
+      orchestrator.enqueueDependents('index');
+      await orchestrator.waitForProcessing();
+
+      expect(total.value).toEqual(new FormulaNumber(2));
+      expect(onCalculate).not.toHaveBeenCalled();
     });
 
     it('should handle multiple property changes in a batch', async () => {

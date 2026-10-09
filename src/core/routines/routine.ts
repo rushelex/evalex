@@ -5,7 +5,7 @@ import type { RoutineExample } from './routine-example';
 
 import { AstNodes } from '../../parser';
 import { FormulaDataType } from '../data-types';
-import { ArgumentsProcessor, CallbackExecutor, ProcessedArgument, RoutineArguments } from './arguments';
+import { ArgumentsProcessor, CallbackArgument, CallbackExecutor, ProcessedArgument, RoutineArguments } from './arguments';
 
 interface ContextUtils {
   flatArgs: (args: AST.AstNode[] | ProcessedArguments) => AST.AstNode[];
@@ -91,6 +91,31 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
     } satisfies GlobalRoutineHandlerContext;
 
     return this.#handler(context as RoutineHandlerContext<TInstance>);
+  }
+
+  /**
+   * Names a callback at this argument position adds to its scope, such as `current` and `index`.
+   *
+   * @remarks
+   * Empty unless every signature takes a callback at this position; with several signatures,
+   * only the names all of them declare.
+   */
+  getCallbackVariables(argumentIndex: number): readonly string[] {
+    const definitions = this.#argumentsProcessor?.definitions;
+
+    if (!definitions || definitions.alternatives.length === 0) {
+      return [];
+    }
+
+    const callbacks = definitions.alternatives.map((pattern) => definitions.getArgumentForPattern(argumentIndex, pattern));
+
+    if (!callbacks.every((argument) => argument instanceof CallbackArgument)) {
+      return [];
+    }
+
+    const [first, ...rest] = callbacks;
+
+    return first.contextVariables.filter((name) => rest.every((callback) => callback.contextVariables.includes(name)));
   }
 
   #process(

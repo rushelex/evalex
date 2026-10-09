@@ -45,18 +45,25 @@ dependencies;    // Set { 'score' }
 
 ### Static vs. runtime dependencies
 
-`extractDependencies()` lists every identifier the formula mentions. `evaluate()` returns only the ones it actually read, which is narrower when branches are skipped:
+`extractDependencies()` lists every context variable the formula mentions. `evaluate()` returns only the ones it actually read, which is narrower when branches are skipped:
 
 ```ts
 const expression = new Expression('if(flag, a, b)');
 
 expression.extractDependencies();
-// Set { 'if', 'flag', 'a', 'b' }
+// Set { 'flag', 'a', 'b' }
 
 expression.evaluate({
   context: { flag: new FormulaBoolean(false), a: new FormulaNumber(1), b: new FormulaNumber(2) },
 }).dependencies;
 // Set { 'flag', 'b' }
+```
+
+Neither set includes function names or the names a callback introduces. Inside a callback, `current` and `index` shadow context variables with the same names:
+
+```ts
+new Expression('current + items.map(current * index * price).sum()').extractDependencies();
+// Set { 'current', 'items', 'price' }
 ```
 
 > [!TIP]
