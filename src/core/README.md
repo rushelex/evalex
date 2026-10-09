@@ -124,11 +124,15 @@ Inside `filter` and `map`, the second argument is evaluated once per item with t
 
 | Routine | Description | Example |
 | --- | --- | --- |
+| `add(a, b)` | Adds two numbers like `+`, or joins two texts | `add(5, 10)` → `15` |
+| `subtract(a, b)` / `multiply(a, b)` | Works like `-` and `*` | `multiply(5, 10)` → `50` |
+| `divide(dividend, divisor)` / `mod(dividend, divisor)` | Works like `/` and `%`, failing on a zero divisor | `divide(5, 10)` → `0.5` |
+| `pow(base, exponent)` | Works like `^` | `pow(5, 10)` → `9765625` |
 | `sum(...values)` | Adds numbers and lists of numbers, flattening nested lists | `sum(1, [2, 3, [4, 5]])` → `15` |
 | `log2(n)` / `log10(n)` | Logarithm in base 2 or 10 | `log2(1024)` → `10` |
 | `pi()` / `e()` | Mathematical constants | `pi()` → `3.141592653589793` |
 
-`sum`, `log2` and `log10` also work as methods: `[1, 2, 3].sum()`, `8.log2()`.
+All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].sum()`, `8.log2()`.
 
 ### Lists
 
