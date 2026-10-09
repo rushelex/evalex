@@ -245,7 +245,7 @@ describe(FormulaOrchestrator, () => {
 
       // Node b processes second and fails with circular dependency error
       expect(b.value).toBeInstanceOf(FormulaNull);
-      expect(Errors.Runtime.CircularDependency.isExact(b.error)).toBe(true);
+      expect(Errors.Runtime.CircularDependency.is(b.error)).toBe(true);
     });
 
     it('should handle error when creating indirect circular dependency', async () => {
@@ -276,7 +276,7 @@ describe(FormulaOrchestrator, () => {
 
       // Node c processes third and fails with circular dependency error (a/2 would create cycle a -> b -> c -> a)
       expect(c.value).toBeInstanceOf(FormulaNull);
-      expect(Errors.Runtime.CircularDependency.isExact(c.error)).toBe(true);
+      expect(Errors.Runtime.CircularDependency.is(c.error)).toBe(true);
     });
 
     it('should recover when circular dependency is resolved', async () => {
@@ -299,7 +299,7 @@ describe(FormulaOrchestrator, () => {
 
       // Node b processes second and fails with circular dependency error
       expect(b.value).toBeInstanceOf(FormulaNull);
-      expect(Errors.Runtime.CircularDependency.isExact(b.error)).toBe(true);
+      expect(Errors.Runtime.CircularDependency.is(b.error)).toBe(true);
 
       // Set fixed cycle by changing b's formula
       b.expression = new Expression('num * 2');
@@ -491,7 +491,7 @@ describe(FormulaOrchestrator, () => {
         // Formula should have error due to too many dependencies
         const formula = orchestrator.get('formula');
         expect(formula?.value).toBeInstanceOf(FormulaNull);
-        if (Errors.Runtime.MaxDependencies.isExact(formula?.error)) {
+        if (Errors.Runtime.MaxDependencies.is(formula?.error)) {
           expect(formula.error).toEqual(Errors.Runtime.MaxDependencies.create({
             nodeId: 'formula',
             count: FORMULA_LIMITS.MAX_DEPENDENCIES_PER_FORMULA + 1,
@@ -577,7 +577,7 @@ describe(FormulaOrchestrator, () => {
         let hasDepthError = false;
         for (let i = FORMULA_LIMITS.MAX_FORMULA_DEPTH; i <= FORMULA_LIMITS.MAX_FORMULA_DEPTH + 5; i++) {
           const formula = orchestrator.get(`f${i}`);
-          if (Errors.Runtime.MaxFormulaDepth.isExact(formula?.error)) {
+          if (Errors.Runtime.MaxFormulaDepth.is(formula?.error)) {
             hasDepthError = true;
             break;
           }

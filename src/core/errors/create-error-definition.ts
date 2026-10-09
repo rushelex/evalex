@@ -26,8 +26,14 @@ export interface ErrorDefinition<
 > {
   readonly code: TCode;
   create: (...args: [...TArgs, options?: CreateOptions]) => FormulaError<TCode>;
+
+  /**
+   * Returns `true` only for an error created by this definition.
+   *
+   * @remarks
+   * Other definitions may share the same `code`; to match all of them, compare `error.code` instead.
+   */
   is: (error: unknown) => error is FormulaError<TCode>;
-  isExact: (error: unknown) => error is FormulaError<TCode>;
 }
 
 export function createErrorDefinition<
@@ -60,10 +66,6 @@ export function createErrorDefinition<
     },
 
     is: (error: unknown): error is FormulaError<TCode> => {
-      return error instanceof FormulaError && error.code === config.code;
-    },
-
-    isExact: (error: unknown): error is FormulaError<TCode> => {
       return error instanceof FormulaError && error.code === config.code && error.messageKey === config.messageKey;
     },
   };

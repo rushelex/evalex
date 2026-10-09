@@ -179,14 +179,21 @@ Parse errors throw `SyntaxError`, a subclass of the built-in one. Evaluation err
 
 The runtime adds `TYPE_MISMATCH`, `CIRCULAR_DEPENDENCY`, `MAX_DEPENDENCIES_EXCEEDED`, `MAX_FORMULA_DEPTH_EXCEEDED` and `MAX_FORMULAS_EXCEEDED`; see the [runtime README](../runtime/README.md#errors-and-limits).
 
+Several errors share a code. `Errors.<Group>.<Error>.is(error)` matches exactly one of them; comparing `code` matches all errors with that code:
+
 ```ts
 try {
   new Expression('price * qty').evaluate({ context: { price: new FormulaNumber(10) } });
 }
 catch (error) {
-  if (error instanceof FormulaError && error.code === 'REFERENCE_ERROR') {
+  if (Errors.Reference.VariableNotDefined.is(error)) {
     error.payload;  // { referenceType: 'variable', name: 'qty' }
     error.location; // points at `qty`
+  }
+
+  // A missing variable, function, method or field
+  if (error instanceof FormulaError && error.code === 'REFERENCE_ERROR') {
+    error.payload.referenceType; // 'variable'
   }
 }
 ```
