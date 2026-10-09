@@ -14,8 +14,9 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime> {
     return false;
   }
 
+  /** Formats the date as an ISO 8601 instant in UTC, so the text never depends on the host locale. */
   toString(): string {
-    return this.value.toLocaleString();
+    return this.value.toInstant().toString();
   }
 
   static from(date: string | number | Date | Temporal.ZonedDateTime): FormulaDate {

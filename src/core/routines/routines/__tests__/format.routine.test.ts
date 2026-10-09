@@ -46,7 +46,7 @@ describe('format routine', tester.examples([
         }),
       ),
     },
-    expected: new FormulaString('7/28/2024, 12:00:00 AM UTC'),
+    expected: new FormulaString('2024-07-28T00:00:00Z'),
   },
   {
     formula: 'null.format()',

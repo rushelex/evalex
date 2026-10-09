@@ -145,4 +145,14 @@ describe('FormulaDate', () => {
       });
     });
   });
+
+  describe('toString', () => {
+    it('should format the date as an ISO 8601 instant in UTC', () => {
+      expect(FormulaDate.from('2024-07-28T12:34:56+03:00').toString()).toBe('2024-07-28T09:34:56Z');
+    });
+
+    it('should keep milliseconds when the date has them', () => {
+      expect(FormulaDate.from('2024-07-28T12:34:56.789Z').toString()).toBe('2024-07-28T12:34:56.789Z');
+    });
+  });
 });

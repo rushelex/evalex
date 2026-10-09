@@ -166,7 +166,7 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 | --- | --- | --- |
 | `if(condition, then, else)` | Evaluates only the chosen branch | `if(stock > 0, "In stock", "Sold out")` |
 | `empty(value)` | True for `0`, `""`, `false`, `[]` and `null` | `empty([])` → `true` |
-| `format(value)` | Converts the value to text | `[1, 2, 3].format()` → `"1, 2, 3"` |
+| `format(value)` | Converts the value to text; a date becomes an ISO 8601 instant in UTC | `parseDate("2023-07-10").format()` → `"2023-07-10T00:00:00Z"` |
 | `equal(a, b)` | Compares two values | `"1".equal("1")` → `true` |
 
 ## Errors
