@@ -15,10 +15,10 @@ export class FormulaNumber extends FormulaDataType<number> {
   /**
    * Creates a FormulaNumber instance.
    * Prefer using FormulaNumber.from() for small integers for better performance.
-   * @param value Numeric value.
+   * @param value Numeric value. Negative zero is stored as zero, so it never shows up in results or poisons the cache.
    */
   constructor(value: number) {
-    super(Kind.Number, value, 'Number');
+    super(Kind.Number, Object.is(value, -0) ? 0 : value, 'Number');
   }
 
   isEmpty(): boolean {
