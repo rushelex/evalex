@@ -25,7 +25,6 @@ Rules for working in this repository. Each module under `src/` has its own `AGEN
 ## Language
 
 - Code, comments, tests, docs and commit messages are in English, American spelling.
-- Planning documents in `plans/` are in Russian.
 
 ## Git
 
