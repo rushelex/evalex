@@ -17,7 +17,8 @@ export default defineConfig({
     globals: true,
     coverage: {
       provider: 'v8',
-      exclude: ['**/index.ts'],
+      include: ['src/**/*.(c|m)?[jt]s(x)?'],
+      exclude: ['**/node_modules/**', '**/dist/**', '**/*.d.ts', '**/index.ts'],
     },
     exclude: ['**/*.{bench,benchmark}.ts'],
     setupFiles: ['./src/testing-library/setup.ts'],
