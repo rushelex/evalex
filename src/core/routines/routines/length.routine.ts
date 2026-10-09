@@ -1,6 +1,4 @@
-import type { FormulaArray, FormulaString } from '../../data-types';
-
-import { FormulaNumber, Kind } from '../../data-types';
+import { FormulaArray, FormulaNumber, FormulaString, Kind } from '../../data-types';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
@@ -26,5 +24,41 @@ routinesRegistry.registerFunction('length', {
   handler: ({ node, visitor }) => {
     const [textArg] = visitor.evaluateNodes<[FormulaString | FormulaArray]>(node.args);
     return new FormulaNumber(textArg.value.length);
+  },
+});
+
+routinesRegistry.registerMethod(FormulaArray, 'length', {
+  description: 'Returns the length of the list.',
+  examples: createRoutineExamples([
+    {
+      formula: (name) => name('[1, 2, 3]'),
+      result: () => new FormulaNumber(3),
+    },
+    {
+      formula: (name) => name('[]'),
+      result: () => new FormulaNumber(0),
+    },
+  ]),
+  arguments: createRoutineArguments([]),
+  handler: ({ instance }) => {
+    return new FormulaNumber(instance.value.length);
+  },
+});
+
+routinesRegistry.registerMethod(FormulaString, 'length', {
+  description: 'Returns the length of the string.',
+  examples: createRoutineExamples([
+    {
+      formula: (name) => name('"hello"'),
+      result: () => new FormulaNumber(5),
+    },
+    {
+      formula: (name) => name('""'),
+      result: () => new FormulaNumber(0),
+    },
+  ]),
+  arguments: createRoutineArguments([]),
+  handler: ({ instance }) => {
+    return new FormulaNumber(instance.value.length);
   },
 });

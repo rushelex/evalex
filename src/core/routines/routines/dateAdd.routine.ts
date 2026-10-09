@@ -10,16 +10,16 @@ import { createRoutineExamples } from '../routine-examples';
 
 const routineExamples = createRoutineExamples([
   {
-    formula: (name) => name('now()', '1', '"days"'),
-    result: () => FormulaDate.from(Temporal.Now.zonedDateTimeISO('UTC').add({ days: 1 })),
+    formula: (name) => name('parseDate("2023-08-30")', '1', '"days"'),
+    result: () => FormulaDate.from(Temporal.ZonedDateTime.from({ year: 2023, month: 8, day: 31, timeZone: 'UTC' })),
   },
   {
-    formula: (name) => name('now()', '2', '"months"'),
-    result: () => FormulaDate.from(Temporal.Now.zonedDateTimeISO('UTC').add({ months: 2 })),
+    formula: (name) => name('parseDate("2023-08-30")', '2', '"months"'),
+    result: () => FormulaDate.from(Temporal.ZonedDateTime.from({ year: 2023, month: 10, day: 30, timeZone: 'UTC' })),
   },
   {
-    formula: (name) => name('now()', '3', '"years"'),
-    result: () => FormulaDate.from(Temporal.Now.zonedDateTimeISO('UTC').add({ years: 3 })),
+    formula: (name) => name('parseDate("2023-08-30")', '3', '"years"'),
+    result: () => FormulaDate.from(Temporal.ZonedDateTime.from({ year: 2026, month: 8, day: 30, timeZone: 'UTC' })),
   },
 ]);
 

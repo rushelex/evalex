@@ -1,11 +1,7 @@
 import type { ToFormulaDataType } from '../types';
 
 import { convertObjectWithCircularCheck } from '../converter';
-import { defineCoreMethods } from '../core-methods';
 import { FormulaObject } from './FormulaObject';
-
-// Define core methods (empty, format) for FormulaObject
-defineCoreMethods(FormulaObject);
 
 /**
  * Static convert method for converting plain objects to Record<string, FormulaDataType>

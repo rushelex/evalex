@@ -49,8 +49,8 @@ console.log(num.isEmpty()); // false (0 считается пустым)
 ```
 
 **Встроенные методы:**
-- [`empty()`](data-types/methods/core-methods.ts:12) - проверка на пустоту (0 = true)
-- [`format()`](data-types/methods/core-methods.ts:32) - форматирование в строку
+- [`empty()`](routines/routines/empty.routine.ts) - проверка на пустоту (0 = true)
+- [`format()`](routines/routines/format.routine.ts) - форматирование в строку
 
 ### FormulaString
 Строковый тип для работы с текстом.
@@ -62,12 +62,12 @@ const text = new FormulaString("Hello World");
 ```
 
 **Встроенные методы:**
-- [`empty()`](data-types/methods/core-methods.ts:12) - проверка на пустоту ("" = true)
-- [`format()`](data-types/methods/core-methods.ts:32) - форматирование в строку
-- [`upper()`](data-types/string/methods.ts:8) - преобразование в верхний регистр
-- [`lower()`](data-types/string/methods.ts:22) - преобразование в нижний регистр
-- [`length()`](data-types/string/methods.ts:36) - длина строки
-- [`trim()`](data-types/string/methods.ts:50) - удаление пробелов
+- [`empty()`](routines/routines/empty.routine.ts) - проверка на пустоту ("" = true)
+- [`format()`](routines/routines/format.routine.ts) - форматирование в строку
+- [`upper()`](routines/routines/upper.routine.ts) - преобразование в верхний регистр
+- [`lower()`](routines/routines/lower.routine.ts) - преобразование в нижний регистр
+- [`length()`](routines/routines/length.routine.ts) - длина строки
+- [`trim()`](routines/routines/trim.routine.ts) - удаление пробелов
 
 **Примеры использования:**
 ```typescript
@@ -89,8 +89,8 @@ console.log(flag.isEmpty()); // false (false = true)
 ```
 
 **Встроенные методы:**
-- [`empty()`](data-types/methods/core-methods.ts:12) - проверка на пустоту (false = true)
-- [`format()`](data-types/methods/core-methods.ts:32) - форматирование в строку
+- [`empty()`](routines/routines/empty.routine.ts) - проверка на пустоту (false = true)
+- [`format()`](routines/routines/format.routine.ts) - форматирование в строку
 
 ### FormulaArray
 Типизированный массив элементов с функциональными методами.
@@ -106,11 +106,11 @@ const numbers = new FormulaArray([
 ```
 
 **Встроенные методы:**
-- [`empty()`](data-types/methods/core-methods.ts:12) - проверка на пустоту ([] = true)
-- [`format()`](data-types/methods/core-methods.ts:32) - форматирование в строку
-- [`map(callback)`](data-types/array/methods.ts:22) - применение функции к каждому элементу
-- [`join(separator?)`](data-types/array/methods.ts:69) - объединение в строку
-- [`length()`](data-types/array/methods.ts:99) - количество элементов
+- [`empty()`](routines/routines/empty.routine.ts) - проверка на пустоту ([] = true)
+- [`format()`](routines/routines/format.routine.ts) - форматирование в строку
+- [`map(callback)`](routines/routines/map.routine.ts) - применение функции к каждому элементу
+- [`join(separator?)`](routines/routines/join.routine.ts) - объединение в строку
+- [`length()`](routines/routines/length.routine.ts) - количество элементов
 
 **Примеры использования:**
 ```typescript
@@ -149,8 +149,8 @@ new Expression('user.profile().city()').evaluate({ context: { user } }); // Form
 - **Безопасная обработка**: Циклические ссылки и специальные значения обрабатываются корректно
 
 **Встроенные методы:**
-- [`empty()`](data-types/methods/core-methods.ts:12) - проверка на пустоту ({} = true)
-- [`format()`](data-types/methods/core-methods.ts:32) - форматирование в строку
+- [`empty()`](routines/routines/empty.routine.ts) - проверка на пустоту ({} = true)
+- [`format()`](routines/routines/format.routine.ts) - форматирование в строку
 - Динамические методы для доступа к полям объекта
 
 ### FormulaDate
@@ -164,9 +164,9 @@ const jsDate = FormulaDate.from(new Date());
 ```
 
 **Встроенные методы:**
-- [`empty()`](data-types/methods/core-methods.ts:12) - всегда false для дат
-- [`format()`](data-types/methods/core-methods.ts:32) - локализованное форматирование
-- Дополнительные методы для работы с датами (определены в methods.ts)
+- [`empty()`](routines/routines/empty.routine.ts) - всегда false для дат
+- [`format()`](routines/routines/format.routine.ts) - локализованное форматирование
+- Дополнительные методы для работы с датами (определены в [`routines/routines/`](routines/routines/))
 
 ### FormulaNull
 Специальный тип для представления отсутствующих значений.

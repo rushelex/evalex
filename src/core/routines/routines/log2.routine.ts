@@ -1,4 +1,5 @@
 import { FormulaNumber, Kind } from '../../data-types';
+import { Errors } from '../../errors';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
@@ -35,6 +36,24 @@ routinesRegistry.registerFunction('log2', {
   handler: ({ node, visitor }) => {
     const [numberArg] = visitor.evaluateNodes<[FormulaNumber]>(node.args);
     const number = numberArg.value;
+    return new FormulaNumber(Math.log2(number));
+  },
+});
+
+routinesRegistry.registerMethod(FormulaNumber, 'log2', {
+  description: 'Returns the base 2 logarithm of the number.',
+  examples: routineExamples,
+  handler: ({ instance, location }) => {
+    const number = instance.value;
+
+    if (number <= 0) {
+      throw Errors.Validation.PositiveNumberExpected.create({
+        value: number,
+      }, {
+        location,
+      });
+    }
+
     return new FormulaNumber(Math.log2(number));
   },
 });

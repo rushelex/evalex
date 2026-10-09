@@ -1,13 +1,6 @@
-// Side-effect imports to register built-in methods and functions
-import './data-types/array/methods';
-import './data-types/boolean/methods';
-import './data-types/date/methods';
-import './data-types/duration/methods';
-import './data-types/null/methods';
-import './data-types/number/methods';
-import './data-types/object/methods';
-import './data-types/regexp/methods';
-import './data-types/string/methods';
+// Side-effect imports to attach static converters and register built-in routines
+import './data-types/array/convert';
+import './data-types/object/convert';
 import './routines/routines';
 
 import type { RoutinesRegistry } from './routines/registry';

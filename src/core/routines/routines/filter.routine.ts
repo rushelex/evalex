@@ -45,3 +45,29 @@ routinesRegistry.registerFunction('filter', {
     return new FormulaArray(results);
   },
 });
+
+routinesRegistry.registerMethod(FormulaArray, 'filter', {
+  description: 'Filters the list elements based on a predicate function. The callback receives `current` and `index` and must return a boolean.',
+  examples: routineExamples,
+  arguments: createRoutineArguments([
+    new Argument(Kind.Array, { name: 'self' }),
+    new CallbackArgument(['current', 'index'], {
+      name: 'predicate',
+      returnType: Kind.Boolean,
+    }),
+  ]),
+  handler: ({ instance, args }) => {
+    const [predicate] = args as [CallbackExecutor];
+
+    const results = instance.value.filter((current, index) => {
+      const result = predicate.execute({
+        current,
+        index: new FormulaNumber(index),
+      });
+
+      return !!result.value;
+    });
+
+    return new FormulaArray(results);
+  },
+});

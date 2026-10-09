@@ -39,3 +39,27 @@ routinesRegistry.registerFunction('map', {
     return new FormulaArray(results);
   },
 });
+
+routinesRegistry.registerMethod(FormulaArray, 'map', {
+  description: 'Returns the list populated with the results of calling the expression on every item in the input list.',
+  examples: routineExamples,
+  arguments: createRoutineArguments([
+    new Argument(Kind.Array, { name: 'self' }),
+    new CallbackArgument(['current', 'index'], {
+      name: 'mapper',
+      returnType: Kind.Any,
+    }),
+  ]),
+  handler: ({ instance, args }) => {
+    const [callbackArg] = args as [CallbackExecutor];
+
+    const results = instance.value.map((current, index) => {
+      return callbackArg.execute({
+        current,
+        index: new FormulaNumber(index),
+      });
+    });
+
+    return new FormulaArray(results);
+  },
+});

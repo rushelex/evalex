@@ -21,12 +21,12 @@ const SINGULAR_UNITS = {
 
 const routineExamples = createRoutineExamples([
   {
-    formula: (name) => name('now()', 'parseDate("2022-09-07")', '"days"'),
-    result: () => FormulaDuration.from(Temporal.Now.zonedDateTimeISO('UTC').since(Temporal.ZonedDateTime.from({ year: 2022, month: 9, day: 7, timeZone: 'UTC' }), { largestUnit: 'days' })),
+    formula: (name) => name('parseDate("2023-08-30")', 'parseDate("2022-09-07")', '"days"'),
+    result: () => FormulaDuration.from(Temporal.Duration.from({ days: 357 })),
   },
   {
-    formula: (name) => name('parseDate("2030-01-01")', 'now()', '"years"'),
-    result: () => FormulaDuration.from(Temporal.ZonedDateTime.from({ year: 2030, month: 1, day: 1, timeZone: 'UTC' }).since(Temporal.Now.zonedDateTimeISO('UTC'), { largestUnit: 'years' })),
+    formula: (name) => name('parseDate("2030-01-01")', 'parseDate("2023-08-30")', '"years"'),
+    result: () => FormulaDuration.from(Temporal.Duration.from({ years: 6, months: 4, days: 2 })),
   },
 ]);
 
