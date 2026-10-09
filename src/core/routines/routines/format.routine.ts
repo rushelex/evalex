@@ -1,12 +1,8 @@
-import type { FormulaDataType } from '../../data-types';
-import type { ProcessedArgument } from '../arguments';
-
-import { FormulaArray, FormulaBoolean, FormulaDate, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString, Kind } from '../../data-types';
+import { FormulaString, Kind } from '../../data-types';
+import { ALL_DATA_TYPES } from '../all-data-types';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
-
-const description = 'Returns the value formatted as text.';
 
 const routineExamples = createRoutineExamples([
   {
@@ -23,31 +19,10 @@ const routineArguments = createRoutineArguments([
   new Argument(Kind.Any, { name: 'value' }),
 ]);
 
-routinesRegistry.registerFunction('format', {
-  description,
+routinesRegistry.registerRoutine('format', {
+  on: ALL_DATA_TYPES,
+  description: 'Returns the value formatted as text.',
   examples: routineExamples,
   arguments: routineArguments,
-  handler: ({ args }) => {
-    const [valueArg] = args as [ProcessedArgument<FormulaString>];
-    return new FormulaString(valueArg.dataType.toString());
-  },
+  handler: ({ subject }) => new FormulaString(subject.toString()),
 });
-
-for (const DataType of [
-  FormulaArray,
-  FormulaBoolean,
-  FormulaDate,
-  FormulaDuration,
-  FormulaNull,
-  FormulaNumber,
-  FormulaObject,
-  FormulaRegExp,
-  FormulaString,
-]) {
-  routinesRegistry.registerMethod<FormulaDataType>(DataType, 'format', {
-    description,
-    examples: routineExamples,
-    arguments: routineArguments,
-    handler: ({ instance }) => new FormulaString(instance.toString()),
-  });
-}

@@ -49,32 +49,18 @@ const routineArguments = createRoutineArguments([
   ],
 ]);
 
-routinesRegistry.registerFunction('dateAdd', {
+routinesRegistry.registerRoutine({ function: 'dateAdd', method: 'add' }, {
+  on: [FormulaDate],
   description: 'Adds a duration or a number of units to the date.',
   examples: routineExamples,
   arguments: routineArguments,
-  handler: ({ args }) => {
-    const [dateArg, firstArg, secondArg] = args as [ProcessedArgument<FormulaDate>, ProcessedArgument<FormulaDuration>] | [ProcessedArgument<FormulaDate>, ProcessedArgument<FormulaNumber>, ProcessedArgument<FormulaString>];
-
-    const durationToAdd: Temporal.DurationLike = firstArg.dataType instanceof FormulaDuration
-      ? firstArg.dataType.value
-      : { [secondArg!.dataType.value]: firstArg.dataType.value };
-
-    return FormulaDate.from(dateArg.dataType.value.add(durationToAdd));
-  },
-});
-
-routinesRegistry.registerMethod(FormulaDate, 'add', {
-  description: 'Adds a duration or a number of units to the date.',
-  examples: routineExamples,
-  arguments: routineArguments,
-  handler: ({ instance, args }) => {
+  handler: ({ subject, args }) => {
     const [firstArg, secondArg] = args as [ProcessedArgument<FormulaDuration>] | [ProcessedArgument<FormulaNumber>, ProcessedArgument<FormulaString>];
 
     const durationToAdd: Temporal.DurationLike = firstArg.dataType instanceof FormulaDuration
       ? firstArg.dataType.value
       : { [secondArg!.dataType.value]: firstArg.dataType.value };
 
-    return new FormulaDate(instance.value.add(durationToAdd));
+    return FormulaDate.from(subject.value.add(durationToAdd));
   },
 });

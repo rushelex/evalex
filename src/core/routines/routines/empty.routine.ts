@@ -1,25 +1,8 @@
-import type {
-  FormulaDataType,
-} from '../../data-types';
-import type { ProcessedArgument } from '../arguments';
-
-import {
-  FormulaArray,
-  FormulaBoolean,
-  FormulaDate,
-  FormulaDuration,
-  FormulaNull,
-  FormulaNumber,
-  FormulaObject,
-  FormulaRegExp,
-  FormulaString,
-  Kind,
-} from '../../data-types';
+import { FormulaBoolean, Kind } from '../../data-types';
+import { ALL_DATA_TYPES } from '../all-data-types';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
-
-const description = 'Returns true if the value is empty: 0, "", false or [].';
 
 const routineExamples = createRoutineExamples([
   {
@@ -40,31 +23,10 @@ const routineArguments = createRoutineArguments([
   new Argument(Kind.Any, { name: 'value' }),
 ]);
 
-routinesRegistry.registerFunction('empty', {
-  description,
+routinesRegistry.registerRoutine('empty', {
+  on: ALL_DATA_TYPES,
+  description: 'Returns true if the value is empty: 0, "", false or [].',
   examples: routineExamples,
   arguments: routineArguments,
-  handler: ({ args }) => {
-    const [valueArg] = args as [ProcessedArgument<FormulaBoolean>];
-    return new FormulaBoolean(valueArg.dataType.isEmpty());
-  },
+  handler: ({ subject }) => new FormulaBoolean(subject.isEmpty()),
 });
-
-for (const DataType of [
-  FormulaArray,
-  FormulaBoolean,
-  FormulaDate,
-  FormulaDuration,
-  FormulaNull,
-  FormulaNumber,
-  FormulaObject,
-  FormulaRegExp,
-  FormulaString,
-]) {
-  routinesRegistry.registerMethod<FormulaDataType>(DataType, 'empty', {
-    description,
-    examples: routineExamples,
-    arguments: routineArguments,
-    handler: ({ instance }) => new FormulaBoolean(instance.isEmpty()),
-  });
-}

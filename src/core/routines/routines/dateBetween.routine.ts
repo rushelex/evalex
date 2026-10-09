@@ -48,22 +48,14 @@ const routineArguments = createRoutineArguments([
   }),
 ]);
 
-routinesRegistry.registerFunction('dateBetween', {
+routinesRegistry.registerRoutine({ function: 'dateBetween', method: 'between' }, {
+  on: [FormulaDate],
   description: 'Returns the difference between two dates in the given unit.',
   examples: routineExamples,
   arguments: routineArguments,
-  handler: ({ args }) => {
-    const [date1Arg, date2Arg, unitArg] = args as [ProcessedArgument<FormulaDate>, ProcessedArgument<FormulaDate>, ProcessedArgument<FormulaString>];
-    return new FormulaDuration(date1Arg.dataType.value.since(date2Arg.dataType.value, { largestUnit: SINGULAR_UNITS[unitArg.dataType.value as typeof DURATION_UNITS[number]] }));
-  },
-});
-
-routinesRegistry.registerMethod(FormulaDate, 'between', {
-  description: 'Returns the difference between two dates in the given unit.',
-  examples: routineExamples,
-  arguments: routineArguments,
-  handler: ({ instance, args }) => {
+  handler: ({ subject, args }) => {
     const [dateArg, unitArg] = args as [ProcessedArgument<FormulaDate>, ProcessedArgument<FormulaString>];
-    return new FormulaDuration(instance.value.since(dateArg.dataType.value, { largestUnit: SINGULAR_UNITS[unitArg.dataType.value as typeof DURATION_UNITS[number]] }));
+
+    return new FormulaDuration(subject.value.since(dateArg.dataType.value, { largestUnit: SINGULAR_UNITS[unitArg.dataType.value as typeof DURATION_UNITS[number]] }));
   },
 });

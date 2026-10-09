@@ -1,11 +1,13 @@
 import type { Class, Merge } from 'type-fest';
 
+import type { AST } from '../../parser';
 import type { FormulaDataType } from '../data-types';
 import type { ArgumentsPattern, ProcessedArgument, RoutineArguments } from './arguments';
 import type { RoutineOptions, SubjectRoutineHandler } from './routine';
 import type { RoutineExamples } from './routine-examples';
 
 import { Kind } from '../data-types';
+import { Errors } from '../errors';
 import { Argument, ArgumentsDefinitions } from './arguments';
 import { Routine } from './routine';
 
@@ -92,7 +94,7 @@ export class RoutinesRegistry {
         throw new Error(`Routine "${methodName}" has no signature whose first argument accepts ${kind ?? ctor.name}.`);
       }
 
-      return { ctor, signatures: accepted.map(toMethodSignature) };
+      return { ctor, subjects: accepted.map(([subject]) => subject as Argument), signatures: accepted.map(toMethodSignature) };
     });
 
     if (this.#functionRegistry.has(functionName) || options.on.some((ctor) => this.#methodRegistry.get(ctor)?.has(methodName))) {
@@ -111,7 +113,7 @@ export class RoutinesRegistry {
       },
     }));
 
-    for (const { ctor, signatures: ctorSignatures } of methodSignatures) {
+    for (const { ctor, subjects, signatures: ctorSignatures } of methodSignatures) {
       if (!this.#methodRegistry.has(ctor)) {
         this.#methodRegistry.set(ctor, new Map());
       }
@@ -121,6 +123,8 @@ export class RoutinesRegistry {
         examples: options.examples(methodName).toMethodExamples(),
         arguments: ctorSignatures,
         handler: ({ instance, args, visitor, location, utils }) => {
+          validateSubject(subjects, instance, location);
+
           // The method is registered only on the types from `on`.
           return options.handler({ subject: instance as InstanceType<TDataType>, args, visitor, location, utils });
         },
@@ -235,6 +239,22 @@ function acceptsKind(argument: Argument, kind: Kind | undefined): boolean {
   const kinds = Array.isArray(argument.types) ? argument.types : [argument.types];
 
   return kinds.includes(Kind.Any) || (kind !== undefined && kinds.includes(kind));
+}
+
+// The method form drops the subject argument, so its custom validation runs here, as it does for the function form.
+function validateSubject(subjects: readonly Argument[], instance: FormulaDataType, location: AST.Location): void {
+  for (const subject of subjects) {
+    const payload = subject.validation?.(instance);
+
+    if (payload) {
+      throw Errors.Argument.Validation.create({
+        actual: String(instance.value),
+        expected: ['valid value'],
+        argumentPosition: 0,
+        ...payload,
+      }, { location });
+    }
+  }
 }
 
 // The method form drops the subject; a repeatable subject (`sum(...numbers)`) stays as optional further values.

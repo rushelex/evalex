@@ -1,9 +1,7 @@
 import { FormulaBoolean } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
-describe('"equal" method routine', new RoutineTester('equal').examples({
-  skipFunction: true,
-}, [
+describe('equal routine', new RoutineTester('equal').examples([
   {
     formula: 'true.equal(true)',
     expected: new FormulaBoolean(true),

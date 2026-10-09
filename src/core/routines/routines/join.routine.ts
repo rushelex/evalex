@@ -20,35 +20,18 @@ const routineExamples = createRoutineExamples([
   },
 ]);
 
-routinesRegistry.registerFunction('join', {
+routinesRegistry.registerRoutine('join', {
+  on: [FormulaArray],
   description: 'Returns the values of the list joined with the joiner.',
   examples: routineExamples,
   arguments: createRoutineArguments([
     new Argument(Kind.Array, { name: 'list' }),
     new Argument(Kind.String, { name: 'separator', optional: true }),
   ]),
-  handler: ({ node, visitor }) => {
-    const [listArg, separatorArg] = visitor.evaluateNodes<[FormulaArray, FormulaString?]>(node.args);
-    const separator = separatorArg?.value ?? '';
-    const stringValues = listArg.value.map((item) => item.toString());
-    return new FormulaString(stringValues.join(separator));
-  },
-});
-
-routinesRegistry.registerMethod(FormulaArray, 'join', {
-  description: 'Returns the values of the list joined with the joiner.',
-  examples: routineExamples,
-  arguments: createRoutineArguments([
-    new Argument(Kind.Array, { name: 'self' }),
-    new Argument(Kind.String, { name: 'separator', optional: true }),
-  ]),
-  handler: ({ instance, args }) => {
+  handler: ({ subject, args }) => {
     const [separatorArg] = args as [ProcessedArgument<FormulaString>?];
-
-    // separatorArg can be FormulaDataType or undefined (if the argument is optional)
     const separator = separatorArg?.dataType.value ?? '';
-
-    const stringValues = instance.value.map((item) => item.toString());
+    const stringValues = subject.value.map((item) => item.toString());
 
     return new FormulaString(stringValues.join(separator));
   },

@@ -45,7 +45,30 @@ routinesRegistry.registerRoutine('total', {
   },
 });
 
+routinesRegistry.registerRoutine('half', {
+  on: [FormulaNumber],
+  description: 'Returns half of a positive number.',
+  examples: createRoutineExamples([]),
+  arguments: createRoutineArguments([
+    new Argument(Kind.Number, {
+      name: 'number',
+      validation: (value) => (value.value > 0 ? undefined : { message: 'Expected positive number.' }),
+    }),
+  ]),
+  handler: ({ subject }) => new FormulaNumber(subject.value / 2),
+});
+
 describe('RoutinesRegistry.registerRoutine', () => {
+  it.each([
+    { formula: 'half(-2)', location: loc(5, 7), argumentPosition: 1 },
+    { formula: '(-2).half()', location: loc(5, 9), argumentPosition: 0 },
+  ])('should validate the subject in both forms: $formula', ({ formula, location, argumentPosition }) => {
+    expect(() => evaluate(formula)).toThrow(Errors.Argument.Validation.create(
+      { message: 'Expected positive number.', expected: ['valid value'], actual: '-2', argumentPosition },
+      { location },
+    ));
+  });
+
   it.each([
     { formula: 'measure("abc")', expected: 3 },
     { formula: '"abc".measure()', expected: 3 },

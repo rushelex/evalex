@@ -1,4 +1,4 @@
-import type { CallbackExecutor, ProcessedArgument } from '../arguments';
+import type { CallbackExecutor } from '../arguments';
 
 import { FormulaArray, FormulaNumber, Kind } from '../../data-types';
 import { Argument, CallbackArgument, createRoutineArguments } from '../arguments';
@@ -16,7 +16,8 @@ const routineExamples = createRoutineExamples([
   },
 ]);
 
-routinesRegistry.registerFunction('map', {
+routinesRegistry.registerRoutine('map', {
+  on: [FormulaArray],
   description: 'Returns the list with the expression applied to every item.',
   examples: routineExamples,
   arguments: createRoutineArguments([
@@ -26,35 +27,11 @@ routinesRegistry.registerFunction('map', {
       returnType: Kind.Any,
     }),
   ]),
-  handler: ({ args }) => {
-    const [listArg, mapperArg] = args as [ProcessedArgument<FormulaArray>, CallbackExecutor];
+  handler: ({ subject, args }) => {
+    const [mapperArg] = args as [CallbackExecutor];
 
-    const results = listArg.dataType.value.map((item, index) => {
+    const results = subject.value.map((current, index) => {
       return mapperArg.execute({
-        current: item,
-        index: new FormulaNumber(index),
-      });
-    });
-
-    return new FormulaArray(results);
-  },
-});
-
-routinesRegistry.registerMethod(FormulaArray, 'map', {
-  description: 'Returns the list with the expression applied to every item.',
-  examples: routineExamples,
-  arguments: createRoutineArguments([
-    new Argument(Kind.Array, { name: 'self' }),
-    new CallbackArgument(['current', 'index'], {
-      name: 'mapper',
-      returnType: Kind.Any,
-    }),
-  ]),
-  handler: ({ instance, args }) => {
-    const [callbackArg] = args as [CallbackExecutor];
-
-    const results = instance.value.map((current, index) => {
-      return callbackArg.execute({
         current,
         index: new FormulaNumber(index),
       });

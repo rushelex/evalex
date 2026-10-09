@@ -16,61 +16,32 @@ const routineExamples = createRoutineExamples([
     result: () => new FormulaNumber(5),
   },
   {
+    formula: (name) => name('""'),
+    result: () => new FormulaNumber(0),
+  },
+  {
     formula: (name) => name('[1, 2, 3]'),
     result: () => new FormulaNumber(3),
   },
+  {
+    formula: (name) => name('[]'),
+    result: () => new FormulaNumber(0),
+  },
 ]);
 
-routinesRegistry.registerFunction('length', {
+routinesRegistry.registerRoutine('length', {
+  on: [FormulaString, FormulaArray],
   description: 'Returns the length of the text or list.',
   examples: routineExamples,
   arguments: createRoutineArguments([
     [new Argument(Kind.String, { name: 'text' })],
     [new Argument(Kind.Array, { name: 'list' })],
   ]),
-  handler: ({ node, visitor }) => {
-    const [valueArg] = visitor.evaluateNodes<[FormulaString | FormulaArray]>(node.args);
-
-    if (valueArg instanceof FormulaString) {
-      return new FormulaNumber(countCharacters(valueArg.value));
+  handler: ({ subject }) => {
+    if (subject instanceof FormulaString) {
+      return new FormulaNumber(countCharacters(subject.value));
     }
 
-    return new FormulaNumber(valueArg.value.length);
-  },
-});
-
-routinesRegistry.registerMethod(FormulaArray, 'length', {
-  description: 'Returns the length of the list.',
-  examples: createRoutineExamples([
-    {
-      formula: (name) => name('[1, 2, 3]'),
-      result: () => new FormulaNumber(3),
-    },
-    {
-      formula: (name) => name('[]'),
-      result: () => new FormulaNumber(0),
-    },
-  ]),
-  arguments: createRoutineArguments([]),
-  handler: ({ instance }) => {
-    return new FormulaNumber(instance.value.length);
-  },
-});
-
-routinesRegistry.registerMethod(FormulaString, 'length', {
-  description: 'Returns the length of the string.',
-  examples: createRoutineExamples([
-    {
-      formula: (name) => name('"hello"'),
-      result: () => new FormulaNumber(5),
-    },
-    {
-      formula: (name) => name('""'),
-      result: () => new FormulaNumber(0),
-    },
-  ]),
-  arguments: createRoutineArguments([]),
-  handler: ({ instance }) => {
-    return new FormulaNumber(countCharacters(instance.value));
+    return new FormulaNumber(subject.value.length);
   },
 });

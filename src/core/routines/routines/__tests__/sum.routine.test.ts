@@ -75,4 +75,17 @@ describe('sum routine', tester.examples([
       },
     },
   },
+  {
+    formula: '["a", 1].sum()',
+    expected: {
+      function: {
+        message: 'All arguments must be numbers.',
+        location: [0, 13],
+      },
+      method: {
+        message: 'All arguments must be numbers.',
+        location: [9, 12],
+      },
+    },
+  },
 ]));
