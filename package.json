@@ -2,7 +2,7 @@
   "name": "evalex",
   "type": "module",
   "version": "0.0.1",
-  "description": "",
+  "description": "Extensible formula engine with parsing, evaluation and reactive recalculation.",
   "author": "Aleksey Shelementev <rushelex@gmail.com>",
   "license": "MIT",
   "homepage": "https://github.com/rushelex/evalex#readme",
