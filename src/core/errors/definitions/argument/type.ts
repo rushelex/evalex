@@ -105,6 +105,30 @@ export const UnexpectedCallback = createErrorDefinition({
 });
 
 /**
+ * Error thrown when a callback returns a value of a type the routine does not accept.
+ *
+ * @example
+ * ```typescript
+ * // Thrown automatically when a callback result has the wrong type
+ * filter([1], 2) // throws CallbackReturnTypeMismatch, location points at `2`
+ *
+ * // Type checking
+ * if (CallbackReturnTypeMismatch.is(error)) {
+ *   console.log(error.payload.expected); // ['Boolean']
+ *   console.log(error.payload.actual); // 'Number'
+ * }
+ * ```
+ *
+ * @param payload - Expected return types, actual result type, and the callback argument's position and name
+ */
+export const CallbackReturnTypeMismatch = createErrorDefinition({
+  code: FormulaErrorCode.ARGUMENT_TYPE_MISMATCH,
+  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]) => payload,
+  formatMessage: ({ expected, actual }) => `Expected callback to return type ${formatTypes(expected)}, but got ${String(actual)}.`,
+  messageKey: 'formula_error.callback_return_type_mismatch',
+});
+
+/**
  * Error thrown when an argument is provided at an unexpected position.
  *
  * @example

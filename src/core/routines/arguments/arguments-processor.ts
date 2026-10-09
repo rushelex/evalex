@@ -94,7 +94,11 @@ export class ArgumentsProcessor {
       const argDef = this.definitions.getArgumentForPattern(index, pattern);
 
       if (argDef instanceof CallbackArgument) {
-        return new CallbackExecutor(arg, visitor, argDef.returnType);
+        return new CallbackExecutor(arg, visitor, {
+          returnType: argDef.returnType,
+          argumentPosition: index + 1,
+          argumentName: argDef.name,
+        });
       }
 
       return new ProcessedArgument(visitor.evaluateNode(arg), arg);

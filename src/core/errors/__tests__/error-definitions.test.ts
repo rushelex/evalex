@@ -19,6 +19,7 @@ const samples: readonly DefinitionSample[] = [
   { name: 'Argument.TypeMismatch', definition: Errors.Argument.TypeMismatch, error: Errors.Argument.TypeMismatch.create({ expected: ['Number'], actual: 'String', argumentPosition: 0 }) },
   { name: 'Argument.CallbackExpected', definition: Errors.Argument.CallbackExpected, error: Errors.Argument.CallbackExpected.create({ actual: 'Number', argumentPosition: 1 }) },
   { name: 'Argument.UnexpectedCallback', definition: Errors.Argument.UnexpectedCallback, error: Errors.Argument.UnexpectedCallback.create({ expected: ['Number'], argumentPosition: 0 }) },
+  { name: 'Argument.CallbackReturnTypeMismatch', definition: Errors.Argument.CallbackReturnTypeMismatch, error: Errors.Argument.CallbackReturnTypeMismatch.create({ expected: ['Boolean'], actual: 'Number', argumentPosition: 2 }) },
   { name: 'Argument.Unexpected', definition: Errors.Argument.Unexpected, error: Errors.Argument.Unexpected.create({ expected: [], actual: 'Number', argumentPosition: 2 }) },
   { name: 'Argument.AllMustBeNumbers', definition: Errors.Argument.AllMustBeNumbers, error: Errors.Argument.AllMustBeNumbers.create({ actual: 'String' }) },
   { name: 'Argument.AllMustBeFinite', definition: Errors.Argument.AllMustBeFinite, error: Errors.Argument.AllMustBeFinite.create({ actual: 'Infinity' }) },

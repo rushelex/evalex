@@ -170,7 +170,7 @@ Parse errors throw `SyntaxError`, a subclass of the built-in one. Evaluation err
 | Code | Raised when |
 | --- | --- |
 | `REFERENCE_ERROR` | A variable, function, method or object field does not exist |
-| `ARGUMENT_TYPE_MISMATCH` | An argument has the wrong type or an invalid value, such as an unknown date unit |
+| `ARGUMENT_TYPE_MISMATCH` | An argument has the wrong type or an invalid value, such as an unknown date unit, or a callback returns a value of the wrong type |
 | `ARGUMENT_COUNT_MISMATCH` | Too few or too many arguments |
 | `PATTERN_MISMATCH` | The arguments fit none of the routine's accepted signatures |
 | `ARITHMETIC_ERROR` | Division or remainder by zero |

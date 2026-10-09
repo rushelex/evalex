@@ -3,20 +3,31 @@ import type { FormulaDataType } from '../../data-types';
 import type { FormulaEvaluatorVisitor } from '../../evaluator.visitor';
 
 import { Kind } from '../../data-types';
+import { Errors } from '../../errors';
+
+interface CallbackExecutorOptions {
+  readonly returnType?: Kind | Kind[];
+  readonly argumentPosition: number;
+  readonly argumentName?: string;
+}
 
 export class CallbackExecutor {
   readonly node: AST.AstNode;
   readonly #visitor: FormulaEvaluatorVisitor;
   readonly returnType?: Kind | Kind[];
+  readonly #argumentPosition: number;
+  readonly #argumentName?: string;
 
   constructor(
     node: AST.AstNode,
     visitor: FormulaEvaluatorVisitor,
-    returnType?: Kind | Kind[],
+    options: CallbackExecutorOptions,
   ) {
     this.node = node;
     this.#visitor = visitor;
-    this.returnType = returnType;
+    this.returnType = options.returnType;
+    this.#argumentPosition = options.argumentPosition;
+    this.#argumentName = options.argumentName;
   }
 
   execute(context: Record<string, FormulaDataType>): FormulaDataType {
@@ -29,7 +40,15 @@ export class CallbackExecutor {
       : [];
 
     if (returnTypes.length > 0 && !this.#isTypeMatch(result.kind)) {
-      throw new TypeError(`Expected return type ${returnTypes.join(', ')} but got ${result.kind}.`);
+      throw Errors.Argument.CallbackReturnTypeMismatch.create(
+        {
+          expected: returnTypes,
+          actual: result.kind,
+          argumentPosition: this.#argumentPosition,
+          argumentName: this.#argumentName,
+        },
+        { location: this.location },
+      );
     }
 
     return result;

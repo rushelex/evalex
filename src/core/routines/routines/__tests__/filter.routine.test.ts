@@ -1,4 +1,6 @@
+import { evaluate, loc } from '../../../../testing-library';
 import { FormulaArray, FormulaNumber, FormulaObject, FormulaString } from '../../../data-types';
+import { Errors } from '../../../errors';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('filter');
@@ -54,4 +56,46 @@ describe('filter routine', tester.examples([
       new FormulaNumber(2),
     ]),
   },
+  {
+    formula: 'numbers.filter(current + 1)',
+    context: {
+      numbers: new FormulaArray([new FormulaNumber(1)]),
+    },
+    expected: {
+      function: {
+        message: 'Expected callback to return type Boolean, but got Number.',
+        location: [16, 27],
+      },
+      method: {
+        message: 'Expected callback to return type Boolean, but got Number.',
+        location: [15, 26],
+      },
+    },
+  },
 ]));
+
+describe('filter predicate result', () => {
+  it('should throw CallbackReturnTypeMismatch for the predicate argument when it returns a non-boolean', () => {
+    const error = catchError(() => evaluate('filter([1], 2)'));
+
+    expect(Errors.Argument.CallbackReturnTypeMismatch.is(error)).toBe(true);
+    expect(error).toMatchObject({
+      code: 'ARGUMENT_TYPE_MISMATCH',
+      payload: { expected: ['Boolean'], actual: 'Number', argumentPosition: 2, argumentName: 'predicate' },
+      location: loc(12, 13),
+    });
+  });
+});
+
+// Helpers
+
+function catchError(fn: () => unknown): unknown {
+  try {
+    fn();
+  }
+  catch (error) {
+    return error;
+  }
+
+  throw new Error('Expected the formula to throw.');
+}

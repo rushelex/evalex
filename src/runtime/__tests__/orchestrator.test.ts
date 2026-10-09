@@ -172,6 +172,15 @@ describe(FormulaOrchestrator, () => {
       expect(ids).toContain('test2');
       expect(ids).toContain('test3');
     });
+
+    it('should pass a callback result type error to onError as a formula error', async () => {
+      const node: TestNode = { id: 'a', value: new FormulaNumber(0), expression: new Expression('filter([1], 2)'), error: null };
+
+      orchestrator.add(node);
+      await orchestrator.waitForProcessing();
+
+      expect(Errors.Argument.CallbackReturnTypeMismatch.is(node.error)).toBe(true);
+    });
   });
 
   describe('Queue Management', () => {
