@@ -34,8 +34,6 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint --cache",
     "lint:fix": "pnpm lint --fix",
-    "generate:grammar": "node scripts/generate-grammar.ts",
-    "generate:grammar:watch": "node scripts/generate-grammar.ts --watch",
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
