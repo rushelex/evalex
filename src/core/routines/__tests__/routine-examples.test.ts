@@ -20,12 +20,12 @@ describe('RoutineExamples', () => {
       expect(examples.examples[0]).toBeInstanceOf(RoutineExample);
       expect(examples.examples[0].routineName).toBe('format');
       expect(examples.examples[0].formula).toBe('format("hello", 42)');
-      expect(examples.examples[0].result()).toBeFormulaDataType(FormulaNumber, 2);
+      expect(examples.examples[0].result!()).toBeFormulaDataType(FormulaNumber, 2);
 
       expect(examples.examples[1]).toBeInstanceOf(RoutineExample);
       expect(examples.examples[1].routineName).toBe('format');
       expect(examples.examples[1].formula).toBe('"hello".format()');
-      expect(examples.examples[1].result()).toBeFormulaDataType(FormulaNumber, 3);
+      expect(examples.examples[1].result!()).toBeFormulaDataType(FormulaNumber, 3);
     });
   });
 
@@ -56,7 +56,7 @@ describe('RoutineExamples', () => {
       // Result function must be preserved by reference
       expect(fnExamples[1].result).toBe(base.examples[1].result);
       // And still produce the same data when called
-      expect(fnExamples[1].result()).toBeFormulaDataType(FormulaNumber, 2);
+      expect(fnExamples[1].result!()).toBeFormulaDataType(FormulaNumber, 2);
     });
   });
 
@@ -85,7 +85,7 @@ describe('RoutineExamples', () => {
       expect(methodExamples[0]).toBeInstanceOf(RoutineExample);
       expect(methodExamples[0].formula).toBe('"hello".format()');
       expect(methodExamples[0].result).toBe(base.examples[0].result);
-      expect(methodExamples[0].result()).toBeFormulaDataType(FormulaNumber, 10);
+      expect(methodExamples[0].result!()).toBeFormulaDataType(FormulaNumber, 10);
     });
   });
 });

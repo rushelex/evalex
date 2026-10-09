@@ -2,15 +2,35 @@ import type { FormulaDataType } from '../data-types';
 
 import { parse } from '../../parser';
 
-export interface RoutineExampleOptions {
-  readonly formula: (createFormula: (...args: string[]) => string) => string;
-  readonly result: () => FormulaDataType;
+/** Offsets of a part of the formula, end exclusive. */
+type Offsets = readonly [start: number, end: number];
+
+/** The error a routine example fails with: documentation of a wrong call and a test of its message and range. */
+export interface RoutineExampleError {
+  /** Error definition from `Errors` the call fails with. */
+  readonly type: { readonly is: (error: unknown) => boolean };
+  /** Message as shown to the user, without the trailing offsets. */
+  readonly message: string;
+  /** The part of the formula at fault, for each form the routine has. */
+  readonly location: { readonly function?: Offsets; readonly method?: Offsets };
 }
+
+interface RoutineExampleFormula {
+  readonly formula: (createFormula: (...args: string[]) => string) => string;
+}
+
+/** A call written once with `name(subject, ...args)`, with either the value it returns or the error it fails with. */
+export type RoutineExampleOptions = RoutineExampleFormula & (
+  | { readonly result: () => FormulaDataType; readonly error?: never }
+  | { readonly error: RoutineExampleError; readonly result?: never }
+);
 
 export class RoutineExample {
   readonly routineName: string;
   readonly formula: string;
-  readonly result: () => FormulaDataType;
+  readonly result?: () => FormulaDataType;
+  readonly error?: RoutineExampleError;
+  readonly #options: RoutineExampleOptions;
 
   constructor(
     routineName: string,
@@ -19,6 +39,13 @@ export class RoutineExample {
     this.routineName = routineName;
     this.formula = options.formula((...args) => `${this.routineName}(${args.join(', ')})`);
     this.result = options.result;
+    this.error = options.error;
+    this.#options = options;
+  }
+
+  /** Returns the same example written as another formula, such as the other call form. */
+  withFormula(formula: string): RoutineExample {
+    return new RoutineExample(this.routineName, { ...this.#options, formula: () => formula });
   }
 
   /**

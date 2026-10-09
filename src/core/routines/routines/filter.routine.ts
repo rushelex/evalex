@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaArray, FormulaNumber, FormulaString, Kind } from '../../data-types';
+import { Errors } from '../../errors';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -16,6 +17,14 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name('["a", "b", "c"]', 'current == "a"'),
     result: () => new FormulaArray([new FormulaString('a')]),
+  },
+  {
+    formula: (name) => name('[1, 2, 3]', 'current * 2'),
+    error: {
+      type: Errors.Argument.CallbackReturnTypeMismatch,
+      message: 'Expected callback to return type Boolean, but got Number.',
+      location: { function: [18, 29], method: [17, 28] },
+    },
   },
 ];
 

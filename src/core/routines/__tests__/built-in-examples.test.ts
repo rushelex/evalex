@@ -1,23 +1,20 @@
-import type { Class } from 'type-fest';
-
-import type { FormulaDataType } from '../../data-types';
 import type { RoutineExample } from '../routine-example';
 
 import { Temporal } from 'temporal-polyfill';
 
-import { evaluate } from '../../../testing-library';
 import { routinesRegistry } from '../registry';
+import { checkRoutineExample } from '../test-helpers/check-routine-example';
 
 // Examples document the current date as 2025-08-02, so the clock is frozen on that day.
 vi.spyOn(Temporal.Now, 'zonedDateTimeISO').mockReturnValue(Temporal.ZonedDateTime.from('2025-08-02T10:30:00+00:00[UTC]'));
 
 const functionExamples = [...routinesRegistry.getFunctions()].flatMap(([name, routine]) => {
-  return routine.examples.map((example) => ({ name, form: 'function', example }));
+  return routine.examples.map((example) => ({ name, form: 'function' as const, label: 'function', example }));
 });
 
 const methodExamples = routinesRegistry.getRegisteredDataTypes().flatMap((ctor) => {
   return [...routinesRegistry.getMethods(ctor)].flatMap(([name, routine]) => {
-    return routine.examples.map((example) => ({ name, form: `${ctor.name} method`, example }));
+    return routine.examples.map((example) => ({ name, form: 'method' as const, label: `${ctor.name} method`, example }));
   });
 });
 
@@ -34,10 +31,8 @@ describe('built-in routine examples', () => {
     expect(namesWithExamples).toEqual(registeredNames);
   });
 
-  it.each(examples)('$name as $form: $example.formula', ({ example }) => {
-    const expected = example.result();
-
-    expect(evaluate(example.formula)).toBeFormulaDataType(expected.constructor as Class<FormulaDataType>, expected.value);
+  it.each(examples)('$name as $label: $example.formula', ({ example, form }) => {
+    checkRoutineExample(example, form);
   });
 });
 

@@ -24,10 +24,7 @@ export class RoutineExamples {
         return example;
       }
 
-      return new RoutineExample(this.routineName, {
-        formula: () => functionCall,
-        result: example.result,
-      });
+      return example.withFormula(functionCall);
     });
   }
 
@@ -39,10 +36,7 @@ export class RoutineExamples {
         return example;
       }
 
-      return new RoutineExample(this.routineName, {
-        formula: () => methodCall,
-        result: example.result,
-      });
+      return example.withFormula(methodCall);
     });
   }
 }

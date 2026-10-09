@@ -10,7 +10,7 @@ describe('RoutineExample', () => {
       });
       expect(example.routineName).toBe('example');
       expect(example.formula).toBe('1 + 1');
-      expect(example.result()).toBeFormulaDataType(FormulaNumber, 2);
+      expect(example.result!()).toBeFormulaDataType(FormulaNumber, 2);
     });
 
     it('should convert function notation of formula', () => {
