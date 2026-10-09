@@ -144,6 +144,10 @@ export class RoutinesRegistry {
     return this.#functionRegistry.get(name);
   }
 
+  getFunctions(): ReadonlyMap<string, Routine> {
+    return this.#functionRegistry;
+  }
+
   getMethod(ctor: Class<FormulaDataType>, name: string): Routine | undefined {
     const methods = this.getMethods(ctor);
     return methods.get(name);

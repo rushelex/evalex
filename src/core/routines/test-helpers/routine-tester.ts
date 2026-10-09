@@ -3,7 +3,7 @@ import type { SuiteAPI, TestAPI } from 'vitest';
 
 import type { FormulaDataType } from '../../data-types';
 import type { RoutineTestExampleOptions } from '../routine-test-example';
-import type { GenerateOptions, RoutineTestCase } from './routine-test-generator';
+import type { RoutineTestCase } from './routine-test-generator';
 
 import { describe, test } from 'vitest';
 
@@ -19,103 +19,39 @@ interface RunExampleOptions {
 }
 
 /**
- * API for defining and verifying formula behavior through examples.
+ * Runs custom examples of a routine in both call forms.
  *
- * This interface provides methods to specify how a formula should work by
- * documenting its expected inputs and outputs. Examples serve as living
- * documentation that also validates correctness.
+ * @remarks
+ * Built-in examples from the routine's definition run separately, for every registered routine,
+ * so a test file only adds cases the definition does not cover.
  */
 interface ExamplesAPI {
   /**
-   * Specifies formula behavior using both built-in routine examples and custom examples.
-   *
-   * Built-in examples come from the routine's definition and cover standard use cases.
-   * Custom examples allow you to document additional scenarios, edge cases, or
-   * project-specific behavior.
-   *
-   * @param options - Configuration for example execution
-   * @param options.skipFunction - When `true`, skips function-style syntax examples (e.g., `abs(-5)`)
-   * @param options.skipMethod - When `true`, skips method-style syntax examples (e.g., `(-5).abs()`)
+   * @param options - `skipFunction` / `skipMethod` skip one call form, for routines that have only the other one
    * @param examples - Custom examples that document expected formula behavior
-   * @returns A function that executes the example verification suite
+   * @throws Error when a case would be silently dropped: an error expected for a skipped form, a repeated call text,
+   * or a method call whose subject type cannot be determined
    *
    * @example
    * ```ts
-   * describe('abs', tester.examples(
-   *   { skipMethod: true },
-   *   [{ formula: 'abs(-10)', expected: new FormulaNumber(10) }]
-   * ));
+   * describe('abs', tester.examples({ skipMethod: true }, [
+   *   { formula: 'abs(-10)', expected: new FormulaNumber(10) },
+   * ]));
    * ```
    */
   (options: RunExampleOptions, examples: RoutineTestExampleOptions[]): () => void;
 
   /**
-   * Specifies formula behavior using both built-in routine examples and custom examples.
-   *
-   * Built-in examples come from the routine's definition and cover standard use cases.
-   * Custom examples allow you to document additional scenarios, edge cases, or
-   * project-specific behavior.
-   *
    * @param examples - Custom examples that document expected formula behavior
-   * @returns A function that executes the example verification suite
    *
    * @example
    * ```ts
    * describe('abs', tester.examples([
    *   { formula: 'abs(-10)', expected: new FormulaNumber(10) },
-   *   { formula: 'abs(0)', expected: new FormulaNumber(0) },
    * ]));
    * ```
    */
   (examples: RoutineTestExampleOptions[]): () => void;
-
-  /**
-   * Runs only the provided custom examples, excluding all built-in routine examples.
-   *
-   * Use this when you need to focus on specific scenarios without the noise of
-   * built-in examples, or when built-in examples are not relevant to your context.
-   */
-  only: {
-    /**
-     * Specifies formula behavior using ONLY the provided custom examples.
-     *
-     * Unlike the default behavior, this excludes all built-in examples from the
-     * routine definition. Useful for focused verification of specific scenarios.
-     *
-     * @param options - Configuration for example execution
-     * @param options.skipFunction - When `true`, skips function-style syntax examples (e.g., `abs(-5)`)
-     * @param options.skipMethod - When `true`, skips method-style syntax examples (e.g., `(-5).abs()`)
-     * @param examples - Custom examples that document expected formula behavior
-     * @returns A function that executes the example verification suite
-     *
-     * @example
-     * ```ts
-     * describe('abs', tester.examples.only(
-     *   { skipMethod: true },
-     *   [{ formula: 'abs(-10)', expected: new FormulaNumber(10) }]
-     * ));
-     * ```
-     */
-    (options: RunExampleOptions, examples: RoutineTestExampleOptions[]): () => void;
-
-    /**
-     * Specifies formula behavior using ONLY the provided custom examples.
-     *
-     * Unlike the default behavior, this excludes all built-in examples from the
-     * routine definition. Useful for focused verification of specific scenarios.
-     *
-     * @param examples - Custom examples that document expected formula behavior
-     * @returns A function that executes the example verification suite
-     *
-     * @example
-     * ```ts
-     * describe('abs', tester.examples.only([
-     *   { formula: 'abs(-10)', expected: new FormulaNumber(10) },
-     * ]));
-     * ```
-     */
-    (examples: RoutineTestExampleOptions[]): () => void;
-  };
 }
 
 export class RoutineTester {
@@ -138,55 +74,20 @@ export class RoutineTester {
     );
   }
 
-  /**
-   * API for defining and verifying formula behavior through examples.
-   *
-   * Examples serve as executable specifications that document how a formula works.
-   * Each example captures an input formula and its expected output, creating
-   * living documentation that validates correctness.
-   *
-   * By default, includes both built-in examples from the routine definition and
-   * any custom examples you provide. Use `.only` to run only custom examples
-   * without the built-in ones.
-   *
-   * @example Include built-in examples + custom examples
-   * ```ts
-   * describe('abs', tester.examples([
-   *   { formula: 'abs(-10)', expected: new FormulaNumber(10) },
-   * ]));
-   * ```
-   *
-   * @example Only custom examples (no built-in)
-   * ```ts
-   * describe('abs', tester.examples.only([
-   *   { formula: 'abs(-10)', expected: new FormulaNumber(10) },
-   * ]));
-   * ```
-   */
-  examples: ExamplesAPI = Object.assign(
-    (optionsOrExamples: RunExampleOptions | RoutineTestExampleOptions[], examples?: RoutineTestExampleOptions[]) => {
-      if (Array.isArray(optionsOrExamples)) {
-        return this.#runExamplesTests(optionsOrExamples, undefined, { includeBuiltIn: true });
-      }
+  examples: ExamplesAPI = (optionsOrExamples: RunExampleOptions | RoutineTestExampleOptions[], examples?: RoutineTestExampleOptions[]) => {
+    if (Array.isArray(optionsOrExamples)) {
+      return this.#runExamplesTests(optionsOrExamples);
+    }
 
-      return this.#runExamplesTests(examples!, optionsOrExamples, { includeBuiltIn: true });
-    },
-    {
-      only: (optionsOrExamples: RunExampleOptions | RoutineTestExampleOptions[], examples?: RoutineTestExampleOptions[]) => {
-        if (Array.isArray(optionsOrExamples)) {
-          return this.#runExamplesTests(optionsOrExamples, undefined, { includeBuiltIn: false });
-        }
-
-        return this.#runExamplesTests(examples!, optionsOrExamples, { includeBuiltIn: false });
-      },
-    },
-  );
+    return this.#runExamplesTests(examples!, optionsOrExamples);
+  };
 
   #runExamplesTests(
     examples: RoutineTestExampleOptions[],
     runOptions?: RunExampleOptions,
-    generateOptions?: GenerateOptions,
   ) {
+    assertNoSkippedErrors(examples, runOptions);
+
     return () => {
       this.#test.scoped({ routineName: this.#routineName });
 
@@ -194,7 +95,6 @@ export class RoutineTester {
         const functionCases = this.#generator.forFunctionTesting(
           this.#routineName,
           examples,
-          generateOptions,
         );
         this.#runFunctionTestSuites(functionCases);
       }
@@ -203,7 +103,6 @@ export class RoutineTester {
         const methodCases = this.#generator.forMethodTesting(
           this.#routineName,
           examples,
-          generateOptions,
         );
         this.#runMethodTestSuites(methodCases);
       }
@@ -291,5 +190,17 @@ export class RoutineTester {
 
   #takeThrowingCases(cases: RoutineTestCase[]): RoutineTestCase[] {
     return cases.filter((tc) => isExpectedError(tc.expected));
+  }
+}
+
+function assertNoSkippedErrors(examples: RoutineTestExampleOptions[], runOptions: RunExampleOptions | undefined): void {
+  for (const { formula, expected } of examples) {
+    if (!isExpectedError(expected)) {
+      continue;
+    }
+
+    if ((runOptions?.skipFunction && expected.function) || (runOptions?.skipMethod && expected.method)) {
+      throw new Error(`The expected error of "${formula}" is for a call form this test skips.`);
+    }
   }
 }

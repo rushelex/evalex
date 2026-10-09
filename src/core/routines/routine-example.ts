@@ -1,5 +1,7 @@
 import type { FormulaDataType } from '../data-types';
 
+import { parse } from '../../parser';
+
 export interface RoutineExampleOptions {
   readonly formula: (createFormula: (...args: string[]) => string) => string;
   readonly result: () => FormulaDataType;
@@ -65,7 +67,7 @@ export class RoutineExample {
     }
 
     const args = this.#parseArguments(match[1]);
-    const firstArg = args[0];
+    const firstArg = wrapCompoundSubject(args[0]);
     const restArgs = args.slice(1);
 
     if (restArgs.length === 0) {
@@ -136,4 +138,21 @@ export class RoutineExample {
 
     return args;
   }
+}
+
+// `-1.sum()` parses as `-(1.sum())`, so a subject that is not a primary expression needs parentheses.
+function wrapCompoundSubject(subject: string): string {
+  let type: string;
+
+  try {
+    ({ type } = parse(subject));
+  }
+  catch {
+    // Text that is not a formula, such as an object written as `{ a: 1 }`, is left as is.
+    return subject;
+  }
+
+  const isPrimary = type === 'Literal' || type === 'Identifier' || type === 'ArrayExpression' || type === 'CallExpression' || type === 'MemberExpression';
+
+  return isPrimary ? subject : `(${subject})`;
 }

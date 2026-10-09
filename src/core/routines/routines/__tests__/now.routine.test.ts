@@ -15,7 +15,7 @@ vi.spyOn(Temporal.Now, 'zonedDateTimeISO').mockReturnValue(Temporal.ZonedDateTim
   timeZone: 'UTC',
 }));
 
-describe('now routine', tester.examples.only([
+describe('now routine', tester.examples([
   {
     formula: 'now()',
     expected: FormulaDate.from('2024-01-31T12:30:45+00:00[UTC]'),

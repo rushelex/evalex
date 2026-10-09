@@ -186,6 +186,20 @@ describe('RoutineExample', () => {
       expect(ex2.toMethodCall()).toBe('[1, 2, 3, 4].sum()');
     });
 
+    it.each([
+      { formula: 'sum(-1)', expected: '(-1).sum()' },
+      { formula: 'sum(a + b, 2)', expected: '(a + b).sum(2)' },
+      { formula: 'sum(if(flag, 1, 2))', expected: 'if(flag, 1, 2).sum()' },
+      { formula: 'sum(items)', expected: 'items.sum()' },
+    ])('should wrap a compound subject in parentheses: $formula', ({ formula, expected }) => {
+      const example = new RoutineExample('sum', {
+        formula: () => formula,
+        result: () => new FormulaNumber(0),
+      });
+
+      expect(example.toMethodCall()).toBe(expected);
+    });
+
     it('should correctly convert function calls with nested arrays (ported)', () => {
       const ex = new RoutineExample('length', {
         formula: (name) => name('[[1, 2], [3, 4]]'),

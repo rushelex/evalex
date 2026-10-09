@@ -37,10 +37,6 @@ describe('"months" method routine', new RoutineTester('months').examples({
   },
 ]));
 
-describe('"weeks" method routine', new RoutineTester('weeks').examples({
-  skipFunction: true,
-}, []));
-
 describe('"days" method routine', new RoutineTester('days').examples({
   skipFunction: true,
 }, [
@@ -80,7 +76,3 @@ describe('"seconds" method routine', new RoutineTester('seconds').examples({
     expected: new FormulaNumber(15),
   },
 ]));
-
-describe('"milliseconds" method routine', new RoutineTester('milliseconds').examples({
-  skipFunction: true,
-}, []));
