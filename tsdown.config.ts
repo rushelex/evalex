@@ -7,7 +7,9 @@ export default defineConfig({
   minify: true,
   dts: true,
   attw: { profile: 'esm-only' },
-  inlineOnly: ['type-fest'],
+  deps: {
+    onlyBundle: ['type-fest'],
+  },
   alias: {
     '~/*': './src/*',
   },

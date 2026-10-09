@@ -1,5 +1,3 @@
-import type { Class } from 'type-fest';
-
 import type { FormulaDataType } from '../../data-types';
 import type { ProcessedArgument } from '../arguments';
 
@@ -46,7 +44,7 @@ for (const DataType of [
   FormulaRegExp,
   FormulaString,
 ]) {
-  routinesRegistry.registerMethod(DataType as Class<FormulaDataType>, 'format', {
+  routinesRegistry.registerMethod<FormulaDataType>(DataType, 'format', {
     description,
     examples: routineExamples,
     arguments: routineArguments,

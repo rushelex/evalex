@@ -75,6 +75,12 @@ export default defineConfig({
       },
       {
         extends: true,
+        // Benchmarks measure the built bundle: source modules pay for Vite's export getters on every call
+        resolve: {
+          alias: {
+            evalex: path.resolve(import.meta.dirname, './dist/index.js'),
+          },
+        },
         test: {
           name: 'bench',
           include: ['**/*.{bench,benchmark}.ts'],

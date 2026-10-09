@@ -95,7 +95,7 @@ function parseArgs<TArgs extends unknown[]>(args: unknown[]): {
       if (maybeOptions.location !== undefined || hasCause) {
         return {
           payloadArgs: args.slice(0, -1) as TArgs,
-          options: maybeOptions as CreateOptions,
+          options: maybeOptions,
         };
       }
 

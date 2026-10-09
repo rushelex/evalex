@@ -87,7 +87,7 @@ export class FormulaEvaluationContext {
     const newLocalScope = new Map<string, FormulaDataType>();
 
     for (const key in newScopeValues) {
-      if (Object.prototype.hasOwnProperty.call(newScopeValues, key)) {
+      if (Object.hasOwn(newScopeValues, key)) {
         newLocalScope.set(key, newScopeValues[key]);
       }
     }

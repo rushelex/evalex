@@ -8,6 +8,7 @@ export interface Scheduler {
    *
    * @param task - The task to execute
    * @param context - Additional context for scheduling decisions
+   * @param context.queueSize - Number of tasks waiting in the queue
    * @returns true if the task was scheduled, false if already processing
    */
   scheduleIfIdle: (

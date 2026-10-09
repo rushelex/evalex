@@ -33,7 +33,7 @@ export class RoutineArguments<const T extends ArgumentsPattern | ReadonlyArray<A
 
         if (!head.repeatable) {
           changed = true;
-          return tail as ArgumentsPattern;
+          return tail;
         }
 
         return pattern;

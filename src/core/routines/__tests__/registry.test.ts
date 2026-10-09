@@ -43,7 +43,7 @@ const mockCallExpressionNode = { args: [] } as unknown as AST.ICallExpressionNod
 
 const mockVisitor = { evaluateNode: () => undefined } as unknown as FormulaEvaluatorVisitor;
 
-const mockLocation = { start: { line: 0, column: 0, offset: 0 }, end: { line: 0, column: 0, offset: 0 } } as AST.Location;
+const mockLocation: AST.Location = { start: { line: 0, column: 0, offset: 0 }, end: { line: 0, column: 0, offset: 0 } };
 
 describe('RoutinesRegistry', () => {
   it('registerFunction/getFunction: should work', () => {

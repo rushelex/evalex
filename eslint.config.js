@@ -17,6 +17,13 @@ export default antfu(
       indent: 2,
     },
   },
+  {
+    // @vitest/eslint-plugin still treats the Vitest 5 `bench` fixture as a test function
+    files: ['**/*.{bench,benchmark}.ts'],
+    rules: {
+      'test/consistent-test-it': 'off',
+    },
+  },
 )
   .override('antfu/jsdoc/rules', {
     rules: {

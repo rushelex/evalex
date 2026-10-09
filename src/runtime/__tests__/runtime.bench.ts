@@ -1,13 +1,15 @@
-import type { FormulaDataType } from '../../core';
-import type { FormulaRuntimeOptions } from '../runtime';
-import type { NodeAdapter } from '../types';
+/* eslint-disable test/prefer-lowercase-title */
+import type { FormulaDataType, FormulaRuntimeOptions, NodeAdapter } from 'evalex';
 
-import { bench, describe } from 'vitest';
-
-import { Expression, FormulaNull, FormulaNumber } from '../../core';
-import { SyncExecutor } from '../executor';
-import { FormulaRuntime } from '../runtime';
-import { ImmediateScheduler } from '../scheduler';
+import {
+  Expression,
+  FormulaNull,
+  FormulaNumber,
+  FormulaRuntime,
+  ImmediateScheduler,
+  SyncExecutor,
+} from 'evalex';
+import { it } from 'vitest';
 
 // Minimal node model for formula tests
 interface Node {
@@ -21,18 +23,13 @@ interface Node {
  * Benchmark: Simple formula calculation
  * Measures pure evaluation time without setup overhead
  */
-describe('Simple Formula (A + B)', () => {
+it('Simple Formula (A + B)', async ({ bench }) => {
   let initFn: () => Promise<void>;
 
-  bench(
+  await bench(
     'evaluation only',
-    async () => {
-      await initFn();
-    },
     {
-      warmupIterations: 10,
-      iterations: 100,
-      setup: () => {
+      beforeAll: () => {
         const { registry, initializeFormulas } = setup();
         registry.set('a', { id: 'a', value: new FormulaNumber(10) });
         registry.set('b', { id: 'b', value: new FormulaNumber(20) });
@@ -44,14 +41,17 @@ describe('Simple Formula (A + B)', () => {
         initFn = initializeFormulas;
       },
     },
-  );
+    async () => {
+      await initFn();
+    },
+  ).run({ warmupIterations: 10, iterations: 100 });
 });
 
 /**
  * Benchmark: Formula chain processing
  * Measures how chain length affects evaluation time
  */
-describe('Formula Chain Processing', () => {
+it('Formula Chain Processing', async ({ bench }) => {
   let initFn5: () => Promise<void>;
   let initFn10: () => Promise<void>;
   let initFn20: () => Promise<void>;
@@ -70,46 +70,41 @@ describe('Formula Chain Processing', () => {
     return initializeFormulas;
   };
 
-  bench(
-    'chain of 5 formulas',
-    async () => {
-      await initFn5();
-    },
-    {
-      warmupIterations: 10,
-      iterations: 100,
-      setup: () => {
-        initFn5 = createChainSetup(5);
+  await bench.compare(
+    bench(
+      'chain of 5 formulas',
+      {
+        beforeAll: () => {
+          initFn5 = createChainSetup(5);
+        },
       },
-    },
-  );
-
-  bench(
-    'chain of 10 formulas',
-    async () => {
-      await initFn10();
-    },
-    {
-      warmupIterations: 10,
-      iterations: 100,
-      setup: () => {
-        initFn10 = createChainSetup(10);
+      async () => {
+        await initFn5();
       },
-    },
-  );
-
-  bench(
-    'chain of 20 formulas',
-    async () => {
-      await initFn20();
-    },
-    {
-      warmupIterations: 10,
-      iterations: 100,
-      setup: () => {
-        initFn20 = createChainSetup(20);
+    ),
+    bench(
+      'chain of 10 formulas',
+      {
+        beforeAll: () => {
+          initFn10 = createChainSetup(10);
+        },
       },
-    },
+      async () => {
+        await initFn10();
+      },
+    ),
+    bench(
+      'chain of 20 formulas',
+      {
+        beforeAll: () => {
+          initFn20 = createChainSetup(20);
+        },
+      },
+      async () => {
+        await initFn20();
+      },
+    ),
+    { warmupIterations: 10, iterations: 100 },
   );
 });
 
@@ -118,7 +113,7 @@ describe('Formula Chain Processing', () => {
  * Measures recalculation propagation performance
  * Setup includes initial calculation, measures only update time
  */
-describe('Dependent Formula Updates (fan-out)', () => {
+it('Dependent Formula Updates (fan-out)', async ({ bench }) => {
   let updateFn10: () => Promise<void>;
   let updateFn50: () => Promise<void>;
   let updateFn100: () => Promise<void>;
@@ -146,46 +141,41 @@ describe('Dependent Formula Updates (fan-out)', () => {
     };
   };
 
-  bench(
-    'update with 10 dependents',
-    async () => {
-      await updateFn10();
-    },
-    {
-      warmupIterations: 5,
-      iterations: 50,
-      setup: async () => {
-        updateFn10 = await createFanOutSetup(10);
+  await bench.compare(
+    bench(
+      'update with 10 dependents',
+      {
+        beforeAll: async () => {
+          updateFn10 = await createFanOutSetup(10);
+        },
       },
-    },
-  );
-
-  bench(
-    'update with 50 dependents',
-    async () => {
-      await updateFn50();
-    },
-    {
-      warmupIterations: 5,
-      iterations: 50,
-      setup: async () => {
-        updateFn50 = await createFanOutSetup(50);
+      async () => {
+        await updateFn10();
       },
-    },
-  );
-
-  bench(
-    'update with 100 dependents',
-    async () => {
-      await updateFn100();
-    },
-    {
-      warmupIterations: 5,
-      iterations: 50,
-      setup: async () => {
-        updateFn100 = await createFanOutSetup(100);
+    ),
+    bench(
+      'update with 50 dependents',
+      {
+        beforeAll: async () => {
+          updateFn50 = await createFanOutSetup(50);
+        },
       },
-    },
+      async () => {
+        await updateFn50();
+      },
+    ),
+    bench(
+      'update with 100 dependents',
+      {
+        beforeAll: async () => {
+          updateFn100 = await createFanOutSetup(100);
+        },
+      },
+      async () => {
+        await updateFn100();
+      },
+    ),
+    { warmupIterations: 5, iterations: 50 },
   );
 });
 
@@ -200,7 +190,7 @@ describe('Dependent Formula Updates (fan-out)', () => {
  * For TRUE cold start (first ever run), you'd need a separate process per measurement,
  * which vitest bench doesn't support. Use manual benchmarking for that.
  */
-describe('Warm Code, Cold Data (new document)', () => {
+it('Warm Code, Cold Data (new document)', async ({ bench }) => {
   // Seeded random for reproducible benchmarks
   const seededRandom = (seed: number) => {
     return () => {
@@ -209,12 +199,16 @@ describe('Warm Code, Cold Data (new document)', () => {
     };
   };
 
+  // Local bindings skip the module runner's export getters in the per-formula loops
+  const NumberCtor = FormulaNumber;
+  const ExpressionCtor = Expression;
+
   const runColdStart = async (formulaCount: number, baseCount: number) => {
     const random = seededRandom(42);
     const { registry, initializeFormulas } = setup();
 
     for (let i = 0; i < baseCount; i++) {
-      registry.set(`p${i}`, { id: `p${i}`, value: new FormulaNumber(i) });
+      registry.set(`p${i}`, { id: `p${i}`, value: new NumberCtor(i) });
     }
 
     for (let i = 0; i < formulaCount; i++) {
@@ -225,36 +219,25 @@ describe('Warm Code, Cold Data (new document)', () => {
       }
       registry.set(`f${i}`, {
         id: `f${i}`,
-        value: new FormulaNumber(0),
-        expression: new Expression(deps.join(' + ')),
+        value: new NumberCtor(0),
+        expression: new ExpressionCtor(deps.join(' + ')),
       });
     }
 
     await initializeFormulas();
   };
 
-  bench(
-    '100 formulas (10 bases)',
-    async () => {
+  await bench.compare(
+    bench('100 formulas (10 bases)', async () => {
       await runColdStart(100, 10);
-    },
-    // warmup prewarms JIT for code paths, data is fresh each time
-    { warmupIterations: 3, iterations: 20 },
-  );
-
-  bench(
-    '500 formulas (50 bases)',
-    async () => {
+    }),
+    bench('500 formulas (50 bases)', async () => {
       await runColdStart(500, 50);
-    },
-    { warmupIterations: 3, iterations: 20 },
-  );
-
-  bench(
-    '1000 formulas (100 bases)',
-    async () => {
+    }),
+    bench('1000 formulas (100 bases)', async () => {
       await runColdStart(1000, 100);
-    },
+    }),
+    // warmup prewarms JIT for code paths, data is fresh each time
     { warmupIterations: 3, iterations: 20 },
   );
 });
@@ -263,7 +246,7 @@ describe('Warm Code, Cold Data (new document)', () => {
  * Benchmark: Expression complexity
  * Measures evaluation time for expressions with different dependency counts
  */
-describe('Expression Complexity (same formula count)', () => {
+it('Expression Complexity (same formula count)', async ({ bench }) => {
   let initFn1: () => Promise<void>;
   let initFn3: () => Promise<void>;
   let initFn5: () => Promise<void>;
@@ -291,60 +274,52 @@ describe('Expression Complexity (same formula count)', () => {
     return initializeFormulas;
   };
 
-  bench(
-    '50 formulas, 1 dep each',
-    async () => {
-      await initFn1();
-    },
-    {
-      warmupIterations: 5,
-      iterations: 50,
-      setup: () => {
-        initFn1 = createComplexitySetup(1);
+  await bench.compare(
+    bench(
+      '50 formulas, 1 dep each',
+      {
+        beforeAll: () => {
+          initFn1 = createComplexitySetup(1);
+        },
       },
-    },
-  );
-
-  bench(
-    '50 formulas, 3 deps each',
-    async () => {
-      await initFn3();
-    },
-    {
-      warmupIterations: 5,
-      iterations: 50,
-      setup: () => {
-        initFn3 = createComplexitySetup(3);
+      async () => {
+        await initFn1();
       },
-    },
-  );
-
-  bench(
-    '50 formulas, 5 deps each',
-    async () => {
-      await initFn5();
-    },
-    {
-      warmupIterations: 5,
-      iterations: 50,
-      setup: () => {
-        initFn5 = createComplexitySetup(5);
+    ),
+    bench(
+      '50 formulas, 3 deps each',
+      {
+        beforeAll: () => {
+          initFn3 = createComplexitySetup(3);
+        },
       },
-    },
-  );
-
-  bench(
-    '50 formulas, 10 deps each',
-    async () => {
-      await initFn10();
-    },
-    {
-      warmupIterations: 5,
-      iterations: 50,
-      setup: () => {
-        initFn10 = createComplexitySetup(10);
+      async () => {
+        await initFn3();
       },
-    },
+    ),
+    bench(
+      '50 formulas, 5 deps each',
+      {
+        beforeAll: () => {
+          initFn5 = createComplexitySetup(5);
+        },
+      },
+      async () => {
+        await initFn5();
+      },
+    ),
+    bench(
+      '50 formulas, 10 deps each',
+      {
+        beforeAll: () => {
+          initFn10 = createComplexitySetup(10);
+        },
+      },
+      async () => {
+        await initFn10();
+      },
+    ),
+    { warmupIterations: 5, iterations: 50 },
   );
 });
 

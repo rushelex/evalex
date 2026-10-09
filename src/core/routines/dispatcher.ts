@@ -96,8 +96,9 @@ export class RoutineDispatcher {
     }
 
     const fieldName = methodNode.name;
+    const fields = instance.value as Record<string, FormulaDataType>;
 
-    if (!Object.prototype.hasOwnProperty.call(instance.value, fieldName)) {
+    if (!Object.hasOwn(fields, fieldName)) {
       throw Errors.Reference.FieldNotDefined.create(
         { name: fieldName, target: instance.displayType },
         { location: methodNode.location },
@@ -111,7 +112,7 @@ export class RoutineDispatcher {
       );
     }
 
-    return { handled: true, result: (instance.value as Record<string, FormulaDataType>)[fieldName] };
+    return { handled: true, result: fields[fieldName] };
   }
 }
 

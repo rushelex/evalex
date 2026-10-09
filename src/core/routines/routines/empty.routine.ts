@@ -1,5 +1,3 @@
-import type { Class } from 'type-fest';
-
 import type {
   FormulaDataType,
 } from '../../data-types';
@@ -63,7 +61,7 @@ for (const DataType of [
   FormulaRegExp,
   FormulaString,
 ]) {
-  routinesRegistry.registerMethod(DataType as Class<FormulaDataType>, 'empty', {
+  routinesRegistry.registerMethod<FormulaDataType>(DataType, 'empty', {
     description,
     examples: routineExamples,
     arguments: routineArguments,

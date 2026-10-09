@@ -32,6 +32,6 @@ interface CustomMatchers<R = unknown> {
 }
 
 declare module 'vitest' {
-  interface Matchers<T = any> extends CustomMatchers<T> {}
-  interface AsymmetricMatchersContaining extends CustomMatchers {}
+  // eslint-disable-next-line unused-imports/no-unused-vars -- augmentation must repeat Vitest's type parameters
+  interface Matchers<R, T> extends CustomMatchers<R> {}
 }
