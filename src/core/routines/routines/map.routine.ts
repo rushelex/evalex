@@ -17,7 +17,7 @@ const routineExamples = createRoutineExamples([
 ]);
 
 routinesRegistry.registerFunction('map', {
-  description: 'Returns the list populated with the results of calling the expression on every item in the input list.',
+  description: 'Returns the list with the expression applied to every item.',
   examples: routineExamples,
   arguments: createRoutineArguments([
     new Argument(Kind.Array, { name: 'list' }),
@@ -41,7 +41,7 @@ routinesRegistry.registerFunction('map', {
 });
 
 routinesRegistry.registerMethod(FormulaArray, 'map', {
-  description: 'Returns the list populated with the results of calling the expression on every item in the input list.',
+  description: 'Returns the list with the expression applied to every item.',
   examples: routineExamples,
   arguments: createRoutineArguments([
     new Argument(Kind.Array, { name: 'self' }),

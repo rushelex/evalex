@@ -49,7 +49,7 @@ const routineArguments = createRoutineArguments([
 ]);
 
 routinesRegistry.registerFunction('dateBetween', {
-  description: 'Returns the difference between two dates. The unit argument can be one of: “years”, “months”, “weeks”, “days”, “hours”, or “minutes”.',
+  description: 'Returns the difference between two dates in the given unit.',
   examples: routineExamples,
   arguments: routineArguments,
   handler: ({ args }) => {
@@ -59,7 +59,7 @@ routinesRegistry.registerFunction('dateBetween', {
 });
 
 routinesRegistry.registerMethod(FormulaDate, 'between', {
-  description: 'Returns the difference between two dates. The unit argument can be one of: “years”, “months”, “weeks”, “days”, “hours”, or “minutes”.',
+  description: 'Returns the difference between two dates in the given unit.',
   examples: routineExamples,
   arguments: routineArguments,
   handler: ({ instance, args }) => {

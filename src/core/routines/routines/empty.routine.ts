@@ -19,7 +19,7 @@ import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
-const description = 'Returns true if the value is empty. 0, “”, false, and [] are considered empty.';
+const description = 'Returns true if the value is empty: 0, "", false or [].';
 
 const routineExamples = createRoutineExamples([
   {

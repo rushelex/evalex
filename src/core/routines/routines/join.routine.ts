@@ -21,7 +21,7 @@ const routineExamples = createRoutineExamples([
 ]);
 
 routinesRegistry.registerFunction('join', {
-  description: 'Returns the values of the list with the joiner placed between each of the values.',
+  description: 'Returns the values of the list joined with the joiner.',
   examples: routineExamples,
   arguments: createRoutineArguments([
     new Argument(Kind.Array, { name: 'list' }),
@@ -36,7 +36,7 @@ routinesRegistry.registerFunction('join', {
 });
 
 routinesRegistry.registerMethod(FormulaArray, 'join', {
-  description: 'Returns the values of the list with the joiner placed between each of the values.',
+  description: 'Returns the values of the list joined with the joiner.',
   examples: routineExamples,
   arguments: createRoutineArguments([
     new Argument(Kind.Array, { name: 'self' }),

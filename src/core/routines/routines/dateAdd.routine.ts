@@ -50,7 +50,7 @@ const routineArguments = createRoutineArguments([
 ]);
 
 routinesRegistry.registerFunction('dateAdd', {
-  description: 'Adds time to the date. The unit argument can be one of: “years”, “months”, “weeks”, “days”, “hours”, “minutes”, or “seconds”.',
+  description: 'Adds a duration or a number of units to the date.',
   examples: routineExamples,
   arguments: routineArguments,
   handler: ({ args }) => {
@@ -65,7 +65,7 @@ routinesRegistry.registerFunction('dateAdd', {
 });
 
 routinesRegistry.registerMethod(FormulaDate, 'add', {
-  description: 'Adds time to the date. The unit argument can be one of: “years”, “months”, “weeks”, “days”, “hours”, “minutes”, or “seconds”.',
+  description: 'Adds a duration or a number of units to the date.',
   examples: routineExamples,
   arguments: routineArguments,
   handler: ({ instance, args }) => {

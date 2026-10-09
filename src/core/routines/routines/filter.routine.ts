@@ -47,7 +47,7 @@ routinesRegistry.registerFunction('filter', {
 });
 
 routinesRegistry.registerMethod(FormulaArray, 'filter', {
-  description: 'Filters the list elements based on a predicate function. The callback receives `current` and `index` and must return a boolean.',
+  description: 'Returns the values in the list for which the condition is true.',
   examples: routineExamples,
   arguments: createRoutineArguments([
     new Argument(Kind.Array, { name: 'self' }),

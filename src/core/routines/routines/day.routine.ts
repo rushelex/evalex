@@ -4,7 +4,7 @@ import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
 routinesRegistry.registerMethod(FormulaDate, 'day', {
-  description: 'Returns the day of the week of the date, between 1 (Monday) and 7 (Sunday).',
+  description: 'Returns the day of the week, from 1 (Monday) to 7 (Sunday).',
   examples: createRoutineExamples([
     {
       formula: (name) => name('parseDate("2023-07-10T17:35Z")'),
