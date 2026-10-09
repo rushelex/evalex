@@ -46,6 +46,19 @@ routinesRegistry.registerRoutine('shift', {
   handler: ({ subject, args: [direction] }) => new FormulaNumber(direction.value === 'up' ? subject.value + 1 : subject.value - 1),
 });
 
+routinesRegistry.registerRoutine('ratio', {
+  description: 'Returns the number divided by a non-zero divisor.',
+  examples: [],
+  arguments: [arg.number('number'), arg.number('divisor')],
+  handler: ({ subject, args: [divisor], locations }) => {
+    if (divisor.value === 0) {
+      throw Errors.Arithmetic.DivisionByZero.create({ dividend: subject.value }, { location: locations[0] });
+    }
+
+    return new FormulaNumber(subject.value / divisor.value);
+  },
+});
+
 describe('RoutinesRegistry.registerRoutine', () => {
   it.each([
     { formula: 'half(-2)', location: loc(5, 7), argumentPosition: 1 },
@@ -72,6 +85,13 @@ describe('RoutinesRegistry.registerRoutine', () => {
       { message: 'Expected "up", "down".', expected: ['up', 'down'], actual: 'left', argumentPosition },
       { location },
     ));
+  });
+
+  it.each([
+    { formula: 'ratio(6, 0)', location: loc(9, 10) },
+    { formula: '(6).ratio(0)', location: loc(10, 11) },
+  ])('should give the handler the location of each argument: $formula', ({ formula, location }) => {
+    expect(() => evaluate(formula)).toThrow(Errors.Arithmetic.DivisionByZero.create({ dividend: 6 }, { location }));
   });
 
   it('should give the method form only to the types the subject accepts', () => {

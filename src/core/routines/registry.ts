@@ -2,6 +2,7 @@ import type { Class } from 'type-fest';
 
 import type { AST } from '../../parser';
 import type { FormulaDataType } from '../data-types';
+import type { FormulaEvaluatorVisitor } from '../evaluator.visitor';
 import type { ArgumentsPattern, ProcessedArguments, Signatures, SubjectSignature, SubjectSignatures } from './arguments';
 import type { FunctionRoutineHandler, MethodRoutineHandler, SubjectRoutineHandler } from './routine';
 import type { RoutineExampleOptions } from './routine-example';
@@ -119,7 +120,7 @@ export class RoutinesRegistry {
     const functionName = typeof name === 'string' ? name : name.function;
     const methodName = typeof name === 'string' ? name : name.method;
     const signatures = new ArgumentsDefinitions(definition.arguments).alternatives as readonly SubjectSignature[];
-    const handler = definition.handler as SubjectRoutineHandler<SubjectSignatures>;
+    const handler = definition.handler as ErasedSubjectHandler;
 
     const methods = subjectDataTypes(signatures).map((ctor) => {
       const accepted = signatures.filter(([subject]) => acceptsKind(subject, ctor.kind));
@@ -138,7 +139,7 @@ export class RoutinesRegistry {
       handler: ({ args, visitor, location }) => {
         const [subject, ...rest] = toValues(args!);
 
-        return handler({ subject, args: rest, visitor, location } as Parameters<typeof handler>[0]);
+        return handler({ subject: subject as FormulaDataType, args: rest, locations: toLocations(args!).slice(1), visitor, location });
       },
     }));
 
@@ -154,7 +155,7 @@ export class RoutinesRegistry {
         handler: ({ instance, args, visitor, location }) => {
           validateSubject(subjects, instance, location);
 
-          return handler({ subject: instance, args: toValues(args), visitor, location } as Parameters<typeof handler>[0]);
+          return handler({ subject: instance, args: toValues(args), locations: toLocations(args), visitor, location });
         },
       }) as Routine);
     }
@@ -277,6 +278,19 @@ function acceptsKind(argument: Argument, kind: Kind): boolean {
 // Data types whose values some signature accepts as the subject, in the order of `ALL_DATA_TYPES`.
 function subjectDataTypes(signatures: readonly SubjectSignature[]): typeof ALL_DATA_TYPES {
   return ALL_DATA_TYPES.filter((ctor) => signatures.some(([subject]) => acceptsKind(subject, ctor.kind)));
+}
+
+// The signatures guarantee each value's type, so the wrappers hand the typed handler untyped values.
+type ErasedSubjectHandler = (context: {
+  readonly subject: FormulaDataType;
+  readonly args: unknown[];
+  readonly locations: readonly AST.Location[];
+  readonly visitor: FormulaEvaluatorVisitor;
+  readonly location: AST.Location;
+}) => FormulaDataType;
+
+function toLocations(args: ProcessedArguments): AST.Location[] {
+  return args.map((arg) => arg.location);
 }
 
 // Handlers receive values, not their syntax: a callback stays an executor, anything else becomes its data type.

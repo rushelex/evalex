@@ -28,6 +28,8 @@ export type RoutineHandler<TInstance extends FormulaDataType | unknown> = (conte
 
 /** Context of a routine registered for both forms: `subject` is `x` in `f(x, a)` and in `x.f(a)`, `args` are the rest. */
 export type SubjectRoutineHandlerContext<TSignatures extends SubjectSignatures> = SubjectCalls<TSignatures> & {
+  /** Location of each element of `args`, for errors that point at the argument at fault. */
+  readonly locations: readonly AST.Location[];
   readonly visitor: FormulaEvaluatorVisitor;
   readonly location: AST.Location;
 };
