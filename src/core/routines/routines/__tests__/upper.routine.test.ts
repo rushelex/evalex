@@ -13,6 +13,10 @@ describe('"upper" method routine', new RoutineTester('upper').examples({
     expected: new FormulaString(''),
   },
   {
+    formula: '"straße привет".upper()',
+    expected: new FormulaString('STRASSE ПРИВЕТ'),
+  },
+  {
     formula: '"hello".upper("arg")',
     expected: {
       method: {

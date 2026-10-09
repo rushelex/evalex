@@ -1,4 +1,4 @@
-import { FormulaString } from '../../../data-types';
+import { FormulaRegExp, FormulaString } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 describe('"replaceAll" method routine', new RoutineTester('replaceAll').examples({
@@ -19,6 +19,29 @@ describe('"replaceAll" method routine', new RoutineTester('replaceAll').examples
   {
     formula: '"Hello world".replaceAll("\\\\d+", "XXX")',
     expected: new FormulaString('Hello world'),
+  },
+  {
+    formula: '"a.b.c".replaceAll(".", "-")',
+    expected: new FormulaString('-----'),
+  },
+  {
+    formula: '"a.b.c".replaceAll("\\\\.", "-")',
+    expected: new FormulaString('a-b-c'),
+  },
+  {
+    formula: '"abc".replaceAll("", "-")',
+    expected: new FormulaString('-a-b-c-'),
+  },
+  {
+    formula: '"a1 b2".replaceAll("([a-z])(\\\\d)", "$2$1")',
+    expected: new FormulaString('1a 2b'),
+  },
+  {
+    formula: '"aXbx".replaceAll(regexp, "-")',
+    context: {
+      regexp: new FormulaRegExp('x', 'i'),
+    },
+    expected: new FormulaString('a-b-'),
   },
   {
     formula: '"test".replaceAll("[", "replacement")',

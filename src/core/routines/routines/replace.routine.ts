@@ -20,13 +20,13 @@ routinesRegistry.registerMethod(FormulaString, 'replace', {
   ]),
   arguments: createRoutineArguments([
     [
-      new Argument(Kind.Array, { name: 'self' }),
+      new Argument(Kind.String, { name: 'self' }),
       new Argument(Kind.String, { name: 'pattern' }),
       new Argument(Kind.String, { name: 'replacement' }),
       new Argument(Kind.String, { name: 'flags', optional: true }),
     ],
     [
-      new Argument(Kind.Array, { name: 'self' }),
+      new Argument(Kind.String, { name: 'self' }),
       new Argument(Kind.RegExp, { name: 'regexp' }),
       new Argument(Kind.String, { name: 'replacement' }),
     ],

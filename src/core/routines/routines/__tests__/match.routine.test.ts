@@ -28,8 +28,27 @@ describe('"match" method routine', new RoutineTester('match').examples({
     expected: new FormulaArray([]),
   },
   {
+    formula: '"Hello".match("hello")',
+    expected: new FormulaArray([]),
+  },
+  {
     formula: '"Hello WORLD".match("hello", "i")',
     expected: new FormulaArray([new FormulaString('Hello')]),
+  },
+  {
+    formula: '"A1 a2".match("a\\\\d", "i")',
+    expected: new FormulaArray([new FormulaString('A1'), new FormulaString('a2')]),
+  },
+  {
+    formula: '"abc".match("x?")',
+    expected: new FormulaArray([new FormulaString(''), new FormulaString(''), new FormulaString(''), new FormulaString('')]),
+  },
+  {
+    formula: '"Hi hi".match(regexp)',
+    context: {
+      regexp: new FormulaRegExp('hi', 'gi'),
+    },
+    expected: new FormulaArray([new FormulaString('Hi'), new FormulaString('hi')]),
   },
   {
     formula: '"test".match(42)',

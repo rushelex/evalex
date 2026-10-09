@@ -17,6 +17,14 @@ describe('"trim" method routine', new RoutineTester('trim').examples({
     expected: new FormulaString(''),
   },
   {
+    formula: '"\\n\\t hello world \\n".trim()',
+    expected: new FormulaString('hello world'),
+  },
+  {
+    formula: '" hello ".trim()',
+    expected: new FormulaString('hello'),
+  },
+  {
     formula: '"hello".trim("arg")',
     expected: {
       method: {

@@ -13,6 +13,6 @@ routinesRegistry.registerMethod(FormulaString, 'upper', {
   ]),
   arguments: createRoutineArguments([]),
   handler: ({ instance }) => {
-    return new FormulaString(instance.value.toLocaleUpperCase());
+    return new FormulaString(instance.value.toUpperCase());
   },
 });

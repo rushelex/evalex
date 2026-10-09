@@ -1,4 +1,4 @@
-import { FormulaString } from '../../../data-types';
+import { FormulaRegExp, FormulaString } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 describe('"replace" method routine', new RoutineTester('replace').examples({
@@ -19,6 +19,44 @@ describe('"replace" method routine', new RoutineTester('replace').examples({
   {
     formula: '"Hello world".replace("\\\\d+", "XXX")',
     expected: new FormulaString('Hello world'),
+  },
+  {
+    formula: '"Hello hello".replace("hello", "hi")',
+    expected: new FormulaString('Hello hi'),
+  },
+  {
+    formula: '"a.b.c".replace(".", "-")',
+    expected: new FormulaString('-.b.c'),
+  },
+  {
+    formula: '"a1b2".replace("\\\\d", "#", "g")',
+    expected: new FormulaString('a#b#'),
+  },
+  {
+    formula: '"John Smith".replace("(\\\\w+) (\\\\w+)", "$2 $1")',
+    expected: new FormulaString('Smith John'),
+  },
+  {
+    formula: '"abc".replace("b", "[$&]")',
+    expected: new FormulaString('a[b]c'),
+  },
+  {
+    formula: '"abc".replace("", "-")',
+    expected: new FormulaString('-abc'),
+  },
+  {
+    formula: '"aXbX".replace(regexp, "-")',
+    context: {
+      regexp: new FormulaRegExp('x', 'i'),
+    },
+    expected: new FormulaString('a-bX'),
+  },
+  {
+    formula: '"aXbX".replace(regexp, "-")',
+    context: {
+      regexp: new FormulaRegExp('x', 'gi'),
+    },
+    expected: new FormulaString('a-b-'),
   },
   {
     formula: '"test".replace("[", "replacement")',

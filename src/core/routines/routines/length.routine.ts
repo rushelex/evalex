@@ -3,6 +3,13 @@ import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
+// Text length counts user-perceived characters, so an emoji sequence like 👨‍👩‍👧 has length 1
+const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+
+function countCharacters(text: string): number {
+  return Array.from(graphemeSegmenter.segment(text)).length;
+}
+
 const routineExamples = createRoutineExamples([
   {
     formula: (name) => name('"hello"'),
@@ -22,8 +29,13 @@ routinesRegistry.registerFunction('length', {
     [new Argument(Kind.Array, { name: 'list' })],
   ]),
   handler: ({ node, visitor }) => {
-    const [textArg] = visitor.evaluateNodes<[FormulaString | FormulaArray]>(node.args);
-    return new FormulaNumber(textArg.value.length);
+    const [valueArg] = visitor.evaluateNodes<[FormulaString | FormulaArray]>(node.args);
+
+    if (valueArg instanceof FormulaString) {
+      return new FormulaNumber(countCharacters(valueArg.value));
+    }
+
+    return new FormulaNumber(valueArg.value.length);
   },
 });
 
@@ -59,6 +71,6 @@ routinesRegistry.registerMethod(FormulaString, 'length', {
   ]),
   arguments: createRoutineArguments([]),
   handler: ({ instance }) => {
-    return new FormulaNumber(instance.value.length);
+    return new FormulaNumber(countCharacters(instance.value));
   },
 });

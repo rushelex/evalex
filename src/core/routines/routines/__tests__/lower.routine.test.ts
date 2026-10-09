@@ -13,6 +13,10 @@ describe('"lower" method routine', new RoutineTester('lower').examples({
     expected: new FormulaString(''),
   },
   {
+    formula: '"ÀÉ ПРИВЕТ".lower()',
+    expected: new FormulaString('àé привет'),
+  },
+  {
     formula: '"hello".lower("arg")',
     expected: {
       method: {

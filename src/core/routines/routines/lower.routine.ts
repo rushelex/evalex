@@ -13,6 +13,6 @@ routinesRegistry.registerMethod(FormulaString, 'lower', {
   ]),
   arguments: createRoutineArguments([]),
   handler: ({ instance }) => {
-    return new FormulaString(instance.value.toLocaleLowerCase());
+    return new FormulaString(instance.value.toLowerCase());
   },
 });

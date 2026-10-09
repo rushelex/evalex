@@ -1,44 +1,41 @@
+import type { FormulaRegExp } from '../../data-types';
 import type { ProcessedArgument } from '../arguments';
 
-import { FormulaBoolean, FormulaRegExp, FormulaString, Kind } from '../../data-types';
-import { getRegExpFallbackError } from '../../errors';
+import { FormulaBoolean, FormulaString, Kind } from '../../data-types';
 import { Argument, createRoutineArguments } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { createRoutineExamples } from '../routine-examples';
 
 routinesRegistry.registerMethod(FormulaString, 'contains', {
-  description: 'Tests whether the string contains a match for the regular expression.',
+  description: 'Tests whether the string contains the given text, or a match for the regular expression.',
   examples: createRoutineExamples([
     {
       formula: (name) => name('"Hello world"', '"wor"'),
       result: () => new FormulaBoolean(true),
     },
     {
-      formula: (name) => name('"Hello world"', '"\\\\d+"'),
-      result: () => new FormulaBoolean(false),
+      formula: (name) => name('"v1.2"', '"."'),
+      result: () => new FormulaBoolean(true),
     },
   ]),
   arguments: createRoutineArguments([
     [
-      new Argument(Kind.Array, { name: 'self' }),
-      new Argument(Kind.String, { name: 'pattern' }),
-      new Argument(Kind.String, { name: 'flags', optional: true }),
+      new Argument(Kind.String, { name: 'self' }),
+      new Argument(Kind.String, { name: 'text' }),
     ],
     [
-      new Argument(Kind.Array, { name: 'self' }),
+      new Argument(Kind.String, { name: 'self' }),
       new Argument(Kind.RegExp, { name: 'regexp' }),
     ],
   ]),
-  handler: ({ instance, args, location, visitor }) => {
-    try {
-      const [patternOrRegExpArg, flagsArg] = args as [ProcessedArgument<FormulaString>, ProcessedArgument<FormulaString>?] | [ProcessedArgument<FormulaRegExp>];
+  handler: ({ instance, args }) => {
+    const [searchArg] = args as [ProcessedArgument<FormulaString | FormulaRegExp>];
 
-      const regexp = FormulaRegExp.from(patternOrRegExpArg.dataType.value, flagsArg?.dataType.value);
+    // A string argument is plain text, so regex metacharacters like "." match literally
+    if (searchArg.dataType instanceof FormulaString) {
+      return new FormulaBoolean(instance.value.includes(searchArg.dataType.value));
+    }
 
-      return new FormulaBoolean(regexp.toRegExp().test(instance.value));
-    }
-    catch (error) {
-      throw getRegExpFallbackError(error, location, visitor.formula);
-    }
+    return new FormulaBoolean(searchArg.dataType.toRegExp().test(instance.value));
   },
 });

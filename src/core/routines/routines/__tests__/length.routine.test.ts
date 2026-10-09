@@ -13,6 +13,22 @@ describe('length routine', tester.examples([
     expected: new FormulaNumber(0),
   },
   {
+    formula: '"привет".length()',
+    expected: new FormulaNumber(6),
+  },
+  {
+    formula: '"😀".length()',
+    expected: new FormulaNumber(1),
+  },
+  {
+    formula: '"👨‍👩‍👧".length()',
+    expected: new FormulaNumber(1),
+  },
+  {
+    formula: '"é".length()',
+    expected: new FormulaNumber(1),
+  },
+  {
     formula: '[1, 2, 3].length()',
     expected: new FormulaNumber(3),
   },
