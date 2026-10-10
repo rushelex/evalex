@@ -158,11 +158,13 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 | `now()` / `today()` | Current date and time, or today at midnight | `today().add(1, "days")` |
 | `parseDate(text)` | Parses an ISO 8601 date | `parseDate("2023-07-10T17:35Z")` |
 | `fromTimestamp(ms)` | Date in UTC from a Unix timestamp in milliseconds, without seconds | `fromTimestamp(1689024900000)` |
-| `dateAdd(date, amount, unit)` | Adds a number of units, or a duration | `parseDate("2023-08-30").add(2, "months")` |
-| `dateSubtract(date, amount, unit)` | Subtracts a number of units, or a duration | `parseDate("2023-07-10").subtract(1, "years")` |
+| `dateAdd(date, amount, unit)` | Adds a whole number of units, or a duration | `parseDate("2023-08-30").add(2, "months")` |
+| `dateSubtract(date, amount, unit)` | Subtracts a whole number of units, or a duration | `parseDate("2023-07-10").subtract(1, "years")` |
 | `dateBetween(a, b, unit)` | Difference between two dates as a duration | `dateBetween(end, start, "days").days()` |
 | `year()` `month()` `week()` `date()` `day()` `hour()` `minute()` | Date parts: `month` is 1–12, `week` is the ISO week, `day` is 1 (Monday) to 7 (Sunday) | `parseDate("2023-07-10").month()` → `7` |
 | `years(duration)` … `milliseconds(duration)` | Reads one unit of a duration | `dateBetween(a, b, "years").months()` |
+
+`dateAdd` and `dateSubtract` fail with `Errors.Arithmetic.DateOutOfRange` when the result falls outside the supported dates, about 270,000 years either side of 1970.
 
 `add`, `subtract` and `between` are the method forms of the date functions. Units are `"years"`, `"months"`, `"weeks"`, `"days"`, `"hours"`, `"minutes"` and, except for `between`, `"seconds"`.
 

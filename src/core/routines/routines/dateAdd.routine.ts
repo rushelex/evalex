@@ -3,6 +3,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 import { Temporal } from 'temporal-polyfill';
 
 import { FormulaDate, FormulaDuration } from '../../data-types';
+import { Errors } from '../../errors';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -28,11 +29,23 @@ routinesRegistry.registerRoutine({ function: 'dateAdd', method: 'add' }, {
   examples: routineExamples,
   arguments: [
     [arg.date('date'), arg.duration('duration')],
-    [arg.date('date'), arg.number('number'), arg.choice('unit', DURATION_UNITS)],
+    [
+      arg.date('date'),
+      arg.number('number', {
+        validation: (number) => (Number.isInteger(number.value) ? undefined : { message: 'Expected integer.', expected: ['integer'], actual: number.value }),
+      }),
+      arg.choice('unit', DURATION_UNITS),
+    ],
   ],
-  handler: ({ subject, args: [amount, unit] }) => {
+  handler: ({ subject, args: [amount, unit], locations }) => {
     const duration: Temporal.DurationLike = amount instanceof FormulaDuration ? amount.value : { [unit!.value]: amount.value };
 
-    return FormulaDate.from(subject.value.add(duration));
+    try {
+      return FormulaDate.from(subject.value.add(duration));
+    }
+    catch (error) {
+      // With whole amounts, Temporal fails only when the duration or the resulting date leaves its range.
+      throw Errors.Arithmetic.DateOutOfRange.create({ value: subject.toString() }, { location: locations[0], cause: error instanceof Error ? error : undefined });
+    }
   },
 });

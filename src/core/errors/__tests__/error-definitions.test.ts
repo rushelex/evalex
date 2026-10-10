@@ -27,6 +27,7 @@ const samples: readonly DefinitionSample[] = [
   { name: 'Argument.Validation', definition: Errors.Argument.Validation, error: Errors.Argument.Validation.create({ expected: ['Number'], actual: 'String', argumentPosition: 0 }) },
   { name: 'Argument.Unknown', definition: Errors.Argument.Unknown, error: Errors.Argument.Unknown.create({ expected: ['Number'], actual: 'String', argumentPosition: 0 }) },
   { name: 'Arithmetic.DivisionByZero', definition: Errors.Arithmetic.DivisionByZero, error: Errors.Arithmetic.DivisionByZero.create({ dividend: 1 }) },
+  { name: 'Arithmetic.DateOutOfRange', definition: Errors.Arithmetic.DateOutOfRange, error: Errors.Arithmetic.DateOutOfRange.create({ value: '2024-01-01T00:00:00Z' }) },
   { name: 'Arithmetic.ModuloByZero', definition: Errors.Arithmetic.ModuloByZero, error: Errors.Arithmetic.ModuloByZero.create({ dividend: 1 }) },
   { name: 'Evaluation.ComparisonTypeMismatch', definition: Errors.Evaluation.ComparisonTypeMismatch, error: Errors.Evaluation.ComparisonTypeMismatch.create({ expression: '1 < "a"' }) },
   { name: 'Evaluation.NonNumericMath', definition: Errors.Evaluation.NonNumericMath, error: Errors.Evaluation.NonNumericMath.create({ expression: '1 * "a"' }) },

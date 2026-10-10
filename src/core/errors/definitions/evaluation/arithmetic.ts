@@ -62,3 +62,26 @@ export const ModuloByZero = createErrorDefinition({
   formatMessage: () => 'Division by zero (modulo).',
   messageKey: 'formula_error.modulo_by_zero',
 });
+
+/**
+ * Error thrown when date arithmetic produces a date outside the supported range.
+ *
+ * @example
+ * ```typescript
+ * // Thrown by date routines
+ * evaluate('parseDate("2024-01-01").add(300000, "years")') // throws DateOutOfRange
+ *
+ * // Type checking
+ * if (DateOutOfRange.is(error)) {
+ *   console.log(error.payload.value); // '2024-01-01T00:00:00Z', the date the arithmetic started from
+ * }
+ * ```
+ *
+ * @param value - The date the arithmetic started from
+ */
+export const DateOutOfRange = createErrorDefinition({
+  code: FormulaErrorCode.RANGE_ERROR,
+  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.RANGE_ERROR]) => payload,
+  formatMessage: () => 'Date is out of the supported range.',
+  messageKey: 'formula_error.date_out_of_range',
+});

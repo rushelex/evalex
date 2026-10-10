@@ -42,6 +42,7 @@ export const Errors = {
   Arithmetic: {
     DivisionByZero: Defs.DivisionByZero,
     ModuloByZero: Defs.ModuloByZero,
+    DateOutOfRange: Defs.DateOutOfRange,
   },
 
   /** Expression evaluation errors */

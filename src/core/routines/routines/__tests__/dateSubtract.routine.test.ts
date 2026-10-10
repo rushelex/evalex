@@ -85,4 +85,37 @@ describe('"subtract" method routine', new RoutineTester('subtract').examples({
       },
     },
   },
+  {
+    formula: 'd.subtract(300000, "years")',
+    context,
+    expected: {
+      method: {
+        message: 'Date is out of the supported range.',
+        location: [11, 17],
+      },
+    },
+  },
+  {
+    formula: 'd.subtract(far)',
+    context: {
+      ...context,
+      far: new FormulaDuration(Temporal.Duration.from({ years: 300000 })),
+    },
+    expected: {
+      method: {
+        message: 'Date is out of the supported range.',
+        location: [11, 14],
+      },
+    },
+  },
+  {
+    formula: 'd.subtract(1.5, "days")',
+    context,
+    expected: {
+      method: {
+        message: 'Expected integer.',
+        location: [11, 14],
+      },
+    },
+  },
 ]));

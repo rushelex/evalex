@@ -139,4 +139,34 @@ describe('"add" method routine', new RoutineTester('add').examples({
       },
     },
   },
+  {
+    formula: 'parseDate("2025-08-23").add(300000, "years")',
+    expected: {
+      method: {
+        message: 'Date is out of the supported range.',
+        location: [28, 34],
+      },
+    },
+  },
+  {
+    formula: 'parseDate("2025-08-23").add(far)',
+    context: {
+      far: new FormulaDuration(Temporal.Duration.from({ years: 300000 })),
+    },
+    expected: {
+      method: {
+        message: 'Date is out of the supported range.',
+        location: [28, 31],
+      },
+    },
+  },
+  {
+    formula: 'parseDate("2025-08-23").add(1.5, "days")',
+    expected: {
+      method: {
+        message: 'Expected integer.',
+        location: [28, 31],
+      },
+    },
+  },
 ]));
