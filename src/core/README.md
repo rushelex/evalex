@@ -179,6 +179,8 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 | `format(value)` | Converts the value to text; a date becomes an ISO 8601 instant in UTC | `parseDate("2023-07-10").format()` → `"2023-07-10T00:00:00Z"` |
 | `equal(a, b)` | Compares two values like `==`: lists item by item, dates by instant, values of different types are never equal | `[1, [2]].equal([1, [2]])` → `true` |
 
+Conditions read a value the same way everywhere — in `if`, in `? :` and in `and`, `or` and `not`: an empty value counts as false and any other value as true. So `not []` is `true`, and `NaN` counts as true, because it is not `0`.
+
 ## Errors
 
 Parse errors throw `SyntaxError`, a subclass of the built-in one. Evaluation errors throw `FormulaError`:

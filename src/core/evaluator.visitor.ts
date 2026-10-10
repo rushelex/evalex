@@ -204,11 +204,11 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
       }
       case 'and':
       case '&&': {
-        return FormulaBoolean.from(!!left.value && !!right.value);
+        return FormulaBoolean.from(!left.isEmpty() && !right.isEmpty());
       }
       case 'or':
       case '||': {
-        return FormulaBoolean.from(!!left.value || !!right.value);
+        return FormulaBoolean.from(!left.isEmpty() || !right.isEmpty());
       }
 
       default: {
@@ -233,7 +233,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
       }
       case 'not':
       case '!': {
-        return FormulaBoolean.from(!arg.value);
+        return FormulaBoolean.from(arg.isEmpty());
       }
       default: {
         throw Errors.Operators.UnsupportedUnary.create(node.operator, { location: node.location });

@@ -1,10 +1,112 @@
+import type { FormulaDataType } from '../data-types';
+
+import { fc, it } from '@fast-check/vitest';
 import { Temporal } from 'temporal-polyfill';
 
-import { evaluate, loc } from '../../testing-library';
-import { FormulaBoolean, FormulaDate, FormulaNumber, FormulaString } from '../data-types';
-import { Errors } from '../errors';
+import { evaluate, evaluateOutcome, formulaValueArbitrary, loc } from '../../testing-library';
+import { FormulaArray, FormulaBoolean, FormulaDate, FormulaNull, FormulaNumber, FormulaObject, FormulaString, Kind } from '../data-types';
+import { Errors, FormulaError } from '../errors';
+
+const BINARY_OPERATORS = ['+', '-', '*', '/', '%', '^', '==', '!=', '<', '<=', '>', '>=', 'and', '&&', 'or', '||'] as const;
+
+const UNARY_OPERATORS = ['-', '!', 'not'] as const;
+
+const anyValue = formulaValueArbitrary();
+
+// Values of different kinds that look alike, where comparisons between kinds tend to slip.
+const LOOKALIKES = [
+  new FormulaNumber(0),
+  new FormulaNumber(1),
+  new FormulaNumber(Number.NaN),
+  new FormulaString(''),
+  new FormulaString('0'),
+  FormulaBoolean.from(false),
+  FormulaBoolean.from(true),
+  FormulaNull.instance(),
+  FormulaArray.from([]),
+  FormulaArray.from([0]),
+  FormulaArray.from([0, 1]),
+  new FormulaObject({}),
+  FormulaObject.from({ a: 0 }),
+];
+
+const valuePair = fc.oneof(
+  { weight: 1, arbitrary: fc.tuple(anyValue, anyValue) },
+  { weight: 1, arbitrary: anyValue.map((value) => [value, value] as const) },
+  { weight: 3, arbitrary: fc.tuple(fc.constantFrom(...LOOKALIKES), fc.constantFrom(...LOOKALIKES)) },
+);
+
+// Pairs of one kind that the ordering operators compare.
+const orderedPair = fc.constantFrom(Kind.Number, Kind.String, Kind.Date).chain((kind) => fc.oneof(
+  fc.tuple(formulaValueArbitrary(kind), formulaValueArbitrary(kind)),
+  formulaValueArbitrary(kind).map((value) => [value, value] as const),
+));
 
 describe('Operations', () => {
+  it.prop([fc.constantFrom(...BINARY_OPERATORS), anyValue, anyValue])('should fail only with a formula error on any operands of a binary operator', (operator, a, b) => {
+    try {
+      evaluate(`a ${operator} b`, { context: { a, b } });
+    }
+    catch (error) {
+      expect(error).toBeInstanceOf(FormulaError);
+    }
+  });
+
+  it.prop([fc.constantFrom(...UNARY_OPERATORS), anyValue])('should fail only with a formula error on any operand of a unary operator', (operator, a) => {
+    try {
+      evaluate(`${operator} a`, { context: { a } });
+    }
+    catch (error) {
+      expect(error).toBeInstanceOf(FormulaError);
+    }
+  });
+
+  it.prop([fc.constantFrom('+', '*'), formulaValueArbitrary(Kind.Number), formulaValueArbitrary(Kind.Number)])('should give the same number whatever the order of operands of + and *', (operator, a, b) => {
+    const context = { a, b };
+
+    expect(evaluateOutcome(`b ${operator} a`, { context })).toHaveSameOutcomeAs(evaluateOutcome(`a ${operator} b`, { context }));
+  });
+
+  it.prop([valuePair])('should compare any two values for equality the same way in both directions', ([a, b]) => {
+    const context = { a, b };
+
+    expect(evaluateOutcome('b == a', { context })).toHaveSameOutcomeAs(evaluateOutcome('a == b', { context }));
+  });
+
+  it.prop([valuePair])('should give the opposite of == for != on any two values', ([a, b]) => {
+    const context = { a, b };
+
+    expect(evaluateOutcome('a != b', { context })).toHaveSameOutcomeAs(evaluateOutcome('not (a == b)', { context }));
+  });
+
+  it.prop([anyValue])('should find any value equal to itself unless it holds NaN', (a) => {
+    expect(evaluate('a == a', { context: { a } })).toBeFormulaDataType(FormulaBoolean, !holdsNaN(a));
+  });
+
+  it.prop([orderedPair])('should order two numbers, texts or dates the same way from both sides', ([a, b]) => {
+    const context = { a, b };
+
+    expect(evaluateOutcome('b > a', { context })).toHaveSameOutcomeAs(evaluateOutcome('a < b', { context }));
+    expect(evaluateOutcome('b >= a', { context })).toHaveSameOutcomeAs(evaluateOutcome('a <= b', { context }));
+  });
+
+  it.prop([orderedPair.filter(([a, b]) => !holdsNaN(a) && !holdsNaN(b))])('should find exactly one of <, == and > true for two numbers, texts or dates', ([a, b]) => {
+    const context = { a, b };
+    const relations = ['a < b', 'a == b', 'a > b'].filter((formula) => evaluate(formula, { context }).value === true);
+
+    expect(relations).toHaveLength(1);
+    expect(evaluate('a <= b', { context })).toBeFormulaDataType(FormulaBoolean, relations[0] !== 'a > b');
+  });
+
+  it.prop([anyValue])('should treat any value as the same truth in conditions and logical operators', (a) => {
+    const context = { a };
+    const expected = evaluateOutcome('if(a, true, false)', { context });
+
+    for (const formula of ['a ? true : false', 'not not a', '!!a', 'a and true', 'a or false']) {
+      expect(evaluateOutcome(formula, { context })).toHaveSameOutcomeAs(expected);
+    }
+  });
+
   describe('Binary - Arithmetic', () => {
     it('should add two numbers', () => {
       const result = evaluate('10 + 5');
@@ -362,6 +464,20 @@ describe('Operations', () => {
     });
   });
 
+  describe('Truth of values', () => {
+    it.each([
+      { formula: 'not []', expected: true },
+      { formula: 'not record', expected: true },
+      { formula: '[] or false', expected: false },
+      { formula: '[1] and true', expected: true },
+      { formula: 'not nan', expected: false },
+    ])('should read an empty value as false in logical operators: $formula', ({ formula, expected }) => {
+      const context = { record: new FormulaObject({}), nan: new FormulaNumber(Number.NaN) };
+
+      expect(evaluate(formula, { context })).toBeFormulaDataType(FormulaBoolean, expected);
+    });
+  });
+
   describe('Unary', () => {
     it('should negate a number', () => {
       const result = evaluate('-10');
@@ -412,3 +528,20 @@ describe('Operations', () => {
     });
   });
 });
+
+/** Whether the value is NaN or a list or object holding NaN at any depth, which no equality accepts. */
+function holdsNaN(value: FormulaDataType): boolean {
+  if (value instanceof FormulaNumber) {
+    return Number.isNaN(value.value);
+  }
+
+  if (value instanceof FormulaArray) {
+    return value.value.some(holdsNaN);
+  }
+
+  if (value instanceof FormulaObject) {
+    return Object.values(value.value).some(holdsNaN);
+  }
+
+  return false;
+}
