@@ -89,8 +89,6 @@ export class RoutineTester {
     assertNoSkippedErrors(examples, runOptions);
 
     return () => {
-      this.#test.scoped({ routineName: this.#routineName });
-
       if (!runOptions?.skipFunction) {
         const functionCases = this.#generator.forFunctionTesting(
           this.#routineName,
