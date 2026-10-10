@@ -7,6 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Status](https://img.shields.io/badge/status-pre--release-orange.svg)](#installation)
+[![CI](https://github.com/rushelex/evalex/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/rushelex/evalex/actions/workflows/ci.yml?query=branch%3Amain+event%3Apush)
 [![Coverage](https://codecov.io/gh/rushelex/evalex/graph/badge.svg)](https://codecov.io/gh/rushelex/evalex)
 
 [Quick start](#quick-start) · [Language](#the-formula-language) · [Runtime](#reactive-runtime) · [Architecture](#architecture) · [Contributing](#development)
