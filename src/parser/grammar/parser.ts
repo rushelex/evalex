@@ -526,7 +526,21 @@ class Parser {
         return String.fromCharCode(Number.parseInt(hex, 16));
       }
       case '0':
-        return this.#isDigit(this.#peek()) ? c : '\0';
+        if (this.#isDigit(this.#peek())) {
+          this.#fail('Escape sequence \\0 is not allowed before a digit; write \\\\0 for a backslash followed by 0.', this.#loc(start));
+        }
+        return '\0';
+      // JavaScript rejects octal escapes and `\8`, `\9`; reading them as digits would silently turn a backreference like `\1` into a literal digit
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+        return this.#fail(`Escape sequence \\${c} is not allowed; write \\\\${c} for a backslash followed by ${c}.`, this.#loc(start));
       // A backslash before a line break continues the text on the next line
       case '\r':
         if (this.#peek() === '\n') {

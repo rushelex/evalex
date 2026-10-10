@@ -32,7 +32,7 @@ parse('price * 2');
 | Construct | Syntax | Node |
 | --- | --- | --- |
 | Number | `42`, `3.14`, `.5`, `5.`, `1e3`, `2.5E-3` | `Literal` |
-| Text | `"…"` or `'…'`; escapes `\n \t \r \b \f \v \0 \\ \' \" \xXX \uXXXX \u{X…}`, and a backslash before a line break continues the line | `Literal` |
+| Text | `"…"` or `'…'`; escapes `\n \t \r \b \f \v \0 \\ \' \" \xXX \uXXXX \u{X…}`, and a backslash before a line break continues the line. `\1`–`\9`, and `\0` before a digit, are errors, as in strict JavaScript | `Literal` |
 | Keyword literal | `true`, `false`, `null`, `undefined` | `Literal` |
 | Regular expression | `/pattern/flags` | `Literal` with a `RegExp` value |
 | Identifier | Starts with a letter or `_`, continues with letters, digits or `_` | `Identifier` |
@@ -120,6 +120,7 @@ Invalid input throws the parser's `SyntaxError`, a subclass of the built-in one.
 | `/a/gg` | `Invalid regular expression flags "gg". [3,5]` |
 | `"\u12"` | `Invalid Unicode escape sequence. [1,5]` |
 | `"\xZ1"` | `Invalid hexadecimal escape sequence. [1,3]` |
+| `"(a)\1"` | `Escape sequence \1 is not allowed; write \\1 for a backslash followed by 1. [4,6]` |
 
 ## Extending the grammar
 

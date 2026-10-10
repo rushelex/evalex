@@ -853,6 +853,11 @@ describe(parse, () => {
       { source: '"\\u{110000}"', message: 'Invalid Unicode escape sequence. [1,11]' },
       { source: '"\\u{41"', message: 'Invalid Unicode escape sequence. [1,6]' },
       { source: '"\\xZ1"', message: 'Invalid hexadecimal escape sequence. [1,3]' },
+      { source: '"(a)\\1"', message: 'Escape sequence \\1 is not allowed; write \\\\1 for a backslash followed by 1. [4,6]' },
+      { source: '"\\7"', message: 'Escape sequence \\7 is not allowed; write \\\\7 for a backslash followed by 7. [1,3]' },
+      { source: '"\\8"', message: 'Escape sequence \\8 is not allowed; write \\\\8 for a backslash followed by 8. [1,3]' },
+      { source: '"\\9"', message: 'Escape sequence \\9 is not allowed; write \\\\9 for a backslash followed by 9. [1,3]' },
+      { source: '"\\01"', message: 'Escape sequence \\0 is not allowed before a digit; write \\\\0 for a backslash followed by 0. [1,3]' },
     ])('should reject the malformed escape in $source', ({ source, message }) => {
       expect(() => parse(source)).toThrow(message);
     });
