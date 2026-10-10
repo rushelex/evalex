@@ -6,6 +6,7 @@ import type { Kind } from './kind';
 import { FormulaArray } from './array';
 import { FormulaBoolean } from './boolean';
 import { FormulaDate } from './date';
+import { FormulaDateRange } from './date-range';
 import { FormulaDuration } from './duration';
 import { FormulaNull } from './null';
 import { FormulaNumber } from './number';
@@ -20,6 +21,7 @@ export const ALL_DATA_TYPES: ReadonlyArray<Class<FormulaDataType> & { readonly k
   FormulaArray,
   FormulaBoolean,
   FormulaDate,
+  FormulaDateRange,
   FormulaDuration,
   FormulaNull,
   FormulaNumber,

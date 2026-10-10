@@ -3,6 +3,7 @@ export { areEqual } from './are-equal';
 export { FormulaArray } from './array';
 export { FormulaBoolean } from './boolean';
 export { FormulaDate } from './date';
+export { FormulaDateRange } from './date-range';
 export { FormulaDuration } from './duration';
 export { FormulaDataType } from './FormulaDataType';
 export { Kind } from './kind';

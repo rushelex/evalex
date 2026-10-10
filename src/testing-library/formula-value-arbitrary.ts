@@ -7,6 +7,7 @@ import {
   FormulaArray,
   FormulaBoolean,
   FormulaDate,
+  FormulaDateRange,
   FormulaDuration,
   FormulaNull,
   FormulaNumber,
@@ -62,6 +63,12 @@ const date = fc.bigInt({ min: -MAX_EPOCH_MILLISECONDS, max: MAX_EPOCH_MILLISECON
   return FormulaDate.from(Temporal.Instant.fromEpochMilliseconds(Number(milliseconds)).toZonedDateTimeISO('UTC'));
 });
 
+const dateRange = fc.tuple(date, date).map(([first, second]) => {
+  const [start, end] = Temporal.ZonedDateTime.compare(first.value, second.value) <= 0 ? [first, second] : [second, first];
+
+  return new FormulaDateRange({ start: start.value, end: end.value });
+});
+
 const duration = fc.tuple(
   fc.constantFrom(1, -1),
   fc.nat({ max: MAX_CALENDAR_UNITS }),
@@ -87,6 +94,7 @@ const arbitraries = fc.letrec<FormulaValueArbitraries>((tie) => ({
     boolean,
     nullValue,
     date,
+    dateRange,
     duration,
     regexp,
     tie('list'),
@@ -101,6 +109,7 @@ const BY_KIND: Readonly<Record<Kind, fc.Arbitrary<FormulaDataType>>> = {
   [Kind.Array]: arbitraries.list,
   [Kind.Boolean]: boolean,
   [Kind.Date]: date,
+  [Kind.DateRange]: dateRange,
   [Kind.Duration]: duration,
   [Kind.Null]: nullValue,
   [Kind.Number]: number,

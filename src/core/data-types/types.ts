@@ -3,6 +3,7 @@ import type { Temporal } from 'temporal-polyfill';
 import type { FormulaArray } from './array';
 import type { FormulaBoolean } from './boolean';
 import type { FormulaDate } from './date';
+import type { FormulaDateRange } from './date-range';
 import type { FormulaDuration } from './duration';
 import type { FormulaDataType } from './FormulaDataType';
 import type { Kind } from './kind';
@@ -59,6 +60,7 @@ export type FormulaDataTypeByKind<T extends Kind>
   : T extends Kind.String ? FormulaString
   : T extends Kind.Date ? FormulaDate
   : T extends Kind.Duration ? FormulaDuration
+  : T extends Kind.DateRange ? FormulaDateRange
   : T extends Kind.RegExp ? FormulaRegExp
   : T extends Kind.Array ? FormulaArray
   : T extends Kind.Object ? FormulaObject

@@ -79,6 +79,7 @@ Every value inside a formula is an instance of a `FormulaDataType` subclass. Wra
 | `String` | `FormulaString` | `string` | `new FormulaString('hi')` |
 | `Boolean` | `FormulaBoolean` | `boolean` | `new FormulaBoolean(true)` |
 | `Date` | `FormulaDate` | `Temporal.ZonedDateTime` | `FormulaDate.from('2026-10-01T00:00:00Z')` — also a `Date`, a timestamp or a `ZonedDateTime`. Text is read as ISO 8601, in UTC unless it names an offset or time zone; a value that holds no date throws a `RangeError` |
+| `DateRange` | `FormulaDateRange` | `{ start, end }` of `Temporal.ZonedDateTime` | `FormulaDateRange.from({ start: '2026-10-01', end: '2026-10-07' })` — each end as `FormulaDate.from` takes it; an end before the start throws a `RangeError` |
 | `Duration` | `FormulaDuration` | `Temporal.Duration` | `FormulaDuration.from(Temporal.Duration.from({ days: 3 }))` |
 | `Array` | `FormulaArray` | `readonly FormulaDataType[]` | `FormulaArray.from([1, 2, 3])` |
 | `Object` | `FormulaObject` | `Readonly<Record<string, FormulaDataType>>` | `FormulaObject.from({ name: 'Ada' })` |
@@ -185,12 +186,16 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 | `dateSubtract(date, amount, unit)` | Subtracts a whole number of units, or a duration | `parseDate("2023-07-10").subtract(1, "years")` |
 | `dateBetween(a, b, unit)` | Difference between two dates as a duration | `dateBetween(end, start, "days").days()` |
 | `formatDate(date, pattern, timezone?)` | Date as text built from a pattern; also `date.format(pattern, timezone?)` | `parseDate("2023-08-30T14:05Z").format("MMMM D, YYYY h:mm A")` → `"August 30, 2023 2:05 PM"` |
+| `dateRange(start, end)` | Date range; an end before the start is an error | `parseDate("2022-09-07").range(parseDate("2023-09-07"))` |
+| `dateStart(range)` / `dateEnd(range)` | Start or end of a date range; a date is its own start and end | `dateRange(a, b).end()` → `b` |
 | `year()` `month()` `week()` `date()` `day()` `hour()` `minute()` | Date parts: `month` is 1–12, `week` is the ISO week, `day` is 1 (Monday) to 7 (Sunday) | `parseDate("2023-07-10").month()` → `7` |
 | `years(duration)` … `milliseconds(duration)` | Reads one unit of a duration | `dateBetween(a, b, "years").months()` |
 
+Date ranges are equal when both ends are; they cannot be ordered with `<` or `>`, and date arithmetic takes a single date, such as `dateStart(range)`.
+
 `dateAdd` and `dateSubtract` fail with `Errors.Arithmetic.DateOutOfRange` when the result falls outside the supported dates, about 270,000 years either side of 1970.
 
-`add`, `subtract` and `between` are the method forms of the date functions; the function names work as methods too, as in `now().dateAdd(1, "days")`. Units are `"years"`, `"months"`, `"weeks"`, `"days"`, `"hours"`, `"minutes"` and, except for `between`, `"quarters"` (three months) and `"seconds"`.
+`add`, `subtract`, `between`, `range`, `start` and `end` are the method forms of the date functions; the function names work as methods too, as in `now().dateAdd(1, "days")`. Units are `"years"`, `"months"`, `"weeks"`, `"days"`, `"hours"`, `"minutes"` and, except for `between`, `"quarters"` (three months) and `"seconds"`.
 
 A date pattern shows the date in UTC unless a time zone is given by name (`"Europe/Berlin"`) or as an offset (`"+05:00"`). Names are in English on every machine. Text in brackets is kept as is, and so is any letter that is not a token:
 

@@ -64,6 +64,7 @@ export const arg = {
   array: valueOf(Kind.Array),
   boolean: valueOf(Kind.Boolean),
   date: valueOf(Kind.Date),
+  dateRange: valueOf(Kind.DateRange),
   duration: valueOf(Kind.Duration),
   number: valueOf(Kind.Number),
   object: valueOf(Kind.Object),
