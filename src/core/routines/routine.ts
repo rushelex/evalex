@@ -83,6 +83,11 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
     this.#handler = options.handler;
   }
 
+  /** Argument lists the routine accepts, one per alternative; empty when its arguments are not checked. */
+  get signatures(): readonly ArgumentsPattern[] {
+    return this.#argumentsProcessor?.definitions.alternatives ?? [];
+  }
+
   execute(params: RoutineExecuteParams<TInstance>) {
     const { instance, node, visitor, location } = params;
 
