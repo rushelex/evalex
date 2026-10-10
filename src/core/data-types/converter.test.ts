@@ -5,6 +5,7 @@ import { fc, it } from '@fast-check/vitest';
 import { FormulaArray } from './array';
 import { convertValueToFormulaType } from './converter';
 import { FormulaDate } from './date';
+import { FormulaNumber } from './number';
 import { FormulaObject } from './object';
 
 // JSON text has no negative zero, so the round trip drops it as conversion does.
@@ -28,11 +29,11 @@ describe(convertValueToFormulaType, () => {
   });
 
   it.prop([jsonValue])('should keep every value of JSON data', (value) => {
-    expect(toPlain(convertValueToFormulaType(value))).toEqual(value ?? null);
+    expect(toPlain(convertValueToFormulaType(value))).toEqual(withNumbersAsRead(value) ?? null);
   });
 
   it.prop([jsonValue])('should convert a value shared by two places in both of them', (value) => {
-    expect(toPlain(convertValueToFormulaType([value, { again: value }]))).toEqual([value, { again: value }]);
+    expect(toPlain(convertValueToFormulaType([value, { again: value }]))).toEqual(withNumbersAsRead([value, { again: value }]));
   });
 
   it.prop([fc.date({ noInvalidDate: true })])('should keep the instant of a date', (date) => {
@@ -54,6 +55,11 @@ describe(convertValueToFormulaType, () => {
     expect(toPlain(convertValueToFormulaType([, 1]))).toEqual([null, 1]);
   });
 });
+
+/** JSON data with each number as a formula reads it, at 15 significant digits. */
+function withNumbersAsRead(value: unknown): unknown {
+  return JSON.parse(JSON.stringify(value), (_key, item: unknown) => typeof item === 'number' ? new FormulaNumber(item).value : item);
+}
 
 /** The plain JavaScript value a converted value stands for, to compare it with the input. */
 function toPlain(value: FormulaDataType): unknown {

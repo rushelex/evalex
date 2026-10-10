@@ -6,6 +6,7 @@ import { Temporal } from 'temporal-polyfill';
 
 import {
   areEqual,
+  decimalArithmetic,
   FormulaArray,
   FormulaBoolean,
   FormulaDataType,
@@ -100,15 +101,15 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
 
         // Numeric addition
         const { leftNum, rightNum } = checkNumericOperands(left, right, node.location, this.formula);
-        return FormulaNumber.from(leftNum.value + rightNum.value);
+        return decimalArithmetic.add(leftNum, rightNum);
       }
       case '-': {
         const { leftNum, rightNum } = checkNumericOperands(left, right, node.location, this.formula);
-        return FormulaNumber.from(leftNum.value - rightNum.value);
+        return decimalArithmetic.subtract(leftNum, rightNum);
       }
       case '*': {
         const { leftNum, rightNum } = checkNumericOperands(left, right, node.location, this.formula);
-        return FormulaNumber.from(leftNum.value * rightNum.value);
+        return decimalArithmetic.multiply(leftNum, rightNum);
       }
       case '/': {
         const { leftNum, rightNum } = checkNumericOperands(left, right, node.location, this.formula);
@@ -120,11 +121,11 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           );
         }
 
-        return FormulaNumber.from(leftNum.value / rightNum.value);
+        return decimalArithmetic.divide(leftNum, rightNum);
       }
       case '^': {
         const { leftNum, rightNum } = checkNumericOperands(left, right, node.location, this.formula);
-        return FormulaNumber.from(leftNum.value ** rightNum.value);
+        return decimalArithmetic.power(leftNum, rightNum);
       }
       case '%': {
         const { leftNum, rightNum } = checkNumericOperands(left, right, node.location, this.formula);
@@ -136,7 +137,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           );
         }
 
-        return FormulaNumber.from(leftNum.value % rightNum.value);
+        return decimalArithmetic.remainder(leftNum, rightNum);
       }
       case '==': {
         return FormulaBoolean.from(areEqual(left, right));
@@ -227,7 +228,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           );
         }
 
-        return FormulaNumber.from(-arg.value);
+        return decimalArithmetic.negate(arg);
       }
       case 'not':
       case '!': {

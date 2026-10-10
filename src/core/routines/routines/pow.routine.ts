@@ -1,6 +1,6 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaNumber } from '../../data-types';
+import { decimalArithmetic, FormulaNumber } from '../../data-types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -15,5 +15,5 @@ routinesRegistry.registerRoutine('pow', {
   description: 'Returns the result of a base number raised to an exponent power.',
   examples: routineExamples,
   arguments: [arg.number('base'), arg.number('exponent')],
-  handler: ({ subject, args: [exponent] }) => FormulaNumber.from(subject.value ** exponent.value),
+  handler: ({ subject, args: [exponent] }) => decimalArithmetic.power(subject, exponent),
 });

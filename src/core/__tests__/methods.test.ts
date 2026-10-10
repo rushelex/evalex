@@ -74,12 +74,12 @@ describe('Member Expressions and Method Calls', () => {
 describe('Global Functions', () => {
   it('should evaluate nested functions', () => {
     const result = evaluate('format(pi())');
-    expect(result).toBeFormulaDataType(FormulaString, String(Math.PI));
+    expect(result).toBeFormulaDataType(FormulaString, '3.14159265358979');
   });
 
   it('should evaluate combined nested functions', () => {
     const result = evaluate('format(sum(1, 2, pi()))');
-    expect(result).toBeFormulaDataType(FormulaString, String(1 + 2 + Math.PI));
+    expect(result).toBeFormulaDataType(FormulaString, '6.14159265358979');
   });
 
   it('should throw error for non-existent function', () => {

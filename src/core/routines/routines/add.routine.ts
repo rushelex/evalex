@@ -1,6 +1,6 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaNumber, FormulaString } from '../../data-types';
+import { decimalArithmetic, FormulaNumber, FormulaString } from '../../data-types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -8,6 +8,10 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name('5', '10'),
     result: () => new FormulaNumber(15),
+  },
+  {
+    formula: (name) => name('0.1', '0.2'),
+    result: () => new FormulaNumber(0.3),
   },
   {
     formula: (name) => name('"add"', '"text"'),
@@ -24,7 +28,7 @@ routinesRegistry.registerRoutine('add', {
   ],
   handler: ({ subject, args: [b] }) => (
     subject instanceof FormulaNumber && b instanceof FormulaNumber
-      ? FormulaNumber.from(subject.value + b.value)
+      ? decimalArithmetic.add(subject, b)
       : new FormulaString(`${subject.value}${b.value}`)
   ),
 });

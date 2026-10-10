@@ -23,6 +23,6 @@ routinesRegistry.registerRoutine('max', {
   handler: ({ subject, args, location }) => {
     const numbers = collectNumbers({ values: [subject, ...args], location });
 
-    return numbers.length === 0 ? new FormulaNull() : new FormulaNumber(Math.max(...numbers));
+    return numbers.length === 0 ? new FormulaNull() : numbers.reduce((largest, number) => (number.value > largest.value ? number : largest));
   },
 });

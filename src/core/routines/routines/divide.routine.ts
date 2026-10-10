@@ -1,6 +1,6 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaNumber } from '../../data-types';
+import { decimalArithmetic, FormulaNumber } from '../../data-types';
 import { Errors } from '../../errors';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
@@ -29,6 +29,6 @@ routinesRegistry.registerRoutine('divide', {
       throw Errors.Arithmetic.DivisionByZero.create({ dividend: subject.value }, { location: locations[0] });
     }
 
-    return FormulaNumber.from(subject.value / divisor.value);
+    return decimalArithmetic.divide(subject, divisor);
   },
 });

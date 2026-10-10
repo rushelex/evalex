@@ -5,11 +5,23 @@ import { Temporal } from 'temporal-polyfill';
 
 import { evaluate, evaluateOutcome, formulaValueArbitrary, loc } from '../../testing-library';
 import { FormulaArray, FormulaBoolean, FormulaDate, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString, Kind } from '../data-types';
+import { exactValue } from '../data-types/number/exact-value';
 import { Errors, FormulaError } from '../errors';
 
 const BINARY_OPERATORS = ['+', '-', '*', '/', '%', '^', '==', '!=', '<', '<=', '>', '>=', 'and', '&&', 'or', '||'] as const;
 
 const UNARY_OPERATORS = ['-', '!', 'not'] as const;
+
+const ARITHMETIC_ROUTINES = [['+', 'add'], ['-', 'subtract'], ['*', 'multiply'], ['/', 'divide'], ['%', 'mod'], ['^', 'pow']] as const;
+
+// Decimals of up to 15 significant digits, built from integer units so that the decimal is exact.
+const decimal = fc
+  .tuple(fc.integer({ min: -999_999_999, max: 999_999_999 }), fc.integer({ min: 0, max: 6 }))
+  .map(([units, scale]) => Number(`${units}e-${scale}`));
+
+const nonZeroDecimal = fc
+  .tuple(fc.oneof(fc.integer({ min: -999, max: -1 }), fc.integer({ min: 1, max: 999 })), fc.integer({ min: 0, max: 2 }))
+  .map(([units, scale]) => Number(`${units}e-${scale}`));
 
 const anyValue = formulaValueArbitrary();
 
@@ -239,6 +251,45 @@ describe('Operations', () => {
 
       const result2 = evaluate('2 + 3 * 4');
       expect(result2).toBeFormulaDataType(FormulaNumber, 14);
+    });
+  });
+
+  describe('Decimal numbers', () => {
+    it.prop([decimal, nonZeroDecimal])('should give the same full number from an operator and its routine in both forms', (a, b) => {
+      const context = { a: new FormulaNumber(a), b: new FormulaNumber(b) };
+
+      for (const [operator, routine] of ARITHMETIC_ROUTINES) {
+        const expected = fullNumber(evaluate(`a ${operator} b`, { context }));
+
+        expect(fullNumber(evaluate(`${routine}(a, b)`, { context }))).toBe(expected);
+        expect(fullNumber(evaluate(`a.${routine}(b)`, { context }))).toBe(expected);
+      }
+    });
+
+    it.each([
+      { formula: '0.1 + 0.2', expected: 0.3 },
+      { formula: '(0.1 + 0.2) - 0.3', expected: 0 },
+      { formula: '4.35 * 100', expected: 435 },
+      { formula: '0.3 / 0.1 - 3', expected: 0 },
+      { formula: '0.5 % 0.2 - 0.1', expected: 0 },
+      { formula: '1.1 ^ 2 - 1.21', expected: 0 },
+      { formula: '1 / 3 * 3', expected: 1 },
+      { formula: '-(1 / 3) * -3', expected: 1 },
+      { formula: 'floor((0.1 + 0.7) * 10)', expected: 8 },
+      { formula: 'ceil(sqrt(2) ^ 2)', expected: 2 },
+      { formula: 'sum([0.1, 0.2, 0.3]) - 0.6', expected: 0 },
+      { formula: 'sum(1 / 3, 1 / 3, 1 / 3)', expected: 1 },
+      { formula: 'mean(0.1, 0.2) * 2 - 0.3', expected: 0 },
+      { formula: 'mean(0.7, 0, 0, 0, 0, 0, 0) * 10 - 1', expected: 0 },
+      { formula: 'median(0.1, 0.2) * 2 - 0.3', expected: 0 },
+      { formula: 'min(1 / 3, 1) * 3', expected: 1 },
+      { formula: 'max(1 / 3, 0) * 3', expected: 1 },
+    ])('should give $expected for $formula', ({ formula, expected }) => {
+      expect(evaluate(formula)).toBeFormulaDataType(FormulaNumber, expected);
+    });
+
+    it('should find 0.1 + 0.2 equal to 0.3', () => {
+      expect(evaluate('0.1 + 0.2 == 0.3')).toBeFormulaDataType(FormulaBoolean, true);
     });
   });
 
@@ -564,4 +615,9 @@ function holdsNaN(value: FormulaDataType): boolean {
   }
 
   return false;
+}
+
+/** The full double a number result holds behind its 15-digit value. */
+function fullNumber(value: FormulaDataType): number | undefined {
+  return value instanceof FormulaNumber ? value[exactValue] : undefined;
 }

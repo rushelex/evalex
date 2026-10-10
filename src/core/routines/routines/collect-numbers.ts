@@ -10,14 +10,14 @@ interface CollectNumbersOptions {
 }
 
 /**
- * Flattens the arguments of an aggregate routine such as `sum` or `min` into plain numbers.
+ * Flattens the arguments of an aggregate routine such as `sum` or `min` into a list of numbers.
  *
  * @remarks
  * Nested lists are flattened at any depth. An empty result is possible when every argument is an empty list.
  *
  * @throws FormulaError `AllMustBeNumbers` or `AllMustBeFinite`, pointing at `location`.
  */
-export function collectNumbers({ values, location }: CollectNumbersOptions): number[] {
+export function collectNumbers({ values, location }: CollectNumbersOptions): FormulaNumber[] {
   const items = values.flatMap(flatten);
 
   if (items.some((item) => !(item instanceof FormulaNumber))) {
@@ -28,9 +28,9 @@ export function collectNumbers({ values, location }: CollectNumbersOptions): num
     });
   }
 
-  const numbers = (items as FormulaNumber[]).map((item) => item.value);
+  const numbers = items as FormulaNumber[];
 
-  if (numbers.some((number) => !Number.isFinite(number))) {
+  if (numbers.some((number) => !Number.isFinite(number.value))) {
     throw Errors.Argument.AllMustBeFinite.create({
       actual: numbers.map(String).join(', '),
     }, {
