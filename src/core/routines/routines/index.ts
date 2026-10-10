@@ -25,6 +25,7 @@ import './first.routine';
 import './flat.routine';
 import './floor.routine';
 import './format.routine';
+import './formatDate.routine';
 import './fromTimestamp.routine';
 import './hour.routine';
 import './if.routine';

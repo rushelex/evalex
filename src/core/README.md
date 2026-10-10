@@ -184,12 +184,28 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 | `dateAdd(date, amount, unit)` | Adds a whole number of units, or a duration | `parseDate("2023-08-30").add(2, "months")` |
 | `dateSubtract(date, amount, unit)` | Subtracts a whole number of units, or a duration | `parseDate("2023-07-10").subtract(1, "years")` |
 | `dateBetween(a, b, unit)` | Difference between two dates as a duration | `dateBetween(end, start, "days").days()` |
+| `formatDate(date, pattern, timezone?)` | Date as text built from a pattern; also `date.format(pattern, timezone?)` | `parseDate("2023-08-30T14:05Z").format("MMMM D, YYYY h:mm A")` → `"August 30, 2023 2:05 PM"` |
 | `year()` `month()` `week()` `date()` `day()` `hour()` `minute()` | Date parts: `month` is 1–12, `week` is the ISO week, `day` is 1 (Monday) to 7 (Sunday) | `parseDate("2023-07-10").month()` → `7` |
 | `years(duration)` … `milliseconds(duration)` | Reads one unit of a duration | `dateBetween(a, b, "years").months()` |
 
 `dateAdd` and `dateSubtract` fail with `Errors.Arithmetic.DateOutOfRange` when the result falls outside the supported dates, about 270,000 years either side of 1970.
 
 `add`, `subtract` and `between` are the method forms of the date functions; the function names work as methods too, as in `now().dateAdd(1, "days")`. Units are `"years"`, `"months"`, `"weeks"`, `"days"`, `"hours"`, `"minutes"` and, except for `between`, `"quarters"` (three months) and `"seconds"`.
+
+A date pattern shows the date in UTC unless a time zone is given by name (`"Europe/Berlin"`) or as an offset (`"+05:00"`). Names are in English on every machine. Text in brackets is kept as is, and so is any letter that is not a token:
+
+| Part | Tokens | For 2023-08-03 14:05:09.007 UTC |
+| --- | --- | --- |
+| Year | `YYYY` `YY` `Y` | `2023` `23` `2023` |
+| Quarter | `Q` | `3` |
+| Month | `MMMM` `MMM` `MM` `M` | `August` `Aug` `08` `8` |
+| Day of month | `DD` `D` `Do` | `03` `3` `3rd` |
+| Day of week | `dddd` `ddd` `dd` `d` | `Thursday` `Thu` `Th` `4` (`0` is Sunday) |
+| Hour | `HH` `H` `hh` `h` | `14` `14` `02` `2` |
+| Minute, second, millisecond | `mm` `m` `ss` `s` `SSS` | `05` `5` `09` `9` `007` |
+| AM/PM | `A` `a` | `PM` `pm` |
+| Offset | `Z` `ZZ` | `+00:00` `+0000` |
+| Unix timestamp | `X` `x` | seconds, milliseconds |
 
 ### Any value
 
