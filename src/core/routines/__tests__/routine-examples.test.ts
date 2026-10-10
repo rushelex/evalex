@@ -87,5 +87,23 @@ describe('RoutineExamples', () => {
       expect(methodExamples[0].result).toBe(base.examples[0].result);
       expect(methodExamples[0].result!()).toBeFormulaDataType(FormulaNumber, 10);
     });
+
+    it.each([
+      { offsets: [0, 5], expected: [0, 5], part: 'the subject' },
+      { offsets: [6, 10], expected: [6, 14], part: 'the method name' },
+      { offsets: [11, 12], expected: [15, 16], part: 'an argument' },
+    ] as const)('should move method offsets over $part to a longer method name', ({ offsets, expected }) => {
+      const examples = new RoutineExamples('textSize', [
+        {
+          formula: (name) => name('"abc"', '1'),
+          error: { type: { is: () => true }, message: 'Wrong.', location: { method: offsets } },
+        },
+      ]);
+
+      const [methodExample] = examples.toMethodExamples('size');
+
+      expect(methodExample.formula).toBe('"abc".textSize(1)');
+      expect(methodExample.error?.location.method).toEqual(expected);
+    });
   });
 });

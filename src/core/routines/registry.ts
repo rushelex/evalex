@@ -178,7 +178,7 @@ export class RoutinesRegistry {
       for (const methodName of methodNames) {
         this.#methodRegistry.get(ctor)!.set(methodName, new Routine<FormulaDataType>({
           description: definition.description,
-          examples: new RoutineExamples(methodName, definition.examples).toMethodExamples(),
+          examples: new RoutineExamples(methodName, definition.examples).toMethodExamples(methodNames[0]),
           arguments: ctorSignatures,
           subjectAccepted: true,
           volatile: definition.volatile,

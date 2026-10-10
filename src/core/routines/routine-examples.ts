@@ -28,15 +28,21 @@ export class RoutineExamples {
     });
   }
 
-  toMethodExamples(): RoutineExample[] {
+  /**
+   * Returns the examples written as method calls.
+   *
+   * @param offsetsWrittenFor - the method name the error offsets of the examples were written for, when the routine has several
+   */
+  toMethodExamples(offsetsWrittenFor: string = this.routineName): RoutineExample[] {
     return this.examples.map((example) => {
       const methodCall = example.toMethodCall();
+      const offsetsMoved = example.withMethodOffsetsFor(offsetsWrittenFor);
 
       if (example.formula === methodCall) {
-        return example;
+        return offsetsMoved;
       }
 
-      return example.withFormula(methodCall);
+      return offsetsMoved.withFormula(methodCall);
     });
   }
 }

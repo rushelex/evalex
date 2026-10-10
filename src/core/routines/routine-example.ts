@@ -78,31 +78,52 @@ export class RoutineExample {
    * map([1,2,3], current * 2) -> [1,2,3].map(current * 2)
    */
   toMethodCall(): string {
+    const parts = this.#methodCallParts();
+
+    if (!parts) {
+      return this.formula;
+    }
+
+    return `${parts.subject}.${this.routineName}(${parts.args.join(', ')})`;
+  }
+
+  /**
+   * Returns the example with its method offsets moved from the method name they were written for to this name.
+   *
+   * @remarks
+   * Offsets after the start of the method name move by the difference in name length, so a range over the name
+   * or over the arguments keeps pointing at the same part of the call.
+   *
+   * @param writtenFor - the method name the offsets of the example were written for
+   */
+  withMethodOffsetsFor(writtenFor: string): RoutineExample {
+    const offsets = this.error?.location.method;
+    const parts = this.#methodCallParts();
+
+    if (!this.error || !offsets || !parts || writtenFor === this.routineName) {
+      return this;
+    }
+
+    const nameStart = parts.subject.length + 1;
+    const shift = this.routineName.length - writtenFor.length;
+    const move = (offset: number): number => (offset > nameStart ? offset + shift : offset);
+    const error = { ...this.error, location: { ...this.error.location, method: [move(offsets[0]), move(offsets[1])] as const } };
+
+    return new RoutineExample(this.routineName, { ...this.#options, formula: () => this.formula, error, result: undefined });
+  }
+
+  // The subject and the remaining arguments of the function call, or `undefined` when the formula is not one
+  #methodCallParts(): { readonly subject: string; readonly args: readonly string[] } | undefined {
     const functionCallRegex = new RegExp(`\\s?${this.routineName}\\s*\\((.*)?\\)`);
     const match = this.formula.match(functionCallRegex);
 
-    if (!match) {
-      return this.formula;
+    if (!match?.[1] || !this.formula.startsWith(this.routineName)) {
+      return undefined;
     }
 
-    if (!this.formula.startsWith(this.routineName)) {
-      return this.formula;
-    }
+    const [subject, ...args] = this.#parseArguments(match[1]);
 
-    if (!match[1]) {
-      return this.formula;
-    }
-
-    const args = this.#parseArguments(match[1]);
-    const firstArg = wrapCompoundSubject(args[0]);
-    const restArgs = args.slice(1);
-
-    if (restArgs.length === 0) {
-      return `${firstArg}.${this.routineName}()`;
-    }
-    else {
-      return `${firstArg}.${this.routineName}(${restArgs.join(', ')})`;
-    }
+    return { subject: wrapCompoundSubject(subject), args };
   }
 
   /**
