@@ -15,7 +15,7 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   },
 ];
 
-routinesRegistry.registerFunction('parseDate', {
+routinesRegistry.registerRoutine('parseDate', {
   description: 'Returns the date parsed according to the ISO 8601 standard.',
   examples: routineExamples,
   arguments: [
@@ -30,5 +30,5 @@ routinesRegistry.registerFunction('parseDate', {
       },
     }),
   ],
-  handler: ({ args: [date] }) => FormulaDate.from(date.value),
+  handler: ({ subject }) => FormulaDate.from(subject.value),
 });

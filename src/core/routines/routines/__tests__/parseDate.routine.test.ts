@@ -5,9 +5,7 @@ import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('parseDate');
 
-describe('parseDate routine', tester.examples({
-  skipMethod: true,
-}, [
+describe('parseDate routine', tester.examples([
   {
     formula: 'parseDate("2024-07-28")',
     expected: new FormulaDate(Temporal.ZonedDateTime.from({

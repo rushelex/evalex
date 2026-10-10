@@ -3,13 +3,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 import { FormulaNumber, FormulaString } from '../../data-types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
-
-// Text length counts user-perceived characters, so an emoji sequence like 👨‍👩‍👧 has length 1
-const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
-
-function countCharacters(text: string): number {
-  return Array.from(graphemeSegmenter.segment(text)).length;
-}
+import { splitGraphemes } from './split-graphemes';
 
 const routineExamples: readonly RoutineExampleOptions[] = [
   {
@@ -39,7 +33,7 @@ routinesRegistry.registerRoutine('length', {
   ],
   handler: ({ subject }) => {
     if (subject instanceof FormulaString) {
-      return new FormulaNumber(countCharacters(subject.value));
+      return new FormulaNumber(splitGraphemes(subject.value).length);
     }
 
     return new FormulaNumber(subject.value.length);

@@ -121,8 +121,13 @@ Inside `filter` and `map`, the second argument is evaluated once per item with t
 | `length()` | Counts user-perceived characters, so an emoji counts as one | `"Hello".length()` → `5` |
 | `upper()` / `lower()` | Changes the letter case | `"hello".upper()` → `"HELLO"` |
 | `trim()` | Removes leading and trailing whitespace | `"  hi  ".trim()` → `"hi"` |
+| `substring(start, end?)` | Characters from `start` up to, not including, `end`; indexes are clamped to the text, and a start after the end swaps them | `"Formula".substring(0, 3)` → `"For"` |
+| `split(separator)` | Parts between matches of the separator; an empty separator splits into characters | `"a,b".split(",")` → `["a", "b"]` |
+| `repeat(times)` | The text repeated `times` times | `"0".repeat(4)` → `"0000"` |
+| `padStart(length, padding?)` / `padEnd(length, padding?)` | Adds the padding, a space by default, at the start or end until the text has `length` characters | `"5".padStart(3, "0")` → `"005"` |
+| `parseDate()` | Reads an ISO 8601 date, like the `parseDate(text)` function | `"2022-01-01".parseDate()` |
 
-`pattern` accepts a regex literal or text. Text is compiled into a regular expression, so `"\\d+"` matches digits; `contains` is the exception and treats text as a plain substring.
+`pattern` accepts a regex literal or text. Text is compiled into a regular expression, so `"\\d+"` matches digits; `contains` and `split` are the exceptions and treat text as plain text, so `"v1.2".split(".")` splits at the dot.
 
 ### Numbers and math
 
