@@ -274,6 +274,7 @@ describe('Operations', () => {
       { formula: '0.5 % 0.2 - 0.1', expected: 0 },
       { formula: '1.1 ^ 2 - 1.21', expected: 0 },
       { formula: '1 / 3 * 3', expected: 1 },
+      { formula: '(2 / 3) / (1 / 3) - 2', expected: 0 },
       { formula: '-(1 / 3) * -3', expected: 1 },
       { formula: 'floor((0.1 + 0.7) * 10)', expected: 8 },
       { formula: 'ceil(sqrt(2) ^ 2)', expected: 2 },

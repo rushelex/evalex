@@ -6,8 +6,6 @@ import { POWERS_OF_TEN } from './powers-of-ten';
 // Past this many digits the exact power is far outside the double range, so `**` gives the same result.
 const MAX_POWER_DIGITS = 400;
 
-type Operation = (a: number, b: number) => number;
-
 /**
  * Arithmetic of operators and routines that treats each number as the decimal it reads as.
  *
@@ -18,25 +16,25 @@ type Operation = (a: number, b: number) => number;
  * to the caller.
  */
 export const decimalArithmetic = {
-  add: (a: FormulaNumber, b: FormulaNumber): FormulaNumber => calculate(a, b, add),
-  subtract: (a: FormulaNumber, b: FormulaNumber): FormulaNumber => calculate(a, b, (x, y) => add(x, -y)),
-  multiply: (a: FormulaNumber, b: FormulaNumber): FormulaNumber => calculate(a, b, multiply),
-  divide: (a: FormulaNumber, b: FormulaNumber): FormulaNumber => calculate(a, b, divide),
-  remainder: (a: FormulaNumber, b: FormulaNumber): FormulaNumber => calculate(a, b, remainder),
-  power: (a: FormulaNumber, b: FormulaNumber): FormulaNumber => calculate(a, b, power),
+  add: (a: FormulaNumber, b: FormulaNumber): FormulaNumber => FormulaNumber.from(add(a[exactValue], b[exactValue])),
+  subtract: (a: FormulaNumber, b: FormulaNumber): FormulaNumber => FormulaNumber.from(add(a[exactValue], -b[exactValue])),
+  multiply: (a: FormulaNumber, b: FormulaNumber): FormulaNumber => FormulaNumber.from(multiply(a[exactValue], b[exactValue])),
+  divide: (a: FormulaNumber, b: FormulaNumber): FormulaNumber => FormulaNumber.from(divide(a[exactValue], b[exactValue])),
+  remainder: (a: FormulaNumber, b: FormulaNumber): FormulaNumber => FormulaNumber.from(remainder(a[exactValue], b[exactValue])),
+  power: (a: FormulaNumber, b: FormulaNumber): FormulaNumber => FormulaNumber.from(power(a[exactValue], b[exactValue])),
   negate: (a: FormulaNumber): FormulaNumber => FormulaNumber.from(-a[exactValue]),
 } as const;
 
-function calculate(a: FormulaNumber, b: FormulaNumber, operation: Operation): FormulaNumber {
-  return FormulaNumber.from(operation(a[exactValue], b[exactValue]));
-}
-
 function add(x: number, y: number): number {
+  // Doubles are exact for integers, so only decimals with fraction digits need the integer detour.
+  if (Number.isInteger(x) && Number.isInteger(y)) {
+    return x + y;
+  }
+
   const xScale = decimalScale(x);
   const yScale = decimalScale(y);
 
-  // Doubles are exact for integers, so only decimals with fraction digits need the integer detour.
-  if (xScale === undefined || yScale === undefined || xScale + yScale === 0) {
+  if (xScale === undefined || yScale === undefined) {
     return x + y;
   }
 
@@ -53,10 +51,14 @@ function add(x: number, y: number): number {
 }
 
 function multiply(x: number, y: number): number {
+  if (Number.isInteger(x) && Number.isInteger(y)) {
+    return x * y;
+  }
+
   const xScale = decimalScale(x);
   const yScale = decimalScale(y);
 
-  if (xScale === undefined || yScale === undefined || xScale + yScale === 0) {
+  if (xScale === undefined || yScale === undefined) {
     return x * y;
   }
 
@@ -71,10 +73,14 @@ function multiply(x: number, y: number): number {
 }
 
 function divide(x: number, y: number): number {
+  if (Number.isInteger(x) && Number.isInteger(y)) {
+    return x / y;
+  }
+
   const xScale = decimalScale(x);
   const yScale = decimalScale(y);
 
-  if (xScale === undefined || yScale === undefined || xScale + yScale === 0) {
+  if (xScale === undefined || yScale === undefined) {
     return x / y;
   }
 
@@ -87,10 +93,14 @@ function divide(x: number, y: number): number {
 }
 
 function remainder(x: number, y: number): number {
+  if (Number.isInteger(x) && Number.isInteger(y)) {
+    return x % y;
+  }
+
   const xScale = decimalScale(x);
   const yScale = decimalScale(y);
 
-  if (xScale === undefined || yScale === undefined || xScale + yScale === 0) {
+  if (xScale === undefined || yScale === undefined) {
     return x % y;
   }
 
