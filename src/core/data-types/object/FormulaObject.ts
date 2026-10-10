@@ -46,7 +46,7 @@ import { Kind } from '../kind';
  * // Returns: FormulaString("adult")
  * ```
  */
-export class FormulaObject<T extends Record<string, FormulaDataType> = Record<string, FormulaDataType>> extends FormulaDataType<T> {
+export class FormulaObject<T extends Record<string, FormulaDataType> = Record<string, FormulaDataType>> extends FormulaDataType<Readonly<T>> {
   static readonly kind = Kind.Object;
 
   constructor(value: T, displayType?: string) {
@@ -58,7 +58,7 @@ export class FormulaObject<T extends Record<string, FormulaDataType> = Record<st
   }
 
   toString(options?: ToStringOptions): string {
-    const entries = Object.entries(this.value).map(([key, value]) => `${key}: ${value.toString({ asJSON: options?.asJSON ?? true })}`);
+    const entries = Object.entries<FormulaDataType>(this.value).map(([key, value]) => `${key}: ${value.toString({ asJSON: options?.asJSON ?? true })}`);
     if (entries.length === 0)
       return '{}';
     return `{ ${entries.join(', ')} }`;

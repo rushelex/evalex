@@ -19,6 +19,14 @@ interface SingleFormDefinition<TSignatures extends Signatures | undefined> {
   readonly examples: readonly RoutineExampleOptions[];
   /** One signature, or a list of alternative signatures, built with `arg`; omitted when the handler reads the call syntax itself. */
   readonly arguments?: TSignatures;
+  /**
+   * The result can differ between calls with the same arguments, as with `now()`.
+   *
+   * @remarks
+   * The runtime skips recalculating a formula whose inputs did not change; a formula calling a volatile routine
+   * is recalculated anyway whenever one of its inputs is updated.
+   */
+  readonly volatile?: boolean;
 }
 
 export interface FunctionDefinition<TSignatures extends Signatures | undefined> extends SingleFormDefinition<TSignatures> {
@@ -44,6 +52,14 @@ export interface RoutineDefinition<TSignatures extends SubjectSignatures> {
    * The first argument of each is the call subject; its types decide which data types get the method form.
    */
   readonly arguments: TSignatures;
+  /**
+   * The result can differ between calls with the same arguments, as with `now()`.
+   *
+   * @remarks
+   * The runtime skips recalculating a formula whose inputs did not change; a formula calling a volatile routine
+   * is recalculated anyway whenever one of its inputs is updated.
+   */
+  readonly volatile?: boolean;
   /** Implementation shared by both forms; receives the call subject apart from the remaining arguments. */
   readonly handler: SubjectRoutineHandler<TSignatures>;
 }
@@ -73,6 +89,7 @@ export class RoutinesRegistry {
       description: definition.description,
       examples: new RoutineExamples(name, definition.examples).toFunctionExamples(),
       arguments: definition.arguments,
+      volatile: definition.volatile,
       handler: ({ node, args, visitor, location }) => handler({ node, args: args && toValues(args), visitor, location } as Parameters<typeof handler>[0]),
     }));
   }
@@ -101,6 +118,7 @@ export class RoutinesRegistry {
       description: definition.description,
       examples: new RoutineExamples(name, definition.examples).toMethodExamples(),
       arguments: definition.arguments,
+      volatile: definition.volatile,
       handler: ({ instance, args, visitor, location }) => handler({ instance, args: toValues(args), visitor, location } as Parameters<typeof handler>[0]),
     }) as Routine);
 
@@ -138,6 +156,7 @@ export class RoutinesRegistry {
       description: definition.description,
       examples: new RoutineExamples(functionName, definition.examples).toFunctionExamples(),
       arguments: signatures,
+      volatile: definition.volatile,
       handler: ({ args, visitor, location }) => {
         const [subject, ...rest] = toValues(args!);
 
@@ -155,6 +174,7 @@ export class RoutinesRegistry {
         examples: new RoutineExamples(methodName, definition.examples).toMethodExamples(),
         arguments: ctorSignatures,
         subjectAccepted: true,
+        volatile: definition.volatile,
         handler: ({ instance, args, visitor, location }) => {
           validateSubject(subjects, instance, location);
 

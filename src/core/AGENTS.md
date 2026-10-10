@@ -10,6 +10,7 @@
 - New capabilities are added as optional trailing arguments. The meaning of an existing argument never changes.
 - An argument that takes a pattern accepts both text and a regular expression. Flags travel inside the regex literal, never as a separate argument. Text is compiled as a regular expression, except in routines whose job is plain substring search.
 - Text routines count and slice user-perceived characters (grapheme clusters), not UTF-16 code units.
+- A routine whose result can differ for the same arguments, such as `now` or `today`, is registered with `volatile: true`. Otherwise the runtime keeps a stale result when the inputs of a formula do not change.
 
 ## Values and errors
 

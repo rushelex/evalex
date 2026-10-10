@@ -16,5 +16,6 @@ routinesRegistry.registerFunction('now', {
   description: 'Returns the current date and time.',
   examples: routineExamples,
   arguments: [],
+  volatile: true,
   handler: () => FormulaDate.from(Temporal.Now.zonedDateTimeISO('UTC')),
 });

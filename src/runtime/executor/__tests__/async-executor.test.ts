@@ -29,7 +29,7 @@ describe(AsyncExecutor, () => {
       if (result.result instanceof FormulaNumber) {
         expect(result.result.value).toBe(3);
       }
-      expect(result.dependencies).toEqual([]);
+      expect(result.dependencies).toEqual(new Set());
     });
 
     it('should extract dependencies', async () => {
@@ -50,13 +50,13 @@ describe(AsyncExecutor, () => {
       if (result.result instanceof FormulaNumber) {
         expect(result.result.value).toBe(15);
       }
-      expect(result.dependencies).toEqual(['a', 'b']);
+      expect(result.dependencies).toEqual(new Set(['a', 'b']));
     });
 
     it('should use custom runner', async () => {
       const customRunner = vi.fn<AsyncRunner>().mockResolvedValue({
         result: new FormulaNumber(42),
-        dependencies: ['custom'],
+        dependencies: new Set(['custom']),
       });
       const executor = new AsyncExecutor({ runner: customRunner });
       const request: FormulaExecRequest = {
@@ -71,7 +71,7 @@ describe(AsyncExecutor, () => {
         undefined,
       );
       expect(result.result).toEqual(new FormulaNumber(42));
-      expect(result.dependencies).toEqual(['custom']);
+      expect(result.dependencies).toEqual(new Set(['custom']));
     });
   });
 

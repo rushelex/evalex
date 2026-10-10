@@ -13,5 +13,5 @@ export interface FormulaExecRequest {
  */
 export interface FormulaExecResult {
   readonly result: FormulaDataType;
-  readonly dependencies: string[];
+  readonly dependencies: ReadonlySet<string>;
 }
