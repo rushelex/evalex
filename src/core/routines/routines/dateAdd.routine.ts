@@ -25,7 +25,7 @@ const routineExamples: readonly RoutineExampleOptions[] = [
 
 const DURATION_UNITS = ['years', 'months', 'weeks', 'days', 'hours', 'minutes', 'seconds'] as const;
 
-routinesRegistry.registerRoutine({ function: 'dateAdd', method: 'add' }, {
+routinesRegistry.registerRoutine({ function: 'dateAdd', method: ['add', 'dateAdd'] }, {
   description: 'Adds a duration or a number of units to the date.',
   examples: routineExamples,
   arguments: [

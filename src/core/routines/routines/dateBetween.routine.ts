@@ -28,7 +28,7 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   },
 ];
 
-routinesRegistry.registerRoutine({ function: 'dateBetween', method: 'between' }, {
+routinesRegistry.registerRoutine({ function: 'dateBetween', method: ['between', 'dateBetween'] }, {
   description: 'Returns the difference between two dates in the given unit.',
   examples: routineExamples,
   arguments: [arg.date('date1'), arg.date('date2'), arg.choice('unit', DURATION_UNITS)],

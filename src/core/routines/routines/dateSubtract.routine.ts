@@ -8,7 +8,7 @@ import { expectInteger } from './expect-integer';
 
 const DURATION_UNITS = ['years', 'months', 'weeks', 'days', 'hours', 'minutes', 'seconds'] as const;
 
-routinesRegistry.registerRoutine({ function: 'dateSubtract', method: 'subtract' }, {
+routinesRegistry.registerRoutine({ function: 'dateSubtract', method: ['subtract', 'dateSubtract'] }, {
   description: 'Subtracts a duration or a number of units from the date.',
   examples: [
     {

@@ -37,8 +37,13 @@ export interface MethodDefinition<TInstance extends FormulaDataType, TSignatures
   readonly handler: MethodRoutineHandler<TInstance, TSignatures>;
 }
 
-/** A name shared by both forms, or separate names for the function and the method. */
-export type RoutineName = string | { readonly function: string; readonly method: string };
+/**
+ * A name shared by both forms, or separate names for the function and the method.
+ *
+ * @remarks
+ * A method can have several names, such as `add` and `dateAdd`; the first is its main name.
+ */
+export type RoutineName = string | { readonly function: string; readonly method: string | readonly [string, ...string[]] };
 
 export interface RoutineDefinition<TSignatures extends SubjectSignatures> {
   /** One sentence shown in UI tooltips for both forms. */
@@ -137,7 +142,7 @@ export class RoutinesRegistry {
    */
   registerRoutine<const TSignatures extends SubjectSignatures>(name: RoutineName, definition: RoutineDefinition<TSignatures>): void {
     const functionName = typeof name === 'string' ? name : name.function;
-    const methodName = typeof name === 'string' ? name : name.method;
+    const methodNames: readonly string[] = typeof name === 'string' ? [name] : [name.method].flat();
     const signatures = new ArgumentsDefinitions(definition.arguments).alternatives as readonly SubjectSignature[];
     const handler = definition.handler as ErasedSubjectHandler;
 
@@ -147,11 +152,11 @@ export class RoutinesRegistry {
       return { ctor, subjects: accepted.map(([subject]) => subject), signatures: accepted.map(toMethodSignature) };
     });
 
-    if (this.#functionRegistry.has(functionName) || methods.some(({ ctor }) => this.#methodRegistry.get(ctor)?.has(methodName))) {
-      throw new Error(`Routine "${typeof name === 'string' ? name : `${functionName}/${methodName}`}" is already registered.`);
+    if (this.#functionRegistry.has(functionName) || methods.some(({ ctor }) => methodNames.some((methodName) => this.#methodRegistry.get(ctor)?.has(methodName)))) {
+      throw new Error(`Routine "${[functionName, ...methodNames.filter((methodName) => methodName !== functionName)].join('/')}" is already registered.`);
     }
 
-    this.#methodNames.set(functionName, methodName);
+    this.#methodNames.set(functionName, methodNames[0]);
     this.#functionRegistry.set(functionName, new Routine({
       description: definition.description,
       examples: new RoutineExamples(functionName, definition.examples).toFunctionExamples(),
@@ -169,18 +174,20 @@ export class RoutinesRegistry {
         this.#methodRegistry.set(ctor, new Map());
       }
 
-      this.#methodRegistry.get(ctor)!.set(methodName, new Routine<FormulaDataType>({
-        description: definition.description,
-        examples: new RoutineExamples(methodName, definition.examples).toMethodExamples(),
-        arguments: ctorSignatures,
-        subjectAccepted: true,
-        volatile: definition.volatile,
-        handler: ({ instance, args, visitor, location }) => {
-          validateSubject(subjects, instance, location);
+      for (const methodName of methodNames) {
+        this.#methodRegistry.get(ctor)!.set(methodName, new Routine<FormulaDataType>({
+          description: definition.description,
+          examples: new RoutineExamples(methodName, definition.examples).toMethodExamples(),
+          arguments: ctorSignatures,
+          subjectAccepted: true,
+          volatile: definition.volatile,
+          handler: ({ instance, args, visitor, location }) => {
+            validateSubject(subjects, instance, location);
 
-          return handler({ subject: instance, args: toValues(args), locations: toLocations(args), visitor, location });
-        },
-      }) as Routine);
+            return handler({ subject: instance, args: toValues(args), locations: toLocations(args), visitor, location });
+          },
+        }) as Routine);
+      }
     }
 
     this.#invalidateCache();
@@ -202,7 +209,7 @@ export class RoutinesRegistry {
     return this.#functionRegistry.get(name);
   }
 
-  /** Returns the method form registered together with the function by {@link RoutinesRegistry.registerRoutine}, or `undefined` when there is none. */
+  /** Returns the main name of the method form registered together with the function by {@link RoutinesRegistry.registerRoutine}, or `undefined` when there is none. */
   getMethodName(functionName: string): string | undefined {
     return this.#methodNames.get(functionName);
   }

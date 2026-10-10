@@ -21,6 +21,13 @@ routinesRegistry.registerRoutine({ function: 'textShout', method: 'shout' }, {
   handler: ({ subject }) => new FormulaString(subject.value.toUpperCase()),
 });
 
+routinesRegistry.registerRoutine({ function: 'textWhisper', method: ['whisper', 'textWhisper'] }, {
+  description: 'Returns the text in lower case.',
+  examples: [],
+  arguments: [arg.string('text')],
+  handler: ({ subject }) => new FormulaString(subject.value.toLowerCase()),
+});
+
 routinesRegistry.registerRoutine('total', {
   description: 'Returns the sum of the numbers.',
   examples: [],
@@ -149,6 +156,15 @@ describe('RoutinesRegistry.registerRoutine', () => {
   });
 
   it.each([
+    { formula: '"HI".whisper()' },
+    { formula: '"HI".textWhisper()' },
+    { formula: 'textWhisper("HI")' },
+  ])('should register the method under each of its names: $formula', ({ formula }) => {
+    expect(evaluate(formula)).toBeFormulaDataType(FormulaString, 'hi');
+  });
+
+  it.each([
+    { functionName: 'textWhisper', methodName: 'whisper' },
     { functionName: 'textShout', methodName: 'shout' },
     { functionName: 'measure', methodName: 'measure' },
     { functionName: 'today', methodName: undefined },
