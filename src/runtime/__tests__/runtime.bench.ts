@@ -21,40 +21,53 @@ interface Node {
 
 /**
  * Benchmark: Simple formula calculation
- * Measures pure evaluation time without setup overhead
+ * Re-queues one formula, with a changed input (recalculated) and without one (skipped)
  */
 it('Simple Formula (A + B)', async ({ bench }) => {
   let initFn: () => Promise<void>;
+  let registry: Map<string, Node>;
+  let next = 0;
 
-  await bench(
-    'evaluation only',
-    {
-      beforeAll: () => {
-        const { registry, initializeFormulas } = setup();
-        registry.set('a', { id: 'a', value: new FormulaNumber(10) });
-        registry.set('b', { id: 'b', value: new FormulaNumber(20) });
-        registry.set('sum', {
-          id: 'sum',
-          value: new FormulaNumber(0),
-          expression: new Expression('a + b'),
-        });
-        initFn = initializeFormulas;
+  const createSetup = () => {
+    const created = setup();
+    created.registry.set('a', { id: 'a', value: new FormulaNumber(10) });
+    created.registry.set('b', { id: 'b', value: new FormulaNumber(20) });
+    created.registry.set('sum', {
+      id: 'sum',
+      value: new FormulaNumber(0),
+      expression: new Expression('a + b'),
+    });
+    registry = created.registry;
+    initFn = created.initializeFormulas;
+  };
+
+  await bench.compare(
+    bench(
+      'input changed, recalculated',
+      { beforeAll: createSetup },
+      async () => {
+        registry.get('a')!.value = new FormulaNumber(++next);
+        await initFn();
       },
-    },
-    async () => {
-      await initFn();
-    },
-  ).run({ warmupIterations: 10, iterations: 100 });
+    ),
+    bench(
+      'nothing changed, skipped',
+      { beforeAll: createSetup },
+      async () => {
+        await initFn();
+      },
+    ),
+    { warmupIterations: 10, iterations: 100 },
+  );
 });
 
 /**
  * Benchmark: Formula chain processing
- * Measures how chain length affects evaluation time
+ * Measures how chain length affects recalculation when the head of the chain changes,
+ * and what re-queuing the whole chain costs when nothing changed
  */
 it('Formula Chain Processing', async ({ bench }) => {
-  let initFn5: () => Promise<void>;
-  let initFn10: () => Promise<void>;
-  let initFn20: () => Promise<void>;
+  let next = 0;
 
   const createChainSetup = (chainLength: number) => {
     const { registry, initializeFormulas } = setup();
@@ -67,56 +80,55 @@ it('Formula Chain Processing', async ({ bench }) => {
         expression: new Expression(`f${i - 1} + 1`),
       });
     }
-    return initializeFormulas;
+
+    return {
+      recalculate: async () => {
+        registry.get('f0')!.value = new FormulaNumber(++next);
+        await initializeFormulas();
+      },
+      requeue: initializeFormulas,
+    };
+  };
+
+  const runs = new Map<string, () => Promise<void>>();
+
+  const chainBench = (chainLength: number, headChanged: boolean) => {
+    const name = `chain of ${chainLength}, ${headChanged ? 'head changed, recalculated' : 'nothing changed, skipped'}`;
+
+    return bench(
+      name,
+      {
+        beforeAll: () => {
+          const { recalculate, requeue } = createChainSetup(chainLength);
+          runs.set(name, headChanged ? recalculate : requeue);
+        },
+      },
+      async () => {
+        await runs.get(name)!();
+      },
+    );
   };
 
   await bench.compare(
-    bench(
-      'chain of 5 formulas',
-      {
-        beforeAll: () => {
-          initFn5 = createChainSetup(5);
-        },
-      },
-      async () => {
-        await initFn5();
-      },
-    ),
-    bench(
-      'chain of 10 formulas',
-      {
-        beforeAll: () => {
-          initFn10 = createChainSetup(10);
-        },
-      },
-      async () => {
-        await initFn10();
-      },
-    ),
-    bench(
-      'chain of 20 formulas',
-      {
-        beforeAll: () => {
-          initFn20 = createChainSetup(20);
-        },
-      },
-      async () => {
-        await initFn20();
-      },
-    ),
+    chainBench(5, true),
+    chainBench(10, true),
+    chainBench(20, true),
+    chainBench(5, false),
+    chainBench(10, false),
+    chainBench(20, false),
     { warmupIterations: 10, iterations: 100 },
   );
 });
 
 /**
  * Benchmark: Dependent formula updates (fan-out)
- * Measures recalculation propagation performance
+ * Measures recalculation propagation when the shared input gets a new value,
+ * and the cost of an update that repeats the current value
  * Setup includes initial calculation, measures only update time
  */
 it('Dependent Formula Updates (fan-out)', async ({ bench }) => {
-  let updateFn10: () => Promise<void>;
-  let updateFn50: () => Promise<void>;
-  let updateFn100: () => Promise<void>;
+  const updates = new Map<string, (value: number) => Promise<void>>();
+  let next = 20;
 
   const createFanOutSetup = async (dependentCount: number) => {
     const { registry, runtime, initializeFormulas } = setup();
@@ -134,47 +146,36 @@ it('Dependent Formula Updates (fan-out)', async ({ bench }) => {
     await initializeFormulas();
 
     // Return only the update function to measure
-    return async () => {
-      registry.get('base')!.value = new FormulaNumber(20);
+    return async (value: number) => {
+      registry.get('base')!.value = new FormulaNumber(value);
       runtime.enqueueDependents('base');
       await runtime.waitForProcessing();
     };
   };
 
+  const fanOutBench = (dependentCount: number, sameValue: boolean) => {
+    const name = `${dependentCount} dependents, ${sameValue ? 'same value, skipped' : 'new value, recalculated'}`;
+
+    return bench(
+      name,
+      {
+        beforeAll: async () => {
+          updates.set(name, await createFanOutSetup(dependentCount));
+        },
+      },
+      async () => {
+        await updates.get(name)!(sameValue ? 20 : ++next);
+      },
+    );
+  };
+
   await bench.compare(
-    bench(
-      'update with 10 dependents',
-      {
-        beforeAll: async () => {
-          updateFn10 = await createFanOutSetup(10);
-        },
-      },
-      async () => {
-        await updateFn10();
-      },
-    ),
-    bench(
-      'update with 50 dependents',
-      {
-        beforeAll: async () => {
-          updateFn50 = await createFanOutSetup(50);
-        },
-      },
-      async () => {
-        await updateFn50();
-      },
-    ),
-    bench(
-      'update with 100 dependents',
-      {
-        beforeAll: async () => {
-          updateFn100 = await createFanOutSetup(100);
-        },
-      },
-      async () => {
-        await updateFn100();
-      },
-    ),
+    fanOutBench(10, false),
+    fanOutBench(50, false),
+    fanOutBench(100, false),
+    fanOutBench(10, true),
+    fanOutBench(50, true),
+    fanOutBench(100, true),
     { warmupIterations: 5, iterations: 50 },
   );
 });
@@ -244,13 +245,12 @@ it('Warm Code, Cold Data (new document)', async ({ bench }) => {
 
 /**
  * Benchmark: Expression complexity
- * Measures evaluation time for expressions with different dependency counts
+ * Measures recalculation time for expressions with different dependency counts when a shared input changes,
+ * and what re-queuing them costs when nothing changed
  */
 it('Expression Complexity (same formula count)', async ({ bench }) => {
-  let initFn1: () => Promise<void>;
-  let initFn3: () => Promise<void>;
-  let initFn5: () => Promise<void>;
-  let initFn10: () => Promise<void>;
+  const runs = new Map<string, () => Promise<void>>();
+  let next = 0;
 
   const createComplexitySetup = (depsPerFormula: number) => {
     const { registry, initializeFormulas } = setup();
@@ -271,54 +271,42 @@ it('Expression Complexity (same formula count)', async ({ bench }) => {
       });
     }
 
-    return initializeFormulas;
+    return {
+      // Every formula reads base0, so changing it recalculates all 50
+      recalculate: async () => {
+        registry.get('base0')!.value = new FormulaNumber(++next);
+        await initializeFormulas();
+      },
+      requeue: initializeFormulas,
+    };
+  };
+
+  const complexityBench = (depsPerFormula: number, inputChanged: boolean) => {
+    const name = `50 formulas, ${depsPerFormula} deps each, ${inputChanged ? 'input changed, recalculated' : 'nothing changed, skipped'}`;
+
+    return bench(
+      name,
+      {
+        beforeAll: () => {
+          const { recalculate, requeue } = createComplexitySetup(depsPerFormula);
+          runs.set(name, inputChanged ? recalculate : requeue);
+        },
+      },
+      async () => {
+        await runs.get(name)!();
+      },
+    );
   };
 
   await bench.compare(
-    bench(
-      '50 formulas, 1 dep each',
-      {
-        beforeAll: () => {
-          initFn1 = createComplexitySetup(1);
-        },
-      },
-      async () => {
-        await initFn1();
-      },
-    ),
-    bench(
-      '50 formulas, 3 deps each',
-      {
-        beforeAll: () => {
-          initFn3 = createComplexitySetup(3);
-        },
-      },
-      async () => {
-        await initFn3();
-      },
-    ),
-    bench(
-      '50 formulas, 5 deps each',
-      {
-        beforeAll: () => {
-          initFn5 = createComplexitySetup(5);
-        },
-      },
-      async () => {
-        await initFn5();
-      },
-    ),
-    bench(
-      '50 formulas, 10 deps each',
-      {
-        beforeAll: () => {
-          initFn10 = createComplexitySetup(10);
-        },
-      },
-      async () => {
-        await initFn10();
-      },
-    ),
+    complexityBench(1, true),
+    complexityBench(3, true),
+    complexityBench(5, true),
+    complexityBench(10, true),
+    complexityBench(1, false),
+    complexityBench(3, false),
+    complexityBench(5, false),
+    complexityBench(10, false),
     { warmupIterations: 5, iterations: 50 },
   );
 });

@@ -5,6 +5,7 @@ import { routinesRegistry } from './routines/registry';
 
 export class DependencyExtractorVisitor implements AST.IVisitor<void> {
   #dependencies = new Set<string>();
+  #volatile = false;
   // Names introduced by the enclosing callbacks, innermost last.
   readonly #callbackScopes: ReadonlySet<string>[] = [];
 
@@ -12,6 +13,13 @@ export class DependencyExtractorVisitor implements AST.IVisitor<void> {
     const visitor = new DependencyExtractorVisitor();
     node.accept(visitor);
     return visitor.#dependencies;
+  }
+
+  /** Tells whether the formula calls a routine whose result can differ between calls with the same arguments. */
+  static isVolatile(node: AST.AstNode): boolean {
+    const visitor = new DependencyExtractorVisitor();
+    node.accept(visitor);
+    return visitor.#volatile;
   }
 
   visitLiteralNode(_node: AST.ILiteralNode): void {
@@ -45,6 +53,11 @@ export class DependencyExtractorVisitor implements AST.IVisitor<void> {
     const routines = callee.type === 'Identifier'
       ? [routinesRegistry.getFunction(callee.name)].filter((routine) => routine !== undefined)
       : getMethodsNamed(callee.property.name);
+
+    // A method's receiver type is unknown here, so one volatile candidate makes the call volatile
+    if (routines.some((routine) => routine.volatile)) {
+      this.#volatile = true;
+    }
 
     node.args.forEach((arg, index) => {
       const callbackVariables = getSharedCallbackVariables(routines, index);

@@ -9,12 +9,12 @@ import { Kind } from '../kind';
  * Represents a typed list of elements in the formula system.
  * @template TItem Type of elements in the list. Must be a subclass of FormulaDataType.
  */
-export class FormulaArray<TItem extends FormulaDataType = FormulaDataType> extends FormulaDataType<TItem[]> {
+export class FormulaArray<TItem extends FormulaDataType = FormulaDataType> extends FormulaDataType<readonly TItem[]> {
   static readonly SEPARATOR = ', ';
   static readonly kind = Kind.Array;
   readonly itemDisplayType: string;
 
-  constructor(items: TItem[], itemDisplayTypeSingular?: string) {
+  constructor(items: readonly TItem[], itemDisplayTypeSingular?: string) {
     const nestedItemDisplayType = itemDisplayTypeSingular || (items.length > 0 && new Set(items.map((item) => item.displayType)).size === 1 ? `${items[0].displayType} items` : 'any items');
     const itemDisplayType = `${nestedItemDisplayType} list`;
     super(Kind.Array, items, itemDisplayType);

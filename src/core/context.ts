@@ -24,7 +24,7 @@ export class FormulaEvaluationContext {
   ) {
     this.#globalProperties = globalProperties;
     this.#parentContext = parentContext;
-    this.#localScope = new Map(initialLocalScope); // Copy to avoid external mutations
+    this.#localScope = initialLocalScope;
   }
 
   /**

@@ -32,27 +32,34 @@ it('Comparison: Simple Formula (A + B)', async ({ bench }) => {
   let evalexInitFn: () => Promise<void>;
   let hfInstance: HyperFormula;
 
+  const buildEvalex = () => {
+    const { registry, initializeFormulas } = setupEvalex();
+    registry.set('A1', { id: 'A1', value: new FormulaNumber(10) });
+    registry.set('B1', { id: 'B1', value: new FormulaNumber(20) });
+    registry.set('C1', {
+      id: 'C1',
+      value: new FormulaNumber(0),
+      expression: new Expression('A1 + B1'),
+    });
+    return initializeFormulas;
+  };
+
   await bench.compare(
+    bench('evalex, new runtime each run', async () => {
+      await buildEvalex()();
+    }),
     bench(
-      'evalex',
+      'evalex, same runtime re-run, nothing changed, skipped',
       {
         beforeAll: () => {
-          const { registry, initializeFormulas } = setupEvalex();
-          registry.set('A1', { id: 'A1', value: new FormulaNumber(10) });
-          registry.set('B1', { id: 'B1', value: new FormulaNumber(20) });
-          registry.set('C1', {
-            id: 'C1',
-            value: new FormulaNumber(0),
-            expression: new Expression('A1 + B1'),
-          });
-          evalexInitFn = initializeFormulas;
+          evalexInitFn = buildEvalex();
         },
       },
       async () => {
         await evalexInitFn();
       },
     ),
-    bench('HyperFormula', () => {
+    bench('HyperFormula, new workbook each run', () => {
       // HyperFormula calculates on build
       hfInstance = HyperFormula.buildFromArray(
         [
@@ -72,30 +79,37 @@ it('Comparison: Simple Formula (A + B)', async ({ bench }) => {
 it('Comparison: Chain of 10 formulas', async ({ bench }) => {
   let evalexInitFn: () => Promise<void>;
 
+  const buildEvalex = () => {
+    const { registry, initializeFormulas } = setupEvalex();
+    registry.set('A1', { id: 'A1', value: new FormulaNumber(1) });
+    for (let i = 2; i <= 11; i++) {
+      const prevCol = String.fromCharCode(64 + i - 1); // A, B, C...
+      const col = String.fromCharCode(64 + i);
+      registry.set(`${col}1`, {
+        id: `${col}1}`,
+        value: new FormulaNumber(0),
+        expression: new Expression(`${prevCol}1 + 1`),
+      });
+    }
+    return initializeFormulas;
+  };
+
   await bench.compare(
+    bench('evalex, new runtime each run', async () => {
+      await buildEvalex()();
+    }),
     bench(
-      'evalex',
+      'evalex, same runtime re-run, nothing changed, skipped',
       {
         beforeAll: () => {
-          const { registry, initializeFormulas } = setupEvalex();
-          registry.set('A1', { id: 'A1', value: new FormulaNumber(1) });
-          for (let i = 2; i <= 11; i++) {
-            const prevCol = String.fromCharCode(64 + i - 1); // A, B, C...
-            const col = String.fromCharCode(64 + i);
-            registry.set(`${col}1`, {
-              id: `${col}1}`,
-              value: new FormulaNumber(0),
-              expression: new Expression(`${prevCol}1 + 1`),
-            });
-          }
-          evalexInitFn = initializeFormulas;
+          evalexInitFn = buildEvalex();
         },
       },
       async () => {
         await evalexInitFn();
       },
     ),
-    bench('HyperFormula', () => {
+    bench('HyperFormula, new workbook each run', () => {
       const row = [1];
       for (let i = 1; i <= 10; i++) {
         const prevCol = String.fromCharCode(64 + i); // A, B, C...
@@ -114,28 +128,35 @@ it('Comparison: Chain of 10 formulas', async ({ bench }) => {
 it('Comparison: 50 formulas depending on one cell', async ({ bench }) => {
   let evalexInitFn: () => Promise<void>;
 
+  const buildEvalex = () => {
+    const { registry, initializeFormulas } = setupEvalex();
+    registry.set('A1', { id: 'A1', value: new FormulaNumber(10) });
+    for (let i = 0; i < 50; i++) {
+      registry.set(`B${i + 1}`, {
+        id: `B${i + 1}`,
+        value: new FormulaNumber(0),
+        expression: new Expression(`A1 * ${i + 1}`),
+      });
+    }
+    return initializeFormulas;
+  };
+
   await bench.compare(
+    bench('evalex, new runtime each run', async () => {
+      await buildEvalex()();
+    }),
     bench(
-      'evalex',
+      'evalex, same runtime re-run, nothing changed, skipped',
       {
         beforeAll: () => {
-          const { registry, initializeFormulas } = setupEvalex();
-          registry.set('A1', { id: 'A1', value: new FormulaNumber(10) });
-          for (let i = 0; i < 50; i++) {
-            registry.set(`B${i + 1}`, {
-              id: `B${i + 1}`,
-              value: new FormulaNumber(0),
-              expression: new Expression(`A1 * ${i + 1}`),
-            });
-          }
-          evalexInitFn = initializeFormulas;
+          evalexInitFn = buildEvalex();
         },
       },
       async () => {
         await evalexInitFn();
       },
     ),
-    bench('HyperFormula', () => {
+    bench('HyperFormula, new workbook each run', () => {
       const data: (number | string)[][] = [[10]];
       for (let i = 0; i < 50; i++) {
         data.push([`=A1*${i + 1}`]);
@@ -161,7 +182,7 @@ it('Comparison: 1000 formulas initialization', async ({ bench }) => {
   };
 
   await bench.compare(
-    bench('evalex', async () => {
+    bench('evalex, new runtime each run', async () => {
       const random = seededRandom(42);
       const { registry, initializeFormulas } = setupEvalex();
 
@@ -186,7 +207,7 @@ it('Comparison: 1000 formulas initialization', async ({ bench }) => {
 
       await initializeFormulas();
     }),
-    bench('HyperFormula', () => {
+    bench('HyperFormula, new workbook each run', () => {
       const random = seededRandom(42);
 
       // Build data array
@@ -226,55 +247,58 @@ it('Comparison: 1000 formulas initialization', async ({ bench }) => {
  * This is crucial for real-time editing
  */
 it('Comparison: Recalculation after value change (50 dependents)', async ({ bench }) => {
-  let evalexUpdateFn: () => Promise<void>;
+  let evalexUpdateFn: (value: number) => Promise<void>;
   let hfInstance: HyperFormula;
+  let next = 30;
+
+  const setupEvalexDependents = async () => {
+    const { registry, runtime, initializeFormulas } = setupEvalex();
+    registry.set('A1', { id: 'A1', value: new FormulaNumber(10) });
+    for (let i = 0; i < 50; i++) {
+      registry.set(`B${i + 1}`, {
+        id: `B${i + 1}`,
+        value: new FormulaNumber(0),
+        expression: new Expression(`A1 * ${i + 1}`),
+      });
+    }
+    await initializeFormulas();
+
+    evalexUpdateFn = async (value) => {
+      registry.get('A1')!.value = new FormulaNumber(value);
+      runtime.enqueueDependents('A1');
+      await runtime.waitForProcessing();
+    };
+  };
+
+  const setupHyperFormula = () => {
+    const data: (number | string)[][] = [[10]];
+    for (let i = 0; i < 50; i++) {
+      data.push([`=A1*${i + 1}`]);
+    }
+    hfInstance = HyperFormula.buildFromArray(data, { licenseKey: 'gpl-v3' });
+  };
+
+  const updateHyperFormula = (value: number) => {
+    hfInstance.setCellContents({ sheet: 0, col: 0, row: 0 }, [[value]]);
+    // Force actual evaluation (HyperFormula is lazy)
+    for (let i = 0; i < 50; i++) {
+      hfInstance.getCellValue({ sheet: 0, col: 0, row: i + 1 });
+    }
+  };
 
   await bench.compare(
-    bench(
-      'evalex',
-      {
-        beforeAll: async () => {
-          const { registry, runtime, initializeFormulas } = setupEvalex();
-          registry.set('A1', { id: 'A1', value: new FormulaNumber(10) });
-          for (let i = 0; i < 50; i++) {
-            registry.set(`B${i + 1}`, {
-              id: `B${i + 1}`,
-              value: new FormulaNumber(0),
-              expression: new Expression(`A1 * ${i + 1}`),
-            });
-          }
-          await initializeFormulas();
-
-          evalexUpdateFn = async () => {
-            registry.get('A1')!.value = new FormulaNumber(20);
-            runtime.enqueueDependents('A1');
-            await runtime.waitForProcessing();
-          };
-        },
-      },
-      async () => {
-        await evalexUpdateFn();
-      },
-    ),
-    bench(
-      'HyperFormula',
-      {
-        beforeAll: () => {
-          const data: (number | string)[][] = [[10]];
-          for (let i = 0; i < 50; i++) {
-            data.push([`=A1*${i + 1}`]);
-          }
-          hfInstance = HyperFormula.buildFromArray(data, { licenseKey: 'gpl-v3' });
-        },
-      },
-      () => {
-        hfInstance.setCellContents({ sheet: 0, col: 0, row: 0 }, [[30]]);
-        // Force actual evaluation (HyperFormula is lazy)
-        for (let i = 0; i < 50; i++) {
-          hfInstance.getCellValue({ sheet: 0, col: 0, row: i + 1 });
-        }
-      },
-    ),
+    bench('evalex, new value', { beforeAll: setupEvalexDependents }, async () => {
+      await evalexUpdateFn(++next);
+    }),
+    bench('HyperFormula, new value', { beforeAll: setupHyperFormula }, () => {
+      updateHyperFormula(++next);
+    }),
+    bench('evalex, same value, skipped', { beforeAll: setupEvalexDependents }, async () => {
+      await evalexUpdateFn(30);
+    }),
+    bench('HyperFormula, same value, skipped', { beforeAll: setupHyperFormula }, () => {
+      updateHyperFormula(30);
+    }),
     { warmupIterations: 5, iterations: 50 },
   );
 });

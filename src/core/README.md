@@ -80,10 +80,12 @@ Every value inside a formula is an instance of a `FormulaDataType` subclass. Wra
 | `Boolean` | `FormulaBoolean` | `boolean` | `new FormulaBoolean(true)` |
 | `Date` | `FormulaDate` | `Temporal.ZonedDateTime` | `FormulaDate.from('2026-10-01T00:00:00Z')` — also a `Date`, a timestamp or a `ZonedDateTime` |
 | `Duration` | `FormulaDuration` | `Temporal.Duration` | `FormulaDuration.from(Temporal.Duration.from({ days: 3 }))` |
-| `Array` | `FormulaArray` | `FormulaDataType[]` | `FormulaArray.from([1, 2, 3])` |
-| `Object` | `FormulaObject` | `Record<string, FormulaDataType>` | `FormulaObject.from({ name: 'Ada' })` |
+| `Array` | `FormulaArray` | `readonly FormulaDataType[]` | `FormulaArray.from([1, 2, 3])` |
+| `Object` | `FormulaObject` | `Readonly<Record<string, FormulaDataType>>` | `FormulaObject.from({ name: 'Ada' })` |
 | `RegExp` | `FormulaRegExp` | pattern and flags | `FormulaRegExp.from(/^[A-Z]{3}-\d+$/)` |
 | `Null` | `FormulaNull` | `null` | `FormulaNull.instance()` |
+
+Values are immutable. To change a list or an object, create a new one instead of changing `.value` in place: a formula result can be the very same instance as its input, so an in-place change would alter results that were never recalculated.
 
 `FormulaArray.from` and `FormulaObject.from` convert nested plain values recursively. Object fields are read with method syntax:
 
@@ -237,7 +239,8 @@ While enabled, the runtime logs every enqueue, cascade, evaluation and error wit
 | --- | --- |
 | [`expression.ts`](./expression.ts) | `Expression` and its caches |
 | [`evaluator.visitor.ts`](./evaluator.visitor.ts) | Walks the AST and computes values |
-| [`dependency-extractor.visitor.ts`](./dependency-extractor.visitor.ts) | Collects identifiers for static dependencies |
+| [`dependency-extractor.visitor.ts`](./dependency-extractor.visitor.ts) | Collects identifiers for static dependencies and finds calls to volatile routines |
+| [`volatile-formula.ts`](./volatile-formula.ts) | Tells the runtime which formulas must be recalculated even with unchanged inputs |
 | [`context.ts`](./context.ts) | Variable scopes, including the nested scopes used by callbacks |
 | [`data-types/`](./data-types) | One folder per data type |
 | [`routines/`](./routines) | Routine registry, argument validation and one file per routine in `routines/routines/` |

@@ -70,50 +70,57 @@ it('Profile: Raw Expression.evaluate()', async ({ bench }) => {
 it('Profile: Evalex Runtime recalculation', async ({ bench }) => {
   let runtime: FormulaRuntime<Node>;
   let registry: Map<string, Node>;
+  let next = 20;
 
-  await bench(
-    'runtime.enqueueDependents + waitForProcessing',
-    {
-      beforeAll: async () => {
-        const adapter: NodeAdapter<Node> = {
-          shouldProcess: (node) => !!node.expression,
-          toFormulaDataType: (node) => node.value,
-          toExpression: (node) => node.expression ?? null,
-          onCalculate: (node, value, deps) => {
-            node.value = value;
-            node.activeDeps = deps ? new Set(deps) : undefined;
-          },
-          onError: (node) => {
-            node.value = new FormulaNull();
-          },
-        };
-
-        registry = new Map<string, Node>();
-        registry.set('A1', { id: 'A1', value: new FormulaNumber(10) });
-        registry.set('B1', {
-          id: 'B1',
-          value: new FormulaNumber(0),
-          expression: new Expression('A1 * 2'),
-        });
-
-        runtime = new FormulaRuntime<Node>({
-          executor: new SyncExecutor(),
-          scheduler: new ImmediateScheduler(),
-          adapter,
-          nodeProvider: (id) => registry.get(id),
-        });
-
-        // Initial calculation
-        runtime.enqueue('B1');
-        await runtime.waitForProcessing();
+  const createSetup = async () => {
+    const adapter: NodeAdapter<Node> = {
+      shouldProcess: (node) => !!node.expression,
+      toFormulaDataType: (node) => node.value,
+      toExpression: (node) => node.expression ?? null,
+      onCalculate: (node, value, deps) => {
+        node.value = value;
+        node.activeDeps = deps ? new Set(deps) : undefined;
       },
-    },
-    async () => {
-      registry.get('A1')!.value = new FormulaNumber(20);
-      runtime.enqueueDependents('A1');
-      await runtime.waitForProcessing();
-    },
-  ).run({ warmupIterations: 10, iterations: 100 });
+      onError: (node) => {
+        node.value = new FormulaNull();
+      },
+    };
+
+    registry = new Map<string, Node>();
+    registry.set('A1', { id: 'A1', value: new FormulaNumber(10) });
+    registry.set('B1', {
+      id: 'B1',
+      value: new FormulaNumber(0),
+      expression: new Expression('A1 * 2'),
+    });
+
+    runtime = new FormulaRuntime<Node>({
+      executor: new SyncExecutor(),
+      scheduler: new ImmediateScheduler(),
+      adapter,
+      nodeProvider: (id) => registry.get(id),
+    });
+
+    // Initial calculation
+    runtime.enqueue('B1');
+    await runtime.waitForProcessing();
+  };
+
+  const update = async (value: number) => {
+    registry.get('A1')!.value = new FormulaNumber(value);
+    runtime.enqueueDependents('A1');
+    await runtime.waitForProcessing();
+  };
+
+  await bench.compare(
+    bench('enqueueDependents, new value, recalculated', { beforeAll: createSetup }, async () => {
+      await update(++next);
+    }),
+    bench('enqueueDependents, same value, skipped', { beforeAll: createSetup }, async () => {
+      await update(20);
+    }),
+    { warmupIterations: 10, iterations: 100 },
+  );
 });
 
 /**
@@ -121,21 +128,24 @@ it('Profile: Evalex Runtime recalculation', async ({ bench }) => {
  */
 it('Profile: HyperFormula recalculation', async ({ bench }) => {
   let hf: HyperFormula;
+  let next = 30;
 
-  await bench(
-    'hf.setCellContents (1 dependent)',
-    {
-      beforeAll: () => {
-        hf = HyperFormula.buildFromArray(
-          [[10, '=A1*2']],
-          { licenseKey: 'gpl-v3' },
-        );
-      },
-    },
-    () => {
+  const createSetup = () => {
+    hf = HyperFormula.buildFromArray(
+      [[10, '=A1*2']],
+      { licenseKey: 'gpl-v3' },
+    );
+  };
+
+  await bench.compare(
+    bench('hf.setCellContents (1 dependent), new value', { beforeAll: createSetup }, () => {
+      hf.setCellContents({ sheet: 0, col: 0, row: 0 }, [[++next]]);
+    }),
+    bench('hf.setCellContents (1 dependent), same value', { beforeAll: createSetup }, () => {
       hf.setCellContents({ sheet: 0, col: 0, row: 0 }, [[30]]);
-    },
-  ).run({ warmupIterations: 10, iterations: 100 });
+    }),
+    { warmupIterations: 10, iterations: 100 },
+  );
 });
 
 /**
@@ -149,89 +159,84 @@ it('Profile: Runtime breakdown (50 dependents)', async ({ bench }) => {
   // Variables for setup
   let expressions: Expression[] = [];
   let context: Map<string, FormulaDataType>;
+  let next = 30;
+
+  const createEvalexSetup = async () => {
+    const adapter: NodeAdapter<Node> = {
+      shouldProcess: (node) => !!node.expression,
+      toFormulaDataType: (node) => node.value,
+      toExpression: (node) => node.expression ?? null,
+      onCalculate: (node, value, deps) => {
+        node.value = value;
+        node.activeDeps = deps ? new Set(deps) : undefined;
+      },
+      onError: (node) => {
+        node.value = new FormulaNull();
+      },
+    };
+
+    registry = new Map<string, Node>();
+    registry.set('A1', { id: 'A1', value: new FormulaNumber(10) });
+    for (let i = 0; i < 50; i++) {
+      registry.set(`B${i + 1}`, {
+        id: `B${i + 1}`,
+        value: new FormulaNumber(0),
+        expression: new Expression(`A1 * ${i + 1}`),
+      });
+    }
+
+    runtime = new FormulaRuntime<Node>({
+      executor: new SyncExecutor(),
+      scheduler: new ImmediateScheduler(),
+      adapter,
+      nodeProvider: (id) => registry.get(id),
+    });
+
+    // Initial calculation
+    for (let i = 0; i < 50; i++) {
+      runtime.enqueue(`B${i + 1}`);
+    }
+    await runtime.waitForProcessing();
+  };
+
+  const updateEvalex = async (value: number) => {
+    registry.get('A1')!.value = new FormulaNumber(value);
+    runtime.enqueueDependents('A1');
+    await runtime.waitForProcessing();
+  };
+
+  const createHyperFormulaSetup = () => {
+    const data: (number | string)[][] = [[10]];
+    for (let i = 0; i < 50; i++) {
+      data.push([`=A1*${i + 1}`]);
+    }
+    hf = HyperFormula.buildFromArray(data, { licenseKey: 'gpl-v3' });
+  };
+
+  const updateHyperFormula = (value: number) => {
+    hf.setCellContents({ sheet: 0, col: 0, row: 0 }, [[value]]);
+    // Force actual evaluation of all dependents
+    for (let i = 0; i < 50; i++) {
+      hf.getCellValue({ sheet: 0, col: 0, row: i + 1 });
+    }
+  };
 
   await bench.compare(
-    bench(
-      'evalex: 50 dependents',
-      {
-        beforeAll: async () => {
-          const adapter: NodeAdapter<Node> = {
-            shouldProcess: (node) => !!node.expression,
-            toFormulaDataType: (node) => node.value,
-            toExpression: (node) => node.expression ?? null,
-            onCalculate: (node, value, deps) => {
-              node.value = value;
-              node.activeDeps = deps ? new Set(deps) : undefined;
-            },
-            onError: (node) => {
-              node.value = new FormulaNull();
-            },
-          };
-
-          registry = new Map<string, Node>();
-          registry.set('A1', { id: 'A1', value: new FormulaNumber(10) });
-          for (let i = 0; i < 50; i++) {
-            registry.set(`B${i + 1}`, {
-              id: `B${i + 1}`,
-              value: new FormulaNumber(0),
-              expression: new Expression(`A1 * ${i + 1}`),
-            });
-          }
-
-          runtime = new FormulaRuntime<Node>({
-            executor: new SyncExecutor(),
-            scheduler: new ImmediateScheduler(),
-            adapter,
-            nodeProvider: (id) => registry.get(id),
-          });
-
-          // Initial calculation
-          for (let i = 0; i < 50; i++) {
-            runtime.enqueue(`B${i + 1}`);
-          }
-          await runtime.waitForProcessing();
-        },
-      },
-      async () => {
-        registry.get('A1')!.value = new FormulaNumber(20);
-        runtime.enqueueDependents('A1');
-        await runtime.waitForProcessing();
-      },
-    ),
-    bench(
-      'HyperFormula: 50 dependents (set only - lazy)',
-      {
-        beforeAll: () => {
-          const data: (number | string)[][] = [[10]];
-          for (let i = 0; i < 50; i++) {
-            data.push([`=A1*${i + 1}`]);
-          }
-          hf = HyperFormula.buildFromArray(data, { licenseKey: 'gpl-v3' });
-        },
-      },
-      () => {
-        hf.setCellContents({ sheet: 0, col: 0, row: 0 }, [[30]]);
-      },
-    ),
-    bench(
-      'HyperFormula: 50 dependents (set + get all)',
-      {
-        beforeAll: () => {
-          const data: (number | string)[][] = [[10]];
-          for (let i = 0; i < 50; i++) {
-            data.push([`=A1*${i + 1}`]);
-          }
-          hf = HyperFormula.buildFromArray(data, { licenseKey: 'gpl-v3' });
-        },
-      },
-      () => {
-        hf.setCellContents({ sheet: 0, col: 0, row: 0 }, [[30]]);
-        // Force actual evaluation of all dependents
-        for (let i = 0; i < 50; i++) {
-          hf.getCellValue({ sheet: 0, col: 0, row: i + 1 });
-        }
-      },
-    ),
+    bench('evalex: 50 dependents, new value', { beforeAll: createEvalexSetup }, async () => {
+      await updateEvalex(++next);
+    }),
+    bench('evalex: 50 dependents, same value, skipped', { beforeAll: createEvalexSetup }, async () => {
+      await updateEvalex(20);
+    }),
+    bench('HyperFormula: 50 dependents, new value (set only - lazy)', { beforeAll: createHyperFormulaSetup }, () => {
+      hf.setCellContents({ sheet: 0, col: 0, row: 0 }, [[++next]]);
+    }),
+    bench('HyperFormula: 50 dependents, new value (set + get all)', { beforeAll: createHyperFormulaSetup }, () => {
+      updateHyperFormula(++next);
+    }),
+    bench('HyperFormula: 50 dependents, same value (set + get all)', { beforeAll: createHyperFormulaSetup }, () => {
+      updateHyperFormula(30);
+    }),
     bench(
       'raw: 50x expression.evaluate()',
       {

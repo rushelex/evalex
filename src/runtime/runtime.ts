@@ -4,9 +4,10 @@ import type { Scheduler } from './scheduler';
 import type { FormulaNode, NodeAdapter } from './types';
 
 import { FormulaDebugger } from '../core';
+import { isVolatileFormula } from '../core/volatile-formula';
 import { DependencyGraph } from './dependency-graph';
 import { FormulaValidator } from './formula-validator';
-import { QueueProcessor } from './queue-processor';
+import { isSameValue } from './is-same-value';
 import { RecalculationQueue } from './recalculation-queue';
 
 /**
@@ -18,6 +19,31 @@ export interface FormulaRuntimeOptions<T extends FormulaNode> {
   adapter: NodeAdapter<T>;
   nodeProvider: (id: string) => T | undefined;
   onNodeCleanup?: (id: string) => void;
+}
+
+/**
+ * Cached state for incremental updates.
+ * Stores validated formula data to skip re-validation on recalculation.
+ */
+interface CachedFormulaState {
+  /** The formula string when last validated */
+  readonly formulaString: string;
+  /** Cached dependencies from last validation */
+  readonly dependencies: ReadonlySet<string>;
+  /** Cached expression object */
+  readonly expression: Expression;
+  /** Input values of the last evaluation, mutated in place to avoid allocations */
+  readonly context: Map<string, FormulaDataType>;
+  /** Result of the last successful evaluation; absent after a failure */
+  lastResult?: FormulaDataType;
+}
+
+/** A formula ready to evaluate, with the cached state its result is recorded in. */
+interface ProcessingContext<T> {
+  readonly node: T;
+  readonly expression: Expression;
+  readonly context: Map<string, FormulaDataType>;
+  readonly state: CachedFormulaState;
 }
 
 /**
@@ -43,6 +69,10 @@ export interface FormulaRuntimeOptions<T extends FormulaNode> {
  * 3. Each formula is evaluated with its dependencies as context
  * 4. Results trigger cascade updates for dependent formulas
  * 5. Process repeats until queue is empty
+ *
+ * Work whose outcome is already known is skipped: an update repeating the value dependents already hold,
+ * a formula whose inputs did not change, and the dependents of a formula whose result did not change.
+ * Formulas calling a volatile routine, such as `now()`, are recalculated anyway.
  *
  * @example
  * Internal usage (typically through FormulaOrchestrator):
@@ -71,21 +101,6 @@ export interface FormulaRuntimeOptions<T extends FormulaNode> {
  * await runtime.waitForProcessing();
  * ```
  */
-/**
- * Cached state for incremental updates.
- * Stores validated formula data to skip re-validation on recalculation.
- */
-interface CachedFormulaState {
-  /** The formula string when last validated */
-  readonly formulaString: string;
-  /** Cached dependencies from last validation */
-  readonly dependencies: ReadonlySet<string>;
-  /** Cached expression object */
-  readonly expression: Expression;
-  /** Reusable context map - mutated in place to avoid allocations */
-  readonly context: Map<string, FormulaDataType>;
-}
-
 export class FormulaRuntime<T extends FormulaNode> {
   readonly #executor: Executor;
   readonly #scheduler: Scheduler;
@@ -98,6 +113,12 @@ export class FormulaRuntime<T extends FormulaNode> {
   readonly #finalizer: FinalizationRegistry<string>;
   // Cache for incremental updates - stores validated formula state by node ID
   readonly #cachedState = new Map<string, CachedFormulaState>();
+  // Formulas calling a volatile routine: unchanged inputs do not mean an unchanged result
+  readonly #volatileNodes = new Set<string>();
+  // The value every dependent of a node was last given; absent once dependents may hold different values
+  readonly #deliveredValues = new Map<string, FormulaDataType>();
+  // Formulas whose last evaluation failed: an update must retry them even when it repeats a value
+  readonly #failedNodes = new Set<string>();
 
   constructor(options: FormulaRuntimeOptions<T>) {
     this.#nodeProvider = options.nodeProvider;
@@ -107,40 +128,50 @@ export class FormulaRuntime<T extends FormulaNode> {
     this.#finalizer = new FinalizationRegistry<string>((id) => {
       this.#graph.removeAll(id);
       this.#cachedState.delete(id);
+      this.#volatileNodes.delete(id);
+      this.#deliveredValues.delete(id);
+      this.#failedNodes.delete(id);
       options.onNodeCleanup?.(id);
     });
   }
 
   /**
-   * Enqueue nodeId for processing and schedule batch if needed.
+   * Enqueues a formula node for calculation and schedules processing.
+   *
+   * @remarks
+   * A formula whose text and input values are the same as at its last successful calculation keeps its result
+   * without being evaluated again, unless it calls a volatile routine.
    */
   enqueue(nodeId: string): void {
     this.#queue.enqueue(nodeId);
     FormulaDebugger.traceEnqueue(nodeId, 'Manual enqueue');
-    this.#scheduler.scheduleIfIdle(
-      async () => this.#processQueue(),
-      { queueSize: this.#queue.size() },
-    );
+    this.#scheduleProcessing();
   }
 
   /**
-   * Enqueues all dependents of a node and schedules batch processing.
+   * Enqueues every formula that reads the node and schedules processing.
+   *
+   * @remarks
+   * When the node's value is the one its dependents already hold, only the dependents calling a volatile routine
+   * are recalculated.
    */
   enqueueDependents(id: string): void {
     const dependents = this.#graph.getDependents(id);
-
-    for (const dependentId of dependents) {
-      this.#queue.enqueue(dependentId);
-      FormulaDebugger.traceEnqueue(dependentId, `Cascade from ${id}`);
+    if (dependents.size === 0) {
+      return;
     }
 
-    // Schedule processing if items were enqueued
-    if (dependents.size > 0) {
-      this.#scheduler.scheduleIfIdle(
-        async () => this.#processQueue(),
-        { queueSize: this.#queue.size() },
-      );
+    if (this.#isDeliveredValue(id, dependents)) {
+      this.#enqueueVolatile(dependents);
     }
+    else {
+      for (const dependentId of dependents) {
+        this.#queue.enqueue(dependentId);
+        FormulaDebugger.traceEnqueue(dependentId, `Cascade from ${id}`);
+      }
+    }
+
+    this.#scheduleProcessing();
   }
 
   /**
@@ -170,17 +201,67 @@ export class FormulaRuntime<T extends FormulaNode> {
     this.#finalizer.unregister(target);
   }
 
+  /**
+   * Tells whether every dependent already holds the node's current value, and records the value as delivered.
+   */
+  #isDeliveredValue(id: string, dependents: ReadonlySet<string>): boolean {
+    const node = this.#nodeProvider(id);
+    if (!node) {
+      this.#deliveredValues.delete(id);
+      return false;
+    }
+
+    const value = this.#adapter.toFormulaDataType(node);
+    const delivered = this.#deliveredValues.get(id);
+    this.#deliveredValues.set(id, value);
+
+    if (delivered === undefined || !isSameValue(delivered, value)) {
+      return false;
+    }
+
+    for (const dependentId of dependents) {
+      if (this.#failedNodes.has(dependentId)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  #enqueueVolatile(dependents: ReadonlySet<string>): void {
+    if (this.#volatileNodes.size === 0) {
+      return;
+    }
+
+    for (const dependentId of dependents) {
+      if (this.#volatileNodes.has(dependentId)) {
+        this.#queue.enqueue(dependentId);
+      }
+    }
+  }
+
+  /**
+   * Processes the queue until it is empty.
+   *
+   * @remarks
+   * A synchronous executor processes the whole batch without awaiting between formulas;
+   * only an executor that returns a promise is awaited.
+   */
   async #processQueue(): Promise<void> {
-    // "using" declarations for automatic resource management
-    using session = QueueProcessor.createSession({
-      dequeue: () => this.#queue.dequeue(),
-      onStart: () => this.#scheduler.markProcessingStarted(),
-      onComplete: () => this.#scheduler.markProcessingComplete(),
-    });
+    this.#scheduler.markProcessingStarted();
 
     try {
-      for await (const nodeId of session.processItems()) {
-        await this.#processQueueItem(nodeId);
+      // Synchronous enqueues from the same tick join this batch
+      await Promise.resolve();
+
+      let nodeId = this.#queue.dequeue();
+      while (nodeId !== undefined) {
+        const pending = this.#processQueueItem(nodeId);
+        if (pending) {
+          await pending;
+        }
+
+        nodeId = this.#queue.dequeue();
       }
     }
     catch (error) {
@@ -189,31 +270,65 @@ export class FormulaRuntime<T extends FormulaNode> {
       throw err;
     }
     finally {
+      this.#scheduler.markProcessingComplete();
       // Check if more items were added during processing and schedule if needed
-      this.#scheduleAdditionalProcessingIfNeeded();
+      this.#scheduleProcessing();
     }
-    // session automatically disposed thanks to 'using'
   }
 
   /**
    * Process individual queue item with comprehensive error handling.
+   *
+   * @returns A promise only when the executor works asynchronously.
    */
-  async #processQueueItem(nodeId: string): Promise<void> {
+  #processQueueItem(nodeId: string): Promise<void> | undefined {
     try {
-      const processingContext = await this.#extractAndValidateNode(nodeId);
-      if (!processingContext) {
+      const processing = this.#extractAndValidateNode(nodeId);
+      if (!processing) {
         return;
       }
 
-      const { result, dependencies } = await this.#executor.exec({
-        expression: processingContext.expression,
-        context: processingContext.context,
+      const output = this.#executor.exec({
+        expression: processing.expression,
+        context: processing.context,
       });
 
-      // Update result
-      this.#adapter.onCalculate(processingContext.node, result, new Set(dependencies));
+      if (output instanceof Promise) {
+        return output.then(
+          ({ result, dependencies }) => this.#applyResult(nodeId, processing, result, dependencies),
+          (error: unknown) => this.#handleItemError(nodeId, error),
+        );
+      }
+
+      this.#applyResult(nodeId, processing, output.result, output.dependencies);
+    }
+    catch (error) {
+      this.#handleItemError(nodeId, error);
+    }
+  }
+
+  /**
+   * Hands the result to the host and enqueues the dependents, or only the volatile ones when the result did not change.
+   */
+  #applyResult(
+    nodeId: string,
+    { node, state }: ProcessingContext<T>,
+    result: FormulaDataType,
+    dependencies: ReadonlySet<string>,
+  ): void {
+    try {
+      const unchanged = state.lastResult !== undefined && isSameValue(state.lastResult, result);
+      state.lastResult = result;
+      this.#failedNodes.delete(nodeId);
+
+      this.#adapter.onCalculate(node, result, dependencies);
 
       const dependents = this.#graph.getDependents(nodeId);
+
+      if (unchanged) {
+        this.#enqueueVolatile(dependents);
+        return;
+      }
 
       for (const dependentId of dependents) {
         this.#queue.enqueue(dependentId);
@@ -221,28 +336,36 @@ export class FormulaRuntime<T extends FormulaNode> {
       }
     }
     catch (error) {
-      const node = this.#nodeProvider(nodeId);
-      if (!node) {
-        return;
-      }
-
-      const err = error instanceof Error ? error : new Error(String(error));
-      FormulaDebugger.traceError(nodeId, err);
-
-      this.#adapter.onError(node, err);
+      this.#handleItemError(nodeId, error);
     }
+  }
+
+  #handleItemError(nodeId: string, error: unknown): void {
+    this.#failedNodes.add(nodeId);
+
+    const state = this.#cachedState.get(nodeId);
+    if (state) {
+      state.lastResult = undefined;
+    }
+
+    const node = this.#nodeProvider(nodeId);
+    if (!node) {
+      return;
+    }
+
+    const err = error instanceof Error ? error : new Error(String(error));
+    FormulaDebugger.traceError(nodeId, err);
+
+    this.#adapter.onError(node, err);
   }
 
   /**
    * Extract and validate node for processing.
    * Uses incremental updates when formula hasn't changed (only values changed).
+   *
+   * @returns `null` when there is nothing to evaluate, including a formula whose inputs did not change.
    */
-  async #extractAndValidateNode(nodeId: string): Promise<{
-    node: T;
-    expression: Expression;
-    context: Map<string, FormulaDataType>;
-    dependencies: ReadonlySet<string>;
-  } | null> {
+  #extractAndValidateNode(nodeId: string): ProcessingContext<T> | null {
     const node = this.#nodeProvider(nodeId);
     if (!node || !this.#adapter.shouldProcess(node)) {
       return null;
@@ -262,15 +385,13 @@ export class FormulaRuntime<T extends FormulaNode> {
       // Skip all validation - just update context values in place
       FormulaDebugger.traceProcessing(nodeId, cached.expression);
 
-      // Update context values in place (reuse existing objects)
-      this.#updateExecutionContextInPlace(cached.dependencies, cached.context);
+      const inputsChanged = this.#updateExecutionContextInPlace(cached.dependencies, cached.context);
 
-      return {
-        node,
-        expression: cached.expression,
-        context: cached.context,
-        dependencies: cached.dependencies,
-      };
+      if (!inputsChanged && cached.lastResult !== undefined && !this.#volatileNodes.has(nodeId)) {
+        return null;
+      }
+
+      return { node, expression: cached.expression, context: cached.context, state: cached };
     }
 
     // Slow path: formula is new or changed, full validation required
@@ -281,12 +402,7 @@ export class FormulaRuntime<T extends FormulaNode> {
    * Full validation path for new or changed formulas.
    * Validates, updates graph, and caches state for future incremental updates.
    */
-  async #fullValidateAndCache(nodeId: string, node: T, expression: Expression): Promise<{
-    node: T;
-    expression: Expression;
-    context: Map<string, FormulaDataType>;
-    dependencies: ReadonlySet<string>;
-  } | null> {
+  #fullValidateAndCache(nodeId: string, node: T, expression: Expression): ProcessingContext<T> {
     const formulaValidation = this.#validator.validateFormula(expression);
     if (!formulaValidation.isValid) {
       // Clear cache on validation failure
@@ -309,6 +425,13 @@ export class FormulaRuntime<T extends FormulaNode> {
     // Update dependency graph
     this.#graph.replaceDependencies(nodeId, staticDeps);
 
+    if (isVolatileFormula(expression)) {
+      this.#volatileNodes.add(nodeId);
+    }
+    else {
+      this.#volatileNodes.delete(nodeId);
+    }
+
     // Validate depth after updating dependencies
     const depthValidation = this.#validator.validateDepth(nodeId, this.#graph);
     if (!depthValidation.isValid) {
@@ -320,19 +443,19 @@ export class FormulaRuntime<T extends FormulaNode> {
     const context = this.#buildExecutionContext(staticDeps);
 
     // Cache validated state for future incremental updates (with reusable context objects)
-    this.#cachedState.set(nodeId, {
+    const state: CachedFormulaState = {
       formulaString: expression.formula,
       dependencies: staticDeps,
       expression,
       context,
-    });
+    };
+    this.#cachedState.set(nodeId, state);
 
-    return { node, expression, context, dependencies: staticDeps };
+    return { node, expression, context, state };
   }
 
   /**
    * Build execution context from dependencies.
-   * Returns both Record (for compatibility) and Map (for performance).
    */
   #buildExecutionContext(dependencies: ReadonlySet<string>): Map<string, FormulaDataType> {
     const context = new Map<string, FormulaDataType>();
@@ -342,6 +465,7 @@ export class FormulaRuntime<T extends FormulaNode> {
 
       if (dep) {
         const value = this.#adapter.toFormulaDataType(dep);
+        this.#forgetDeliveredIfDiffers(depId, value);
         context.set(depId, value);
       }
     }
@@ -352,26 +476,44 @@ export class FormulaRuntime<T extends FormulaNode> {
   /**
    * Update execution context values in place (no allocations).
    * Used for incremental updates when formula hasn't changed.
+   *
+   * @returns Whether any input value differs from the one the formula was last evaluated with.
    */
   #updateExecutionContextInPlace(
     dependencies: ReadonlySet<string>,
     context: Map<string, FormulaDataType>,
-  ): void {
+  ): boolean {
+    let changed = false;
+
     for (const depId of dependencies) {
       const dep = this.#nodeProvider(depId);
 
       if (dep) {
         const value = this.#adapter.toFormulaDataType(dep);
+        const previous = context.get(depId);
+
+        if (previous === undefined || !isSameValue(previous, value)) {
+          changed = true;
+          this.#forgetDeliveredIfDiffers(depId, value);
+        }
+
         context.set(depId, value);
       }
     }
+
+    return changed;
   }
 
-  /**
-   * Schedule additional processing if more items were added during processing.
-   * This ensures all cascaded updates are processed.
-   */
-  #scheduleAdditionalProcessingIfNeeded(): void {
+  // A formula read a value other than the delivered one, so the dependents no longer agree on it
+  #forgetDeliveredIfDiffers(depId: string, value: FormulaDataType): void {
+    const delivered = this.#deliveredValues.get(depId);
+
+    if (delivered !== undefined && !isSameValue(delivered, value)) {
+      this.#deliveredValues.delete(depId);
+    }
+  }
+
+  #scheduleProcessing(): void {
     if (this.#queue.size() > 0) {
       this.#scheduler.scheduleIfIdle(
         async () => this.#processQueue(),

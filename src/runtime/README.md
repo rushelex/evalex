@@ -69,7 +69,7 @@ A node's `id` is the name formulas use to reference it: `total` reads `price` be
 | `shouldProcess(node)` | Tell formula nodes from plain value nodes | `true` for nodes that hold a formula |
 | `toFormulaDataType(node)` | Read a node's current value when another formula depends on it | A `FormulaDataType` |
 | `toExpression(node)` | Get the node's formula | An `Expression`, or `null` to skip the node |
-| `onCalculate(node, value, dependencies)` | Store a fresh result; `dependencies` are the ids the evaluation actually read | — |
+| `onCalculate(node, value, dependencies)` | Store a fresh result; `dependencies` are the ids the evaluation actually read. Not called for a formula that was not recalculated, see [Skipped recalculation](#skipped-recalculation) | — |
 | `onError(node, error)` | Store a failure: a `SyntaxError`, a `FormulaError` or a runtime limit error | — |
 
 > [!TIP]
@@ -80,8 +80,8 @@ A node's `id` is the name formulas use to reference it: `total` reads `price` be
 | Method | Use it when |
 | --- | --- |
 | `add(node, subscribe?)` | A node appears. Formula nodes are calculated right away. Throws if the id is taken |
-| `enqueueDependents(id)` | A node's value changed and everything that reads it must recalculate |
-| `enqueue(id)` | A node's own formula changed |
+| `enqueueDependents(id)` | A node's value changed and everything that reads it must recalculate. Give the node a new value instead of changing the old one in place |
+| `enqueue(id)` | A node's own formula changed. A formula with the same text and the same input values keeps its result |
 | `remove(id)` | A node disappears. Calls its unsubscribe function and drops it from the graph |
 | `waitForProcessing()` | You need every pending calculation to finish |
 | `get(id)`, `has(id)`, `getAllIds()` | You need to look nodes up |
@@ -95,6 +95,18 @@ orchestrator.add(cell, () => cell.onChange(() => {
   orchestrator.enqueueDependents(cell.id);
 }));
 ```
+
+### Skipped recalculation
+
+The runtime skips work whose outcome it already knows, so a skipped formula gets no `onCalculate` call:
+
+- `enqueueDependents(id)` with the value the dependents already hold.
+- A formula whose input values are the same as at its last successful calculation.
+- The dependents of a formula whose new result equals the previous one.
+
+Values are compared as immutable: the same instance counts as unchanged, and so do equal numbers, strings, booleans and nulls. Any other new list, object or date counts as changed, even with equal contents.
+
+Formulas calling a volatile routine, such as `now()` or `today()`, are recalculated whenever one of their inputs is updated, even with the same value. A formula that failed is retried on the next update, even with the same value.
 
 ### Which dependencies count
 
@@ -173,6 +185,7 @@ onError: (cell, error) => {
 | --- | --- |
 | [`orchestrator.ts`](./orchestrator.ts) | `FormulaOrchestrator` |
 | [`runtime.ts`](./runtime.ts) | `FormulaRuntime` and its per-node validation cache |
+| [`is-same-value.ts`](./is-same-value.ts) | The equality that decides whether recalculation can be skipped |
 | [`dependency-graph.ts`](./dependency-graph.ts) | `DependencyGraph` |
 | [`recalculation-queue.ts`](./recalculation-queue.ts) | `RecalculationQueue` |
 | [`formula-validator.ts`](./formula-validator.ts), [`limits.ts`](./limits.ts) | Limit checks and their values |
