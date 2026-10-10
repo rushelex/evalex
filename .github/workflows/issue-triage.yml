@@ -5,13 +5,16 @@ on:
     types: [opened]
 
 jobs:
-  triage:
+  # Issue text can carry prompt injection, so the job that runs Claude holds a read-only token.
+  pick:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
-      issues: write
-      id-token: write
+      issues: read
+    outputs:
+      known: ${{ steps.labels.outputs.json }}
+      result: ${{ steps.claude.outputs.structured_output }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -31,7 +34,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
-          # Issues come from anyone. Claude gets no Bash and its answer is filtered below.
+          # Issues come from anyone. Claude gets no Bash and its answer is filtered in the apply job.
           allowed_non_write_users: "*"
           prompt: |
             You triage new issues in ${{ github.repository }}, a formula evaluation library.
@@ -55,16 +58,25 @@ jobs:
             --model haiku
             --json-schema '{"type":"object","properties":{"labels":{"type":"array","items":{"type":"string"}}},"required":["labels"]}'
 
+  apply:
+    needs: pick
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
       - name: Apply labels
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          KNOWN_LABELS: ${{ steps.labels.outputs.json }}
-          RESULT: ${{ steps.claude.outputs.structured_output }}
+          KNOWN_LABELS: ${{ needs.pick.outputs.known }}
+          RESULT: ${{ needs.pick.outputs.result }}
         run: |
-          # Drop anything Claude invented that is not an existing label.
+          # Keep only existing labels, minus the ones reserved for maintainers.
           mapfile -t labels < <(jq -r --argjson known "$KNOWN_LABELS" \
-            '.labels[] | select(. as $l | $known | map(.name) | index($l))' <<< "$RESULT")
+            '.labels[]
+              | select(. as $l | $known | map(.name) | index($l))
+              | select(IN("duplicate", "invalid", "wontfix") | not)' <<< "$RESULT")
 
           if [ "${#labels[@]}" -eq 0 ]; then
             echo "No matching labels."
