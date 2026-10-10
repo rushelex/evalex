@@ -71,6 +71,18 @@ describe('FormulaDate', () => {
       });
     });
 
+    describe('From a value that holds no date', () => {
+      it.each([
+        { input: new Date(Number.NaN), message: 'Cannot create a date from an invalid Date.' },
+        { input: Number.NaN, message: 'Cannot create a date from the timestamp NaN.' },
+        { input: Number.POSITIVE_INFINITY, message: 'Cannot create a date from the timestamp Infinity.' },
+        { input: 1e20, message: 'Cannot create a date from the timestamp 100000000000000000000.' },
+        { input: 'garbage', message: 'Cannot create a date from the text "garbage".' },
+      ])('should throw a RangeError naming $input', ({ input, message }) => {
+        expect(() => FormulaDate.from(input)).toThrowError(new RangeError(message));
+      });
+    });
+
     describe('From Temporal.ZonedDateTime', () => {
       it('should initialize from Temporal.ZonedDateTime instance', () => {
         const date = Temporal.ZonedDateTime.from({

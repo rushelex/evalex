@@ -19,12 +19,27 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime> {
     return this.value.toInstant().toString();
   }
 
+  /**
+   * Creates a date from text, a timestamp in milliseconds, a `Date` or a `Temporal.ZonedDateTime`.
+   *
+   * @throws {RangeError} When the value holds no date: unreadable text, an invalid `Date` or a timestamp out of range.
+   */
   static from(date: string | number | Date | Temporal.ZonedDateTime): FormulaDate {
     if (typeof date === 'number') {
-      return FormulaDate.#fromJSDate(new Date(date));
+      const jsDate = new Date(date);
+
+      if (Number.isNaN(jsDate.getTime())) {
+        throw new RangeError(`Cannot create a date from the timestamp ${date}.`);
+      }
+
+      return FormulaDate.#fromJSDate(jsDate);
     }
 
     if (date instanceof Date) {
+      if (Number.isNaN(date.getTime())) {
+        throw new RangeError('Cannot create a date from an invalid Date.');
+      }
+
       return FormulaDate.#fromJSDate(date);
     }
 
@@ -54,7 +69,7 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime> {
       catch { /* ignore and try next parser */ }
     }
 
-    throw new TypeError(`Failed to parse date string: "${date}"`);
+    throw new RangeError(`Cannot create a date from the text "${date}".`);
   }
 
   static isValidInput(date: unknown): date is string | number | Date | Temporal.ZonedDateTime {

@@ -78,7 +78,7 @@ Every value inside a formula is an instance of a `FormulaDataType` subclass. Wra
 | `Number` | `FormulaNumber` | `number` | `new FormulaNumber(42)` |
 | `String` | `FormulaString` | `string` | `new FormulaString('hi')` |
 | `Boolean` | `FormulaBoolean` | `boolean` | `new FormulaBoolean(true)` |
-| `Date` | `FormulaDate` | `Temporal.ZonedDateTime` | `FormulaDate.from('2026-10-01T00:00:00Z')` — also a `Date`, a timestamp or a `ZonedDateTime` |
+| `Date` | `FormulaDate` | `Temporal.ZonedDateTime` | `FormulaDate.from('2026-10-01T00:00:00Z')` — also a `Date`, a timestamp or a `ZonedDateTime`; a value that holds no date throws a `RangeError` |
 | `Duration` | `FormulaDuration` | `Temporal.Duration` | `FormulaDuration.from(Temporal.Duration.from({ days: 3 }))` |
 | `Array` | `FormulaArray` | `readonly FormulaDataType[]` | `FormulaArray.from([1, 2, 3])` |
 | `Object` | `FormulaObject` | `Readonly<Record<string, FormulaDataType>>` | `FormulaObject.from({ name: 'Ada' })` |
