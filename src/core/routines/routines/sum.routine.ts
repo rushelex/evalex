@@ -1,6 +1,6 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaNumber, Kind } from '../../data-types';
+import { decimalArithmetic, FormulaNumber, Kind } from '../../data-types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { collectNumbers } from './collect-numbers';
@@ -27,6 +27,6 @@ routinesRegistry.registerRoutine('sum', {
   handler: ({ subject, args, location }) => {
     const numbers = collectNumbers({ values: [subject, ...args], location });
 
-    return new FormulaNumber(numbers.reduce((total, number) => total + number, 0));
+    return numbers.reduce(decimalArithmetic.add, FormulaNumber.from(0));
   },
 });

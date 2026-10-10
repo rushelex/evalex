@@ -6,7 +6,7 @@ Rules for working in this repository. Each module under `src/` has its own `AGEN
 
 - A formula can only read what the host passes in. No access to globals, no `eval` or `Function`, no I/O, no timers, no network.
 - Apart from reading the current time, the same formula with the same input produces the same result on every machine. Results never depend on the host locale or time zone.
-- Where evalex differs from familiar formula tools, it differs only by doing more: richer syntax or extra optional arguments. For input those tools accept, evalex never does less or something different.
+- Where evalex differs from familiar formula tools, it differs only by doing more: richer syntax or extra optional arguments. For input those tools accept, evalex never does less or something different. The one exception is precision: a numeric result may be more exact than theirs, never less.
 - Never name other formula products, including the ones evalex is modeled on, in code, examples, tests, docs or commit messages.
 - Everything a user can trigger with formula text fails with a `SyntaxError` or a `FormulaError` that points at the part of the formula at fault. A plain `Error` reaching the user is a bug.
 

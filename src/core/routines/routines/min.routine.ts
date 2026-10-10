@@ -23,6 +23,6 @@ routinesRegistry.registerRoutine('min', {
   handler: ({ subject, args, location }) => {
     const numbers = collectNumbers({ values: [subject, ...args], location });
 
-    return numbers.length === 0 ? new FormulaNull() : new FormulaNumber(Math.min(...numbers));
+    return numbers.length === 0 ? new FormulaNull() : numbers.reduce((smallest, number) => (number.value < smallest.value ? number : smallest));
   },
 });

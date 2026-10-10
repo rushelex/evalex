@@ -303,6 +303,59 @@ it('Comparison: Recalculation after value change (50 dependents)', async ({ benc
   );
 });
 
+/**
+ * Scenario 6: 1000 formulas over decimal values
+ * Prices and rates with fraction digits, where arithmetic works on decimals instead of integers
+ */
+it('Comparison: 1000 formulas over decimal values', async ({ bench }) => {
+  const seededRandom = (seed: number) => {
+    return () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+  };
+
+  // Values such as 3.7 or 12.95: two fraction digits, like prices
+  const baseValue = (i: number) => Number(`${(i * 1297) % 10000}e-2`);
+
+  const formulaOperands = (random: () => number) => Array.from({ length: 3 }, () => Math.floor(random() * 100));
+
+  await bench.compare(
+    bench('evalex, new runtime each run', async () => {
+      const random = seededRandom(42);
+      const { registry, initializeFormulas } = setupEvalex();
+
+      for (let i = 0; i < 100; i++) {
+        registry.set(`P${i}`, { id: `P${i}`, value: new FormulaNumber(baseValue(i)) });
+      }
+
+      for (let i = 0; i < 1000; i++) {
+        const [a, b, c] = formulaOperands(random);
+        registry.set(`F${i}`, {
+          id: `F${i}`,
+          value: new FormulaNumber(0),
+          expression: new Expression(`(P${a} + P${b}) * 1.05 - P${c} / 4`),
+        });
+      }
+
+      await initializeFormulas();
+    }),
+    bench('HyperFormula, new workbook each run', () => {
+      const random = seededRandom(42);
+      const data: (number | string)[][] = [];
+
+      for (let i = 0; i < 1000; i++) {
+        const [a, b, c] = formulaOperands(random);
+        data.push([i < 100 ? baseValue(i) : '', `=(A${a + 1}+A${b + 1})*1.05-A${c + 1}/4`]);
+      }
+
+      const hf = HyperFormula.buildFromArray(data, { licenseKey: 'gpl-v3' });
+      hf.getCellValue({ sheet: 0, col: 1, row: 999 });
+    }),
+    { warmupIterations: 3, iterations: 20 },
+  );
+});
+
 // Helper function for evalex setup
 function setupEvalex(options?: Partial<FormulaRuntimeOptions<Node>>) {
   const adapter: NodeAdapter<Node> = {

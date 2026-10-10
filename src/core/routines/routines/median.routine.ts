@@ -1,6 +1,6 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaNull, FormulaNumber, Kind } from '../../data-types';
+import { decimalArithmetic, FormulaNull, FormulaNumber, Kind } from '../../data-types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { collectNumbers } from './collect-numbers';
@@ -23,13 +23,17 @@ routinesRegistry.registerRoutine('median', {
   handler: ({ subject, args, location }) => {
     const numbers = collectNumbers({ values: [subject, ...args], location });
 
-    return numbers.length === 0 ? new FormulaNull() : new FormulaNumber(median(numbers));
+    return numbers.length === 0 ? new FormulaNull() : median(numbers);
   },
 });
 
-function median(numbers: readonly number[]): number {
-  const sorted = [...numbers].sort((a, b) => a - b);
+function median(numbers: readonly FormulaNumber[]): FormulaNumber {
+  const sorted = [...numbers].sort((a, b) => a.value - b.value);
   const middle = Math.floor(sorted.length / 2);
 
-  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+  if (sorted.length % 2 !== 0) {
+    return sorted[middle];
+  }
+
+  return decimalArithmetic.divide(decimalArithmetic.add(sorted[middle - 1], sorted[middle]), FormulaNumber.from(2));
 }

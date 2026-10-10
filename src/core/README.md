@@ -147,9 +147,11 @@ Inside `filter` and `map`, the second argument is evaluated once per item with t
 | `sqrt(n)` / `cbrt(n)` | Square or cube root | `sqrt(4)` → `2` |
 | `exp(n)` / `ln(n)` | `e` raised to the number, or the natural logarithm | `ln(e())` → `1` |
 | `log2(n)` / `log10(n)` | Logarithm in base 2 or 10 | `log2(1024)` → `10` |
-| `pi()` / `e()` | Mathematical constants | `pi()` → `3.141592653589793` |
+| `pi()` / `e()` | Mathematical constants | `pi()` → `3.14159265358979` |
 
 All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].sum()`, `8.log2()`. `min`, `max`, `mean` and `median` return an empty value when every list they get is empty: `[].min()` → `null`.
+
+Numbers behave as the decimals they are written as: `0.1 + 0.2` → `0.3`, `0.3 / 0.1` → `3`, `4.35 * 100` → `435`. A number reads at 15 significant digits, in `.value` and in text, so `1 / 3` → `0.333333333333333`; integers up to 2^53 read in full. The next operation still gets the whole number, also when the `FormulaNumber` is passed into another formula: `1 / 3 * 3` → `1`.
 
 ### Lists
 

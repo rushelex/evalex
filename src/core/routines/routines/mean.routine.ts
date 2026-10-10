@@ -1,6 +1,6 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaNull, FormulaNumber, Kind } from '../../data-types';
+import { decimalArithmetic, FormulaNull, FormulaNumber, Kind } from '../../data-types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { collectNumbers } from './collect-numbers';
@@ -19,6 +19,6 @@ routinesRegistry.registerRoutine('mean', {
   handler: ({ subject, args, location }) => {
     const numbers = collectNumbers({ values: [subject, ...args], location });
 
-    return numbers.length === 0 ? new FormulaNull() : new FormulaNumber(numbers.reduce((total, number) => total + number, 0) / numbers.length);
+    return numbers.length === 0 ? new FormulaNull() : decimalArithmetic.divide(numbers.reduce(decimalArithmetic.add, FormulaNumber.from(0)), FormulaNumber.from(numbers.length));
   },
 });

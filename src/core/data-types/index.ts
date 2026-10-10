@@ -8,7 +8,7 @@ export { FormulaDuration } from './duration';
 export { FormulaDataType } from './FormulaDataType';
 export { Kind } from './kind';
 export { FormulaNull } from './null';
-export { FormulaNumber } from './number';
+export { decimalArithmetic, FormulaNumber } from './number';
 export { FormulaObject } from './object';
 export { FormulaRegExp } from './regexp';
 export { FormulaString } from './string';
