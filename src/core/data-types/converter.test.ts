@@ -42,6 +42,13 @@ describe(convertValueToFormulaType, () => {
     expect(converted.value).toEqual(FormulaDate.from(date).value);
   });
 
+  it('should keep a field named __proto__ as a field', () => {
+    const converted = convertValueToFormulaType(JSON.parse('{"__proto__": 1}'));
+
+    expect(isObject(converted) && Object.keys(converted.value)).toEqual(['__proto__']);
+    expect(Object.getPrototypeOf(converted.value)).toBe(Object.prototype);
+  });
+
   it('should convert a hole in a list to null', () => {
     // eslint-disable-next-line no-sparse-arrays
     expect(toPlain(convertValueToFormulaType([, 1]))).toEqual([null, 1]);

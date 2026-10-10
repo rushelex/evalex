@@ -14,13 +14,8 @@ import { FormulaString } from './string';
  * Convert object with circular reference detection
  */
 export function convertObjectWithCircularCheck(obj: object, visited: WeakSet<object>): Record<string, FormulaDataType> {
-  const result: Record<string, FormulaDataType> = {};
-
-  for (const [key, value] of Object.entries(obj)) {
-    result[key] = convertValueToFormulaType(value, visited);
-  }
-
-  return result;
+  // `Object.fromEntries` defines each key as a field, so a `__proto__` key stays data instead of replacing the prototype.
+  return Object.fromEntries(Object.entries(obj).map(([key, value]) => [key, convertValueToFormulaType(value, visited)]));
 }
 
 /**
