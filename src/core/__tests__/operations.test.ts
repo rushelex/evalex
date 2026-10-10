@@ -4,7 +4,7 @@ import { fc, it } from '@fast-check/vitest';
 import { Temporal } from 'temporal-polyfill';
 
 import { evaluate, evaluateOutcome, formulaValueArbitrary, loc } from '../../testing-library';
-import { FormulaArray, FormulaBoolean, FormulaDate, FormulaNull, FormulaNumber, FormulaObject, FormulaString, Kind } from '../data-types';
+import { FormulaArray, FormulaBoolean, FormulaDate, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString, Kind } from '../data-types';
 import { Errors, FormulaError } from '../errors';
 
 const BINARY_OPERATORS = ['+', '-', '*', '/', '%', '^', '==', '!=', '<', '<=', '>', '>=', 'and', '&&', 'or', '||'] as const;
@@ -65,6 +65,13 @@ describe('Operations', () => {
     const context = { a, b };
 
     expect(evaluateOutcome(`b ${operator} a`, { context })).toHaveSameOutcomeAs(evaluateOutcome(`a ${operator} b`, { context }));
+  });
+
+  it.prop([formulaValueArbitrary(Kind.String), anyValue])('should join text with any value as text with the value format() gives', (text, value) => {
+    const context = { text, value };
+
+    expect(evaluateOutcome('text + value', { context })).toHaveSameOutcomeAs(evaluateOutcome('text + format(value)', { context }));
+    expect(evaluateOutcome('value + text', { context })).toHaveSameOutcomeAs(evaluateOutcome('format(value) + text', { context }));
   });
 
   it.prop([valuePair])('should compare any two values for equality the same way in both directions', ([a, b]) => {
@@ -167,6 +174,19 @@ describe('Operations', () => {
 
       const result2 = evaluate('5 + " apples" + " and bananas"');
       expect(result2).toBeFormulaDataType(FormulaString, '5 apples and bananas');
+    });
+
+    it.each([
+      { kind: 'a number', value: new FormulaNumber(1.5), text: 'x1.5' },
+      { kind: 'a boolean', value: FormulaBoolean.from(true), text: 'xtrue' },
+      { kind: 'null', value: FormulaNull.instance(), text: 'x' },
+      { kind: 'a list', value: FormulaArray.from([1, 'a', [2]]), text: 'x1, a, 2' },
+      { kind: 'an object', value: FormulaObject.from({ a: 1 }), text: 'x{ a: 1 }' },
+      { kind: 'a date', value: FormulaDate.from('2024-07-28T14:35:00Z'), text: 'x2024-07-28T14:35:00Z' },
+      { kind: 'a duration', value: FormulaDuration.from(Temporal.Duration.from('P1DT2H')), text: 'xP1DT2H' },
+      { kind: 'a regular expression', value: FormulaRegExp.from(/a+/g), text: 'x/a+/g' },
+    ])('should join text with $kind as the text format() gives', ({ value, text }) => {
+      expect(evaluate('"x" + value', { context: { value } })).toBeFormulaDataType(FormulaString, text);
     });
 
     it('should throw FormulaError when doing math on non-number', () => {

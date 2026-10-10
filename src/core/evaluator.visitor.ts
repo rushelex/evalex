@@ -93,11 +93,9 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
 
     switch (node.operator) {
       case '+': {
-        // Special case: string addition (concatenation)
+        // Text joins the other operand as the same text `format()` gives
         if (left instanceof FormulaString || right instanceof FormulaString) {
-          const leftStr = left instanceof FormulaString ? left.value : String(left.value); // Try to convert to string if not string
-          const rightStr = right instanceof FormulaString ? right.value : String(right.value);
-          return new FormulaString(leftStr + rightStr);
+          return new FormulaString(left.toString() + right.toString());
         }
 
         // Numeric addition

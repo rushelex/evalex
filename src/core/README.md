@@ -87,6 +87,8 @@ Every value inside a formula is an instance of a `FormulaDataType` subclass. Wra
 
 Values are immutable. To change a list or an object, create a new one instead of changing `.value` in place: a formula result can be the very same instance as its input, so an in-place change would alter results that were never recalculated.
 
+When `+` joins text with a value of another kind, the value becomes the same text `format()` gives: `"n: " + [1, "a"]` → `"n: 1, a"`, `"n: " + null` → `"n: "`.
+
 `FormulaArray.from` and `FormulaObject.from` convert nested plain values recursively. Object fields are read with method syntax:
 
 ```ts
