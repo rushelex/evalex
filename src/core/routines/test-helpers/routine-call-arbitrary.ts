@@ -1,6 +1,5 @@
 import type { FormulaDataType } from '../../data-types';
 import type { ArgumentsPattern } from '../arguments';
-import type { Routine } from '../routine';
 
 import { fc } from '@fast-check/vitest';
 
@@ -8,19 +7,16 @@ import { formulaValueArbitrary } from '../../../testing-library';
 import { Kind } from '../../data-types';
 import { CallbackArgument } from '../arguments';
 
-type RoutineForm = 'function' | 'method';
-
 type ArgumentInput = { readonly value: FormulaDataType } | { readonly expression: string };
 
 interface RoutineCallOptions {
-  readonly name: string;
-  readonly routine: Routine;
-  readonly form: RoutineForm;
-  /** Data type of the call subject in the method form. */
+  /** Signatures to fit; for a method, the arguments inside the parentheses. */
+  readonly signatures: readonly ArgumentsPattern[];
+  /** Data type of the call subject, generated in front of the arguments; omitted for a function's own signatures. */
   readonly subjectKind?: Kind;
 }
 
-interface RoutineCall {
+interface Formula {
   readonly formula: string;
   readonly context: Readonly<Record<string, FormulaDataType>>;
 }
@@ -31,27 +27,65 @@ const ANY_EXPRESSIONS = ['current', 'index', 'null', 'current.format()', '[curre
 
 const anyArgument = formulaValueArbitrary().map((value): ArgumentInput => ({ value }));
 
+/** Arguments of one call, written out as `f(x, a)` or as `x.f(a)` with the first argument as the subject. */
+class RoutineCall {
+  readonly #inputs: readonly ArgumentInput[];
+
+  constructor(inputs: readonly ArgumentInput[]) {
+    this.#inputs = inputs;
+  }
+
+  asFunction(name: string): Formula {
+    const { texts, context } = this.#write();
+
+    return { formula: `${name}(${texts.join(', ')})`, context };
+  }
+
+  asMethod(name: string): Formula {
+    const { texts: [subject = 'null', ...args], context } = this.#write();
+
+    return { formula: `(${subject}).${name}(${args.join(', ')})`, context };
+  }
+
+  [fc.toStringMethod](): string {
+    const { formula, context } = this.asFunction('f');
+
+    return `${formula} with ${Object.entries(context).map(([name, value]) => `${name} = ${value.constructor.name}(${value.toString({ asJSON: true })})`).join(', ')}`;
+  }
+
+  #write(): { readonly texts: string[]; readonly context: Record<string, FormulaDataType> } {
+    const context: Record<string, FormulaDataType> = {};
+    const texts = this.#inputs.map((input, index) => {
+      if ('expression' in input) {
+        return input.expression;
+      }
+
+      context[`value${index}`] = input.value;
+
+      return `value${index}`;
+    });
+
+    return { texts, context };
+  }
+}
+
 /**
- * Generates calls of a routine that mostly fit one of its signatures, with edge values in every position,
+ * Generates calls that mostly fit one of the signatures, with edge values in every position,
  * and sometimes arbitrary arguments of any type and count.
  *
  * @remarks
  * Values reach the formula through context variables, so any host value fits, even one with no literal syntax.
  * A callback position gets an expression over `current` and `index`, or a value.
  */
-export function routineCallArbitrary({ name, routine, form, subjectKind = Kind.Any }: RoutineCallOptions): fc.Arbitrary<RoutineCall> {
-  const fitting = routine.signatures.map((signature) => ({ weight: 3, arbitrary: signatureArbitrary(signature) }));
+export function routineCallArbitrary({ signatures, subjectKind }: RoutineCallOptions): fc.Arbitrary<RoutineCall> {
+  const fitting = signatures.map((signature) => ({ weight: 3, arbitrary: signatureArbitrary(signature) }));
   const args = fc.oneof({ weight: 1, arbitrary: fc.array(anyArgument, { maxLength: 4 }) }, ...fitting);
 
-  if (form === 'function') {
-    return args.map((inputs) => toCall({ prefix: `${name}(`, inputs }));
+  if (subjectKind === undefined) {
+    return args.map((inputs) => new RoutineCall(inputs));
   }
 
-  return fc.tuple(formulaValueArbitrary(subjectKind), args).map(([subject, inputs]) => {
-    const call = toCall({ prefix: `subject.${name}(`, inputs });
-
-    return { formula: call.formula, context: { ...call.context, subject } };
-  });
+  return fc.tuple(formulaValueArbitrary(subjectKind), args).map(([subject, inputs]) => new RoutineCall([{ value: subject }, ...inputs]));
 }
 
 // Helpers
@@ -84,19 +118,4 @@ function callbackArbitrary(callback: CallbackArgument): fc.Arbitrary<ArgumentInp
   const expression = fc.constantFrom(...expressions).map((text): ArgumentInput => ({ expression: text }));
 
   return fc.oneof({ weight: 9, arbitrary: expression }, { weight: 1, arbitrary: anyArgument });
-}
-
-function toCall({ prefix, inputs }: { readonly prefix: string; readonly inputs: readonly ArgumentInput[] }): RoutineCall {
-  const context: Record<string, FormulaDataType> = {};
-  const texts = inputs.map((input, index) => {
-    if ('expression' in input) {
-      return input.expression;
-    }
-
-    context[`value${index}`] = input.value;
-
-    return `value${index}`;
-  });
-
-  return { formula: `${prefix}${texts.join(', ')})`, context };
 }
