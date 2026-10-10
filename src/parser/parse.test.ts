@@ -1,8 +1,94 @@
-import type { Location } from './ast';
+import type { AstNode, Location } from './ast';
 
+import { fc, it } from '@fast-check/vitest';
+
+import { SyntaxError } from './grammar/parser';
 import { parse } from './parse';
 
+// `fc.letrec` types `tie` only for a type with an index signature.
+interface FormulaArbitraries extends Record<string, readonly string[]> {
+  readonly expression: readonly string[];
+}
+
+// Identifiers that start with a keyword check where a keyword ends.
+const IDENTIFIERS = ['a', 'price', '_x1', 'notes', 'android', 'orange', 'inner', 'trueValue', 'nullable'];
+
+const ATOMS = ['1', '0.5', '.5', '1e3', '2.5E-3', '"text"', '\'it\\\'s\'', 'true', 'false', 'null', 'undefined', '/a+/gi', '/[/]/', ...IDENTIFIERS];
+
+const BINARY_OPERATORS = ['or', '||', 'and', '&&', '==', '!=', '<', '<=', '>', '>=', 'in', '+', '-', '*', '/', '%', '^'];
+
+const PREFIX_OPERATORS = ['-', '!', 'not'];
+
+const WHITESPACE = [' ', '  ', '\n', '\t', '\r\n'];
+
+const PUNCTUATION = ['(', ')', '[', ']', ',', '.', '?', ':', '"', '\'', '\\', '/', '=', '!', '&', '|', '<', '>', '\n', ' '];
+
+// Token lists of well-formed formulas; every compound operand is parenthesized, so the tree follows the token order.
+const { expression: formulaTokens } = fc.letrec<FormulaArbitraries>((tie) => ({
+  expression: fc.oneof(
+    { depthSize: 'small', withCrossShrink: true },
+    fc.constantFrom(...ATOMS).map((atom) => [atom]),
+    fc.tuple(fc.constantFrom(...PREFIX_OPERATORS), tie('expression')).map(([operator, operand]) => [operator, ...group(operand)]),
+    fc.tuple(tie('expression'), fc.constantFrom(...BINARY_OPERATORS), tie('expression')).map(([left, operator, right]) => [...group(left), operator, ...group(right)]),
+    fc.tuple(tie('expression'), tie('expression'), tie('expression')).map(([test, consequent, alternate]) => [...group(test), '?', ...group(consequent), ':', ...group(alternate)]),
+    fc.tuple(fc.constantFrom(...IDENTIFIERS), fc.array(tie('expression'), { maxLength: 3 })).map(([name, args]) => [name, '(', ...commaSeparated(args), ')']),
+    fc.tuple(tie('expression'), fc.constantFrom(...IDENTIFIERS), fc.array(tie('expression'), { maxLength: 3 })).map(([object, name, args]) => [...group(object), '.', name, '(', ...commaSeparated(args), ')']),
+    fc.array(tie('expression'), { maxLength: 3 }).map((elements) => ['[', ...commaSeparated(elements), ']']),
+  ),
+}));
+
+const spacedFormula = formulaTokens.chain((tokens) => fc.array(fc.constantFrom(...WHITESPACE), { minLength: tokens.length, maxLength: tokens.length })
+  .map((gaps) => ({ tokens, formula: tokens.map((token, index) => `${gaps[index]}${token}`).join('') })));
+
+const anyText = fc.oneof(
+  fc.string({ unit: 'binary' }),
+  fc.array(fc.constantFrom(...ATOMS, ...BINARY_OPERATORS, ...PREFIX_OPERATORS, ...PUNCTUATION), { maxLength: 12 }).map((tokens) => tokens.join('')),
+  spacedFormula.map(({ formula }) => formula),
+);
+
+const numberText = fc.oneof(
+  fc.double({ min: 0, noNaN: true }).map(String).filter((text) => text !== 'Infinity'),
+  fc.tuple(
+    fc.stringMatching(/^\d{0,25}$/),
+    fc.option(fc.stringMatching(/^\d{0,25}$/), { nil: undefined }),
+    fc.option(fc.tuple(fc.constantFrom('e', 'E'), fc.constantFrom('', '+', '-'), fc.stringMatching(/^\d{1,4}$/)), { nil: undefined }),
+  )
+    .map(([whole, fraction, exponent]) => `${whole}${fraction === undefined ? '' : `.${fraction}`}${exponent?.join('') ?? ''}`)
+    // A name after a trailing dot is a method call, so `1.e3` is not the number 1000.
+    .filter((text) => /^(?:\d+\.?\d*|\.\d+)/.test(text) && !/\.e/i.test(text)),
+);
+
 describe(parse, () => {
+  it.prop([anyText])('should return a tree or throw a syntax error pointing inside the text for any text', (formula) => {
+    try {
+      const tree = parse(formula);
+
+      expect(spanProblems(formula, tree)).toEqual([]);
+    }
+    catch (error) {
+      expect(error).toBeInstanceOf(SyntaxError);
+
+      const { location, message } = error as SyntaxError;
+
+      expect(locationProblems(formula, location)).toEqual([]);
+      expect(message).toMatch(new RegExp(`\\[${location.start.offset},${location.end.offset}\\]$`));
+    }
+  });
+
+  it.prop([spacedFormula])('should parse a well-formed formula to the same tree whatever whitespace separates its tokens', ({ tokens, formula }) => {
+    expect(withoutPositions(parse(formula))).toEqual(withoutPositions(parse(tokens.join(' '))));
+  });
+
+  it.prop([numberText])('should read a number literal as JavaScript reads it', (text) => {
+    expect(parse(text)).toMatchObject({ type: 'Literal', value: Number(text), raw: text });
+  });
+
+  it.prop([fc.string({ unit: 'binary' })])('should read a quoted text literal as JavaScript reads it', (text) => {
+    const source = JSON.stringify(text);
+
+    expect(parse(source)).toMatchObject({ type: 'Literal', value: text, raw: source });
+  });
+
   describe('Literals', () => {
     it('should parse a number', () => {
       const ast = parse('123');
@@ -720,6 +806,25 @@ describe(parse, () => {
       });
     });
 
+    it.each([
+      { formula: '1.', location: createLocation(0, 2) },
+      { formula: '1. ', location: createLocation(0, 2) },
+    ])('should parse a number with a trailing dot as JavaScript does: "$formula"', ({ formula, location }) => {
+      expect(parse(formula)).toEqual({ type: 'Literal', value: 1, raw: '1.', location });
+    });
+
+    it('should parse a trailing dot before an operator as part of the number', () => {
+      expect(parse('1. + 2')).toMatchObject({ type: 'BinaryExpression', operator: '+', left: { type: 'Literal', value: 1, raw: '1.' } });
+    });
+
+    it('should call a method on a number with a trailing dot: 1..round()', () => {
+      expect(parse('1..round()')).toMatchObject({ type: 'CallExpression', callee: { object: { type: 'Literal', value: 1, raw: '1.' }, property: { name: 'round' } } });
+    });
+
+    it('should keep a dot followed by a name as a method call: 1. round()', () => {
+      expect(parse('1. round()')).toMatchObject({ type: 'CallExpression', callee: { object: { type: 'Literal', value: 1, raw: '1' }, property: { name: 'round' } } });
+    });
+
     it('should parse capital E in scientific notation: 2E3', () => {
       const ast = parse('2E3');
       expect(ast).toEqual({
@@ -731,13 +836,35 @@ describe(parse, () => {
     });
   });
 
+  describe('Escape sequences', () => {
+    it.each([
+      { source: '"\\x41"', value: 'A' },
+      { source: '"\\u{1F600}"', value: '\u{1F600}' },
+      { source: '"\\u{41}"', value: 'A' },
+      { source: '"\\0"', value: '\0' },
+      { source: '"a\\\nb"', value: 'ab' },
+      { source: '"a\\\r\nb"', value: 'ab' },
+    ])('should read $source as JavaScript does', ({ source, value }) => {
+      expect(parse(source)).toMatchObject({ type: 'Literal', value, raw: source });
+    });
+
+    it.each([
+      { source: '"\\u12"', message: 'Invalid Unicode escape sequence. [1,5]' },
+      { source: '"\\u{110000}"', message: 'Invalid Unicode escape sequence. [1,11]' },
+      { source: '"\\u{41"', message: 'Invalid Unicode escape sequence. [1,6]' },
+      { source: '"\\xZ1"', message: 'Invalid hexadecimal escape sequence. [1,3]' },
+    ])('should reject the malformed escape in $source', ({ source, message }) => {
+      expect(() => parse(source)).toThrow(message);
+    });
+  });
+
   describe('Unicode escape sequences', () => {
     it('should parse a string with unicode escape \\u0041 as "A"', () => {
       const ast = parse('"\\u0041"');
       expect(ast).toEqual({
         type: 'Literal',
         value: 'A',
-        raw: '"A"',
+        raw: '"\\u0041"',
         location: createLocation(0, 8),
       });
     });
@@ -747,7 +874,7 @@ describe(parse, () => {
       expect(ast).toEqual({
         type: 'Literal',
         value: 'HI',
-        raw: '"HI"',
+        raw: '"\\u0048\\u0049"',
         location: createLocation(0, 14),
       });
     });
@@ -920,4 +1047,81 @@ function createLocation(start: number, end: number): Location {
     start: { offset: start, line: 1, column: start + 1 },
     end: { offset: end, line: 1, column: end + 1 },
   };
+}
+
+/** Reasons the location breaks the text: offsets outside it, or a line and column that do not match the offset. */
+function locationProblems(formula: string, location: Location): string[] {
+  const { start, end } = location;
+  const problems: string[] = [];
+
+  if (start.offset < 0 || start.offset > end.offset || end.offset > formula.length) {
+    problems.push(`[${start.offset},${end.offset}] is outside a text of length ${formula.length}`);
+  }
+
+  for (const point of [start, end]) {
+    const expected = positionAt(formula, point.offset);
+
+    if (point.line !== expected.line || point.column !== expected.column) {
+      problems.push(`offset ${point.offset} is at ${expected.line}:${expected.column}, not ${point.line}:${point.column}`);
+    }
+  }
+
+  return problems;
+}
+
+/** Location problems of every node, plus nodes that reach outside their parent. */
+function spanProblems(formula: string, node: AstNode, parent?: Location): string[] {
+  const { location } = node;
+  const outside = parent !== undefined && (location.start.offset < parent.start.offset || location.end.offset > parent.end.offset);
+  const own = [...locationProblems(formula, location), ...(outside ? [`${node.type} at [${location.start.offset},${location.end.offset}] is outside its parent`] : [])];
+
+  return [...own, ...childrenOf(node).flatMap((child) => spanProblems(formula, child, location))];
+}
+
+function childrenOf(node: AstNode): AstNode[] {
+  switch (node.type) {
+    case 'UnaryExpression':
+      return [node.arg];
+    case 'BinaryExpression':
+      return [node.left, node.right];
+    case 'CallExpression':
+      return [node.callee, ...node.args];
+    case 'MemberExpression':
+      return [node.object, node.property];
+    case 'ConditionalExpression':
+      return [node.test, node.consequent, node.alternate];
+    case 'ArrayExpression':
+      return node.elements;
+    case 'Identifier':
+    case 'Literal':
+      return [];
+  }
+}
+
+function positionAt(formula: string, offset: number): { readonly line: number; readonly column: number } {
+  const before = formula.slice(0, offset);
+  const lineStart = before.lastIndexOf('\n') + 1;
+
+  return { line: before.split('\n').length, column: offset - lineStart + 1 };
+}
+
+/** The tree without locations and source text, to compare trees parsed from differently spaced formulas. */
+function withoutPositions(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(withoutPositions);
+  }
+
+  if (value === null || typeof value !== 'object' || value instanceof RegExp) {
+    return value;
+  }
+
+  return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'location' && key !== 'raw').map(([key, item]) => [key, withoutPositions(item)]));
+}
+
+function group(tokens: readonly string[]): string[] {
+  return tokens.length === 1 ? [...tokens] : ['(', ...tokens, ')'];
+}
+
+function commaSeparated(groups: readonly (readonly string[])[]): string[] {
+  return groups.flatMap((tokens, index) => (index === 0 ? [...tokens] : [',', ...tokens]));
 }

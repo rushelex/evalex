@@ -444,6 +444,10 @@ class Parser {
           this.#advance();
         }
       }
+      // A trailing dot belongs to the number unless a name follows it: `1.` is 1, `1. round()` is a method call
+      else if (this.#peek() === '.' && !this.#isIdStart(this.#nextNonWhitespace(1))) {
+        this.#advance();
+      }
     }
     // Optional exponent: `1e10`, `2.5E-3`
     if (this.#peek() === 'e' || this.#peek() === 'E') {
@@ -473,8 +477,9 @@ class Parser {
     let value = '';
     while (!this.#isEnd() && this.#peek() !== quote) {
       if (this.#peek() === '\\') {
+        const escape = this.#mark();
         this.#advance();
-        value += this.#parseEscapeSequence();
+        value += this.#parseEscapeSequence(escape);
       }
       else {
         value += this.#advance();
@@ -484,11 +489,11 @@ class Parser {
       this.#fail('Unterminated string.', this.#loc(s));
     }
     this.#advance();
-    return new LiteralNode(value, quote + value + quote, this.#loc(s));
+    return new LiteralNode(value, this.#input.slice(s.offset, this.#pos), this.#loc(s));
   }
 
-  /** Parses a single escape sequence after the backslash has been consumed. */
-  #parseEscapeSequence(): string {
+  /** Parses a single escape sequence after the backslash at `start` has been consumed. */
+  #parseEscapeSequence(start: Pos): string {
     const c = this.#advance();
     switch (c) {
       case '\'':
@@ -509,21 +514,78 @@ class Parser {
         return '\t';
       case 'v':
         return '\v';
-      case 'u': {
-        let hex = '';
-        for (let i = 0; i < 4; i++) {
-          if (HEX_DIGIT.test(this.#peek())) {
-            hex += this.#advance();
-          }
-          else {
-            break;
-          }
+      case 'u':
+        return this.#parseUnicodeEscape(start);
+      case 'x': {
+        const hex = this.#readHexDigits(2);
+
+        if (hex === undefined) {
+          this.#fail('Invalid hexadecimal escape sequence.', this.#loc(start));
         }
+
         return String.fromCharCode(Number.parseInt(hex, 16));
       }
+      case '0':
+        return this.#isDigit(this.#peek()) ? c : '\0';
+      // A backslash before a line break continues the text on the next line
+      case '\r':
+        if (this.#peek() === '\n') {
+          this.#advance();
+        }
+        return '';
+      case '\n':
+      case '\u2028':
+      case '\u2029':
+        return '';
       default:
         return c;
     }
+  }
+
+  /** Parses `\uXXXX` or `\u{X…}` after the `u`; the escape starts at `start`. */
+  #parseUnicodeEscape(start: Pos): string {
+    if (this.#peek() !== '{') {
+      const hex = this.#readHexDigits(4);
+
+      if (hex === undefined) {
+        this.#fail('Invalid Unicode escape sequence.', this.#loc(start));
+      }
+
+      return String.fromCharCode(Number.parseInt(hex, 16));
+    }
+
+    this.#advance();
+
+    let hex = '';
+
+    while (HEX_DIGIT.test(this.#peek())) {
+      hex += this.#advance();
+    }
+
+    const closed = this.#peek() === '}';
+
+    if (closed) {
+      this.#advance();
+    }
+
+    const codePoint = Number.parseInt(hex, 16);
+
+    if (!closed || hex === '' || codePoint > 0x10FFFF) {
+      this.#fail('Invalid Unicode escape sequence.', this.#loc(start));
+    }
+
+    return String.fromCodePoint(codePoint);
+  }
+
+  /** Consumes exactly `count` hex digits, or returns `undefined` after consuming the ones that are there. */
+  #readHexDigits(count: number): string | undefined {
+    let hex = '';
+
+    while (hex.length < count && HEX_DIGIT.test(this.#peek())) {
+      hex += this.#advance();
+    }
+
+    return hex.length === count ? hex : undefined;
   }
 
   /**
@@ -782,6 +844,17 @@ class Parser {
   /** Returns the character `n` positions ahead without consuming it. */
   #peekAt(n: number): string {
     return this.#input[this.#pos + n] ?? '';
+  }
+
+  /** Returns the first character from `n` positions ahead that is not whitespace, without consuming anything. */
+  #nextNonWhitespace(n: number): string {
+    let offset = n;
+
+    while (' \t\n\r'.includes(this.#peekAt(offset)) && this.#peekAt(offset) !== '') {
+      offset++;
+    }
+
+    return this.#peekAt(offset);
   }
 
   /** Returns `true` if the scanner has reached the end of input. */

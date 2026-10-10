@@ -31,8 +31,8 @@ parse('price * 2');
 
 | Construct | Syntax | Node |
 | --- | --- | --- |
-| Number | `42`, `3.14`, `.5`, `1e3`, `2.5E-3` | `Literal` |
-| Text | `"…"` or `'…'`; escapes `\n \t \r \b \f \v \\ \' \" \uXXXX` | `Literal` |
+| Number | `42`, `3.14`, `.5`, `5.`, `1e3`, `2.5E-3` | `Literal` |
+| Text | `"…"` or `'…'`; escapes `\n \t \r \b \f \v \0 \\ \' \" \xXX \uXXXX \u{X…}`, and a backslash before a line break continues the line | `Literal` |
 | Keyword literal | `true`, `false`, `null`, `undefined` | `Literal` |
 | Regular expression | `/pattern/flags` | `Literal` with a `RegExp` value |
 | Identifier | Starts with a letter or `_`, continues with letters, digits or `_` | `Identifier` |
@@ -47,6 +47,8 @@ parse('price * 2');
 Whitespace, including line breaks, is allowed between any two tokens. Empty input parses to a `null` literal.
 
 A member must be called: `user.name()` is valid, `user.name` is a syntax error. Object fields are exposed as methods by `core`, so this keeps one syntax for both.
+
+A dot after a number ends the number, as in JavaScript, unless a name follows it: `5.` and `5..round()` are the number 5, while `5.round()` and `5. round()` call `round` on 5. So `1.e3` is a call of `e3`, not the number 1000; write `1e3` or `1.0e3`.
 
 ### Regular expression literals
 
@@ -116,6 +118,8 @@ Invalid input throws the parser's `SyntaxError`, a subclass of the built-in one.
 | `user.name` | `Expected function 'name()' to be called. [4,9]` |
 | `"x".test(/[/)` | `Unterminated regular expression. [9,13]` |
 | `/a/gg` | `Invalid regular expression flags "gg". [3,5]` |
+| `"\u12"` | `Invalid Unicode escape sequence. [1,5]` |
+| `"\xZ1"` | `Invalid hexadecimal escape sequence. [1,3]` |
 
 ## Extending the grammar
 
