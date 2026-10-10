@@ -2,13 +2,16 @@ import type { FormulaDataType } from '../../core';
 import type { Scheduler } from '../scheduler';
 import type { FormulaNode, NodeAdapter } from '../types';
 
+import { fc, it } from '@fast-check/vitest';
 import { vi } from 'vitest';
 
 import { Expression, FormulaArray, FormulaNull, FormulaNumber } from '../../core';
-import { Errors } from '../../core/errors';
-import { SyncExecutor } from '../executor';
+import { Errors, FormulaError } from '../../core/errors';
+import { evaluateOutcome } from '../../testing-library';
+import { AsyncExecutor, SyncExecutor } from '../executor';
 import { FORMULA_LIMITS } from '../limits';
 import { FormulaOrchestrator } from '../orchestrator';
+import { BatchingScheduler, ImmediateScheduler } from '../scheduler';
 
 // Test node type
 interface TestNode extends FormulaNode {
@@ -17,7 +20,108 @@ interface TestNode extends FormulaNode {
   expression?: Expression;
 }
 
+type HostChange
+  = | { readonly type: 'value'; readonly id: string; readonly value: number }
+    | { readonly type: 'formula'; readonly id: string; readonly formula: string };
+
+const VALUE_IDS = ['a', 'b', 'c'];
+
+// Each formula reads only the values and the formulas before it, so the list order is a dependency order.
+const FORMULA_IDS = ['x', 'y', 'z'];
+
+const TEMPLATES = [
+  (p: string, q: string): string => `${p} + ${q}`,
+  (p: string): string => `${p} * 2`,
+  (p: string, q: string): string => `max(${p}, ${q}) - 1`,
+  (p: string, q: string): string => `if(${p} > ${q}, ${p}, ${q})`,
+  (p: string): string => p,
+];
+
+// Small numbers repeat often, which exercises the paths that skip unchanged values.
+const smallNumber = fc.integer({ min: -2, max: 2 });
+
+function formulaFor(index: number): fc.Arbitrary<string> {
+  const readable = [...VALUE_IDS, ...FORMULA_IDS.slice(0, index)];
+
+  return fc.tuple(fc.constantFrom(...TEMPLATES), fc.constantFrom(...readable), fc.constantFrom(...readable)).map(([template, p, q]) => template(p, q));
+}
+
+const hostChange: fc.Arbitrary<HostChange> = fc.oneof(
+  fc.record({ type: fc.constant('value' as const), id: fc.constantFrom(...VALUE_IDS), value: smallNumber }),
+  ...FORMULA_IDS.map((id, index) => formulaFor(index).map((formula): HostChange => ({ type: 'formula', id, formula }))),
+);
+
+// How the runtime runs: right away or in batches after a delay, evaluating in place or as async jobs.
+const runtimeSetup = fc.record({
+  batchDelayMs: fc.option(fc.constantFrom(0, 1, 4), { nil: undefined }),
+  asyncEvaluation: fc.boolean(),
+});
+
+const initialGraph = fc.record({
+  values: fc.tuple(smallNumber, smallNumber, smallNumber),
+  formulas: fc.tuple(...FORMULA_IDS.map((_, index) => formulaFor(index))),
+  addOrder: fc.shuffledSubarray(FORMULA_IDS, { minLength: FORMULA_IDS.length }),
+});
+
 describe(FormulaOrchestrator, () => {
+  it.prop([fc.scheduler(), runtimeSetup, initialGraph, fc.array(hostChange, { maxLength: 8 })])('should leave every formula with the value of evaluating all formulas in dependency order, whatever the timing', async (scheduler, { batchDelayMs, asyncEvaluation }, graph, changes) => {
+    const { orchestrator: tested, nodes } = startHost({
+      graph,
+      scheduler: batchDelayMs === undefined ? new ImmediateScheduler() : new BatchingScheduler({ delayMs: batchDelayMs }),
+      // An async evaluation finishes when the scheduler decides, so results arrive in any order relative to host changes.
+      executor: asyncEvaluation
+        ? new AsyncExecutor({ runner: async (job) => scheduler.schedule(Promise.resolve(), 'evaluation').then(job) })
+        : new SyncExecutor(),
+    });
+
+    const sequence = scheduler.scheduleSequence(changes.map((change) => ({
+      label: JSON.stringify(change),
+      builder: async () => applyHostChange({ orchestrator: tested, nodes, change }),
+    })));
+
+    await scheduler.waitFor(sequence.task.then(async () => tested.waitForProcessing()));
+
+    forEachFormula(nodes, ({ id, node, expected }) => {
+      expect({ id, error: node.error }).toEqual({ id, error: null });
+      expect({ value: node.value }).toHaveSameOutcomeAs(expected);
+    });
+  });
+
+  it.prop([fc.scheduler(), initialGraph, fc.array(hostChange, { maxLength: 8 }), fc.nat({ max: 8 })])('should settle with every formula holding the outcome of its current inputs or the abort, whatever moment the evaluations are aborted', async (scheduler, graph, changes, abortAt) => {
+    const abortController = new AbortController();
+    const reason = new Error('Stopped by the host.');
+    const { orchestrator: tested, nodes } = startHost({
+      graph,
+      scheduler: new ImmediateScheduler(),
+      executor: new AsyncExecutor({
+        abortController,
+        runner: async (job, signal) => {
+          await scheduler.schedule(Promise.resolve(), 'evaluation');
+          signal?.throwIfAborted();
+
+          return job();
+        },
+      }),
+    });
+
+    const steps = changes.map((change) => ({ label: JSON.stringify(change), builder: async () => applyHostChange({ orchestrator: tested, nodes, change }) }));
+    steps.splice(Math.min(abortAt, steps.length), 0, { label: 'abort', builder: async () => abortController.abort(reason) });
+
+    await scheduler.waitFor(scheduler.scheduleSequence(steps).task.then(async () => tested.waitForProcessing()));
+
+    forEachFormula(nodes, ({ id, node, expected }) => {
+      if (node.error === null) {
+        expect({ value: node.value }).toHaveSameOutcomeAs(expected);
+      }
+      else if (node.error instanceof FormulaError) {
+        expect({ error: node.error }).toHaveSameOutcomeAs(expected);
+      }
+      else {
+        expect({ id, error: node.error }).toEqual({ id, error: reason });
+      }
+    });
+  });
+
   let orchestrator: FormulaOrchestrator<TestNode>;
   let adapter: NodeAdapter<TestNode>;
 
@@ -653,3 +757,69 @@ describe(FormulaOrchestrator, () => {
     });
   });
 });
+
+/** Changes a node the way a host does: a new value or formula, followed by the matching notification. */
+async function applyHostChange({ orchestrator, nodes, change }: {
+  readonly orchestrator: FormulaOrchestrator<TestNode>;
+  readonly nodes: ReadonlyMap<string, TestNode>;
+  readonly change: HostChange;
+}): Promise<void> {
+  const node = nodes.get(change.id)!;
+
+  if (change.type === 'value') {
+    node.value = new FormulaNumber(change.value);
+    orchestrator.enqueueDependents(change.id);
+  }
+  else {
+    node.expression = new Expression(change.formula);
+    orchestrator.enqueue(change.id);
+  }
+}
+
+/** Creates the host graph: every value node first, then the formulas in the given order. */
+function startHost({ graph: { values, formulas, addOrder }, scheduler, executor }: {
+  readonly graph: { readonly values: readonly number[]; readonly formulas: readonly string[]; readonly addOrder: readonly string[] };
+  readonly scheduler: Scheduler;
+  readonly executor: SyncExecutor | AsyncExecutor;
+}): { readonly orchestrator: FormulaOrchestrator<TestNode>; readonly nodes: ReadonlyMap<string, TestNode> } {
+  const nodes = new Map<string, TestNode>([
+    ...VALUE_IDS.map((id, index): [string, TestNode] => [id, { id, value: new FormulaNumber(values[index]), error: null }]),
+    ...FORMULA_IDS.map((id, index): [string, TestNode] => [id, { id, value: FormulaNull.instance(), error: null, expression: new Expression(formulas[index]) }]),
+  ]);
+  const orchestrator = new FormulaOrchestrator<TestNode>({
+    adapter: {
+      shouldProcess: (node) => !!node.expression,
+      toFormulaDataType: (node) => node.value,
+      toExpression: (node) => node.expression ?? null,
+      onCalculate: (node, value) => {
+        node.value = value;
+        node.error = null;
+      },
+      onError: (node, error) => {
+        node.error = error;
+      },
+    },
+    scheduler,
+    executor,
+  });
+
+  VALUE_IDS.forEach((id) => orchestrator.add(nodes.get(id)!));
+  addOrder.forEach((id) => orchestrator.add(nodes.get(id)!));
+
+  return { orchestrator, nodes };
+}
+
+/** Visits the formulas in dependency order with the outcome of evaluating each one on the values its inputs hold now. */
+function forEachFormula(
+  nodes: ReadonlyMap<string, TestNode>,
+  visit: (formula: { readonly id: string; readonly node: TestNode; readonly expected: ReturnType<typeof evaluateOutcome> }) => void,
+): void {
+  const context: Record<string, FormulaDataType> = Object.fromEntries(VALUE_IDS.map((id) => [id, nodes.get(id)!.value]));
+
+  for (const id of FORMULA_IDS) {
+    const node = nodes.get(id)!;
+
+    visit({ id, node, expected: evaluateOutcome(node.expression!.formula, { context }) });
+    context[id] = node.value;
+  }
+}
