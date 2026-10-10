@@ -57,6 +57,7 @@ import './round.routine';
 import './sign.routine';
 import './slice.routine';
 import './some.routine';
+import './sort.routine';
 import './sqrt.routine';
 import './subtract.routine';
 import './sum.routine';
