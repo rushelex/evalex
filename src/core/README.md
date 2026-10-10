@@ -78,7 +78,7 @@ Every value inside a formula is an instance of a `FormulaDataType` subclass. Wra
 | `Number` | `FormulaNumber` | `number` | `new FormulaNumber(42)` |
 | `String` | `FormulaString` | `string` | `new FormulaString('hi')` |
 | `Boolean` | `FormulaBoolean` | `boolean` | `new FormulaBoolean(true)` |
-| `Date` | `FormulaDate` | `Temporal.ZonedDateTime` | `FormulaDate.from('2026-10-01T00:00:00Z')` — also a `Date`, a timestamp or a `ZonedDateTime`; a value that holds no date throws a `RangeError` |
+| `Date` | `FormulaDate` | `Temporal.ZonedDateTime` | `FormulaDate.from('2026-10-01T00:00:00Z')` — also a `Date`, a timestamp or a `ZonedDateTime`. Text is read as ISO 8601, in UTC unless it names an offset or time zone; a value that holds no date throws a `RangeError` |
 | `Duration` | `FormulaDuration` | `Temporal.Duration` | `FormulaDuration.from(Temporal.Duration.from({ days: 3 }))` |
 | `Array` | `FormulaArray` | `readonly FormulaDataType[]` | `FormulaArray.from([1, 2, 3])` |
 | `Object` | `FormulaObject` | `Readonly<Record<string, FormulaDataType>>` | `FormulaObject.from({ name: 'Ada' })` |
@@ -160,7 +160,7 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 | Routine | Description | Example |
 | --- | --- | --- |
 | `now()` / `today()` | Current date and time, or today at midnight | `today().add(1, "days")` |
-| `parseDate(text)` | Parses an ISO 8601 date | `parseDate("2023-07-10T17:35Z")` |
+| `parseDate(text)` | Parses an ISO 8601 date; text without an offset or time zone is read in UTC | `parseDate("2023-07-10T17:35Z")` |
 | `fromTimestamp(ms)` | Date in UTC from a Unix timestamp in milliseconds, without seconds | `fromTimestamp(1689024900000)` |
 | `dateAdd(date, amount, unit)` | Adds a whole number of units, or a duration | `parseDate("2023-08-30").add(2, "months")` |
 | `dateSubtract(date, amount, unit)` | Subtracts a whole number of units, or a duration | `parseDate("2023-07-10").subtract(1, "years")` |

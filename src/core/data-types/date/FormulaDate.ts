@@ -3,6 +3,16 @@ import { Temporal } from 'temporal-polyfill';
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
 
+const YEAR = /^[+-]?\d{4,6}$/;
+
+// ISO 8601 and RFC 9557 forms, from the most specific; `Date` parsing is left out because it reads text without an offset in the host time zone
+const TEXT_PARSERS: readonly ((text: string) => Temporal.ZonedDateTime)[] = [
+  (text) => Temporal.ZonedDateTime.from(text),
+  (text) => Temporal.Instant.from(text).toZonedDateTimeISO('UTC'),
+  (text) => Temporal.PlainDateTime.from(text).toZonedDateTime('UTC'),
+  (text) => Temporal.PlainYearMonth.from(YEAR.test(text) ? `${text}-01` : text).toPlainDate({ day: 1 }).toZonedDateTime('UTC'),
+];
+
 export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime> {
   static readonly kind = Kind.Date;
 
@@ -47,24 +57,9 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime> {
       return FormulaDate.#fromZonedDateTime(date);
     }
 
-    const parsers: (() => FormulaDate)[] = [
-      () => {
-        const jsDate = new Date(date);
-
-        if (Number.isNaN(jsDate.getTime())) {
-          throw new TypeError('Invalid JS Date');
-        }
-
-        return FormulaDate.#fromJSDate(jsDate);
-      },
-      () => {
-        return FormulaDate.#fromZonedDateTime(Temporal.ZonedDateTime.from(date));
-      },
-    ];
-
-    for (const parse of parsers) {
+    for (const parse of TEXT_PARSERS) {
       try {
-        return parse();
+        return FormulaDate.#fromZonedDateTime(parse(date));
       }
       catch { /* ignore and try next parser */ }
     }

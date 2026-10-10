@@ -1,8 +1,48 @@
+import { fc, it } from '@fast-check/vitest';
 import { Temporal } from 'temporal-polyfill';
 
 import { FormulaDate } from './FormulaDate';
 
+// Date and time text without an offset, from a whole day down to milliseconds, with either separator.
+const textWithoutOffset = fc.record({
+  date: fc.date({ min: new Date('1900-01-01T00:00:00Z'), max: new Date('2100-01-01T00:00:00Z'), noInvalidDate: true }),
+  length: fc.constantFrom(10, 13, 16, 19, 23),
+  separator: fc.constantFrom('T', ' '),
+}).map(({ date, length, separator }) => {
+  const iso = date.toISOString().slice(0, length);
+
+  return {
+    text: iso.replace('T', separator),
+    inUTC: length === 10 ? `${iso}T00:00Z` : `${iso}Z`,
+  };
+});
+
 describe('FormulaDate', () => {
+  describe('on a machine far from UTC', () => {
+    beforeAll(() => {
+      vi.stubEnv('TZ', 'Pacific/Kiritimati');
+    });
+
+    afterAll(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it.prop([textWithoutOffset])('should read date text without an offset as UTC', ({ text, inUTC }) => {
+      expect(FormulaDate.from(text).value.equals(FormulaDate.from(inUTC).value)).toBe(true);
+    });
+
+    it.each([
+      { text: '2024-07', inUTC: '2024-07-01T00:00Z' },
+      { text: '2024', inUTC: '2024-01-01T00:00Z' },
+    ])('should read the ISO 8601 date $text as its first moment in UTC', ({ text, inUTC }) => {
+      expect(FormulaDate.from(text).value.equals(FormulaDate.from(inUTC).value)).toBe(true);
+    });
+
+    it.each(['July 28, 2024', '2024/07/28'])('should reject the date text $0, which is not ISO 8601', (text) => {
+      expect(() => FormulaDate.from(text)).toThrowError(new RangeError(`Cannot create a date from the text "${text}".`));
+    });
+  });
+
   describe('Initialization', () => {
     describe('From Number', () => {
       it('should initialize from number', () => {
