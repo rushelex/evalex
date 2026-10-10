@@ -55,6 +55,7 @@ export interface RoutineDefinition<TSignatures extends SubjectSignatures> {
 export class RoutinesRegistry {
   readonly #functionRegistry: Map<string, Routine> = new Map();
   readonly #methodRegistry: Map<Class<FormulaDataType>, Map<string, Routine>> = new Map();
+  readonly #methodNames: Map<string, string> = new Map();
   #resolvedMethodsCache: WeakMap<Class<FormulaDataType>, Map<string, Routine>> | null = null;
 
   /**
@@ -132,6 +133,7 @@ export class RoutinesRegistry {
       throw new Error(`Routine "${typeof name === 'string' ? name : `${functionName}/${methodName}`}" is already registered.`);
     }
 
+    this.#methodNames.set(functionName, methodName);
     this.#functionRegistry.set(functionName, new Routine({
       description: definition.description,
       examples: new RoutineExamples(functionName, definition.examples).toFunctionExamples(),
@@ -177,6 +179,11 @@ export class RoutinesRegistry {
   /** Returns the function form registered under the name, or `undefined` when there is none. */
   getFunction(name: string): Routine | undefined {
     return this.#functionRegistry.get(name);
+  }
+
+  /** Returns the method form registered together with the function by {@link RoutinesRegistry.registerRoutine}, or `undefined` when there is none. */
+  getMethodName(functionName: string): string | undefined {
+    return this.#methodNames.get(functionName);
   }
 
   /** Returns every function form by name, for autocompletion and documentation. */

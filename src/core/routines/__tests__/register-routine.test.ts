@@ -129,6 +129,14 @@ describe('RoutinesRegistry.registerRoutine', () => {
   });
 
   it.each([
+    { functionName: 'textShout', methodName: 'shout' },
+    { functionName: 'measure', methodName: 'measure' },
+    { functionName: 'today', methodName: undefined },
+  ])('should report $methodName as the method form of $functionName', ({ functionName, methodName }) => {
+    expect(routinesRegistry.getMethodName(functionName)).toBe(methodName);
+  });
+
+  it.each([
     { formula: 'total(1, 2, 3)', expected: 6 },
     { formula: '(1).total(2, 3)', expected: 6 },
     { formula: '(1).total()', expected: 1 },
