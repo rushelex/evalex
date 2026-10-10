@@ -133,6 +133,9 @@ export class DependencyGraph {
    * @param nodeId - The node to completely remove
    */
   removeAll(nodeId: string): void {
+    // Invalidate before the edges go, so the walk still reaches every dependent
+    this.#invalidateDepthCache(nodeId);
+
     // Collect nodes that might become orphaned
     const nodesToCheck = new Set<string>();
 
@@ -403,15 +406,16 @@ export class DependencyGraph {
    * @param nodeId - The node to check for orphan status
    */
   #maybePrune(nodeId: string): void {
-    const deps = this.#dependencies.get(nodeId);
-    const dependents = this.#dependents.get(nodeId);
-
-    const hasDeps = deps !== undefined && deps.size > 0;
-    const hasDependents = dependents !== undefined && dependents.size > 0;
-
-    if (!hasDeps && !hasDependents) {
+    // An empty set is dropped on its own, so the sizes count only nodes that have edges on that side
+    if (this.#dependencies.get(nodeId)?.size === 0) {
       this.#dependencies.delete(nodeId);
+    }
+
+    if (this.#dependents.get(nodeId)?.size === 0) {
       this.#dependents.delete(nodeId);
+    }
+
+    if (!this.#dependencies.has(nodeId) && !this.#dependents.has(nodeId)) {
       this.#depthCache.delete(nodeId);
     }
   }

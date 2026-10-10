@@ -3,7 +3,107 @@ import { fc, it } from '@fast-check/vitest';
 import { Errors } from '../../core/errors';
 import { DependencyGraph } from '../dependency-graph';
 
+// A few names, so that random operations keep hitting the same nodes and build real chains and cycles.
+const NODES = ['A', 'B', 'C', 'D', 'E'];
+
+type GraphOperation
+  = | { readonly type: 'add'; readonly node: string; readonly dependsOn: string }
+    | { readonly type: 'remove'; readonly node: string; readonly dependsOn: string }
+    | { readonly type: 'replace'; readonly node: string; readonly dependencies: readonly string[] }
+    | { readonly type: 'removeAll'; readonly node: string };
+
+interface GraphState {
+  readonly nodes: Readonly<Record<string, { readonly dependencies: readonly string[]; readonly dependents: readonly string[]; readonly depth: number }>>;
+  readonly dependenciesSize: number;
+  readonly dependentsSize: number;
+}
+
+const node = fc.constantFrom(...NODES);
+
+const graphOperation: fc.Arbitrary<GraphOperation> = fc.oneof(
+  { weight: 4, arbitrary: fc.record({ type: fc.constant('add' as const), node, dependsOn: node }) },
+  { weight: 2, arbitrary: fc.record({ type: fc.constant('remove' as const), node, dependsOn: node }) },
+  { weight: 2, arbitrary: fc.record({ type: fc.constant('replace' as const), node, dependencies: fc.uniqueArray(node, { maxLength: 3 }) }) },
+  { weight: 1, arbitrary: fc.record({ type: fc.constant('removeAll' as const), node }) },
+);
+
+/** Reference graph kept as plain edge lists, against which the real graph is checked after every operation. */
+class GraphModel {
+  readonly #edges = new Map<string, ReadonlySet<string>>();
+
+  /** Applies the operation and returns whether it is refused because it would close a cycle. */
+  apply(operation: GraphOperation): boolean {
+    const { node: changed } = operation;
+    const current = this.#dependencies(changed);
+
+    switch (operation.type) {
+      case 'add':
+        return this.#replace(changed, new Set([...current, operation.dependsOn]));
+      case 'remove':
+        this.#edges.set(changed, new Set([...current].filter((dependency) => dependency !== operation.dependsOn)));
+        return false;
+      case 'replace':
+        return this.#replace(changed, new Set(operation.dependencies));
+      case 'removeAll':
+        this.#edges.delete(changed);
+        this.#edges.forEach((dependencies, from) => this.#edges.set(from, new Set([...dependencies].filter((dependency) => dependency !== changed))));
+        return false;
+    }
+  }
+
+  state(): GraphState {
+    const nodes = Object.fromEntries(NODES.map((name) => [name, {
+      dependencies: [...this.#dependencies(name)].sort(),
+      dependents: NODES.filter((other) => this.#dependencies(other).has(name)),
+      depth: this.#depth(name),
+    }]));
+    const entries = Object.values(nodes);
+
+    return {
+      nodes,
+      dependenciesSize: entries.filter(({ dependencies }) => dependencies.length > 0).length,
+      dependentsSize: entries.filter(({ dependents }) => dependents.length > 0).length,
+    };
+  }
+
+  #replace(changed: string, dependencies: ReadonlySet<string>): boolean {
+    const closesCycle = [...dependencies].some((dependency) => this.#reaches(dependency, changed));
+
+    if (!closesCycle) {
+      this.#edges.set(changed, dependencies);
+    }
+
+    return closesCycle;
+  }
+
+  #dependencies(name: string): ReadonlySet<string> {
+    return this.#edges.get(name) ?? new Set();
+  }
+
+  #reaches(from: string, to: string): boolean {
+    return from === to || [...this.#dependencies(from)].some((next) => this.#reaches(next, to));
+  }
+
+  #depth(name: string): number {
+    const dependencies = [...this.#dependencies(name)];
+
+    return dependencies.length === 0 ? 0 : 1 + Math.max(...dependencies.map((dependency) => this.#depth(dependency)));
+  }
+}
+
 describe(DependencyGraph, () => {
+  it.prop([fc.array(graphOperation, { maxLength: 30 })])('should match a plain model of its edges after any sequence of changes', (operations) => {
+    const graph = new DependencyGraph();
+    const model = new GraphModel();
+
+    operations.forEach((operation, step) => {
+      const refused = model.apply(operation);
+
+      expect({ step, refused: refusesWithCycle(() => applyToGraph(graph, operation)) }).toEqual({ step, refused });
+      expect({ step, state: stateOf(graph) }).toEqual({ step, state: model.state() });
+    });
+  });
+
   describe('constructor', () => {
     it('should create an empty graph', () => {
       const graph = new DependencyGraph();
@@ -347,6 +447,16 @@ describe(DependencyGraph, () => {
 
       expect(graph.getDependentsSize()).toBe(3);
     });
+
+    it('should not count a node whose dependents were all removed while it keeps dependencies', () => {
+      const graph = new DependencyGraph();
+      graph.addDependency('A', 'B');
+      graph.addDependency('B', 'C');
+
+      graph.removeDependency('A', 'B');
+
+      expect(graph.getDependentsSize()).toBe(1);
+    });
   });
 
   describe('getDependenciesSize', () => {
@@ -363,6 +473,19 @@ describe(DependencyGraph, () => {
       graph.addDependency('B', 'D');
 
       expect(graph.getDependenciesSize()).toBe(2);
+    });
+
+    it.each([
+      { name: 'replaced with none', change: (graph: DependencyGraph) => graph.replaceDependencies('B', new Set()) },
+      { name: 'removed one by one', change: (graph: DependencyGraph) => graph.removeDependency('B', 'C') },
+    ])('should not count a node that still has dependents once its dependencies are $name', ({ change }) => {
+      const graph = new DependencyGraph();
+      graph.addDependency('A', 'B');
+      graph.addDependency('B', 'C');
+
+      change(graph);
+
+      expect(graph.getDependenciesSize()).toBe(1);
     });
   });
 
@@ -440,6 +563,19 @@ describe(DependencyGraph, () => {
 
       graph.addDependency('C', 'D');
       expect(graph.getNodeDepth('A')).toBe(3);
+    });
+
+    it('should invalidate cache of the removed node and of its dependents on removeAll', () => {
+      graph.addDependency('A', 'B');
+      graph.addDependency('A', 'C');
+      graph.addDependency('B', 'D');
+      expect(graph.getNodeDepth('A')).toBe(2);
+      expect(graph.getNodeDepth('B')).toBe(1);
+
+      graph.removeAll('B');
+
+      expect(graph.getNodeDepth('A')).toBe(1);
+      expect(graph.getNodeDepth('B')).toBe(0);
     });
   });
 
@@ -747,3 +883,48 @@ describe(DependencyGraph, () => {
     });
   });
 });
+
+function applyToGraph(graph: DependencyGraph, operation: GraphOperation): void {
+  switch (operation.type) {
+    case 'add':
+      graph.addDependency(operation.node, operation.dependsOn);
+      break;
+    case 'remove':
+      graph.removeDependency(operation.node, operation.dependsOn);
+      break;
+    case 'replace':
+      graph.replaceDependencies(operation.node, new Set(operation.dependencies));
+      break;
+    case 'removeAll':
+      graph.removeAll(operation.node);
+      break;
+  }
+}
+
+/** Runs the change and reports whether it fails with a circular dependency; any other failure is rethrown. */
+function refusesWithCycle(change: () => void): boolean {
+  try {
+    change();
+
+    return false;
+  }
+  catch (error) {
+    if (Errors.Runtime.CircularDependency.is(error)) {
+      return true;
+    }
+
+    throw error;
+  }
+}
+
+function stateOf(graph: DependencyGraph): GraphState {
+  return {
+    nodes: Object.fromEntries(NODES.map((name) => [name, {
+      dependencies: [...graph.getDependencies(name)].sort(),
+      dependents: [...graph.getDependents(name)].sort(),
+      depth: graph.getNodeDepth(name),
+    }])),
+    dependenciesSize: graph.getDependenciesSize(),
+    dependentsSize: graph.getDependentsSize(),
+  };
+}
