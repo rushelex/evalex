@@ -160,6 +160,8 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 | `concat(list, ...lists)` | Joins lists into one | `[1, 2].concat([3, 4])` → `[1, 2, 3, 4]` |
 | `reverse(list)` | Items in reverse order | `[1, 2, 3].reverse()` → `[3, 2, 1]` |
 | `flat(list)` | Replaces each nested list with its items, one level deep | `[[1, 2], [3, [4]]].flat()` → `[1, 2, 3, [4]]` |
+| `unique(list)` | Drops items equal, as in `==`, to an earlier item | `[1, 1, 2].unique()` → `[1, 2]` |
+| `includes(list, value)` | Whether some item equals the value, as in `==` | `[1, 2, 3].includes(4)` → `false` |
 
 ### Dates and durations
 
