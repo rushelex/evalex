@@ -1,4 +1,5 @@
 export { ALL_DATA_TYPES } from './all-data-types';
+export { areEqual } from './are-equal';
 export { FormulaArray } from './array';
 export { FormulaBoolean } from './boolean';
 export { FormulaDate } from './date';

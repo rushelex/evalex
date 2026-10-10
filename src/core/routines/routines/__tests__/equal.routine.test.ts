@@ -18,4 +18,12 @@ describe('equal routine', new RoutineTester('equal').examples([
     formula: '1.equal("1")',
     expected: new FormulaBoolean(false),
   },
+  {
+    formula: '[1, [2]].equal([1, [2]])',
+    expected: new FormulaBoolean(true),
+  },
+  {
+    formula: 'parseDate("2024-01-01").equal(parseDate("2024-01-01"))',
+    expected: new FormulaBoolean(true),
+  },
 ]));

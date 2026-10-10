@@ -174,6 +174,19 @@ describe('Operations', () => {
       expect(result).toBeFormulaDataType(FormulaBoolean, expected);
     });
 
+    it.each([
+      { input: '[1, [2, "a"]] == [1, [2, "a"]]', expected: true },
+      { input: '[1, 2] == [2, 1]', expected: false },
+      { input: '[1, 2] != [1, 2]', expected: false },
+      { input: 'parseDate("2024-01-01") == parseDate("2024-01-01T00:00Z")', expected: true },
+      { input: 'parseDate("2024-01-01") != parseDate("2024-01-02")', expected: true },
+      { input: '/a/g == /a/g', expected: true },
+      { input: '/a/g == /a/i', expected: false },
+    ])('should compare lists, dates and regexps by content (==, !=): $input', ({ input, expected }) => {
+      const result = evaluate(input);
+      expect(result).toBeFormulaDataType(FormulaBoolean, expected);
+    });
+
     it('should throw FormulaError when doing comparison on non-boolean', () => {
       expect(() => {
         evaluate('10 < "5"');

@@ -5,6 +5,7 @@ import type { RoutineDispatcher } from './routines/dispatcher';
 import { Temporal } from 'temporal-polyfill';
 
 import {
+  areEqual,
   FormulaArray,
   FormulaBoolean,
   FormulaDataType,
@@ -140,30 +141,10 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
         return FormulaNumber.from(leftNum.value % rightNum.value);
       }
       case '==': {
-        // Handle null comparisons first
-        if (left instanceof FormulaNull && right instanceof FormulaNull) {
-          return FormulaBoolean.from(true); // null == null is true
-        }
-
-        // If one is null and the other is not, they are not equal.
-        if (left instanceof FormulaNull || right instanceof FormulaNull) {
-          return FormulaBoolean.from(false);
-        }
-
-        // If types are different (and neither is null), they are not equal for '=='.
-        if (left.kind !== right.kind) {
-          return FormulaBoolean.from(false);
-        }
-
-        // For same types (Number, String, Boolean), compare their values.
-        return FormulaBoolean.from(left.value === right.value);
+        return FormulaBoolean.from(areEqual(left, right));
       }
       case '!=': {
-        if (left.kind !== right.kind) {
-          return FormulaBoolean.from(true);
-        }
-
-        return FormulaBoolean.from(left.value !== right.value);
+        return FormulaBoolean.from(!areEqual(left, right));
       }
       case '<': {
         if ((left instanceof FormulaNumber && right instanceof FormulaNumber)
