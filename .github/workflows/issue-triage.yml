@@ -37,7 +37,7 @@ jobs:
             You triage new issues in ${{ github.repository }}, a formula evaluation library.
             Pick labels for the issue below. Use only names from the label list.
             - One main type: bug, feature, perf, docs, question, chore or test.
-            - Add test next to the main type when the work also needs new tests.
+            - Add test next to the main type when tests are a goal of the issue, not just coverage for the change.
             - Every scope:* label for a module the issue touches; several are fine.
             - breaking when resolving the issue would change public API behavior or signatures.
             - Never duplicate, invalid or wontfix: those are maintainer decisions.
