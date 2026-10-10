@@ -180,6 +180,7 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 | `now()` / `today()` | Current date and time, or today at midnight | `today().add(1, "days")` |
 | `parseDate(text)` | Parses an ISO 8601 date; text without an offset or time zone is read in UTC | `parseDate("2023-07-10T17:35Z")` |
 | `fromTimestamp(ms)` | Date in UTC from a Unix timestamp in milliseconds, without seconds | `fromTimestamp(1689024900000)` |
+| `timestamp(date)` | Unix timestamp of the date in milliseconds | `parseDate("2023-07-10T21:35Z").timestamp()` → `1689024900000` |
 | `dateAdd(date, amount, unit)` | Adds a whole number of units, or a duration | `parseDate("2023-08-30").add(2, "months")` |
 | `dateSubtract(date, amount, unit)` | Subtracts a whole number of units, or a duration | `parseDate("2023-07-10").subtract(1, "years")` |
 | `dateBetween(a, b, unit)` | Difference between two dates as a duration | `dateBetween(end, start, "days").days()` |
@@ -198,6 +199,8 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 | `empty(value)` | True for `0`, `""`, `false`, `[]` and `null` | `empty([])` → `true` |
 | `format(value)` | Converts the value to text; a date becomes an ISO 8601 instant in UTC | `parseDate("2023-07-10").format()` → `"2023-07-10T00:00:00Z"` |
 | `equal(a, b)` | Compares two values like `==`: lists item by item, dates by instant, values of different types are never equal | `[1, [2]].equal([1, [2]])` → `true` |
+| `unequal(a, b)` | The opposite of `equal`, like `!=` | `unequal(1, 2)` → `true` |
+| `toNumber(value)` | Text read as a number, `1` or `0` for a boolean, the timestamp of a date; text that holds no number, blank text included, is an error | `"2".toNumber()` → `2` |
 
 Conditions read a value the same way everywhere — in `if`, in `? :` and in `and`, `or` and `not`: an empty value counts as false and any other value as true. So `not []` is `true`, and `NaN` counts as true, because it is not `0`.
 
