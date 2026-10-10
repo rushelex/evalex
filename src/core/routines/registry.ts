@@ -161,6 +161,7 @@ export class RoutinesRegistry {
       description: definition.description,
       examples: new RoutineExamples(functionName, definition.examples).toFunctionExamples(),
       arguments: signatures,
+      subjectFirst: true,
       volatile: definition.volatile,
       handler: ({ args, visitor, location }) => {
         const [subject, ...rest] = toValues(args!);

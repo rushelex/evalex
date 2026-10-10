@@ -141,6 +141,13 @@ describe('RoutinesRegistry.registerRoutine', () => {
     ));
   });
 
+  it('should report in the function form only the signatures whose subject accepts the first argument', () => {
+    expect(() => evaluate('measure("abc", 10)')).toThrow(Errors.Argument.ExactCount.create(
+      { expected: 1, actual: 2 },
+      { location: loc(0, 18) },
+    ));
+  });
+
   it('should report a wrong subject in the function form as the first argument', () => {
     expect(() => evaluate('textShout(1)')).toThrow(Errors.Argument.TypeMismatch.create(
       { expected: [Kind.String], actual: Kind.Number, argumentPosition: 1 },

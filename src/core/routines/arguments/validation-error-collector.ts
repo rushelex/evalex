@@ -19,11 +19,13 @@ export class ValidationErrorCollector {
   readonly #definitions: ArgumentsDefinitions;
   readonly #errorFactory: ValidationErrorFactory;
   readonly #errorScorer: ErrorScorer;
+  readonly #subjectFirst: boolean;
 
   constructor(definitions: ArgumentsDefinitions, scoring: ArgumentsScoringOptions = {}) {
     this.#definitions = definitions;
     this.#errorFactory = new ValidationErrorFactory();
     this.#errorScorer = new ErrorScorer(definitions, scoring);
+    this.#subjectFirst = scoring.subjectFirst ?? false;
   }
 
   /**
@@ -32,10 +34,11 @@ export class ValidationErrorCollector {
    * @returns The most relevant validation error
    */
   collectBestError(args: ProcessedArguments, globalLocation: AST.Location): FormulaError {
-    const patternErrors = this.collectPatternErrors(args, globalLocation);
+    const patterns = this.#reportedPatterns(args);
+    const patternErrors = patterns.map((pattern) => this.#getPatternValidationError(args, pattern, globalLocation));
 
-    if (this.#definitions.alternatives.length > 1) {
-      const bestError = this.#selectBestError(args, patternErrors);
+    if (patterns.length > 1) {
+      const bestError = this.#selectBestError(args, patterns, patternErrors);
       if (bestError) {
         return bestError;
       }
@@ -123,18 +126,36 @@ export class ValidationErrorCollector {
     }
   }
 
+  // A function form reports what its method form on the subject's type would, since the method has only these signatures
+  #reportedPatterns(args: ProcessedArguments): readonly ArgumentsPattern[] {
+    const [subject] = args;
+
+    if (!this.#subjectFirst || !(subject instanceof ProcessedArgument)) {
+      return this.#definitions.alternatives;
+    }
+
+    const accepting = this.#definitions.alternatives.filter((pattern) => {
+      const argDef = this.#definitions.getArgumentForPattern(0, pattern);
+
+      return argDef !== undefined && !(argDef instanceof CallbackArgument) && this.#isTypeMatch(subject.dataType.kind, argDef.types);
+    });
+
+    return accepting.length > 0 ? accepting : this.#definitions.alternatives;
+  }
+
   /**
    * Selects the best error from multiple pattern errors based on scoring.
    * @param args The processed arguments
-   * @param patternErrors Errors for each pattern
+   * @param patterns The patterns the call is reported against
+   * @param patternErrors Errors for each of the patterns, in the same order
    * @returns The best error or null if no good error found
    */
-  #selectBestError(args: ProcessedArguments, patternErrors: FormulaError[]): FormulaError | null {
+  #selectBestError(args: ProcessedArguments, patterns: readonly ArgumentsPattern[], patternErrors: FormulaError[]): FormulaError | null {
     let bestError: FormulaError | null = null;
     let bestScore = -1;
 
-    for (let i = 0; i < this.#definitions.alternatives.length; i++) {
-      const pattern = this.#definitions.alternatives[i];
+    for (let i = 0; i < patterns.length; i++) {
+      const pattern = patterns[i];
       const error = patternErrors[i];
       const score = this.#errorScorer.calculatePatternScore(args, pattern);
 

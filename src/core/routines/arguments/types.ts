@@ -57,4 +57,6 @@ export type CallArguments<TSignatures extends Signatures>
 export interface ArgumentsScoringOptions {
   /** Arguments before the checked ones that fit every signature, such as a method's subject; they rank as fitting arguments. */
   readonly precedingMatches?: number;
+  /** The first argument is the call subject, so a failed call reports only the signatures that accept its type. */
+  readonly subjectFirst?: boolean;
 }
