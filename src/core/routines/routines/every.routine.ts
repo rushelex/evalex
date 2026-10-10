@@ -1,0 +1,27 @@
+import type { RoutineExampleOptions } from '../routine-example';
+
+import { FormulaBoolean, FormulaNumber, Kind } from '../../data-types';
+import { arg } from '../arguments';
+import { routinesRegistry } from '../registry';
+
+const routineExamples: readonly RoutineExampleOptions[] = [
+  {
+    formula: (name) => name('[1, 2, 3]', 'current > 0'),
+    result: () => new FormulaBoolean(true),
+  },
+  {
+    formula: (name) => name('[]', 'current > 0'),
+    result: () => new FormulaBoolean(true),
+  },
+];
+
+routinesRegistry.registerRoutine('every', {
+  description: 'Returns true if the condition is true for every item in the list.',
+  examples: routineExamples,
+  arguments: [
+    arg.array('list'),
+    arg.eachItem('predicate', { returns: Kind.Boolean }),
+  ],
+  handler: ({ subject, args: [predicate] }) => new FormulaBoolean(subject.value
+    .every((current, index) => predicate.execute({ current, index: new FormulaNumber(index) }).value)),
+});

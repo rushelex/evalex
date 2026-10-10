@@ -4,6 +4,7 @@ import { FormulaDate, FormulaDuration } from '../../data-types';
 import { Errors } from '../../errors';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
+import { expectInteger } from './expect-integer';
 
 const DURATION_UNITS = ['years', 'months', 'weeks', 'days', 'hours', 'minutes', 'seconds'] as const;
 
@@ -23,7 +24,7 @@ routinesRegistry.registerRoutine({ function: 'dateSubtract', method: 'subtract' 
     [
       arg.date('date'),
       arg.number('number', {
-        validation: (number) => (Number.isInteger(number.value) ? undefined : { message: 'Expected integer.', expected: ['integer'], actual: number.value }),
+        validation: expectInteger,
       }),
       arg.choice('unit', DURATION_UNITS),
     ],

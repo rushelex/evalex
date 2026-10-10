@@ -154,6 +154,19 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 | `join(list, separator?)` | Joins the items into text | `["a", "b"].join(", ")` → `"a, b"` |
 | `length(list)` | Number of items | `[3, 1].length()` → `2` |
 | `sum(list)` | Adds the items | `[1, 2, 3].sum()` → `6` |
+| `at(list, index)` | Item at the index; a negative index counts from the end, a missing item is `null` | `[1, 2, 3].at(-1)` → `3` |
+| `first(list)` `last(list)` | First or last item, `null` for an empty list | `[1, 2, 3].last()` → `3` |
+| `slice(list, start, end?)` | Items from `start` up to, not including, `end`; negative indexes count from the end | `["a", "b", "c"].slice(1)` → `["b", "c"]` |
+| `concat(list, ...lists)` | Joins lists into one | `[1, 2].concat([3, 4])` → `[1, 2, 3, 4]` |
+| `reverse(list)` | Items in reverse order | `[1, 2, 3].reverse()` → `[3, 2, 1]` |
+| `flat(list)` | Replaces each nested list with its items, one level deep | `[[1, 2], [3, [4]]].flat()` → `[1, 2, 3, [4]]` |
+| `unique(list)` | Drops items equal, as in `==`, to an earlier item | `[1, 1, 2].unique()` → `[1, 2]` |
+| `includes(list, value)` | Whether some item equals the value, as in `==` | `[1, 2, 3].includes(4)` → `false` |
+| `find(list, condition)` | First item for which the condition is true, `null` if none | `["a", "b"].find(current == "b")` → `"b"` |
+| `findIndex(list, condition)` | Index of that item, `-1` if none | `["a", "b"].findIndex(current == "b")` → `1` |
+| `some(list, condition)` `every(list, condition)` | Whether the condition is true for any item, or for every item; they stop at the first item that settles the answer | `[1, 2, 3].every(current > 0)` → `true` |
+| `count(list, condition?)` | Number of items for which the condition is true; without a condition, the length | `[1, 2, 3].count(current > 1)` → `2` |
+| `sort(list, key?)` | Items in ascending order of `<`, or of the key computed for each item; all must be numbers, all texts or all dates. Equal items keep their order, `NaN` goes last, texts compare by character code (`"B"` before `"a"`) | `["ccc", "a", "bb"].sort(length(current))` → `["a", "bb", "ccc"]` |
 
 ### Dates and durations
 
