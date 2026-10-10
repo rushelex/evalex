@@ -2,6 +2,7 @@ import type { AST } from '../../../parser';
 import type { FormulaError } from '../../errors';
 import type { FormulaEvaluatorVisitor } from '../../evaluator.visitor';
 import type { ArgumentsPattern, ProcessedArguments } from './arguments-definitions';
+import type { ArgumentsScoringOptions } from './types';
 
 import { ArgumentsDefinitions } from './arguments-definitions';
 import { CallbackArgument } from './callback-argument';
@@ -18,10 +19,10 @@ export class ArgumentsProcessor {
   readonly #patternMatcher: PatternMatcher;
   readonly #errorCollector: ValidationErrorCollector;
 
-  constructor(argumentDefinitions: ArgumentsPattern | readonly ArgumentsPattern[]) {
+  constructor(argumentDefinitions: ArgumentsPattern | readonly ArgumentsPattern[], scoring: ArgumentsScoringOptions = {}) {
     this.definitions = new ArgumentsDefinitions(argumentDefinitions);
     this.#patternMatcher = new PatternMatcher(this.definitions);
-    this.#errorCollector = new ValidationErrorCollector(this.definitions);
+    this.#errorCollector = new ValidationErrorCollector(this.definitions, scoring);
   }
 
   /**

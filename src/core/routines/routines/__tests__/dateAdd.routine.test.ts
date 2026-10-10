@@ -124,8 +124,8 @@ describe('"add" method routine', new RoutineTester('add').examples({
     context,
     expected: {
       method: {
-        message: 'Arguments don\'t match. Pattern 1: Expected type Duration.; Pattern 2: Expected at least 2 argument(s).',
-        location: [2, 5],
+        message: 'Expected type Duration.',
+        location: [6, 7],
       },
     },
   },

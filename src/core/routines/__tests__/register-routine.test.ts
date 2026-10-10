@@ -59,6 +59,16 @@ routinesRegistry.registerRoutine('ratio', {
   },
 });
 
+routinesRegistry.registerRoutine('pad', {
+  description: 'Returns the text padded to a width.',
+  examples: [],
+  arguments: [
+    [arg.string('text'), arg.number('width')],
+    [arg.string('text'), arg.number('width'), arg.string('filler')],
+  ],
+  handler: ({ subject, args: [width, filler] }) => new FormulaString(subject.value.padEnd(width.value, filler?.value)),
+});
+
 describe('RoutinesRegistry.registerRoutine', () => {
   it.each([
     { formula: 'half(-2)', location: loc(5, 7), argumentPosition: 1 },
@@ -92,6 +102,16 @@ describe('RoutinesRegistry.registerRoutine', () => {
     { formula: '(6).ratio(0)', location: loc(10, 11) },
   ])('should give the handler the location of each argument: $formula', ({ formula, location }) => {
     expect(() => evaluate(formula)).toThrow(Errors.Arithmetic.DivisionByZero.create({ dividend: 6 }, { location }));
+  });
+
+  it.each([
+    { formula: 'pad("a", "b")', location: loc(9, 12), argumentPosition: 2 },
+    { formula: '"a".pad("b")', location: loc(8, 11), argumentPosition: 1 },
+  ])('should count the subject as a fitting argument when choosing which signature to report: $formula', ({ formula, location, argumentPosition }) => {
+    expect(() => evaluate(formula)).toThrow(Errors.Argument.TypeMismatch.create(
+      { expected: [Kind.Number], actual: Kind.String, argumentPosition },
+      { location },
+    ));
   });
 
   it('should give the method form only to the types the subject accepts', () => {

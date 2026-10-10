@@ -1,5 +1,6 @@
 import type { Argument } from './argument';
 import type { ArgumentsDefinitions, ArgumentsPattern, ProcessedArguments } from './arguments-definitions';
+import type { ArgumentsScoringOptions } from './types';
 
 import { Kind } from '../../data-types';
 
@@ -13,9 +14,11 @@ import { ProcessedArgument } from './processed-argument';
  */
 export class ErrorScorer {
   readonly #definitions: ArgumentsDefinitions;
+  readonly #precedingMatches: number;
 
-  constructor(definitions: ArgumentsDefinitions) {
+  constructor(definitions: ArgumentsDefinitions, { precedingMatches = 0 }: ArgumentsScoringOptions = {}) {
     this.#definitions = definitions;
+    this.#precedingMatches = precedingMatches;
   }
 
   /**
@@ -35,7 +38,7 @@ export class ErrorScorer {
     }
 
     let score = 1;
-    let typeMatches = 0;
+    let typeMatches = this.#precedingMatches;
     let literalFailures = 0;
 
     args.forEach((arg, index) => {
@@ -67,7 +70,7 @@ export class ErrorScorer {
       }
     });
 
-    if (typeMatches === args.length && literalFailures > 0) {
+    if (typeMatches === this.#precedingMatches + args.length && literalFailures > 0) {
       return score + 100;
     }
 

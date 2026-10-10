@@ -154,6 +154,7 @@ export class RoutinesRegistry {
         description: definition.description,
         examples: new RoutineExamples(methodName, definition.examples).toMethodExamples(),
         arguments: ctorSignatures,
+        subjectAccepted: true,
         handler: ({ instance, args, visitor, location }) => {
           validateSubject(subjects, instance, location);
 

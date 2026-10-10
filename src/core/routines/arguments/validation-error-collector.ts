@@ -1,6 +1,7 @@
 import type { AST } from '../../../parser';
 import type { FormulaError } from '../../errors';
 import type { ArgumentsDefinitions, ArgumentsPattern, ProcessedArguments } from './arguments-definitions';
+import type { ArgumentsScoringOptions } from './types';
 
 import { Kind } from '../../data-types';
 
@@ -19,10 +20,10 @@ export class ValidationErrorCollector {
   readonly #errorFactory: ValidationErrorFactory;
   readonly #errorScorer: ErrorScorer;
 
-  constructor(definitions: ArgumentsDefinitions) {
+  constructor(definitions: ArgumentsDefinitions, scoring: ArgumentsScoringOptions = {}) {
     this.#definitions = definitions;
     this.#errorFactory = new ValidationErrorFactory();
-    this.#errorScorer = new ErrorScorer(definitions);
+    this.#errorScorer = new ErrorScorer(definitions, scoring);
   }
 
   /**

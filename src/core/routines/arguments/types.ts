@@ -52,3 +52,9 @@ export type CallArguments<TSignatures extends Signatures>
     : TSignatures extends readonly ArgumentsPattern[]
       ? ArgumentValues<TSignatures[number]>
       : never;
+
+/** How a failed call ranks its signatures to pick the error it reports. */
+export interface ArgumentsScoringOptions {
+  /** Arguments before the checked ones that fit every signature, such as a method's subject; they rank as fitting arguments. */
+  readonly precedingMatches?: number;
+}

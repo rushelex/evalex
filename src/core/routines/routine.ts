@@ -67,6 +67,8 @@ export interface RoutineOptions<TInstance extends Routine | FormulaDataType | un
   readonly description: string;
   readonly examples: RoutineExample[];
   readonly arguments?: ArgumentsPattern | readonly ArgumentsPattern[];
+  /** The routine is a method form whose subject every signature accepts, so a failed call reports the same signature as the function form. */
+  readonly subjectAccepted?: boolean;
   readonly handler: RoutineHandler<TInstance>;
 }
 
@@ -79,7 +81,7 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
   constructor(options: RoutineOptions<TInstance>) {
     this.description = options.description;
     this.examples = options.examples;
-    this.#argumentsProcessor = options.arguments ? new ArgumentsProcessor(options.arguments) : undefined;
+    this.#argumentsProcessor = options.arguments ? new ArgumentsProcessor(options.arguments, { precedingMatches: options.subjectAccepted ? 1 : 0 }) : undefined;
     this.#handler = options.handler;
   }
 

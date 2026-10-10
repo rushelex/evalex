@@ -70,8 +70,8 @@ describe('"subtract" method routine', new RoutineTester('subtract').examples({
     context,
     expected: {
       method: {
-        message: 'Arguments don\'t match. Pattern 1: Expected type Duration.; Pattern 2: Expected at least 2 argument(s).',
-        location: [2, 10],
+        message: 'Expected type Duration.',
+        location: [11, 12],
       },
     },
   },
