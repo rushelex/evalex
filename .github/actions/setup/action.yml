@@ -4,10 +4,9 @@ description: Installs pnpm, Node.js and dependencies from the lockfile
 runs:
   using: composite
   steps:
+    # Reads the pnpm version from devEngines.packageManager in package.json
     - name: Set up pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: 10.32.1
+      uses: pnpm/action-setup@v6
 
     - name: Set up Node.js
       uses: actions/setup-node@v4

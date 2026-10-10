@@ -71,5 +71,12 @@
   },
   "inlinedDependencies": {
     "type-fest": "5.10.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^12.9.0",
+      "onFail": "download"
+    }
   }
 }
