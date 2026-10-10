@@ -203,7 +203,7 @@ All three ship in one package. `core` and `runtime` are re-exported from `evalex
 
 ## Development
 
-You need a current Node.js and pnpm 10.
+You need a current Node.js and pnpm 12.
 
 | Command | What it does |
 | --- | --- |
