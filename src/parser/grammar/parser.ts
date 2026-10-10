@@ -479,6 +479,12 @@ class Parser {
       if (this.#peek() === '\\') {
         const escape = this.#mark();
         this.#advance();
+
+        // A backslash at the very end leaves the text unterminated, with nothing to escape
+        if (this.#isEnd()) {
+          break;
+        }
+
         value += this.#parseEscapeSequence(escape);
       }
       else {

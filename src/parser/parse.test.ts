@@ -861,6 +861,14 @@ describe(parse, () => {
     ])('should reject the malformed escape in $source', ({ source, message }) => {
       expect(() => parse(source)).toThrow(message);
     });
+
+    it.each([
+      { source: '"abc', message: 'Unterminated string. [0,4]' },
+      { source: '"\\', message: 'Unterminated string. [0,2]' },
+      { source: '\'a\\', message: 'Unterminated string. [0,3]' },
+    ])('should point at the whole text of the unterminated string $source', ({ source, message }) => {
+      expect(() => parse(source)).toThrow(message);
+    });
   });
 
   describe('Unicode escape sequences', () => {
