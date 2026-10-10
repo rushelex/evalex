@@ -49,6 +49,22 @@ describe('contains routine', new RoutineTester('contains').examples([
     expected: new FormulaBoolean(true),
   },
   {
+    formula: '"abc".contains(invalid)',
+    context: {
+      invalid: new FormulaRegExp('(', ''),
+    },
+    expected: {
+      function: {
+        message: 'Invalid regular expression: /(/: Unterminated group.',
+        location: [16, 23],
+      },
+      method: {
+        message: 'Invalid regular expression: /(/: Unterminated group.',
+        location: [15, 22],
+      },
+    },
+  },
+  {
     formula: '"Hello".contains("hello", "i")',
     expected: {
       method: {

@@ -1,4 +1,5 @@
 import { FormulaBoolean, FormulaString } from '../../data-types';
+import { getRegExpFallbackError } from '../../errors';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -22,12 +23,17 @@ routinesRegistry.registerRoutine('contains', {
     arg.string('text'),
     arg.pattern('search'),
   ],
-  handler: ({ subject, args: [search] }) => {
+  handler: ({ subject, args: [search], locations, visitor }) => {
     // A string argument is plain text, so regex metacharacters like "." match literally
     if (search instanceof FormulaString) {
       return new FormulaBoolean(subject.value.includes(search.value));
     }
 
-    return new FormulaBoolean(search.toRegExp().test(subject.value));
+    try {
+      return new FormulaBoolean(search.toRegExp().test(subject.value));
+    }
+    catch (error) {
+      throw getRegExpFallbackError(error, locations[0], visitor.formula);
+    }
   },
 });
