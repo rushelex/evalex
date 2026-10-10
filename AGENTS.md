@@ -16,6 +16,12 @@ Rules for working in this repository. Each module under `src/` has its own `AGEN
 - The library runs in browsers. No Node.js built-ins in `src/`, outside tests and benchmarks.
 - No new runtime dependencies without the owner's approval. Development dependencies need approval too.
 
+## Issues
+
+- Before writing any code, check the open GitHub issues (`gh issue list --state open`) for every one that touches the task. There can be several.
+- Compare what each of them asks for with what the task asks for, and with each other. Resolve every difference before writing code; if the right choice isn't clear, ask the owner.
+- A commit says `Fixes #N` in its body for each issue it fully resolves, so pushing it closes them. For an issue it covers only in part, it says `Refs #N`, and that issue stays open.
+
 ## Changes and tests
 
 - Every behavior change comes with tests. A failing case is pinned by a test that was seen failing first.
