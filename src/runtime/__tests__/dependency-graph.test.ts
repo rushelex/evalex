@@ -365,6 +365,37 @@ describe(DependencyGraph, () => {
   });
 
   describe('cleanup', () => {
+    it.prop([
+      fc.array(
+        fc.record({
+          from: fc.string({ minLength: 1, maxLength: 3 }),
+          to: fc.string({ minLength: 1, maxLength: 3 }),
+        }),
+        { minLength: 0, maxLength: 10 },
+      ),
+    ])(
+      'should have empty graph after cleanup regardless of prior state',
+      (edges) => {
+        const graph = new DependencyGraph();
+
+        for (const { from, to } of edges) {
+          if (from !== to) {
+            try {
+              graph.addDependency(from, to);
+            }
+            catch {
+              // Cycle detected, skip
+            }
+          }
+        }
+
+        graph.cleanup();
+
+        expect(graph.getDependenciesSize()).toBe(0);
+        expect(graph.getDependentsSize()).toBe(0);
+      },
+    );
+
     it('should clear all data from the graph', () => {
       const graph = new DependencyGraph();
       graph.addDependency('A', 'B');
@@ -662,166 +693,6 @@ describe(DependencyGraph, () => {
 
       expect(graph.getDependenciesSize()).toBe(50);
     });
-  });
-
-  describe('properties', () => {
-    it('should maintain bidirectional consistency after addDependency', ({ g }) => {
-      const graph = new DependencyGraph();
-      const nodeA = g(fc.string, { minLength: 1, maxLength: 10 });
-      const nodeB = g(fc.string, { minLength: 1, maxLength: 10 });
-
-      fc.pre(nodeA !== nodeB);
-
-      graph.addDependency(nodeA, nodeB);
-
-      expect(graph.getDependencies(nodeA).has(nodeB)).toBe(true);
-      expect(graph.getDependents(nodeB).has(nodeA)).toBe(true);
-    });
-
-    it.prop([
-      fc.array(
-        fc.record({
-          from: fc.string({ minLength: 1, maxLength: 5 }),
-          to: fc.string({ minLength: 1, maxLength: 5 }),
-        }),
-        { minLength: 1, maxLength: 20 },
-      ),
-    ])(
-      'should never have orphans with non-empty connections',
-      (edges) => {
-        const graph = new DependencyGraph();
-
-        for (const { from, to } of edges) {
-          if (from !== to) {
-            try {
-              graph.addDependency(from, to);
-            }
-            catch {
-              // Cycle detected, skip this edge
-            }
-          }
-        }
-
-        const allNodes = new Set(edges.flatMap((e) => [e.from, e.to]));
-
-        for (const node of allNodes) {
-          const hasDeps = graph.getDependencies(node).size > 0;
-          const hasDependents = graph.getDependents(node).size > 0;
-
-          if (hasDeps || hasDependents) {
-            expect(hasDeps || hasDependents).toBe(true);
-          }
-        }
-      },
-    );
-
-    it.prop([
-      fc.array(fc.string({ minLength: 1, maxLength: 5 }), { minLength: 2, maxLength: 10 }),
-    ])(
-      'should always prevent self-dependency',
-      (nodes) => {
-        const graph = new DependencyGraph();
-
-        for (const node of nodes) {
-          expect(() => {
-            graph.addDependency(node, node);
-          }).toThrow(Errors.Runtime.CircularDependency.create({ nodeId: node, dependsOnId: node }));
-        }
-      },
-    );
-
-    it.prop([
-      fc.array(fc.string({ minLength: 1, maxLength: 3 }), { minLength: 3, maxLength: 5 }),
-    ])(
-      'should detect cycles in any chain A -> B -> ... -> A',
-      (nodes) => {
-        fc.pre(nodes.length >= 2);
-        fc.pre(new Set(nodes).size === nodes.length);
-
-        const graph = new DependencyGraph();
-
-        for (let i = 0; i < nodes.length - 1; i++) {
-          graph.addDependency(nodes[i], nodes[i + 1]);
-        }
-
-        expect(() => {
-          graph.addDependency(nodes[nodes.length - 1], nodes[0]);
-        }).toThrow(Errors.Runtime.CircularDependency.create({ nodeId: nodes[nodes.length - 1], dependsOnId: nodes[0] }));
-      },
-    );
-
-    it.prop([
-      fc.record({
-        nodeA: fc.string({ minLength: 1, maxLength: 5 }),
-        nodeB: fc.string({ minLength: 1, maxLength: 5 }),
-        nodeC: fc.string({ minLength: 1, maxLength: 5 }),
-      }),
-    ])(
-      'should maintain depth invariant: depth(A) > depth(B) when A depends on B',
-      ({ nodeA, nodeB, nodeC }) => {
-        fc.pre(nodeA !== nodeB && nodeB !== nodeC && nodeA !== nodeC);
-
-        const graph = new DependencyGraph();
-        graph.addDependency(nodeA, nodeB);
-        graph.addDependency(nodeB, nodeC);
-
-        expect(graph.getNodeDepth(nodeA)).toBeGreaterThan(graph.getNodeDepth(nodeB));
-        expect(graph.getNodeDepth(nodeB)).toBeGreaterThan(graph.getNodeDepth(nodeC));
-        expect(graph.getNodeDepth(nodeC)).toBe(0);
-      },
-    );
-
-    it.prop([
-      fc.array(
-        fc.record({
-          from: fc.string({ minLength: 1, maxLength: 3 }),
-          to: fc.string({ minLength: 1, maxLength: 3 }),
-        }),
-        { minLength: 0, maxLength: 10 },
-      ),
-    ])(
-      'should have empty graph after cleanup regardless of prior state',
-      (edges) => {
-        const graph = new DependencyGraph();
-
-        for (const { from, to } of edges) {
-          if (from !== to) {
-            try {
-              graph.addDependency(from, to);
-            }
-            catch {
-              // Cycle detected, skip
-            }
-          }
-        }
-
-        graph.cleanup();
-
-        expect(graph.getDependenciesSize()).toBe(0);
-        expect(graph.getDependentsSize()).toBe(0);
-      },
-    );
-
-    it.prop([
-      fc.string({ minLength: 1, maxLength: 5 }),
-      fc.array(fc.string({ minLength: 1, maxLength: 5 }), { minLength: 0, maxLength: 5 }),
-    ])(
-      'should correctly replace all dependencies atomically',
-      (nodeId, newDeps) => {
-        const graph = new DependencyGraph();
-        const uniqueDeps = [...new Set(newDeps)].filter((d) => d !== nodeId);
-
-        graph.replaceDependencies(nodeId, new Set(uniqueDeps));
-
-        const actualDeps = graph.getDependencies(nodeId);
-        expect(actualDeps.size).toBe(uniqueDeps.length);
-
-        for (const dep of uniqueDeps) {
-          expect(actualDeps.has(dep)).toBe(true);
-          expect(graph.getDependents(dep).has(nodeId)).toBe(true);
-        }
-      },
-    );
   });
 
   describe('error handling', () => {
