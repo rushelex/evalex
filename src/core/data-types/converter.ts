@@ -63,7 +63,8 @@ export function convertValueToFormulaType(value: any, visited: WeakSet<object> =
     }
 
     visited.add(value);
-    const convertedItems = value.map((item) => convertValueToFormulaType(item, visited));
+    // `Array.from` visits holes of a sparse list as `undefined`, which `map` skips.
+    const convertedItems = Array.from(value, (item) => convertValueToFormulaType(item, visited));
     visited.delete(value);
 
     return new FormulaArray(convertedItems);
