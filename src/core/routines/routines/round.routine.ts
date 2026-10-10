@@ -3,6 +3,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 import { FormulaNumber } from '../../data-types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
+import { expectInteger } from './expect-integer';
 
 const routineExamples: readonly RoutineExampleOptions[] = [
   {
@@ -26,7 +27,7 @@ routinesRegistry.registerRoutine('round', {
     arg.number('number'),
     arg.number('places', {
       optional: true,
-      validation: (places) => (Number.isInteger(places.value) ? undefined : { message: 'Expected integer.', expected: ['integer'], actual: places.value }),
+      validation: expectInteger,
     }),
   ],
   handler: ({ subject, args: [places] }) => FormulaNumber.from(round(subject.value, places?.value ?? 0)),

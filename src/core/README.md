@@ -154,6 +154,12 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 | `join(list, separator?)` | Joins the items into text | `["a", "b"].join(", ")` → `"a, b"` |
 | `length(list)` | Number of items | `[3, 1].length()` → `2` |
 | `sum(list)` | Adds the items | `[1, 2, 3].sum()` → `6` |
+| `at(list, index)` | Item at the index; a negative index counts from the end, a missing item is `null` | `[1, 2, 3].at(-1)` → `3` |
+| `first(list)` `last(list)` | First or last item, `null` for an empty list | `[1, 2, 3].last()` → `3` |
+| `slice(list, start, end?)` | Items from `start` up to, not including, `end`; negative indexes count from the end | `["a", "b", "c"].slice(1)` → `["b", "c"]` |
+| `concat(list, ...lists)` | Joins lists into one | `[1, 2].concat([3, 4])` → `[1, 2, 3, 4]` |
+| `reverse(list)` | Items in reverse order | `[1, 2, 3].reverse()` → `[3, 2, 1]` |
+| `flat(list)` | Replaces each nested list with its items, one level deep | `[[1, 2], [3, [4]]].flat()` → `[1, 2, 3, [4]]` |
 
 ### Dates and durations
 
