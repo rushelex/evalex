@@ -162,6 +162,10 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 | `flat(list)` | Replaces each nested list with its items, one level deep | `[[1, 2], [3, [4]]].flat()` → `[1, 2, 3, [4]]` |
 | `unique(list)` | Drops items equal, as in `==`, to an earlier item | `[1, 1, 2].unique()` → `[1, 2]` |
 | `includes(list, value)` | Whether some item equals the value, as in `==` | `[1, 2, 3].includes(4)` → `false` |
+| `find(list, condition)` | First item for which the condition is true, `null` if none | `["a", "b"].find(current == "b")` → `"b"` |
+| `findIndex(list, condition)` | Index of that item, `-1` if none | `["a", "b"].findIndex(current == "b")` → `1` |
+| `some(list, condition)` `every(list, condition)` | Whether the condition is true for any item, or for every item; they stop at the first item that settles the answer | `[1, 2, 3].every(current > 0)` → `true` |
+| `count(list, condition?)` | Number of items for which the condition is true; without a condition, the length | `[1, 2, 3].count(current > 1)` → `2` |
 
 ### Dates and durations
 
