@@ -30,7 +30,7 @@ describe('"dateSubtract" function routine', new RoutineTester('dateSubtract').ex
     context,
     expected: {
       function: {
-        message: 'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".',
+        message: 'Expected "years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds".',
         location: [19, 27],
       },
     },
@@ -80,7 +80,7 @@ describe('"subtract" method routine', new RoutineTester('subtract').examples({
     context,
     expected: {
       method: {
-        message: 'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".',
+        message: 'Expected "years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds".',
         location: [14, 22],
       },
     },

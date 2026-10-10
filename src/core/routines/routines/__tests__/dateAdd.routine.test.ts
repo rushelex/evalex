@@ -46,7 +46,7 @@ describe('"dateAdd" function routine', new RoutineTester('dateAdd').examples({
     formula: 'dateAdd(parseDate("2025-08-23"), 1, "hour")',
     expected: {
       function: {
-        message: 'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".',
+        message: 'Expected "years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds".',
         location: [36, 42],
       },
     },
@@ -89,7 +89,7 @@ describe('"add" method routine', new RoutineTester('add').examples({
     formula: 'parseDate("2025-08-23").add(1, "hour")',
     expected: {
       method: {
-        message: 'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".',
+        message: 'Expected "years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds".',
         location: [31, 37],
       },
     },
@@ -134,7 +134,7 @@ describe('"add" method routine', new RoutineTester('add').examples({
     context,
     expected: {
       method: {
-        message: 'Expected "years", "months", "weeks", "days", "hours", "minutes", "seconds".',
+        message: 'Expected "years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds".',
         location: [9, 17],
       },
     },
