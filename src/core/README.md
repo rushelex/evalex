@@ -59,7 +59,7 @@ expression.evaluate({
 // Set { 'flag', 'b' }
 ```
 
-Neither set includes function names or the names a callback introduces. Inside a callback, `current` and `index` shadow context variables with the same names:
+Neither set includes function names, the names a callback introduces or the names a `let` declares. Inside a callback, `current` and `index` shadow context variables with the same names:
 
 ```ts
 new Expression('current + items.map(current * index * price).sum()').extractDependencies();
@@ -68,6 +68,24 @@ new Expression('current + items.map(current * index * price).sum()').extractDepe
 
 > [!TIP]
 > Use static dependencies to validate a formula before saving it, and runtime dependencies to decide what to recalculate.
+
+### Names with `let`
+
+`let` names a value once and reuses it, anywhere an expression can stand, callbacks included:
+
+```ts
+new Expression(`
+  orders.map(
+    let
+      net = current.price() * current.qty(),
+      tax = net * rate
+    in net + tax
+  )
+`).extractDependencies();
+// Set { 'orders', 'rate' }
+```
+
+Each value is computed once, in order, even if the body does not read it; inside a callback it is computed for every item, and inside a branch that is not taken it is not computed at all. A declared name hides a context variable or an outer name with the same name. The parser's README lists the syntax rules.
 
 ## Data types
 

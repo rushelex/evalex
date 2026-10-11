@@ -4,6 +4,7 @@ import type {
   ICallExpressionNode,
   IConditionalExpressionNode,
   IIdentifierNode,
+  ILetExpressionNode,
   ILiteralNode,
   IMemberExpressionNode,
   IUnaryExpressionNode,
@@ -18,4 +19,5 @@ export interface IVisitor<T> {
   visitMemberExpressionNode: (node: IMemberExpressionNode) => T;
   visitConditionalExpressionNode: (node: IConditionalExpressionNode) => T;
   visitArrayExpressionNode: (node: IArrayExpressionNode) => T;
+  visitLetExpressionNode: (node: ILetExpressionNode) => T;
 }

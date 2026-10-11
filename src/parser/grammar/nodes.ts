@@ -5,6 +5,8 @@ import type {
   ICallExpressionNode,
   IConditionalExpressionNode,
   IIdentifierNode,
+  ILetDeclaration,
+  ILetExpressionNode,
   ILiteralNode,
   IMemberExpressionNode,
   IUnaryExpressionNode,
@@ -183,5 +185,26 @@ export class ArrayExpressionNode implements IArrayExpressionNode {
 
   accept<T>(visitor: IVisitor<T>): T {
     return visitor.visitArrayExpressionNode(this);
+  }
+}
+
+export class LetExpressionNode implements ILetExpressionNode {
+  type = 'LetExpression' as const;
+  declarations: ILetDeclaration[];
+  body: AstNode;
+  location: Location;
+
+  constructor(
+    declarations: ILetDeclaration[],
+    body: AstNode,
+    location: Location,
+  ) {
+    this.declarations = declarations;
+    this.body = body;
+    this.location = location;
+  }
+
+  accept<T>(visitor: IVisitor<T>): T {
+    return visitor.visitLetExpressionNode(this);
   }
 }

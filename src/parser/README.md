@@ -43,12 +43,22 @@ parse('price * 2');
 | Unary | `-a`, `!a`, `not a` | `UnaryExpression` |
 | Binary | `a + b`, `a and b`, … | `BinaryExpression` |
 | Ternary | `test ? a : b` | `ConditionalExpression` |
+| Names | `let a = 1, b = a + 1 in a + b` | `LetExpression` |
 
 Whitespace, including line breaks, is allowed between any two tokens. Empty input parses to a `null` literal.
 
 A member must be called: `user.name()` is valid, `user.name` is a syntax error. Object fields are exposed as methods by `core`, so this keeps one syntax for both.
 
 A dot after a number ends the number, as in JavaScript, unless a name follows it: `5.` and `5..round()` are the number 5, while `5.round()` and `5. round()` call `round` on 5. So `1.e3` is a call of `e3`, not the number 1000; write `1e3` or `1.0e3`.
+
+### Names with `let`
+
+`let` declares names for the expression after `in`. It can start any expression, so it also works as a call argument or inside a callback, and the body reaches as far as an expression can: `let a = 1 in a ? 2 : 3` has the whole conditional as its body.
+
+- Each value sees the names declared before it, and the body sees them all. Reading a name in its own value or an earlier one is an error: `let a = b, b = 1 in a`. This holds even when an outer name or a host variable has the same name, as with `let` in JavaScript.
+- A name cannot be declared twice in one `let`, and keywords, `let` and `const` are not names. An inner `let` may reuse an outer name and hides it until its body ends.
+- A bare `in` inside a value or the body ends that part, so membership there goes in parentheses: `let found = (key in obj) in found`. Inside brackets, call arguments and the middle of `? :` it is the operator again. A bare `in` right after a body that no outer `let` can take is an error with this hint.
+- `let` followed by a name starts a declaration. Otherwise it is an ordinary identifier, so `let + 1`, `let or x` and `let(x)` read a variable or function called `let`. `const` followed by a name is reserved and is an error.
 
 ### Regular expression literals
 
@@ -90,6 +100,7 @@ Every node carries `type` and `location`, and implements `accept(visitor)`. Type
 | `MemberExpression` | `object`, `property: Identifier`, `computed: false` |
 | `ConditionalExpression` | `test`, `consequent`, `alternate` |
 | `ArrayExpression` | `elements` |
+| `LetExpression` | `declarations: { name: Identifier, value, location }[]`, `body` |
 
 `location` holds `start` and `end`, each with a zero-based `offset` and one-based `line` and `column`. In a method chain such as `a.b().c()`, every call and member node shares one span, from the start of `a` to the final closing parenthesis.
 

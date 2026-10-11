@@ -1,5 +1,5 @@
 /* eslint-disable jsdoc/no-multi-asterisks */
-import type { AstNode, Location } from '../ast';
+import type { AstNode, ILetDeclaration, Location } from '../ast';
 
 import {
   ArrayExpressionNode,
@@ -7,6 +7,7 @@ import {
   CallExpressionNode,
   ConditionalExpressionNode,
   IdentifierNode,
+  LetExpressionNode,
   LiteralNode,
   MemberExpressionNode,
   UnaryExpressionNode,
@@ -77,6 +78,19 @@ interface OpInfo {
 type Suffix
   = | { readonly type: 'MemberCall'; readonly property: IdentifierNode; readonly args: AstNode[] }
     | { readonly type: 'DirectCall'; readonly args: AstNode[] };
+
+/**
+ * Names of one `let` while it is parsed, to reject a name used before its declaration.
+ *
+ * - `names` — each declared name with its position in the list
+ * - `current` — position of the declaration whose value is being parsed; `Infinity` once the body starts
+ * - `references` — names read while the list is open before this `let` declared them
+ */
+interface LetScope {
+  readonly names: Map<string, number>;
+  current: number;
+  readonly references: { readonly name: string; readonly location: Location }[];
+}
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
@@ -158,6 +172,9 @@ class Parser {
   #pos = 0;
   #line = 1;
   #column = 1;
+  // Inside the value or body of `let`, a bare `in` ends that part; brackets and parentheses lift this again.
+  #noIn = false;
+  readonly #letScopes: LetScope[] = [];
 
   constructor(input: string) {
     this.#input = input;
@@ -224,7 +241,7 @@ class Parser {
       if (this.#peek() === '?' && minBp < 1) {
         this.#advance();
         this.#skipWhitespace();
-        const consequent = this.#parseExpr(0);
+        const consequent = this.#withNoIn(false, () => this.#parseExpr(0));
         this.#skipWhitespace();
         if (this.#peek() !== ':') {
           const m = this.#mark();
@@ -297,7 +314,152 @@ class Parser {
       const arg = this.#parseExpr(PREFIX_BP);
       return new UnaryExpressionNode('not', arg, true, this.#loc(s));
     }
+    if (this.#isDeclarationAhead('const')) {
+      this.#consumeKeyword('const');
+      this.#fail('"const" is reserved; declare names with "let".', this.#loc(s));
+    }
+    if (this.#isDeclarationAhead('let')) {
+      return this.#parseLet();
+    }
     return this.#parseAtom();
+  }
+
+  // ── let ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Parses `let a = 1, b = a + 1 in body`.
+   *
+   * Each value sees the names declared before it, and the body sees them all. A bare `in` inside a value
+   * or the body ends that part, so membership there needs parentheses: `let found = (key in obj) in found`.
+   */
+  #parseLet(): LetExpressionNode {
+    const start = this.#mark();
+    const outerNoIn = this.#noIn;
+    const scope: LetScope = { names: new Map(), current: 0, references: [] };
+    const declarations: ILetDeclaration[] = [];
+
+    this.#consumeKeyword('let');
+    this.#letScopes.push(scope);
+
+    try {
+      do {
+        this.#skipWhitespace();
+        const name = this.#parseDeclaredName(scope);
+
+        this.#skipWhitespace();
+
+        if (this.#peek() !== '=' || this.#peekAt(1) === '=') {
+          const m = this.#mark();
+          this.#fail(`Expected "=" after "${name.name}".`, this.#loc(m));
+        }
+
+        this.#advance();
+        this.#skipWhitespace();
+
+        const value = this.#withNoIn(true, () => this.#parseExpr(0));
+
+        declarations.push({ name, value, location: this.#loc(name.location.start, value.location.end) });
+        this.#skipWhitespace();
+      } while (this.#consumeChar(','));
+
+      if (!this.#consumeKeyword('in')) {
+        const m = this.#mark();
+        this.#fail('Expected "," or "in".', this.#loc(m));
+      }
+
+      this.#rejectForwardReferences(scope);
+      scope.current = Number.POSITIVE_INFINITY;
+      this.#skipWhitespace();
+
+      const body = this.#withNoIn(true, () => this.#parseExpr(0));
+
+      if (!outerNoIn) {
+        this.#rejectBareIn();
+      }
+
+      return new LetExpressionNode(declarations, body, this.#loc(start, body.location.end));
+    }
+    finally {
+      this.#letScopes.pop();
+    }
+  }
+
+  /** Parses the name of a `let` declaration and adds it to the scope. */
+  #parseDeclaredName(scope: LetScope): IdentifierNode {
+    const s = this.#mark();
+
+    if (!this.#isIdStart(this.#peek())) {
+      this.#fail('Expected a variable name.', this.#loc(s));
+    }
+
+    const word = this.#readWord();
+    const location = this.#loc(s);
+
+    if (KEYWORDS.has(word) || word === 'let' || word === 'const') {
+      this.#fail(`"${word}" cannot be a variable name.`, location);
+    }
+
+    if (scope.names.has(word)) {
+      this.#fail(`Variable "${word}" is already declared in this "let".`, location);
+    }
+
+    scope.current = scope.names.size;
+    scope.names.set(word, scope.current);
+
+    return new IdentifierNode(word, location);
+  }
+
+  /** Checks a variable read against the open `let` lists: its own or a later declaration is not available yet. */
+  #resolveReference(node: IdentifierNode): void {
+    for (const scope of this.#letScopes.toReversed()) {
+      const declaration = scope.names.get(node.name);
+
+      if (declaration !== undefined && declaration < scope.current) {
+        return;
+      }
+
+      if (declaration !== undefined) {
+        this.#fail(`Variable "${node.name}" is used before its declaration.`, node.location);
+      }
+
+      scope.references.push({ name: node.name, location: node.location });
+    }
+  }
+
+  /** Rejects a name that a value read before this `let` declared it. */
+  #rejectForwardReferences(scope: LetScope): void {
+    const early = scope.references.find(({ name }) => scope.names.has(name));
+
+    if (early) {
+      this.#fail(`Variable "${early.name}" is used before its declaration.`, early.location);
+    }
+  }
+
+  /** Rejects `in` right after a `let` body, where no enclosing `let` list can take it. */
+  #rejectBareIn(): void {
+    const saved = this.#save();
+    this.#skipWhitespace();
+
+    if (this.#isKeywordAhead('in')) {
+      const s = this.#mark();
+      this.#consumeKeyword('in');
+      this.#fail('Put "in" inside a "let" body in parentheses: "(a in b)".', this.#loc(s));
+    }
+
+    this.#restore(saved);
+  }
+
+  /** Parses with `in` read as an operator or as the end of a `let` part, then restores the previous reading. */
+  #withNoIn<T>(noIn: boolean, parse: () => T): T {
+    const outer = this.#noIn;
+    this.#noIn = noIn;
+
+    try {
+      return parse();
+    }
+    finally {
+      this.#noIn = outer;
+    }
   }
 
   // ── Postfix: call/member suffixes ───────────────────────────────────────
@@ -326,6 +488,10 @@ class Parser {
       }
       this.#restore(saved);
       break;
+    }
+    // A name called directly is a function, not a variable
+    if (head instanceof IdentifierNode && suffixes[0]?.type !== 'DirectCall') {
+      this.#resolveReference(head);
     }
     if (suffixes.length === 0) {
       return head;
@@ -704,7 +870,7 @@ class Parser {
       this.#advance();
       this.#fail('Empty parentheses "()" are not a valid expression.', this.#loc(lp));
     }
-    const expr = this.#parseExpr(0);
+    const expr = this.#withNoIn(false, () => this.#parseExpr(0));
     this.#skipWhitespace();
     if (this.#peek() !== ')') {
       const m = this.#mark();
@@ -739,7 +905,7 @@ class Parser {
     if (this.#peek() === ')' || this.#peek() === ']' || this.#isEnd()) {
       return [];
     }
-    const args: AstNode[] = [this.#parseExpr(0)];
+    const args: AstNode[] = [this.#withNoIn(false, () => this.#parseExpr(0))];
     while (true) {
       this.#skipWhitespace();
       if (this.#peek() !== ',') {
@@ -755,7 +921,7 @@ class Parser {
           { start: commaStart, end: commaEnd },
         );
       }
-      args.push(this.#parseExpr(0));
+      args.push(this.#withNoIn(false, () => this.#parseExpr(0)));
     }
     return args;
   }
@@ -824,7 +990,7 @@ class Parser {
     if (this.#isKeywordAhead('and')) {
       return { text: 'and', lbp: 5, rbp: 5 };
     }
-    if (this.#isKeywordAhead('in')) {
+    if (!this.#noIn && this.#isKeywordAhead('in')) {
       return { text: 'in', lbp: 7, rbp: 7 };
     }
     return null;
@@ -958,6 +1124,32 @@ class Parser {
     for (let i = 0; i < kw.length; i++) {
       this.#advance();
     }
+    return true;
+  }
+
+  /** Checks for `word` followed by a name, which starts a declaration rather than reading a variable called `word`. */
+  #isDeclarationAhead(word: string): boolean {
+    if (!this.#isKeywordAhead(word)) {
+      return false;
+    }
+
+    const saved = this.#save();
+    this.#consumeKeyword(word);
+    this.#skipWhitespace();
+
+    const next = this.#isIdStart(this.#peek()) ? this.#readWord() : '';
+    this.#restore(saved);
+
+    // `let or x`, `let and x` and `let in x` read a variable called `let`
+    return next !== '' && next !== 'or' && next !== 'and' && next !== 'in';
+  }
+
+  /** Consumes the character if it is next. Returns `true` on success. */
+  #consumeChar(c: string): boolean {
+    if (this.#peek() !== c) {
+      return false;
+    }
+    this.#advance();
     return true;
   }
 

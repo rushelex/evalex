@@ -21,6 +21,9 @@ const PREFIX_OPERATORS = ['-', '!', 'not'];
 
 const WHITESPACE = [' ', '  ', '\n', '\t', '\r\n'];
 
+// Names a `let` declares; none of them is in IDENTIFIERS, so a generated value never reads a name too early.
+const DECLARED_NAMES = ['x', 'total'];
+
 const PUNCTUATION = ['(', ')', '[', ']', ',', '.', '?', ':', '"', '\'', '\\', '/', '=', '!', '&', '|', '<', '>', '\n', ' '];
 
 // Token lists of well-formed formulas; every compound operand is parenthesized, so the tree follows the token order.
@@ -34,6 +37,7 @@ const { expression: formulaTokens } = fc.letrec<FormulaArbitraries>((tie) => ({
     fc.tuple(fc.constantFrom(...IDENTIFIERS), fc.array(tie('expression'), { maxLength: 3 })).map(([name, args]) => [name, '(', ...commaSeparated(args), ')']),
     fc.tuple(tie('expression'), fc.constantFrom(...IDENTIFIERS), fc.array(tie('expression'), { maxLength: 3 })).map(([object, name, args]) => [...group(object), '.', name, '(', ...commaSeparated(args), ')']),
     fc.array(tie('expression'), { maxLength: 3 }).map((elements) => ['[', ...commaSeparated(elements), ']']),
+    fc.tuple(fc.constantFrom(...DECLARED_NAMES), tie('expression'), tie('expression')).map(([name, value, body]) => ['let', name, '=', ...group(value), 'in', ...group(body)]),
   ),
 }));
 
@@ -42,7 +46,7 @@ const spacedFormula = formulaTokens.chain((tokens) => fc.array(fc.constantFrom(.
 
 const anyText = fc.oneof(
   fc.string({ unit: 'binary' }),
-  fc.array(fc.constantFrom(...ATOMS, ...BINARY_OPERATORS, ...PREFIX_OPERATORS, ...PUNCTUATION), { maxLength: 12 }).map((tokens) => tokens.join('')),
+  fc.array(fc.constantFrom(...ATOMS, ...BINARY_OPERATORS, ...PREFIX_OPERATORS, ...PUNCTUATION, 'let ', 'const ', ' in '), { maxLength: 12 }).map((tokens) => tokens.join('')),
   spacedFormula.map(({ formula }) => formula),
 );
 
@@ -980,6 +984,99 @@ describe(parse, () => {
     });
   });
 
+  describe('Let expressions', () => {
+    it('should parse names, their values and the body with exact locations', () => {
+      expect(parse('let a = 1, b = a in a + b')).toEqual({
+        type: 'LetExpression',
+        declarations: [
+          {
+            name: { type: 'Identifier', name: 'a', location: createLocation(4, 5) },
+            value: { type: 'Literal', value: 1, raw: '1', location: createLocation(8, 9) },
+            location: createLocation(4, 9),
+          },
+          {
+            name: { type: 'Identifier', name: 'b', location: createLocation(11, 12) },
+            value: { type: 'Identifier', name: 'a', location: createLocation(15, 16) },
+            location: createLocation(11, 16),
+          },
+        ],
+        body: {
+          type: 'BinaryExpression',
+          operator: '+',
+          left: { type: 'Identifier', name: 'a', location: createLocation(20, 21) },
+          right: { type: 'Identifier', name: 'b', location: createLocation(24, 25) },
+          location: createLocation(20, 25),
+        },
+        location: createLocation(0, 25),
+      });
+    });
+
+    it('should extend the body as far as the expression goes', () => {
+      expect(withoutPositions(parse('let a = 1 in a ? b : c'))).toEqual(withoutPositions(parse('let a = 1 in (a ? b : c)')));
+    });
+
+    it('should parse a let as a call argument, with the commas around it separating arguments', () => {
+      expect(withoutPositions(parse('f(let a = 1 in a, 2)'))).toEqual({
+        type: 'CallExpression',
+        callee: { type: 'Identifier', name: 'f' },
+        args: [
+          withoutPositions(parse('let a = 1 in a')),
+          { type: 'Literal', value: 2 },
+        ],
+      });
+    });
+
+    it('should end the inner body at the "in" that ends the outer list', () => {
+      expect(withoutPositions(parse('let a = let b = 1 in b in a'))).toEqual({
+        type: 'LetExpression',
+        declarations: [{ name: { type: 'Identifier', name: 'a' }, value: withoutPositions(parse('let b = 1 in b')) }],
+        body: { type: 'Identifier', name: 'a' },
+      });
+    });
+
+    it.each([
+      { formula: 'let a = (k in o) in a', part: 'parentheses' },
+      { formula: 'let a = has(k in o) in a', part: 'call arguments' },
+      { formula: 'let a = [k in o] in a', part: 'a list' },
+      { formula: 'let a = c ? k in o : 1 in a', part: 'the middle of "? :"' },
+    ])('should read "in" in $part inside a value as the operator', ({ formula }) => {
+      expect(JSON.stringify(withoutPositions(parse(formula)))).toContain('"operator":"in"');
+    });
+
+    it.each([
+      { formula: 'let + 1', expected: { type: 'BinaryExpression', operator: '+', left: { type: 'Identifier', name: 'let' }, right: { type: 'Literal', value: 1 } } },
+      { formula: 'let or x', expected: { type: 'BinaryExpression', operator: 'or', left: { type: 'Identifier', name: 'let' }, right: { type: 'Identifier', name: 'x' } } },
+      { formula: 'let in x', expected: { type: 'BinaryExpression', operator: 'in', left: { type: 'Identifier', name: 'let' }, right: { type: 'Identifier', name: 'x' } } },
+      { formula: 'let(x)', expected: { type: 'CallExpression', callee: { type: 'Identifier', name: 'let' }, args: [{ type: 'Identifier', name: 'x' }] } },
+      { formula: 'const', expected: { type: 'Identifier', name: 'const' } },
+    ])('should read "$formula" without a declaration, as before', ({ formula, expected }) => {
+      expect(withoutPositions(parse(formula))).toEqual(expected);
+    });
+
+    it('should let a declared name match a function name', () => {
+      expect(() => parse('let sum = sum([1]) in sum')).not.toThrow();
+    });
+
+    it.each([
+      { formula: 'let a = 1 in a in b', error: 'Put "in" inside a "let" body in parentheses: "(a in b)". [15,17]' },
+      { formula: 'let a 1 in a', error: 'Expected "=" after "a". [6,6]' },
+      { formula: 'let a == 1 in a', error: 'Expected "=" after "a". [6,6]' },
+      { formula: 'let a = 1', error: 'Expected "," or "in". [9,9]' },
+      { formula: 'let a = 1; a', error: 'Expected "," or "in". [9,9]' },
+      { formula: 'let a = 1, in a', error: '"in" cannot be a variable name. [11,13]' },
+      { formula: 'let true = 1 in 1', error: '"true" cannot be a variable name. [4,8]' },
+      { formula: 'let let = 1 in 1', error: '"let" cannot be a variable name. [4,7]' },
+      { formula: 'let a = 1, a = 2 in a', error: 'Variable "a" is already declared in this "let". [11,12]' },
+      { formula: 'let a = a in a', error: 'Variable "a" is used before its declaration. [8,9]' },
+      { formula: 'let a = b, b = 1 in a', error: 'Variable "b" is used before its declaration. [8,9]' },
+      { formula: 'let a = f(b.g()), b = 1 in a', error: 'Variable "b" is used before its declaration. [10,11]' },
+      { formula: 'let b = 1 in let a = b, b = 2 in a', error: 'Variable "b" is used before its declaration. [21,22]' },
+      { formula: 'const x = 1 in x', error: '"const" is reserved; declare names with "let". [0,5]' },
+    ])('should reject "$formula"', ({ formula, error }) => {
+      expect(() => parse(formula)).toThrow(error);
+    });
+  });
+
   describe('Syntax Errors', () => {
     it('should throw SyntaxError for an incomplete expression', () => {
       expect(() => {
@@ -1105,6 +1202,8 @@ function childrenOf(node: AstNode): AstNode[] {
       return [node.test, node.consequent, node.alternate];
     case 'ArrayExpression':
       return node.elements;
+    case 'LetExpression':
+      return [...node.declarations.flatMap(({ name, value }) => [name, value]), node.body];
     case 'Identifier':
     case 'Literal':
       return [];

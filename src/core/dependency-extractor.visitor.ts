@@ -6,7 +6,7 @@ import { routinesRegistry } from './routines/registry';
 export class DependencyExtractorVisitor implements AST.IVisitor<void> {
   #dependencies = new Set<string>();
   #volatile = false;
-  // Names introduced by the enclosing callbacks, innermost last.
+  // Names introduced by the enclosing callbacks and `let` expressions, innermost last.
   readonly #callbackScopes: ReadonlySet<string>[] = [];
 
   static getDependencies(node: AST.AstNode): ReadonlySet<string> {
@@ -87,6 +87,18 @@ export class DependencyExtractorVisitor implements AST.IVisitor<void> {
     for (const element of node.elements) {
       element.accept(this);
     }
+  }
+
+  // The parser rejects a value that reads its own or a later name, so every value can see all the names
+  visitLetExpressionNode(node: AST.ILetExpressionNode): void {
+    this.#callbackScopes.push(new Set(node.declarations.map(({ name }) => name.name)));
+
+    for (const { value } of node.declarations) {
+      value.accept(this);
+    }
+
+    node.body.accept(this);
+    this.#callbackScopes.pop();
   }
 }
 

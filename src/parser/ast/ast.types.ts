@@ -12,7 +12,8 @@ export type AstNode
     | ICallExpressionNode
     | IMemberExpressionNode
     | IConditionalExpressionNode
-    | IArrayExpressionNode;
+    | IArrayExpressionNode
+    | ILetExpressionNode;
 
 export interface Location {
   start: { offset: number; line: number; column: number };
@@ -74,5 +75,20 @@ export interface IConditionalExpressionNode extends IVisitable {
 export interface IArrayExpressionNode extends IVisitable {
   type: 'ArrayExpression';
   elements: AstNode[];
+  location: Location;
+}
+
+/** One `name = value` pair of a `let` expression. */
+export interface ILetDeclaration {
+  name: IIdentifierNode;
+  value: AstNode;
+  location: Location;
+}
+
+/** `let a = 1, b = a + 1 in a + b`: names visible to the later values and to the body. */
+export interface ILetExpressionNode extends IVisitable {
+  type: 'LetExpression';
+  declarations: ILetDeclaration[];
+  body: AstNode;
   location: Location;
 }

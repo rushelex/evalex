@@ -53,22 +53,16 @@ export class FormulaEvaluationContext {
    * Retrieves a variable by its name from the current or any parent scope.
    */
   getVariable(name: string): FormulaDataType | undefined {
-    // First search in the local scope (variables may override properties)
+    // Local scopes from the innermost out, so a formula's own names hide the host's properties
     if (this.#localScope.has(name)) {
       return this.#localScope.get(name);
     }
 
-    // Then in the global properties of the current context
-    if (this.#globalProperties.has(name)) {
-      return this.#globalProperties.get(name);
-    }
-
-    // If there is a parent context, delegate to it
     if (this.#parentContext) {
       return this.#parentContext.getVariable(name);
     }
 
-    return undefined;
+    return this.#globalProperties.get(name);
   }
 
   /**
@@ -77,10 +71,6 @@ export class FormulaEvaluationContext {
   isLocalVariable(name: string): boolean {
     if (this.#localScope.has(name)) {
       return true;
-    }
-
-    if (this.#globalProperties.has(name)) {
-      return false;
     }
 
     return this.#parentContext?.isLocalVariable(name) ?? false;

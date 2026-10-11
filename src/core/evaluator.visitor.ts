@@ -296,6 +296,17 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
 
     return new FormulaArray(items);
   }
+
+  visitLetExpressionNode(node: AST.ILetExpressionNode): FormulaDataType {
+    const scope = this.context.createNestedContext({});
+    const visitor = this.cloneWithContext(scope);
+
+    for (const { name, value } of node.declarations) {
+      scope.setVariable(name.name, visitor.evaluateNode(value));
+    }
+
+    return visitor.evaluateNode(node.body);
+  }
 }
 
 function checkNumericOperands(
