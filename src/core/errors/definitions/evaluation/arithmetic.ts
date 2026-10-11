@@ -25,7 +25,7 @@ import { FormulaErrorCode } from '../../error-codes';
  */
 export const DivisionByZero = createErrorDefinition({
   code: FormulaErrorCode.ARITHMETIC_ERROR,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.ARITHMETIC_ERROR], 'operation'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.ARITHMETIC_ERROR], 'operation'>) => ({
     operation: 'division' as const,
     ...payload,
   }),
@@ -55,7 +55,7 @@ export const DivisionByZero = createErrorDefinition({
  */
 export const ModuloByZero = createErrorDefinition({
   code: FormulaErrorCode.ARITHMETIC_ERROR,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.ARITHMETIC_ERROR], 'operation'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.ARITHMETIC_ERROR], 'operation'>) => ({
     operation: 'modulo' as const,
     ...payload,
   }),
@@ -81,7 +81,7 @@ export const ModuloByZero = createErrorDefinition({
  */
 export const DateOutOfRange = createErrorDefinition({
   code: FormulaErrorCode.RANGE_ERROR,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.RANGE_ERROR]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.RANGE_ERROR]) => payload,
   formatMessage: () => 'Date is out of the supported range.',
   messageKey: 'formula_error.date_out_of_range',
 });

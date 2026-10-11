@@ -29,7 +29,7 @@ import { FormulaErrorCode } from '../../error-codes';
  */
 export const TooFewArguments = createErrorDefinition({
   code: FormulaErrorCode.ARGUMENT_COUNT_MISMATCH,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.ARGUMENT_COUNT_MISMATCH]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_COUNT_MISMATCH]) => payload,
   formatMessage: ({ expectedMin }) => `Expected at least ${expectedMin} argument(s).`,
   messageKey: 'formula_error.too_few_arguments',
 });
@@ -68,7 +68,7 @@ export const TooFewArguments = createErrorDefinition({
  */
 export const TooManyArguments = createErrorDefinition({
   code: FormulaErrorCode.ARGUMENT_COUNT_MISMATCH,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.ARGUMENT_COUNT_MISMATCH] & { hasRepeatable?: boolean }) => ({
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_COUNT_MISMATCH] & { hasRepeatable?: boolean }) => ({
     expectedMin: payload.expectedMin,
     expectedMax: payload.hasRepeatable ? Infinity : payload.expectedMax,
     actual: payload.actual,
@@ -105,7 +105,7 @@ export const TooManyArguments = createErrorDefinition({
  */
 export const ExactArgumentCount = createErrorDefinition({
   code: FormulaErrorCode.ARGUMENT_COUNT_MISMATCH,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.ARGUMENT_COUNT_MISMATCH], 'expectedMin' | 'expectedMax'> & { expected: number }) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_COUNT_MISMATCH], 'expectedMin' | 'expectedMax'> & { expected: number }) => ({
     expectedMin: payload.expected,
     expectedMax: payload.expected,
     actual: payload.actual,

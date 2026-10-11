@@ -31,7 +31,7 @@ import { FormulaErrorCode } from '../../error-codes';
  */
 export const ComparisonTypeMismatch = createErrorDefinition({
   code: FormulaErrorCode.EVALUATE_ERROR,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.EVALUATE_ERROR], 'reason'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.EVALUATE_ERROR], 'reason'>) => ({
     reason: 'Types must match for comparison',
     ...payload,
   }),
@@ -67,7 +67,7 @@ export const ComparisonTypeMismatch = createErrorDefinition({
  */
 export const NonNumericMathOperation = createErrorDefinition({
   code: FormulaErrorCode.EVALUATE_ERROR,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.EVALUATE_ERROR], 'reason'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.EVALUATE_ERROR], 'reason'>) => ({
     reason: 'Cannot perform math operation on non-numeric value',
     ...payload,
   }),
@@ -103,7 +103,7 @@ export const NonNumericMathOperation = createErrorDefinition({
  */
 export const UnaryMinusNonNumeric = createErrorDefinition({
   code: FormulaErrorCode.EVALUATE_ERROR,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.EVALUATE_ERROR], 'reason'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.EVALUATE_ERROR], 'reason'>) => ({
     reason: 'Cannot apply unary minus to non-numeric value',
     ...payload,
   }),

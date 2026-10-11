@@ -31,7 +31,7 @@ import { FormulaErrorCode } from '../../error-codes';
  */
 export const StringFormulaExpected = createErrorDefinition({
   code: FormulaErrorCode.TYPE_MISMATCH,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.TYPE_MISMATCH], 'expected'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.TYPE_MISMATCH], 'expected'>) => ({
     expected: ['string'],
     ...payload,
   }),
@@ -67,7 +67,7 @@ export const StringFormulaExpected = createErrorDefinition({
  */
 export const NonEmptyFormulaExpected = createErrorDefinition({
   code: FormulaErrorCode.TYPE_MISMATCH,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.TYPE_MISMATCH], 'expected'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.TYPE_MISMATCH], 'expected'>) => ({
     expected: ['non-empty string'],
     ...payload,
   }),

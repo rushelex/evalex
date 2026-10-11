@@ -18,6 +18,6 @@ export {
   Kind,
 } from './data-types';
 export { FormulaDebugger } from './debugger';
-export { Errors, FormulaError } from './errors';
+export { Errors, FormulaError, FormulaErrorCode } from './errors';
 export type { EvaluateOptions, EvaluateResult } from './expression';
 export { Expression } from './expression';

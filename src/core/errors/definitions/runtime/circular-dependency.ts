@@ -50,7 +50,7 @@ import { FormulaErrorCode } from '../../error-codes';
  */
 export const CircularDependencyDetected = createErrorDefinition({
   code: FormulaErrorCode.CIRCULAR_DEPENDENCY,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.CIRCULAR_DEPENDENCY]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.CIRCULAR_DEPENDENCY]) => payload,
   formatMessage: ({ nodeId, dependsOnId }) => `Circular dependency detected: ${nodeId} depends on ${dependsOnId}.`,
   messageKey: 'formula_error.circular_dependency',
 });

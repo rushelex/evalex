@@ -32,7 +32,7 @@ import { FormulaErrorCode } from '../../error-codes';
  */
 export const PositiveNumberExpected = createErrorDefinition({
   code: FormulaErrorCode.RANGE_ERROR,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.RANGE_ERROR]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.RANGE_ERROR]) => payload,
   formatMessage: () => 'Expected positive number.',
   messageKey: 'formula_error.positive_number_expected',
 });

@@ -44,7 +44,7 @@ import { FormulaErrorCode } from '../../error-codes';
  */
 export const MaxDependenciesExceeded = createErrorDefinition({
   code: FormulaErrorCode.MAX_DEPENDENCIES_EXCEEDED,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.MAX_DEPENDENCIES_EXCEEDED]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.MAX_DEPENDENCIES_EXCEEDED]) => payload,
   formatMessage: ({ nodeId }) => `Formula "${nodeId}" exceeds maximum dependencies limit.`,
   messageKey: 'formula_error.max_dependencies_exceeded',
 });
@@ -94,7 +94,7 @@ export const MaxDependenciesExceeded = createErrorDefinition({
  */
 export const MaxFormulaDepthExceeded = createErrorDefinition({
   code: FormulaErrorCode.MAX_FORMULA_DEPTH_EXCEEDED,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.MAX_FORMULA_DEPTH_EXCEEDED]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.MAX_FORMULA_DEPTH_EXCEEDED]) => payload,
   formatMessage: ({ nodeId }) => `Formula "${nodeId}" exceeds maximum depth limit.`,
   messageKey: 'formula_error.max_formula_depth_exceeded',
 });
@@ -144,7 +144,7 @@ export const MaxFormulaDepthExceeded = createErrorDefinition({
  */
 export const MaxFormulasExceeded = createErrorDefinition({
   code: FormulaErrorCode.MAX_FORMULAS_EXCEEDED,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.MAX_FORMULAS_EXCEEDED]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.MAX_FORMULAS_EXCEEDED]) => payload,
   formatMessage: ({ nodeId, limit }) => `Maximum formulas count of ${limit} exceeded. Cannot add formula "${nodeId}".`,
   messageKey: 'formula_error.max_formulas_exceeded',
 });

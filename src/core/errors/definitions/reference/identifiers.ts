@@ -29,7 +29,7 @@ import { FormulaErrorCode } from '../../error-codes';
  */
 export const VariableNotDefined = createErrorDefinition({
   code: FormulaErrorCode.REFERENCE_ERROR,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.REFERENCE_ERROR], 'referenceType' | 'target'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.REFERENCE_ERROR], 'referenceType' | 'target'>) => ({
     referenceType: 'variable',
     ...payload,
   }),
@@ -64,7 +64,7 @@ export const VariableNotDefined = createErrorDefinition({
  */
 export const FunctionNotDefined = createErrorDefinition({
   code: FormulaErrorCode.REFERENCE_ERROR,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.REFERENCE_ERROR], 'referenceType' | 'target'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.REFERENCE_ERROR], 'referenceType' | 'target'>) => ({
     referenceType: 'function',
     ...payload,
   }),
@@ -101,7 +101,7 @@ export const FunctionNotDefined = createErrorDefinition({
  */
 export const MethodNotDefined = createErrorDefinition({
   code: FormulaErrorCode.REFERENCE_ERROR,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.REFERENCE_ERROR], 'referenceType'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.REFERENCE_ERROR], 'referenceType'>) => ({
     referenceType: 'method',
     ...payload,
   }),
@@ -139,7 +139,7 @@ export const MethodNotDefined = createErrorDefinition({
  */
 export const FieldNotDefined = createErrorDefinition({
   code: FormulaErrorCode.REFERENCE_ERROR,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.REFERENCE_ERROR], 'referenceType'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.REFERENCE_ERROR], 'referenceType'>) => ({
     referenceType: 'field',
     ...payload,
   }),

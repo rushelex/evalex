@@ -91,7 +91,7 @@ export const arg = {
     name: string,
     choices: readonly TChoice[],
     options?: TFlags,
-  ) => define<Kind.String, ChoiceValue<TChoice>, TFlags>(Kind.String, name, {
+  ) => define<typeof Kind.String, ChoiceValue<TChoice>, TFlags>(Kind.String, name, {
     ...options,
     validation: (dataType) => {
       if ((choices as readonly string[]).includes(dataType.value)) {
@@ -106,7 +106,7 @@ export const arg = {
   }),
 
   /** An expression the routine evaluates itself, with `variables` in scope, such as the condition of `filter`. */
-  callback: <const TVariables extends string, const TReturnKind extends Kind = Kind.Any>(
+  callback: <const TVariables extends string, const TReturnKind extends Kind = typeof Kind.Any>(
     name: string,
     options: CallbackOptions<TVariables, TReturnKind>,
   ): CallbackArgument<TVariables, FormulaDataTypeByKind<TReturnKind>> => new CallbackArgument(options.variables, {
@@ -121,7 +121,7 @@ export const arg = {
    * @remarks
    * The variable names are fixed so that every list routine reads the same way, as in `filter(list, current > 3)`.
    */
-  eachItem: <const TReturnKind extends Kind = Kind.Any>(
+  eachItem: <const TReturnKind extends Kind = typeof Kind.Any>(
     name: string,
     options?: Omit<CallbackOptions<never, TReturnKind>, 'variables'>,
   ) => arg.callback(name, { ...options, variables: ['current', 'index'] }),

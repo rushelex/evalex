@@ -35,7 +35,7 @@ import { FormulaErrorCode } from '../../error-codes';
  */
 export const InvalidRegExpPattern = createErrorDefinition({
   code: FormulaErrorCode.EVALUATE_ERROR,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.EVALUATE_ERROR]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.EVALUATE_ERROR]) => payload,
   formatMessage: ({ reason }) => reason ?? 'Invalid regular expression.',
   messageKey: 'formula_error.invalid_regexp_pattern',
 });

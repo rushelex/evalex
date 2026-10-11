@@ -1,5 +1,6 @@
 import * as Defs from './definitions';
 
+export { FormulaErrorCode } from './error-codes';
 export type { FormulaErrorOptions } from './formula-error';
 export { FormulaError } from './formula-error';
 export { formatTypes, getRegExpFallbackError } from './utils';

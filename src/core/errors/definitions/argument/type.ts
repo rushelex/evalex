@@ -31,7 +31,7 @@ import { formatTypes } from '../../utils';
  */
 export const ArgumentTypeMismatch = createErrorDefinition({
   code: FormulaErrorCode.ARGUMENT_TYPE_MISMATCH,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]) => payload,
   formatMessage: ({ expected }) => `Expected type ${formatTypes(expected)}.`,
   messageKey: 'formula_error.argument_type_mismatch',
 });
@@ -62,7 +62,7 @@ export const ArgumentTypeMismatch = createErrorDefinition({
  */
 export const CallbackExpected = createErrorDefinition({
   code: FormulaErrorCode.ARGUMENT_TYPE_MISMATCH,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.ARGUMENT_TYPE_MISMATCH], 'expected'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_TYPE_MISMATCH], 'expected'>) => ({
     ...payload,
     expected: ['callback'],
   }),
@@ -96,7 +96,7 @@ export const CallbackExpected = createErrorDefinition({
  */
 export const UnexpectedCallback = createErrorDefinition({
   code: FormulaErrorCode.ARGUMENT_TYPE_MISMATCH,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.ARGUMENT_TYPE_MISMATCH], 'actual'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_TYPE_MISMATCH], 'actual'>) => ({
     ...payload,
     actual: 'callback',
   }),
@@ -123,7 +123,7 @@ export const UnexpectedCallback = createErrorDefinition({
  */
 export const CallbackReturnTypeMismatch = createErrorDefinition({
   code: FormulaErrorCode.ARGUMENT_TYPE_MISMATCH,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]) => payload,
   formatMessage: ({ expected, actual }) => `Expected callback to return type ${formatTypes(expected)}, but got ${String(actual)}.`,
   messageKey: 'formula_error.callback_return_type_mismatch',
 });
@@ -153,7 +153,7 @@ export const CallbackReturnTypeMismatch = createErrorDefinition({
  */
 export const UnexpectedArgument = createErrorDefinition({
   code: FormulaErrorCode.ARGUMENT_TYPE_MISMATCH,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]) => payload,
   formatMessage: ({ argumentPosition }) => `Unexpected argument at position ${argumentPosition}.`,
   messageKey: 'formula_error.unexpected_argument',
 });
@@ -183,7 +183,7 @@ export const UnexpectedArgument = createErrorDefinition({
  */
 export const AllArgumentsMustBeNumbers = createErrorDefinition({
   code: FormulaErrorCode.ARGUMENT_TYPE_MISMATCH,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.ARGUMENT_TYPE_MISMATCH], 'expected' | 'argumentPosition'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_TYPE_MISMATCH], 'expected' | 'argumentPosition'>) => ({
     ...payload,
     argumentPosition: -1,
     expected: ['numbers'],
@@ -218,7 +218,7 @@ export const AllArgumentsMustBeNumbers = createErrorDefinition({
  */
 export const AllNumbersMustBeFinite = createErrorDefinition({
   code: FormulaErrorCode.ARGUMENT_TYPE_MISMATCH,
-  createPayload: (payload: Omit<FormulaErrorPayloads[FormulaErrorCode.ARGUMENT_TYPE_MISMATCH], 'expected' | 'argumentPosition'>) => ({
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_TYPE_MISMATCH], 'expected' | 'argumentPosition'>) => ({
     ...payload,
     argumentPosition: -1,
     expected: ['finite numbers'],
@@ -272,7 +272,7 @@ export const AllNumbersMustBeFinite = createErrorDefinition({
  */
 export const PatternMismatch = createErrorDefinition({
   code: FormulaErrorCode.PATTERN_MISMATCH,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.PATTERN_MISMATCH]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.PATTERN_MISMATCH]) => payload,
   formatMessage: ({ patterns }) => {
     if (patterns.length === 0) {
       return 'Arguments don\'t match any pattern.';
@@ -317,7 +317,7 @@ export const PatternMismatch = createErrorDefinition({
  */
 export const ArgumentValidationError = createErrorDefinition({
   code: FormulaErrorCode.ARGUMENT_TYPE_MISMATCH,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]) => payload,
   formatMessage: ({ message }) => message || 'Argument validation error',
   messageKey: 'formula_error.argument_validation_error',
 });
@@ -349,7 +349,7 @@ export const ArgumentValidationError = createErrorDefinition({
  */
 export const ArgumentUnknownError = createErrorDefinition({
   code: FormulaErrorCode.ARGUMENT_TYPE_MISMATCH,
-  createPayload: (payload: FormulaErrorPayloads[FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]) => payload,
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]) => payload,
   formatMessage: ({ message }) => message || 'Unknown argument error.',
   messageKey: 'formula_error.unknown_argument_error',
 });

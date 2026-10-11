@@ -54,15 +54,15 @@ export type ToFormulaDataType<T, ShouldWrapObject extends boolean = false>
     : never;
 
 export type FormulaDataTypeByKind<T extends Kind>
-  = T extends Kind.Null ? FormulaNull
-  : T extends Kind.Boolean ? FormulaBoolean
-  : T extends Kind.Number ? FormulaNumber
-  : T extends Kind.String ? FormulaString
-  : T extends Kind.Date ? FormulaDate
-  : T extends Kind.Duration ? FormulaDuration
-  : T extends Kind.DateRange ? FormulaDateRange
-  : T extends Kind.RegExp ? FormulaRegExp
-  : T extends Kind.Array ? FormulaArray
-  : T extends Kind.Object ? FormulaObject
-  : T extends Kind.Any ? FormulaDataType
+  = T extends typeof Kind.Null ? FormulaNull
+  : T extends typeof Kind.Boolean ? FormulaBoolean
+  : T extends typeof Kind.Number ? FormulaNumber
+  : T extends typeof Kind.String ? FormulaString
+  : T extends typeof Kind.Date ? FormulaDate
+  : T extends typeof Kind.Duration ? FormulaDuration
+  : T extends typeof Kind.DateRange ? FormulaDateRange
+  : T extends typeof Kind.RegExp ? FormulaRegExp
+  : T extends typeof Kind.Array ? FormulaArray
+  : T extends typeof Kind.Object ? FormulaObject
+  : T extends typeof Kind.Any ? FormulaDataType
   : never;
