@@ -106,8 +106,8 @@ export class FormulaRuntime<T extends FormulaNode> {
   readonly #scheduler: Scheduler;
   readonly #adapter: NodeAdapter<T>;
   readonly #nodeProvider: (id: string) => T | undefined;
-  readonly #queue = new RecalculationQueue();
   readonly #graph = new DependencyGraph();
+  readonly #queue = new RecalculationQueue((id) => this.#graph.getNodeDepth(id));
   readonly #validator = new FormulaValidator();
   // Track objects for GC-based cleanup
   readonly #finalizer: FinalizationRegistry<string>;

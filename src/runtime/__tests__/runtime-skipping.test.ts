@@ -1,6 +1,9 @@
 import type { FormulaDataType } from '../../core';
+
 import type { AsyncRunner, Executor } from '../executor';
 import type { FormulaNode, NodeAdapter } from '../types';
+
+import { fc, it } from '@fast-check/vitest';
 
 import { Expression, FormulaArray, FormulaNull, FormulaNumber } from '../../core';
 import { AsyncExecutor, SyncExecutor } from '../executor';
@@ -159,9 +162,59 @@ describe('FormulaRuntime skipping work with a known outcome', () => {
   });
 });
 
+// Each formula reads one to three earlier nodes by index, counted over the sources `a` and `b` and the formulas before it.
+const acyclicSheet = fc.array(fc.array(fc.nat(), { minLength: 1, maxLength: 3 }), { minLength: 1, maxLength: 8 });
+
+describe('FormulaRuntime evaluation order', () => {
+  it.prop([acyclicSheet, fc.constantFrom('sync', 'async'), fc.integer({ min: 2, max: 9 })])('should evaluate each affected formula once, after every formula it reads, whatever the shape of the graph', async (reads, executorKind, newValue) => {
+    const sheet = createSheet(executorKind === 'sync' ? new SyncExecutor() : new AsyncExecutor());
+    const ids = ['a', 'b'];
+    const readIds = new Map<string, string[]>();
+    sheet.add('a', 1);
+    sheet.add('b', 1);
+
+    reads.forEach((indices, position) => {
+      const id = `f${position}`;
+      const read = [...new Set(indices.map((index) => ids[index % ids.length]))];
+      readIds.set(id, read);
+      sheet.add(id, `${read.join(' + ')} + 1`);
+      ids.push(id);
+    });
+
+    await sheet.calculateAll();
+    sheet.calculated.length = 0;
+    await sheet.update('a', newValue);
+
+    const orderProblems = sheet.calculated.flatMap((id, position) => [
+      ...(sheet.calculated.indexOf(id) === position ? [] : [`${id} evaluated again`]),
+      ...(readIds.get(id) ?? [])
+        .filter((read) => sheet.calculated.lastIndexOf(read) > position)
+        .map((read) => `${id} evaluated before ${read}`),
+    ]);
+
+    expect(orderProblems).toEqual([]);
+  });
+
+  it('should hand the host only the final value of a formula reading a source and a deeper formula', async () => {
+    const sheet = createSheet();
+    const received: FormulaDataType[] = [];
+    sheet.add('a', 1);
+    sheet.add('b', 'a + 1');
+    sheet.add('c', 'b + 1');
+    sheet.add('d', 'a + c');
+    await sheet.calculateAll();
+
+    sheet.onCalculate('d', (value) => received.push(value));
+    await sheet.update('a', 7);
+
+    expect(received).toEqual([new FormulaNumber(16)]);
+  });
+});
+
 function createSheet(executor: Executor = new SyncExecutor()) {
   const registry = new Map<string, Node>();
   const calculated: string[] = [];
+  const listeners = new Map<string, (value: FormulaDataType) => void>();
 
   const adapter: NodeAdapter<Node> = {
     shouldProcess: (node) => !!node.expression,
@@ -169,6 +222,7 @@ function createSheet(executor: Executor = new SyncExecutor()) {
     toExpression: (node) => node.expression ?? null,
     onCalculate: (node, value) => {
       calculated.push(node.id);
+      listeners.get(node.id)?.(value);
       node.value = value;
       node.error = undefined;
     },
@@ -199,6 +253,9 @@ function createSheet(executor: Executor = new SyncExecutor()) {
   return {
     calculated,
     node,
+    onCalculate: (id: string, listener: (value: FormulaDataType) => void): void => {
+      listeners.set(id, listener);
+    },
     value: (id: string): FormulaDataType => node(id).value,
     add: (id: string, content: number | string | FormulaDataType): void => {
       registry.set(id, typeof content === 'string'

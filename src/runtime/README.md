@@ -86,7 +86,7 @@ A node's `id` is the name formulas use to reference it: `total` reads `price` be
 | `waitForProcessing()` | You need every pending calculation to finish |
 | `get(id)`, `has(id)`, `getAllIds()` | You need to look nodes up |
 
-Recalculation cascades: when `total` is recalculated, `tax` is queued next, and so on down the graph.
+Recalculation cascades: when `total` is recalculated, `tax` is queued next, and so on down the graph. A formula is recalculated only after every queued formula it reads, so `onCalculate` receives each changed formula once, with its final value: with `d = a + c` and `c` depending on `a` through `b`, a change to `a` reaches `d` after `b` and `c` are up to date.
 
 The optional `subscribe` argument wires your own change notifications to the runtime. It is called once on `add`, and the function it returns is called on `remove`:
 
@@ -183,7 +183,7 @@ onError: (cell, error) => {
 | [`runtime.ts`](./runtime.ts) | `FormulaRuntime` and its per-node validation cache |
 | [`is-same-value.ts`](./is-same-value.ts) | The equality that decides whether recalculation can be skipped |
 | [`dependency-graph.ts`](./dependency-graph.ts) | `DependencyGraph` |
-| [`recalculation-queue.ts`](./recalculation-queue.ts) | `RecalculationQueue` |
+| [`recalculation-queue.ts`](./recalculation-queue.ts) | `RecalculationQueue`, which hands out the shallowest waiting formula first |
 | [`formula-validator.ts`](./formula-validator.ts), [`limits.ts`](./limits.ts) | Limit checks and their values |
 | [`scheduler/`](./scheduler), [`executor/`](./executor) | Schedulers and executors |
 | [`types.ts`](./types.ts) | `FormulaNode` and `NodeAdapter` |
