@@ -1,5 +1,6 @@
 import type { FormulaExecRequest, FormulaExecResult } from './types';
 
+import { Errors } from '../../core/errors';
 import { Executor } from './executor';
 
 export type AsyncRunner = (job: () => FormulaExecResult, signal?: AbortSignal) => Promise<FormulaExecResult>;
@@ -51,9 +52,9 @@ export class AsyncExecutor extends Executor {
       return await this.#runner(job, signal);
     }
     catch (error) {
-      // Replace generic timeout error with our custom message
-      if (error instanceof Error && error.name === 'TimeoutError') {
-        throw new Error(`Formula execution timed out after ${this.#timeoutMs}ms`);
+      // Without `timeoutMs` the `TimeoutError` came from the host's own signal and stays as is
+      if (error instanceof Error && error.name === 'TimeoutError' && this.#timeoutMs) {
+        throw Errors.Runtime.ExecutionTimeout.create({ timeoutMs: this.#timeoutMs });
       }
       throw error;
     }

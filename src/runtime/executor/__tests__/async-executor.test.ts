@@ -107,7 +107,26 @@ describe(AsyncExecutor, () => {
 
       const result = await promise;
       expect(result).toBeInstanceOf(Error);
-      expect((result as Error).message).toBe('Formula execution timed out after 100ms');
+      expect((result as Error).message).toBe('Formula execution timed out after 100ms.');
+    });
+
+    it('should reject with a FormulaError coded EXECUTION_TIMEOUT when the time runs out', async () => {
+      const executor = new AsyncExecutor({
+        runner: async (job, signal) => new Promise((resolve, reject) => {
+          setTimeout(() => resolve(job()), 200);
+          signal?.addEventListener('abort', () => reject(signal.reason));
+        }),
+        timeoutMs: 100,
+      });
+
+      const outcome = executor.exec({ expression: new Expression('1 + 1'), context: new Map() }).catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(150);
+
+      expect(await outcome).toMatchObject({
+        name: 'FormulaError',
+        code: 'EXECUTION_TIMEOUT',
+        payload: { timeoutMs: 100 },
+      });
     });
 
     it('should complete successfully if faster than timeout', async () => {

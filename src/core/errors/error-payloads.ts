@@ -81,6 +81,14 @@ export interface MaxFormulasPayload {
   readonly limit: number;
 }
 
+export interface DuplicateNodeIdPayload {
+  readonly nodeId: string;
+}
+
+export interface ExecutionTimeoutPayload {
+  readonly timeoutMs: number;
+}
+
 // ============================================================================
 // Formula Error Payloads mapping: code -> payload type
 // ============================================================================
@@ -98,4 +106,6 @@ export interface FormulaErrorPayloads {
   [FormulaErrorCode.MAX_DEPENDENCIES_EXCEEDED]: MaxDependenciesPayload;
   [FormulaErrorCode.MAX_FORMULA_DEPTH_EXCEEDED]: MaxFormulaDepthPayload;
   [FormulaErrorCode.MAX_FORMULAS_EXCEEDED]: MaxFormulasPayload;
+  [FormulaErrorCode.DUPLICATE_NODE_ID]: DuplicateNodeIdPayload;
+  [FormulaErrorCode.EXECUTION_TIMEOUT]: ExecutionTimeoutPayload;
 }

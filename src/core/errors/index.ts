@@ -68,6 +68,8 @@ export const Errors = {
     MaxDependencies: Defs.MaxDependenciesExceeded,
     MaxFormulaDepth: Defs.MaxFormulaDepthExceeded,
     MaxFormulas: Defs.MaxFormulasExceeded,
+    DuplicateNodeId: Defs.DuplicateNodeId,
+    ExecutionTimeout: Defs.ExecutionTimeout,
   },
 
   /** Input validation errors */

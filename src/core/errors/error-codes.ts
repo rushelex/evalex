@@ -18,6 +18,8 @@ export const FormulaErrorCode = {
   MAX_DEPENDENCIES_EXCEEDED: 'MAX_DEPENDENCIES_EXCEEDED',
   MAX_FORMULA_DEPTH_EXCEEDED: 'MAX_FORMULA_DEPTH_EXCEEDED',
   MAX_FORMULAS_EXCEEDED: 'MAX_FORMULAS_EXCEEDED',
+  DUPLICATE_NODE_ID: 'DUPLICATE_NODE_ID',
+  EXECUTION_TIMEOUT: 'EXECUTION_TIMEOUT',
 } as const;
 
 // eslint-disable-next-line ts/no-redeclare -- a value and a type under one name, the way an enum reads

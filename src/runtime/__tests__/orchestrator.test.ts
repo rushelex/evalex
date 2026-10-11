@@ -164,6 +164,16 @@ describe(FormulaOrchestrator, () => {
       expect(() => orchestrator.add(node2)).toThrow('Node with id "test1" already exists');
     });
 
+    it('should throw a FormulaError coded DUPLICATE_NODE_ID for a taken id', () => {
+      orchestrator.add({ id: 'test1', value: new FormulaNumber(1), error: null });
+
+      expect(() => orchestrator.add({ id: 'test1', value: new FormulaNumber(2), error: null })).toThrow(expect.objectContaining({
+        name: 'FormulaError',
+        code: 'DUPLICATE_NODE_ID',
+        payload: { nodeId: 'test1' },
+      }));
+    });
+
     it('should set up subscription when provided', () => {
       const node: TestNode = { id: 'test1', value: new FormulaNumber(1), error: null };
       const unsubscribe = vi.fn();

@@ -155,6 +155,8 @@ Problems with one formula never stop the rest: the error goes to that node's `on
 | `MAX_DEPENDENCIES_EXCEEDED` | A formula references more than 100 identifiers |
 | `MAX_FORMULA_DEPTH_EXCEEDED` | A chain of formulas is deeper than 50 levels |
 | `MAX_FORMULAS_EXCEEDED` | `add` is called when 10,000 formula nodes already exist; thrown from `add` itself |
+| `DUPLICATE_NODE_ID` | `add` is called with an id another node already holds; thrown from `add` itself |
+| `EXECUTION_TIMEOUT` | A formula runs longer than the `timeoutMs` of `AsyncExecutor` |
 | `TYPE_MISMATCH` | `toExpression` returns an expression whose formula is empty or not text |
 
 Errors from evaluating the formula itself are listed in the [core README](../core/README.md#errors).

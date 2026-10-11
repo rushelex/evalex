@@ -41,6 +41,8 @@ const samples: readonly DefinitionSample[] = [
   { name: 'Runtime.MaxDependencies', definition: Errors.Runtime.MaxDependencies, error: Errors.Runtime.MaxDependencies.create({ nodeId: 'a', count: 11, limit: 10 }) },
   { name: 'Runtime.MaxFormulaDepth', definition: Errors.Runtime.MaxFormulaDepth, error: Errors.Runtime.MaxFormulaDepth.create({ nodeId: 'a', depth: 11, limit: 10 }) },
   { name: 'Runtime.MaxFormulas', definition: Errors.Runtime.MaxFormulas, error: Errors.Runtime.MaxFormulas.create({ nodeId: 'a', count: 11, limit: 10 }) },
+  { name: 'Runtime.DuplicateNodeId', definition: Errors.Runtime.DuplicateNodeId, error: Errors.Runtime.DuplicateNodeId.create({ nodeId: 'a' }) },
+  { name: 'Runtime.ExecutionTimeout', definition: Errors.Runtime.ExecutionTimeout, error: Errors.Runtime.ExecutionTimeout.create({ timeoutMs: 100 }) },
   { name: 'Validation.StringFormulaExpected', definition: Errors.Validation.StringFormulaExpected, error: Errors.Validation.StringFormulaExpected.create({ actual: 42 }) },
   { name: 'Validation.NonEmptyFormulaExpected', definition: Errors.Validation.NonEmptyFormulaExpected, error: Errors.Validation.NonEmptyFormulaExpected.create({ actual: '' }) },
   { name: 'Validation.PositiveNumberExpected', definition: Errors.Validation.PositiveNumberExpected, error: Errors.Validation.PositiveNumberExpected.create({ value: -1 }) },
