@@ -5,6 +5,7 @@ import { fc, it } from '@fast-check/vitest';
 import { FormulaArray } from './array';
 import { convertValueToFormulaType } from './converter';
 import { FormulaDate } from './date';
+import { FormulaNull } from './null';
 import { FormulaNumber } from './number';
 import { FormulaObject } from './object';
 
@@ -41,6 +42,10 @@ describe(convertValueToFormulaType, () => {
 
     expect(converted).toBeInstanceOf(FormulaDate);
     expect(converted.value).toEqual(FormulaDate.from(date).value);
+  });
+
+  it('should convert a date that holds no instant to null', () => {
+    expect(convertValueToFormulaType(new Date(Number.NaN))).toBeInstanceOf(FormulaNull);
   });
 
   it('should keep a field named __proto__ as a field', () => {

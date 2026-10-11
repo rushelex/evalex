@@ -39,6 +39,11 @@ export function convertValueToFormulaType(value: any, visited: WeakSet<object> =
     return FormulaBoolean.from(value);
   }
 
+  // A `Date` that holds no instant carries no value, so it converts like `undefined`
+  if (value instanceof Date && Number.isNaN(value.getTime())) {
+    return new FormulaNull();
+  }
+
   if (FormulaDate.isValidInput(value)) {
     return FormulaDate.from(value);
   }

@@ -107,7 +107,7 @@ Values are immutable. To change a list or an object, create a new one instead of
 
 When `+` joins text with a value of another kind, the value becomes the same text `format()` gives: `"n: " + [1, "a"]` → `"n: 1, a"`, `"n: " + null` → `"n: "`.
 
-`FormulaArray.from` and `FormulaObject.from` convert nested plain values recursively. Object fields are read with method syntax:
+`FormulaArray.from` and `FormulaObject.from` convert nested plain values recursively; `undefined` and a `Date` that holds no instant become `null`. Object fields are read with method syntax:
 
 ```ts
 const order = FormulaObject.from({
