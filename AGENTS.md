@@ -36,5 +36,6 @@ Rules for working in this repository. Each module under `src/` has its own `AGEN
 
 - Work on `main` directly. No feature branches or pull requests unless asked.
 - Commits follow Conventional Commits, imperative mood, at most seven words in the subject.
+- Until the first release, commits carry no breaking marker (`!`, `BREAKING CHANGE`): the package has no consumers yet.
 - Never bypass git hooks. If a hook fails, fix the cause.
 - `pnpm audit` must stay clean. Fix a vulnerable transitive dependency by updating its parent first. Only if that fails, add a caret-range override in `pnpm-workspace.yaml` with a comment explaining why.
