@@ -1,7 +1,6 @@
 import './bootstrap';
 
 export { initializeFormulaCore } from './bootstrap';
-export { FormulaEvaluationContext } from './context';
 export type { FormulaDataTypeByKind, ToFormulaDataType } from './data-types';
 export {
   FormulaArray,

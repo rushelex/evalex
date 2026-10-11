@@ -169,15 +169,9 @@ onError: (cell, error) => {
 }
 ```
 
-## Lower-level building blocks
+## Without a node registry
 
-`FormulaOrchestrator` is a thin layer that adds a node registry and subscriptions. The parts beneath it are exported too, for cases where you already keep nodes in your own store:
-
-| Export | Role |
-| --- | --- |
-| `FormulaRuntime` | Queue processing, cascades and graph ownership. Reads nodes through a `nodeProvider(id)` callback instead of a registry |
-| `DependencyGraph` | Directed graph of node ids with cycle detection and depth tracking |
-| `RecalculationQueue` | Deduplicating FIFO queue of node ids |
+`FormulaOrchestrator` is a thin layer that adds a node registry and subscriptions. When you already keep nodes in your own store, use `FormulaRuntime` beneath it: it does queue processing, cascades and graph ownership, and reads nodes through a `nodeProvider(id)` callback instead of a registry.
 
 `FormulaRuntime` also registers nodes in a `FinalizationRegistry`: when a node object is garbage-collected, its graph edges are removed and `onNodeCleanup(id)` is called.
 
