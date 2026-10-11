@@ -1,6 +1,7 @@
 import type { Expression } from './expression';
 
 import { DependencyExtractorVisitor } from './dependency-extractor.visitor';
+import { parseFormula } from './expression';
 
 const volatileCache = new Map<string, boolean>();
 
@@ -14,7 +15,7 @@ export function isVolatileFormula(expression: Expression): boolean {
   let volatile = volatileCache.get(expression.formula);
 
   if (volatile === undefined) {
-    volatile = DependencyExtractorVisitor.isVolatile(expression.parse());
+    volatile = DependencyExtractorVisitor.isVolatile(parseFormula(expression.formula));
     volatileCache.set(expression.formula, volatile);
   }
 

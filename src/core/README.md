@@ -20,13 +20,12 @@ import { Expression, FormulaNumber, FormulaString } from 'evalex';
 
 ## Expression
 
-`Expression` is the entry point. It wraps one formula and exposes three operations:
+`Expression` is the entry point. It wraps one formula and exposes two operations:
 
 | Method | Returns | Notes |
 | --- | --- | --- |
 | `evaluate({ context })` | `{ result, dependencies }` | Throws `SyntaxError` or `FormulaError` |
-| `extractDependencies()` | `ReadonlySet<string>` | Every identifier in the formula, found without evaluating it |
-| `parse()` | AST root node | Throws `SyntaxError` |
+| `extractDependencies()` | `ReadonlySet<string>` | Every identifier in the formula, found without evaluating it. Throws `SyntaxError` |
 
 ASTs and static dependencies are cached per formula text, so recreating an `Expression` for the same string is cheap.
 

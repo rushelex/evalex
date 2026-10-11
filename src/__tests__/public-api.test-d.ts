@@ -11,4 +11,9 @@ describe('public API', () => {
     expectTypeOf<typeof API.FormulaErrorCode.CIRCULAR_DEPENDENCY>().toEqualTypeOf<'CIRCULAR_DEPENDENCY'>();
     expectTypeOf<API.FormulaError['code']>().toEqualTypeOf<API.FormulaErrorCode>();
   });
+
+  it('should keep the syntax tree out of Expression', () => {
+    expectTypeOf<API.Expression>().not.toHaveProperty('parse');
+    expectTypeOf<API.Expression['extractDependencies']>().parameters.toEqualTypeOf<[]>();
+  });
 });

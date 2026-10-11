@@ -22,6 +22,19 @@ export interface EvaluateResult {
   readonly dependencies: ReadonlySet<string>;
 }
 
+/**
+ * Parses formula text into its AST, cached per text.
+ * Lives outside `Expression` so the AST stays out of the package's public types.
+ * @throws SyntaxError when the text is not a valid formula.
+ */
+export function parseFormula(formula: string): AST.AstNode {
+  if (!astCache.has(formula)) {
+    astCache.set(formula, parse(formula));
+  }
+
+  return astCache.get(formula)!;
+}
+
 export class Expression {
   readonly formula: string;
 
@@ -30,26 +43,12 @@ export class Expression {
   }
 
   /**
-   * Parses a formula string and returns its AST.
-   * Caches the AST for reuse.
-   * @returns The AST of the parsed formula.
-   */
-  parse(): AST.AstNode {
-    if (!astCache.has(this.formula)) {
-      astCache.set(this.formula, parse(this.formula));
-    }
-
-    return astCache.get(this.formula)!;
-  }
-
-  /**
    * Extracts dependencies from a formula string.
-   * @param ast Optional AST of the formula. If not provided, it will be parsed.
    * @returns A set of static dependency ids.
    */
-  extractDependencies(ast = this.parse()): ReadonlySet<string> {
+  extractDependencies(): ReadonlySet<string> {
     if (!dependenciesCache.has(this.formula)) {
-      dependenciesCache.set(this.formula, DependencyExtractorVisitor.getDependencies(ast));
+      dependenciesCache.set(this.formula, DependencyExtractorVisitor.getDependencies(parseFormula(this.formula)));
     }
 
     return dependenciesCache.get(this.formula)!;
@@ -61,7 +60,7 @@ export class Expression {
    * @returns The result and active dependencies of the evaluation.
    */
   evaluate(options: EvaluateOptions = {}): EvaluateResult {
-    const ast = this.parse();
+    const ast = parseFormula(this.formula);
 
     let initialProperties: Map<string, FormulaDataType>;
     if (options.context instanceof Map) {

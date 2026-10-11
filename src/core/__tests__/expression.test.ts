@@ -1,24 +1,24 @@
 import { FormulaArray, FormulaNumber } from '../data-types';
-import { Expression } from '../expression';
+import { Expression, parseFormula } from '../expression';
 
-describe(Expression, () => {
-  describe('parse', () => {
-    it('should parse a valid formula', () => {
-      const ast = new Expression('1 + 1').parse();
-      expect(ast).toBeDefined();
-    });
-
-    it('should throw on invalid formula', () => {
-      expect(() => new Expression('1 +').parse()).toThrow();
-    });
-
-    it('should cache parsed AST', () => {
-      const ast1 = new Expression('1 + 1').parse();
-      const ast2 = new Expression('1 + 1').parse();
-      expect(ast1).toBe(ast2);
-    });
+describe(parseFormula, () => {
+  it('should parse a valid formula', () => {
+    const ast = parseFormula('1 + 1');
+    expect(ast).toBeDefined();
   });
 
+  it('should throw on invalid formula', () => {
+    expect(() => parseFormula('1 +')).toThrow();
+  });
+
+  it('should cache parsed AST', () => {
+    const ast1 = parseFormula('1 + 1');
+    const ast2 = parseFormula('1 + 1');
+    expect(ast1).toBe(ast2);
+  });
+});
+
+describe(Expression, () => {
   describe('extractDependencies', () => {
     it('should extract dependencies from a formula', () => {
       const dependencies = new Expression('a + b').extractDependencies();

@@ -4,7 +4,7 @@ import { FormulaEvaluationContext } from '~/core/context';
 
 import { FormulaEvaluatorVisitor } from '~/core/evaluator.visitor';
 
-import { Expression } from '../../expression';
+import { parseFormula } from '../../expression';
 
 /**
  * Interface for resolving the data type from a formula string
@@ -34,7 +34,7 @@ export class ASTBasedFormulaTypeResolver implements FormulaTypeResolver {
       return undefined;
     }
 
-    const ast = new Expression(formula).parse();
+    const ast = parseFormula(formula);
 
     if (ast.type !== 'CallExpression' || ast.callee.type !== 'MemberExpression') {
       return undefined;
