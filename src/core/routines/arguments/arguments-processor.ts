@@ -102,7 +102,7 @@ export class ArgumentsProcessor {
         });
       }
 
-      return new ProcessedArgument(visitor.evaluateNode(arg), arg);
+      return new ProcessedArgument(visitor.evaluateNode(arg), arg, visitor.origin);
     });
   }
 }

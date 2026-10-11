@@ -107,7 +107,7 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
     if (instance instanceof FormulaDataType) {
       const context = {
         instance,
-        args: processedArgs || node.args.map((arg) => new ProcessedArgument(visitor.evaluateNode(arg), arg)),
+        args: processedArgs || node.args.map((arg) => new ProcessedArgument(visitor.evaluateNode(arg), arg, visitor.origin)),
         visitor,
         location,
       } satisfies FormulaDataTypeRoutineHandlerContext<FormulaDataType>;

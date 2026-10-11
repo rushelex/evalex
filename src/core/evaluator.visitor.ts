@@ -23,29 +23,57 @@ interface EvaluationHooks {
   onIdentifier?: (name: string) => void;
 }
 
+/** The latest result of one evaluation and the part of the formula it came from, shared by its nested visitors. */
+interface ValueOrigin {
+  value?: FormulaDataType;
+  location?: AST.Location;
+}
+
 export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
   readonly formula: string;
   context: FormulaEvaluationContext;
   readonly #hooks?: EvaluationHooks;
   readonly #dispatcher: RoutineDispatcher = routineDispatcher;
+  readonly #origin: ValueOrigin;
 
   constructor(
     formula: string,
     context: FormulaEvaluationContext,
     hooks?: EvaluationHooks,
     dispatcher: RoutineDispatcher = routineDispatcher,
+    origin: ValueOrigin = {},
   ) {
     this.formula = formula;
     this.context = context;
     this.#hooks = hooks;
     this.#dispatcher = dispatcher;
+    this.#origin = origin;
   }
 
   /**
-   * Basic method for evaluating any AST node.
+   * Evaluates a node and records where its result came from, for {@link FormulaEvaluatorVisitor.origin}.
+   *
+   * @remarks
+   * A node that returns the very value its last evaluated part returned, as `if` or `? :` do, keeps that part's
+   * origin. A literal or a variable is always its own origin, since one value can stand in several places.
    */
   evaluateNode(node: AST.AstNode): FormulaDataType {
-    return node.accept(this);
+    const result = node.accept(this);
+    const origin = this.#origin;
+
+    // A new value is checked first: most nodes produce one, so the node type is rarely read.
+    if (result !== origin.value || node.type === 'Literal' || node.type === 'Identifier') {
+      origin.location = node.location;
+    }
+
+    origin.value = result;
+
+    return result;
+  }
+
+  /** The part of the formula the latest result came from, so an error about that value can point at it. */
+  get origin(): AST.Location | undefined {
+    return this.#origin.location;
   }
 
   /**
@@ -61,7 +89,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
    */
   cloneWithContext(newContext: FormulaEvaluationContext): FormulaEvaluatorVisitor {
     // Important: create a new instance to avoid mutating the current visitor
-    return new FormulaEvaluatorVisitor(this.formula, newContext, this.#hooks, this.#dispatcher);
+    return new FormulaEvaluatorVisitor(this.formula, newContext, this.#hooks, this.#dispatcher, this.#origin);
   }
 
   visitLiteralNode(node: AST.ILiteralNode): FormulaDataType {

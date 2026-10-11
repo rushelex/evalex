@@ -35,6 +35,7 @@ export class CallbackExecutor<TVariables extends string = string, TReturn extend
     const nestedContext = this.#visitor.context.createNestedContext(context);
     const callbackVisitor = this.#visitor.cloneWithContext(nestedContext);
     const result = callbackVisitor.evaluateNode(this.node);
+    const origin = callbackVisitor.origin ?? this.location;
 
     const returnTypes = this.returnType
       ? (Array.isArray(this.returnType) ? this.returnType : [this.returnType])
@@ -48,7 +49,7 @@ export class CallbackExecutor<TVariables extends string = string, TReturn extend
           argumentPosition: this.#argumentPosition,
           argumentName: this.#argumentName,
         },
-        { location: this.location },
+        { location: origin },
       );
     }
 
