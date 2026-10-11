@@ -19,20 +19,11 @@ import {
  * Syntax error thrown by the parser when the input does not conform to the grammar.
  */
 export class SyntaxError extends globalThis.SyntaxError {
-  readonly expected: unknown[];
-  readonly found: string | null;
   readonly location: Location;
 
-  constructor(
-    message: string,
-    expected: unknown[],
-    found: string | null,
-    location: Location,
-  ) {
+  constructor(message: string, location: Location) {
     super(message);
     this.name = 'SyntaxError';
-    this.expected = expected;
-    this.found = found;
     this.location = location;
   }
 }
@@ -1166,7 +1157,7 @@ class Parser {
 
   /** Throws a SyntaxError at the given location. Always returns `never`. */
   #fail(message: string, location: Location): never {
-    throw new SyntaxError(message, [], null, location);
+    throw new SyntaxError(message, location);
   }
 
   /** Builds a Location from a start position to an optional end position (defaults to current). */

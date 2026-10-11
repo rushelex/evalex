@@ -79,6 +79,10 @@ describe(parse, () => {
     }
   });
 
+  it('should carry only the name and the location as own fields of a syntax error', () => {
+    expect(Object.keys(syntaxErrorOf('1 +')).sort()).toEqual(['location', 'name']);
+  });
+
   it.prop([spacedFormula])('should parse a well-formed formula to the same tree whatever whitespace separates its tokens', ({ tokens, formula }) => {
     expect(withoutPositions(parse(formula))).toEqual(withoutPositions(parse(tokens.join(' '))));
   });
@@ -1151,6 +1155,21 @@ describe(parse, () => {
     });
   });
 });
+
+function syntaxErrorOf(formula: string): SyntaxError {
+  try {
+    parse(formula);
+  }
+  catch (error) {
+    if (error instanceof SyntaxError) {
+      return error;
+    }
+
+    throw error;
+  }
+
+  throw new Error(`Expected "${formula}" to fail to parse.`);
+}
 
 function createLocation(start: number, end: number): Location {
   return {

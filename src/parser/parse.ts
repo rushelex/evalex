@@ -5,12 +5,7 @@ import { parse as parseFormula, SyntaxError } from './grammar/parser';
 function buildErrorWithLocation(error: SyntaxError) {
   const message = `${error.message.endsWith('.') ? error.message : `${error.message}.`}`;
 
-  return new SyntaxError(
-    `${message} [${error.location.start.offset},${error.location.end.offset}]`,
-    error.expected,
-    error.found ?? null,
-    error.location,
-  );
+  return new SyntaxError(`${message} [${error.location.start.offset},${error.location.end.offset}]`, error.location);
 }
 
 /**
