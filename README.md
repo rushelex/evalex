@@ -16,7 +16,7 @@
 
 ---
 
-evalex lets the people using your product write formulas like `price * quantity * (1 - discount)` or `tasks.filter(current.done()).length()`, and gives your code a safe way to run them. Formulas see only the values you pass in, every value is typed, and errors point at the part of the formula that caused them.
+evalex (*eval* + *expression*, pronounced "ee-VAL-ex") lets the people using your product write formulas like `price * quantity * (1 - discount)` or `tasks.filter(current.done()).length()`, and gives your code a safe way to run them. Formulas see only the values you pass in, every value is typed, and errors point at the part of the formula that caused them.
 
 ## Highlights
 
