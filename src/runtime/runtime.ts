@@ -1,4 +1,4 @@
-import type { Expression, FormulaDataType } from '../core';
+import type { Expression, FormulaDataType, ValueFormat } from '../core';
 import type { Executor } from './executor';
 import type { Scheduler } from './scheduler';
 import type { FormulaNode, NodeAdapter } from './types';
@@ -19,6 +19,8 @@ export interface FormulaRuntimeOptions<T extends FormulaNode> {
   adapter: NodeAdapter<T>;
   nodeProvider: (id: string) => T | undefined;
   onNodeCleanup?: (id: string) => void;
+  /** How values look when a formula turns them into text. */
+  format?: ValueFormat;
 }
 
 /**
@@ -106,6 +108,7 @@ export class FormulaRuntime<T extends FormulaNode> {
   readonly #scheduler: Scheduler;
   readonly #adapter: NodeAdapter<T>;
   readonly #nodeProvider: (id: string) => T | undefined;
+  readonly #format?: ValueFormat;
   readonly #graph = new DependencyGraph();
   readonly #queue = new RecalculationQueue((id) => this.#graph.getNodeDepth(id));
   readonly #validator = new FormulaValidator();
@@ -125,6 +128,7 @@ export class FormulaRuntime<T extends FormulaNode> {
     this.#adapter = options.adapter;
     this.#executor = options.executor;
     this.#scheduler = options.scheduler;
+    this.#format = options.format;
     this.#finalizer = new FinalizationRegistry<string>((id) => {
       this.#graph.removeAll(id);
       this.#cachedState.delete(id);
@@ -291,6 +295,7 @@ export class FormulaRuntime<T extends FormulaNode> {
       const output = this.#executor.exec({
         expression: processing.expression,
         context: processing.context,
+        format: this.#format,
       });
 
       if (output instanceof Promise) {

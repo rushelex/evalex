@@ -1,7 +1,10 @@
+import type { ValueFormat } from '../value-format';
 import type { Kind } from './kind';
 
 export interface ToStringOptions {
   asJSON?: boolean;
+  /** The host's formatters; values of a kind without one keep their own text. */
+  format?: ValueFormat;
 }
 
 /**

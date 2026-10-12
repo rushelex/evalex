@@ -25,14 +25,15 @@ routinesRegistry.registerRoutine('format', {
   description: 'Returns the value formatted as text.',
   examples: routineExamples,
   arguments: [DATE_PATTERN_SIGNATURE, [arg.any('value')]],
-  handler: ({ subject, args: [pattern, timezone] }) => {
+  handler: ({ subject, args: [pattern, timezone], visitor }) => {
     if (subject instanceof FormulaDate && pattern) {
       return new FormulaString(formatDateText({
         date: subject.value.withTimeZone(timezone?.value ?? 'UTC'),
         pattern: pattern.value,
+        names: visitor.format?.names,
       }));
     }
 
-    return new FormulaString(subject.toString());
+    return new FormulaString(subject.toString({ format: visitor.format }));
   },
 });

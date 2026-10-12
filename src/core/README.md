@@ -24,7 +24,7 @@ import { Expression, FormulaNumber, FormulaString } from 'evalex';
 
 | Method | Returns | Notes |
 | --- | --- | --- |
-| `evaluate({ context })` | `{ result, dependencies }` | Throws `SyntaxError` or `FormulaError` |
+| `evaluate({ context, format })` | `{ result, dependencies }` | Throws `SyntaxError` or `FormulaError`; `format` is optional, see [Text of values](#text-of-values) |
 | `extractDependencies()` | `ReadonlySet<string>` | Every identifier in the formula, found without evaluating it. Throws `SyntaxError` |
 
 ASTs and static dependencies are cached per formula text, so recreating an `Expression` for the same string is cheap.
@@ -106,6 +106,52 @@ Every value inside a formula is an instance of a `FormulaDataType` subclass. Wra
 Values are immutable. To change a list or an object, create a new one instead of changing `.value` in place: a formula result can be the very same instance as its input, so an in-place change would alter results that were never recalculated.
 
 When `+` joins text with a value of another kind, the value becomes the same text `format()` gives: `"n: " + [1, "a"]` → `"n: 1, a"`, `"n: " + null` → `"n: "`.
+
+### Text of values
+
+Once a formula turns a value into text, the host can no longer format that value for its reader. So the host decides up front: `format` holds a formatter per kind, and evalex calls it with the value wherever a formula turns that value into text — `+` with text, `join`, `format()` without a pattern, and values inside lists and objects.
+
+```ts
+const dates = new Intl.DateTimeFormat('en-GB', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/London' });
+
+new Expression('"Due: " + due').evaluate({
+  context: { due: FormulaDate.from('2024-07-28T14:35Z') },
+  format: { date: (value) => dates.format(value.epochMilliseconds) },
+}).result.value;
+// 'Due: 28 July 2024 at 15:35'
+```
+
+| Formatter | Gets | Text without it |
+| --- | --- | --- |
+| `date` | `Temporal.ZonedDateTime` in UTC | ISO 8601 instant in UTC: `2024-07-28T14:35:00Z` |
+| `dateRange` | `{ start, end }` | Both ends as `date` gives them, joined by ` → ` |
+| `duration` | `Temporal.Duration` | ISO 8601 duration: `P1DT2H` |
+| `number` | `number` | `1234.5` |
+| `boolean` | `boolean` | `true` / `false` |
+| `null` | `null` | empty text |
+
+Text and regular expressions keep their own text. Error payloads keep machine text whatever the formatters are; error messages are localized through `messageKey`. A formatter that throws fails the evaluation with its own exception, and one that returns something other than text throws a `TypeError`.
+
+`format.names` gives the words of [date patterns](#dates-and-durations) in the host's language. Each list is optional, and a token whose list is left out stays English:
+
+```ts
+new Expression('formatDate(due, "D MMMM YYYY")').evaluate({
+  context: { due },
+  format: { names: { months: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'] } },
+}).result.value;
+// '28 июля 2024'
+```
+
+| Name list | Tokens | Holds |
+| --- | --- | --- |
+| `months` | `MMMM` | 12 names in the form they take next to a day |
+| `monthsStandalone` | `LLLL` | 12 names in the form they take on their own; without it, `LLLL` takes `months` |
+| `monthsShort` | `MMM` | 12 names |
+| `weekdays`, `weekdaysShort`, `weekdaysMin` | `dddd`, `ddd`, `dd` | 7 names each, from Sunday |
+| `dayPeriods` | `A`, `a` | Before and after noon; `a` takes them in lower case |
+| `ordinal` | `Do` | A function from the day of the month to its text |
+
+A list of the wrong length throws a `TypeError` before the formula runs.
 
 `FormulaArray.from` and `FormulaObject.from` convert nested host values recursively:
 
@@ -231,13 +277,13 @@ Date ranges are equal when both ends are; they cannot be ordered with `<` or `>`
 
 `add`, `subtract`, `between`, `range`, `start` and `end` are the method forms of the date functions; the function names work as methods too, as in `now().dateAdd(1, "days")`. Units are `"years"`, `"months"`, `"weeks"`, `"days"`, `"hours"`, `"minutes"` and, except for `between`, `"quarters"` (three months) and `"seconds"`.
 
-A date pattern shows the date in UTC unless a time zone is given by name (`"Europe/Berlin"`) or as an offset (`"+05:00"`). Names are in English on every machine. Text in brackets is kept as is, and so is any letter that is not a token:
+A date pattern shows the date in UTC unless a time zone is given by name (`"Europe/Berlin"`) or as an offset (`"+05:00"`). Names are in English on every machine, unless the host gives its own in [`format.names`](#text-of-values). Text in brackets is kept as is, and so is any letter that is not a token:
 
 | Part | Tokens | For 2023-08-03 14:05:09.007 UTC |
 | --- | --- | --- |
 | Year | `YYYY` `YY` `Y` | `2023` `23` `2023` |
 | Quarter | `Q` | `3` |
-| Month | `MMMM` `MMM` `MM` `M` | `August` `Aug` `08` `8` |
+| Month | `MMMM` `LLLL` `MMM` `MM` `M` | `August` `August` `Aug` `08` `8` (`LLLL` is the month on its own, which some languages write differently) |
 | Day of month | `DD` `D` `Do` | `03` `3` `3rd` |
 | Day of week | `dddd` `ddd` `dd` `d` | `Thursday` `Thu` `Th` `4` (`0` is Sunday) |
 | Hour | `HH` `H` `hh` `h` | `14` `14` `02` `2` |
@@ -252,7 +298,7 @@ A date pattern shows the date in UTC unless a time zone is given by name (`"Euro
 | --- | --- | --- |
 | `if(condition, then, else)` | Evaluates only the chosen branch | `if(stock > 0, "In stock", "Sold out")` |
 | `empty(value)` | True for `0`, `""`, `false`, `[]` and `null` | `empty([])` → `true` |
-| `format(value)` | Converts the value to text; a date becomes an ISO 8601 instant in UTC | `parseDate("2023-07-10").format()` → `"2023-07-10T00:00:00Z"` |
+| `format(value)` | Converts the value to text; a date becomes an ISO 8601 instant in UTC unless the host [formats dates](#text-of-values) | `parseDate("2023-07-10").format()` → `"2023-07-10T00:00:00Z"` |
 | `equal(a, b)` | Compares two values like `==`: lists item by item, dates by instant, values of different types are never equal | `[1, [2]].equal([1, [2]])` → `true` |
 | `unequal(a, b)` | The opposite of `equal`, like `!=` | `unequal(1, 2)` → `true` |
 | `toNumber(value)` | Text read as a number, `1` or `0` for a boolean, the timestamp of a date; text that holds no number, blank text included, is an error | `"2".toNumber()` → `2` |

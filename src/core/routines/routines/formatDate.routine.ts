@@ -20,6 +20,10 @@ const routineExamples: readonly RoutineExampleOptions[] = [
     result: () => new FormulaString('Wednesday, week W'),
   },
   {
+    formula: (name) => name('parseDate("2023-08-30")', '"LLLL YYYY"'),
+    result: () => new FormulaString('August 2023'),
+  },
+  {
     formula: (name) => name('parseDate("2023-08-30")', '"YYYY"', '"Mars/Base"'),
     error: {
       type: Errors.Argument.Validation,
@@ -33,8 +37,9 @@ routinesRegistry.registerRoutine('formatDate', {
   description: 'Returns the date as text built from a pattern such as "MMMM D".',
   examples: routineExamples,
   arguments: DATE_PATTERN_SIGNATURE,
-  handler: ({ subject, args: [pattern, timezone] }) => new FormulaString(formatDateText({
+  handler: ({ subject, args: [pattern, timezone], visitor }) => new FormulaString(formatDateText({
     date: subject.value.withTimeZone(timezone?.value ?? 'UTC'),
     pattern: pattern.value,
+    names: visitor.format?.names,
   })),
 });

@@ -1,3 +1,6 @@
+import type { ToStringOptions } from '../FormulaDataType';
+
+import { formatWith } from '../../value-format';
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
 import { decimalScale } from './decimal-scale';
@@ -35,8 +38,8 @@ export class FormulaNumber extends FormulaDataType<number> {
     return this.value === 0;
   }
 
-  toString(): string {
-    return String(this.value);
+  toString(options?: ToStringOptions): string {
+    return formatWith({ formatter: options?.format?.number, value: this.value, kind: 'number' }) ?? String(this.value);
   }
 
   /**

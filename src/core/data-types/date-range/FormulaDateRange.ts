@@ -1,5 +1,8 @@
+import type { ToStringOptions } from '../FormulaDataType';
+
 import { Temporal } from 'temporal-polyfill';
 
+import { formatWith } from '../../value-format';
 import { FormulaDate } from '../date';
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
@@ -24,9 +27,17 @@ export class FormulaDateRange extends FormulaDataType<DateRangeBounds> {
     return false;
   }
 
-  /** Formats both ends as ISO 8601 instants in UTC, joined by an arrow. */
-  toString(): string {
-    return `${this.value.start.toInstant().toString()} → ${this.value.end.toInstant().toString()}`;
+  /** Formats both ends the way a date formats, joined by an arrow, unless the host formats date ranges itself. */
+  toString(options?: ToStringOptions): string {
+    const text = formatWith({ formatter: options?.format?.dateRange, value: this.value, kind: 'date range' });
+
+    if (text !== undefined) {
+      return text;
+    }
+
+    const { start, end } = this.value;
+
+    return `${new FormulaDate(start).toString(options)} → ${new FormulaDate(end).toString(options)}`;
   }
 
   /**

@@ -35,6 +35,7 @@ export class AsyncExecutor extends Executor {
   async exec(request: FormulaExecRequest): Promise<FormulaExecResult> {
     const job = () => request.expression.evaluate({
       context: request.context,
+      format: request.format,
     });
 
     // Combine signals if needed

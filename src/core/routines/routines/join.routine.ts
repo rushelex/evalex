@@ -26,9 +26,9 @@ routinesRegistry.registerRoutine('join', {
     arg.array('list'),
     arg.string('separator', { optional: true }),
   ],
-  handler: ({ subject, args: [separator] }) => new FormulaString(
+  handler: ({ subject, args: [separator], visitor }) => new FormulaString(
     subject.value
-      .map((item) => item.toString())
+      .map((item) => item.toString({ format: visitor.format }))
       .join(separator?.value ?? ''),
   ),
 });

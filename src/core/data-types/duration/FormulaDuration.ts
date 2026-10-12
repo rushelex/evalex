@@ -1,5 +1,8 @@
+import type { ToStringOptions } from '../FormulaDataType';
+
 import { Temporal } from 'temporal-polyfill';
 
+import { formatWith } from '../../value-format';
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
 
@@ -14,8 +17,8 @@ export class FormulaDuration extends FormulaDataType<Temporal.Duration> {
     return false;
   }
 
-  toString(): string {
-    return this.value.toString();
+  toString(options?: ToStringOptions): string {
+    return formatWith({ formatter: options?.format?.duration, value: this.value, kind: 'duration' }) ?? this.value.toString();
   }
 
   static from(value: Temporal.Duration): FormulaDuration {

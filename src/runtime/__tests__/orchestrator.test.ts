@@ -5,7 +5,7 @@ import type { FormulaNode, NodeAdapter } from '../types';
 import { fc, it } from '@fast-check/vitest';
 import { vi } from 'vitest';
 
-import { Expression, FormulaArray, FormulaNull, FormulaNumber } from '../../core';
+import { Expression, FormulaArray, FormulaNull, FormulaNumber, FormulaString } from '../../core';
 import { Errors, FormulaError } from '../../core/errors';
 import { evaluateOutcome } from '../../testing-library';
 import { AsyncExecutor, SyncExecutor } from '../executor';
@@ -194,6 +194,26 @@ describe(FormulaOrchestrator, () => {
       await orchestrator.waitForProcessing();
 
       expect(formulaNode.value).toEqual(new FormulaNumber(10));
+    });
+  });
+
+  describe('format', () => {
+    it.each([
+      { executor: 'a sync executor', create: () => new SyncExecutor() },
+      { executor: 'an async executor', create: () => new AsyncExecutor() },
+    ])('should turn values into text with the formatters of the format under $executor', async ({ create }) => {
+      const formatted = new FormulaOrchestrator({ adapter, executor: create(), format: { number: (value) => `#${value}` } });
+      const total: TestNode = { id: 'total', value: new FormulaNull(), expression: new Expression('"Total: " + price'), error: null };
+
+      formatted.add({ id: 'price', value: new FormulaNumber(5), error: null });
+      formatted.add(total);
+      await formatted.waitForProcessing();
+
+      expect(total.value).toBeFormulaDataType(FormulaString, 'Total: #5');
+    });
+
+    it('should throw a TypeError on creation for a list of names of the wrong length', () => {
+      expect(() => new FormulaOrchestrator({ adapter, format: { names: { months: ['January'] } } })).toThrowError(new TypeError('format.names.months must hold 12 names, not 1.'));
     });
   });
 

@@ -58,7 +58,7 @@ export class FormulaObject<T extends Record<string, FormulaDataType> = Record<st
   }
 
   toString(options?: ToStringOptions): string {
-    const entries = Object.entries<FormulaDataType>(this.value).map(([key, value]) => `${key}: ${value.toString({ asJSON: options?.asJSON ?? true })}`);
+    const entries = Object.entries<FormulaDataType>(this.value).map(([key, value]) => `${key}: ${value.toString({ ...options, asJSON: options?.asJSON ?? true })}`);
     if (entries.length === 0)
       return '{}';
     return `{ ${entries.join(', ')} }`;

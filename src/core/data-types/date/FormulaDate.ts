@@ -1,5 +1,8 @@
+import type { ToStringOptions } from '../FormulaDataType';
+
 import { Temporal } from 'temporal-polyfill';
 
+import { formatWith } from '../../value-format';
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
 
@@ -24,9 +27,9 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime> {
     return false;
   }
 
-  /** Formats the date as an ISO 8601 instant in UTC, so the text never depends on the host locale. */
-  toString(): string {
-    return this.value.toInstant().toString();
+  /** Formats the date as an ISO 8601 instant in UTC, so the text never depends on the host locale, unless the host formats dates itself. */
+  toString(options?: ToStringOptions): string {
+    return formatWith({ formatter: options?.format?.date, value: this.value, kind: 'date' }) ?? this.value.toInstant().toString();
   }
 
   /**
