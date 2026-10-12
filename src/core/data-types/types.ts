@@ -13,14 +13,25 @@ import type { FormulaObject } from './object';
 import type { FormulaRegExp } from './regexp';
 import type { FormulaString } from './string';
 
+export type TypedArray
+  = Int8Array
+    | Uint8Array
+    | Uint8ClampedArray
+    | Int16Array
+    | Uint16Array
+    | Int32Array
+    | Uint32Array
+    | Float32Array
+    | Float64Array
+    | BigInt64Array
+    | BigUint64Array;
+
 type NonMappableObject
   = Function // eslint-disable-line ts/no-unsafe-function-type
     | Promise<unknown>
     | Error
     | Map<unknown, unknown>
     | ReadonlyMap<unknown, unknown>
-    | Set<unknown>
-    | ReadonlySet<unknown>
     | WeakMap<object, unknown>
     | WeakSet<object>;
 
@@ -41,12 +52,13 @@ type WrapObjectConditionally<T, ShouldWrap extends boolean>
 export type ToFormulaDataType<T, ShouldWrapObject extends boolean = false>
   = T extends null | undefined ? FormulaNull
   : T extends string ? FormulaString
-  : T extends number ? FormulaNumber
+  : T extends number | bigint ? FormulaNumber
   : T extends boolean ? FormulaBoolean
-  : T extends Date | Temporal.ZonedDateTime ? FormulaDate
+  : T extends Date | Temporal.ZonedDateTime | Temporal.Instant | Temporal.PlainDateTime | Temporal.PlainDate ? FormulaDate
   : T extends Temporal.Duration ? FormulaDuration
   : T extends RegExp ? FormulaRegExp
-  : T extends Array<infer I> | ReadonlyArray<infer I> ? FormulaArray<ToFormulaDataType<I, true>>
+  : T extends Array<infer I> | ReadonlyArray<infer I> | ReadonlySet<infer I> ? FormulaArray<ToFormulaDataType<I, true>>
+  : T extends TypedArray ? FormulaArray<FormulaNumber>
   : T extends object
     ? T extends NonMappableObject ? never
     : HasFunctionProperties<T> extends true ? never

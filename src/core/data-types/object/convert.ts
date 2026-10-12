@@ -1,6 +1,6 @@
 import type { ToFormulaDataType } from '../types';
 
-import { convertObjectWithCircularCheck } from '../converter';
+import { convertObjectFields } from '../converter';
 import { FormulaObject } from './FormulaObject';
 
 /**
@@ -8,8 +8,5 @@ import { FormulaObject } from './FormulaObject';
  * This method handles nested objects directly without markers
  */
 FormulaObject.convert = function <T extends Record<string, any>>(obj: T): ToFormulaDataType<T> {
-  const visited = new WeakSet<object>();
-  // Add the root object to visited set to prevent self-references
-  visited.add(obj);
-  return convertObjectWithCircularCheck(obj, visited) as ToFormulaDataType<T>;
+  return convertObjectFields(obj) as ToFormulaDataType<T>;
 };

@@ -34,6 +34,19 @@ describe('ToFormulaDataType', () => {
     expectTypeOf<ToFormulaDataType<ReadonlyArray<number>>>().toEqualTypeOf<FormulaArray<FormulaNumber>>();
   });
 
+  it('should map values with an obvious formula form', () => {
+    expectTypeOf<ToFormulaDataType<Set<number>>>().toEqualTypeOf<FormulaArray<FormulaNumber>>();
+    expectTypeOf<ToFormulaDataType<ReadonlySet<string>>>().toEqualTypeOf<FormulaArray<FormulaString>>();
+    expectTypeOf<ToFormulaDataType<Uint8Array>>().toEqualTypeOf<FormulaArray<FormulaNumber>>();
+    expectTypeOf<ToFormulaDataType<BigInt64Array>>().toEqualTypeOf<FormulaArray<FormulaNumber>>();
+
+    expectTypeOf<ToFormulaDataType<bigint>>().toEqualTypeOf<FormulaNumber>();
+
+    expectTypeOf<ToFormulaDataType<Temporal.Instant>>().toEqualTypeOf<FormulaDate>();
+    expectTypeOf<ToFormulaDataType<Temporal.PlainDateTime>>().toEqualTypeOf<FormulaDate>();
+    expectTypeOf<ToFormulaDataType<Temporal.PlainDate>>().toEqualTypeOf<FormulaDate>();
+  });
+
   it('should map plain objects and wrap nested objects', () => {
     interface Input {
       a: string;
@@ -69,8 +82,7 @@ describe('ToFormulaDataType', () => {
     expectTypeOf<ToFormulaDataType<Map<string, string>>>().toEqualTypeOf<never>();
     expectTypeOf<ToFormulaDataType<ReadonlyMap<string, string>>>().toEqualTypeOf<never>();
 
-    expectTypeOf<ToFormulaDataType<Set<number>>>().toEqualTypeOf<never>();
-    expectTypeOf<ToFormulaDataType<ReadonlySet<number>>>().toEqualTypeOf<never>();
+    expectTypeOf<ToFormulaDataType<Temporal.PlainTime>>().toEqualTypeOf<never>();
 
     expectTypeOf<ToFormulaDataType<WeakMap<object, unknown>>>().toEqualTypeOf<never>();
     expectTypeOf<ToFormulaDataType<WeakSet<object>>>().toEqualTypeOf<never>();

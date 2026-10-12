@@ -174,10 +174,8 @@ describe('FormulaObject', () => {
       const plainObj = {
         nullValue: null,
         undefinedValue: undefined,
-        symbol: Symbol('test'),
         date: new Date('2025-01-01'),
         regex: /test/g,
-        func: () => 'test',
       };
 
       const converted = FormulaObject.convert(plainObj);
@@ -186,24 +184,16 @@ describe('FormulaObject', () => {
       expect(formulaObj).toBeFormulaDataType(FormulaObject, {
         nullValue: new FormulaNull(),
         undefinedValue: new FormulaNull(),
-        symbol: new FormulaString('Symbol(test)'),
         date: FormulaDate.from(new Date('2025-01-01')),
         regex: new FormulaRegExp('test', 'g'),
-        func: new FormulaString('[Function: func]'),
       });
     });
 
-    it('should handle circular references in convert', () => {
-      const obj: { name: string; self?: any } = { name: 'John' };
-      obj.self = obj; // Circular reference
+    it('should reject a circular reference in convert', () => {
+      const obj: Record<string, unknown> = { name: 'John' };
+      obj.self = obj;
 
-      const converted = FormulaObject.convert(obj);
-      const formulaObj = new FormulaObject(converted);
-
-      expect(formulaObj).toBeFormulaDataType(FormulaObject, {
-        name: new FormulaString('John'),
-        self: new FormulaString('[Circular Reference]'),
-      });
+      expect(() => FormulaObject.convert(obj)).toThrow(new TypeError('Cannot convert self to a formula value: it is a circular reference.'));
     });
   });
 

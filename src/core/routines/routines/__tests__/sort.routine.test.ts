@@ -3,7 +3,7 @@ import type { FormulaDataType } from '../../../data-types';
 import { fc, it } from '@fast-check/vitest';
 
 import { evaluate, evaluateOutcome, formulaValueArbitrary } from '../../../../testing-library';
-import { FormulaArray, FormulaBoolean, FormulaDate, Kind } from '../../../data-types';
+import { FormulaArray, FormulaBoolean, FormulaDate, FormulaNumber, Kind } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('sort');
@@ -45,8 +45,9 @@ describe('sort routine', () => {
     },
     {
       formula: 'values.sort()',
-      context: { values: FormulaArray.from([Number.NaN, 2, -1]) },
-      expected: FormulaArray.from([-1, 2, Number.NaN]),
+      // A formula reaches NaN only through arithmetic such as `10^400 - 10^400`; a host value of NaN is rejected.
+      context: { values: new FormulaArray([new FormulaNumber(Number.NaN), FormulaNumber.from(2), FormulaNumber.from(-1)]) },
+      expected: new FormulaArray([FormulaNumber.from(-1), FormulaNumber.from(2), new FormulaNumber(Number.NaN)]),
     },
     {
       formula: 'dates.sort()',
