@@ -1,4 +1,4 @@
-import type { Expression, FormulaDataType } from '../../core';
+import type { Expression, FormulaDataType, ValueFormat } from '../../core';
 
 /**
  * Serializable request for formula execution.
@@ -6,6 +6,7 @@ import type { Expression, FormulaDataType } from '../../core';
 export interface FormulaExecRequest {
   readonly expression: Expression;
   readonly context: ReadonlyMap<string, FormulaDataType>;
+  readonly format?: ValueFormat;
 }
 
 /**

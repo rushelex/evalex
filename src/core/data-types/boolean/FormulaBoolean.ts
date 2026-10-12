@@ -1,3 +1,6 @@
+import type { ToStringOptions } from '../FormulaDataType';
+
+import { formatWith } from '../../value-format';
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
 
@@ -24,8 +27,8 @@ export class FormulaBoolean extends FormulaDataType<boolean> {
     return !this.value;
   }
 
-  toString(): string {
-    return this.value ? 'true' : 'false';
+  toString(options?: ToStringOptions): string {
+    return formatWith({ formatter: options?.format?.boolean, value: this.value, kind: 'boolean' }) ?? (this.value ? 'true' : 'false');
   }
 
   /**

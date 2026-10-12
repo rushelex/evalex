@@ -1,8 +1,10 @@
+import type { ValueFormat } from '../core';
 import type { Executor } from './executor';
 import type { Scheduler } from './scheduler';
 import type { FormulaNode, NodeAdapter } from './types';
 
 import { Errors } from '../core/errors';
+import { validateValueFormat } from '../core/value-format';
 import { SyncExecutor } from './executor';
 import { FORMULA_LIMITS } from './limits';
 import { FormulaRuntime } from './runtime';
@@ -12,6 +14,13 @@ export interface FormulaOrchestratorOptions<T extends FormulaNode> {
   adapter: NodeAdapter<T>;
   executor?: Executor;
   scheduler?: Scheduler;
+  /**
+   * How values look when a formula turns them into text.
+   *
+   * @remarks
+   * Fixed for the life of the orchestrator: to switch to another language, create a new orchestrator.
+   */
+  format?: ValueFormat;
 }
 
 /**
@@ -67,13 +76,17 @@ export class FormulaOrchestrator<T extends FormulaNode> {
   readonly #runtime: FormulaRuntime<T>;
   readonly #subscriptions = new Map<string, () => void>();
 
+  /** @throws {TypeError} When a list of names in `format` holds a different number of names than its token needs. */
   constructor(options: FormulaOrchestratorOptions<T>) {
+    validateValueFormat(options.format);
+
     this.#adapter = options.adapter;
     this.#runtime = new FormulaRuntime({
       adapter: this.#adapter,
       nodeProvider: (id) => this.#registry.get(id),
       executor: options.executor ?? new SyncExecutor(),
       scheduler: options.scheduler ?? new ImmediateScheduler(),
+      format: options.format,
       onNodeCleanup: (id) => {
         this.#registry.delete(id);
       },

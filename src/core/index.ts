@@ -20,3 +20,4 @@ export { FormulaDebugger } from './debugger';
 export { Errors, FormulaError, FormulaErrorCode } from './errors';
 export type { EvaluateOptions, EvaluateResult } from './expression';
 export { Expression } from './expression';
+export type { DateNames, ValueFormat } from './value-format';

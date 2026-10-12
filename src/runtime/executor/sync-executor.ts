@@ -11,6 +11,7 @@ export class SyncExecutor extends Executor {
   exec(request: FormulaExecRequest): FormulaExecResult {
     return request.expression.evaluate({
       context: request.context,
+      format: request.format,
     });
   }
 

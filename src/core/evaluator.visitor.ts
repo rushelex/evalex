@@ -1,6 +1,7 @@
 import type { AST } from '../parser';
 import type { FormulaEvaluationContext } from './context';
 import type { RoutineDispatcher } from './routines/dispatcher';
+import type { ValueFormat } from './value-format';
 
 import { Temporal } from 'temporal-polyfill';
 
@@ -21,6 +22,8 @@ import { routineDispatcher } from './routines/dispatcher';
 
 interface EvaluationHooks {
   onIdentifier?: (name: string) => void;
+  /** The host's formatters for values the formula turns into text. */
+  format?: ValueFormat;
 }
 
 /** The latest result of one evaluation and the part of the formula it came from, shared by its nested visitors. */
@@ -69,6 +72,11 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
     origin.value = result;
 
     return result;
+  }
+
+  /** The host's formatters, for every place the formula turns a value into text. */
+  get format(): ValueFormat | undefined {
+    return this.#hooks?.format;
   }
 
   /** The part of the formula the latest result came from, so an error about that value can point at it. */
@@ -124,7 +132,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
       case '+': {
         // Text joins the other operand as the same text `format()` gives
         if (left instanceof FormulaString || right instanceof FormulaString) {
-          return new FormulaString(left.toString() + right.toString());
+          return new FormulaString(left.toString({ format: this.format }) + right.toString({ format: this.format }));
         }
 
         // Numeric addition

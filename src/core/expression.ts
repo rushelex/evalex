@@ -1,10 +1,12 @@
 import type { AST } from '../parser';
 import type { FormulaDataType } from './data-types';
+import type { ValueFormat } from './value-format';
 
 import { parse } from '../parser';
 import { FormulaEvaluationContext } from './context';
 import { DependencyExtractorVisitor } from './dependency-extractor.visitor';
 import { FormulaEvaluatorVisitor } from './evaluator.visitor';
+import { validateValueFormat } from './value-format';
 
 const astCache = new Map<string, AST.AstNode>();
 const dependenciesCache = new Map<string, ReadonlySet<string>>();
@@ -13,6 +15,8 @@ const EMPTY_MAP = new Map<string, FormulaDataType>();
 
 export interface EvaluateOptions {
   readonly context?: Readonly<Record<string, FormulaDataType>> | ReadonlyMap<string, FormulaDataType>;
+  /** How values look when the formula turns them into text. */
+  readonly format?: ValueFormat;
 }
 
 export interface EvaluateResult {
@@ -60,6 +64,8 @@ export class Expression {
    * @returns The result and active dependencies of the evaluation.
    */
   evaluate(options: EvaluateOptions = {}): EvaluateResult {
+    validateValueFormat(options.format);
+
     const ast = parseFormula(this.formula);
 
     let initialProperties: Map<string, FormulaDataType>;
@@ -83,6 +89,7 @@ export class Expression {
       context,
       {
         onIdentifier: (id) => dependencies.add(id),
+        format: options.format,
       },
     );
 

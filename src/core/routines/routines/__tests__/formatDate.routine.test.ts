@@ -10,10 +10,10 @@ const date = fc.integer({ min: Date.UTC(1, 0, 1), max: Date.UTC(9999, 11, 31) })
 
 const timezone = fc.constantFrom('UTC', 'Europe/Berlin', 'Asia/Kolkata', 'America/St_Johns', 'Pacific/Kiritimati', '-03:30');
 
-const TOKENS = ['YYYY', 'YY', 'Y', 'Q', 'MMMM', 'MMM', 'MM', 'M', 'DD', 'Do', 'D', 'dddd', 'ddd', 'dd', 'd', 'HH', 'H', 'hh', 'h', 'mm', 'm', 'ss', 's', 'SSS', 'A', 'a', 'ZZ', 'Z', 'X', 'x'] as const;
+const TOKENS = ['YYYY', 'YY', 'Y', 'Q', 'MMMM', 'MMM', 'MM', 'M', 'LLLL', 'DD', 'Do', 'D', 'dddd', 'ddd', 'dd', 'd', 'HH', 'H', 'hh', 'h', 'mm', 'm', 'ss', 's', 'SSS', 'A', 'a', 'ZZ', 'Z', 'X', 'x'] as const;
 
 // Every character here is kept as is: none of them is a token or a bracket
-const plainText = fc.string({ unit: fc.constantFrom(...'0123456789 -/:.,_!?bcefgijklnoprtuvwzBCEFGIJKLNOPRTUVW') });
+const plainText = fc.string({ unit: fc.constantFrom(...'0123456789 -/:.,_!?bcefgijklnoprtuvwzBCEFGIJKNOPRTUVW') });
 
 describe('formatDate routine', () => {
   it.prop([date, plainText])('should keep a pattern without tokens as it is', (value, pattern) => {

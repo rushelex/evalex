@@ -145,6 +145,19 @@ const orchestrator = new FormulaOrchestrator({
 | `runner(job, signal)` | Decides how a job is run; the default queues it as a microtask |
 | `onTerminate()` | Called by `terminate()` after it aborts pending jobs |
 
+## Text of values
+
+`format` decides how values look when a formula turns them into text, the same option `Expression#evaluate` takes (see the [core README](../core/README.md#text-of-values)):
+
+```ts
+const orchestrator = new FormulaOrchestrator({
+  adapter,
+  format: { number: (value) => numbers.format(value) },
+});
+```
+
+It is fixed for the life of the orchestrator: when the user switches language, create a new orchestrator with the new formatters. A list of names of the wrong length throws a `TypeError` from the constructor.
+
 ## Errors and limits
 
 Problems with one formula never stop the rest: the error goes to that node's `onError`, and every other formula keeps calculating.

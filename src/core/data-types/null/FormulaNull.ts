@@ -1,3 +1,6 @@
+import type { ToStringOptions } from '../FormulaDataType';
+
+import { formatWith } from '../../value-format';
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
 
@@ -22,8 +25,8 @@ export class FormulaNull extends FormulaDataType<null> {
     return true;
   }
 
-  toString(): string {
-    return '';
+  toString(options?: ToStringOptions): string {
+    return formatWith({ formatter: options?.format?.null, value: null, kind: 'null' }) ?? '';
   }
 
   /**
