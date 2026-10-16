@@ -57,6 +57,13 @@ const runtimeSetup = fc.record({
   asyncEvaluation: fc.boolean(),
 });
 
+// The order to add the links of a chain that is up to 5 links longer than the depth limit allows.
+const chainAddOrder = fc.integer({ min: 1, max: 5 }).chain((extra) => {
+  const indexes = Array.from({ length: FORMULA_LIMITS.MAX_FORMULA_DEPTH + extra }, (_, index) => index);
+
+  return fc.shuffledSubarray(indexes, { minLength: indexes.length });
+});
+
 const initialGraph = fc.record({
   values: fc.tuple(smallNumber, smallNumber, smallNumber),
   formulas: fc.tuple(...FORMULA_IDS.map((_, index) => formulaFor(index))),
@@ -699,6 +706,89 @@ describe(FormulaOrchestrator, () => {
     });
 
     describe('Max Formula Depth', () => {
+      it.prop([chainAddOrder])('should fail exactly the formulas deeper than MAX_FORMULA_DEPTH, whatever order the chain is added in', async (addOrder) => {
+        const tested = startChainHost();
+        const [base, ...links] = chain({ prefix: 'f', length: addOrder.length });
+
+        tested.add(base);
+        addOrder.forEach((index) => tested.add(links[index]));
+        await tested.waitForProcessing();
+
+        expect(chainOutcomes(links)).toEqual(links.map((_, index) => (index + 1 <= FORMULA_LIMITS.MAX_FORMULA_DEPTH ? index + 2 : 'too deep')));
+      });
+
+      it.each([
+        { change: 'values change', formula: 'g10 + 1', shift: 10 },
+        { change: 'values stay the same', formula: 'g10 - 9', shift: 0 },
+      ])('should fail the formulas an edit below pushes past MAX_FORMULA_DEPTH when $change', async ({ formula, shift }) => {
+        const tested = startChainHost();
+        const f = chain({ prefix: 'f', length: FORMULA_LIMITS.MAX_FORMULA_DEPTH });
+        const links = f.slice(1);
+
+        [...f, ...chain({ prefix: 'g', length: 10 })].forEach((node) => tested.add(node));
+        await tested.waitForProcessing();
+
+        links[0].expression = new Expression(formula);
+        tested.enqueue('f1');
+        await tested.waitForProcessing();
+
+        // f1 now reads the end of the 10-link chain, so every link of `f` is 10 levels deeper
+        expect(chainOutcomes(links)).toEqual(links.map((_, index) => (index + 11 <= FORMULA_LIMITS.MAX_FORMULA_DEPTH ? index + 2 + shift : 'too deep')));
+      });
+
+      it('should fail the formulas above an edited formula that goes past MAX_FORMULA_DEPTH itself', async () => {
+        const tested = startChainHost();
+        const f = chain({ prefix: 'f', length: 5 });
+        const links = f.slice(1);
+
+        [...f, ...chain({ prefix: 'g', length: FORMULA_LIMITS.MAX_FORMULA_DEPTH })].forEach((node) => tested.add(node));
+        await tested.waitForProcessing();
+
+        links[0].expression = new Expression(`g${FORMULA_LIMITS.MAX_FORMULA_DEPTH} + 1`);
+        tested.enqueue('f1');
+        await tested.waitForProcessing();
+
+        expect(chainOutcomes(links)).toEqual(links.map(() => 'too deep'));
+      });
+
+      it.each([
+        { change: 'values change', formula: '16', shift: 10 },
+        { change: 'values stay the same', formula: '6', shift: 0 },
+      ])('should recalculate the formulas an edit below brings back within MAX_FORMULA_DEPTH when $change', async ({ formula, shift }) => {
+        const tested = startChainHost();
+        const f = chain({ prefix: 'f', length: FORMULA_LIMITS.MAX_FORMULA_DEPTH + 5 });
+        const links = f.slice(1);
+
+        f.forEach((node) => tested.add(node));
+        await tested.waitForProcessing();
+
+        links[4].expression = new Expression(formula);
+        tested.enqueue('f5');
+        await tested.waitForProcessing();
+
+        // f5 no longer reads anything, so the links above it are 5 levels shallower
+        expect(chainOutcomes(links)).toEqual(links.map((_, index) => (index < 4 ? index + 2 : index + 2 + shift)));
+      });
+
+      it('should recalculate the formulas an edit pushed past MAX_FORMULA_DEPTH once a later edit brings them back', async () => {
+        const tested = startChainHost();
+        const f = chain({ prefix: 'f', length: FORMULA_LIMITS.MAX_FORMULA_DEPTH });
+        const links = f.slice(1);
+
+        [...f, ...chain({ prefix: 'g', length: 10 })].forEach((node) => tested.add(node));
+        await tested.waitForProcessing();
+
+        links[0].expression = new Expression('g10 - 9');
+        tested.enqueue('f1');
+        await tested.waitForProcessing();
+
+        links[0].expression = new Expression('f0 + 1');
+        tested.enqueue('f1');
+        await tested.waitForProcessing();
+
+        expect(chainOutcomes(links)).toEqual(links.map((_, index) => index + 2));
+      });
+
       it('should handle formulas up to MAX_FORMULA_DEPTH', async () => {
         // Create a chain up to max depth
         orchestrator.add({ id: 'f0', value: new FormulaNumber(1), error: null });
@@ -787,6 +877,53 @@ describe(FormulaOrchestrator, () => {
     });
   });
 });
+
+/** Creates a host whose formulas recover from an error as soon as they calculate again. */
+function startChainHost(): FormulaOrchestrator<TestNode> {
+  return new FormulaOrchestrator<TestNode>({
+    adapter: {
+      shouldProcess: (node) => !!node.expression,
+      toFormulaDataType: (node) => node.value,
+      toExpression: (node) => node.expression ?? null,
+      onCalculate: (node, value) => {
+        node.value = value;
+        node.error = null;
+      },
+      onError: (node, error) => {
+        node.value = FormulaNull.instance();
+        node.error = error;
+      },
+    },
+  });
+}
+
+/** Creates a value node `<prefix>0` holding 1 and `length` links after it, each adding 1 to the one before. */
+function chain({ prefix, length }: { readonly prefix: string; readonly length: number }): readonly TestNode[] {
+  return [
+    { id: `${prefix}0`, value: new FormulaNumber(1), error: null },
+    ...Array.from({ length }, (_, index): TestNode => ({
+      id: `${prefix}${index + 1}`,
+      value: FormulaNull.instance(),
+      error: null,
+      expression: new Expression(`${prefix}${index} + 1`),
+    })),
+  ];
+}
+
+/** Reads each link as its number, `too deep` for the depth limit, or the message of any other error. */
+function chainOutcomes(links: readonly TestNode[]): readonly (number | string)[] {
+  return links.map((node) => {
+    if (Errors.Runtime.MaxFormulaDepth.is(node.error)) {
+      return 'too deep';
+    }
+
+    if (node.error !== null) {
+      return `${node.id}: ${node.error.message}`;
+    }
+
+    return node.value instanceof FormulaNumber ? node.value.value : `${node.id}: ${node.value.toString()}`;
+  });
+}
 
 /** Changes a node the way a host does: a new value or formula, followed by the matching notification. */
 async function applyHostChange({ orchestrator, nodes, change }: {

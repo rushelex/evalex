@@ -387,7 +387,9 @@ export class FormulaRuntime<T extends FormulaNode> {
     const cached = this.#cachedState.get(nodeId);
     if (cached && cached.formulaString === currentFormulaString) {
       // Fast path: formula unchanged, only values changed
-      // Skip all validation - just update context values in place
+      // Skip validation except the depth, which an edit below can push past the limit
+      this.#assertDepth(nodeId);
+
       FormulaDebugger.traceProcessing(nodeId, cached.expression);
 
       const inputsChanged = this.#updateExecutionContextInPlace(cached.dependencies, cached.context);
@@ -428,6 +430,7 @@ export class FormulaRuntime<T extends FormulaNode> {
     }
 
     // Update dependency graph
+    const previousDepth = this.#graph.getNodeDepth(nodeId);
     this.#graph.replaceDependencies(nodeId, staticDeps);
 
     if (isVolatileFormula(expression)) {
@@ -437,12 +440,11 @@ export class FormulaRuntime<T extends FormulaNode> {
       this.#volatileNodes.delete(nodeId);
     }
 
-    // Validate depth after updating dependencies
-    const depthValidation = this.#validator.validateDepth(nodeId, this.#graph);
-    if (!depthValidation.isValid) {
-      this.#cachedState.delete(nodeId);
-      throw depthValidation.error;
+    if (this.#graph.getNodeDepth(nodeId) !== previousDepth) {
+      this.#enqueueDepthLimitChanges(nodeId);
     }
+
+    this.#assertDepth(nodeId);
 
     // Build execution context - use Map for performance
     const context = this.#buildExecutionContext(staticDeps);
@@ -457,6 +459,42 @@ export class FormulaRuntime<T extends FormulaNode> {
     this.#cachedState.set(nodeId, state);
 
     return { node, expression, context, state };
+  }
+
+  // Fails a formula deeper than the limit, dropping its cached state like any other validation failure
+  #assertDepth(nodeId: string): void {
+    const depthValidation = this.#validator.validateDepth(nodeId, this.#graph);
+
+    if (!depthValidation.isValid) {
+      this.#cachedState.delete(nodeId);
+      throw depthValidation.error;
+    }
+  }
+
+  /**
+   * Enqueues the formulas below a node whose depth changed that are now past the depth limit or failed before,
+   * since their own text and inputs may stay the same and would not bring them back to processing.
+   */
+  #enqueueDepthLimitChanges(nodeId: string): void {
+    const visited = new Set<string>([nodeId]);
+    const pending = [...this.#graph.getDependents(nodeId)];
+
+    for (let index = 0; index < pending.length; index++) {
+      const id = pending[index];
+
+      if (visited.has(id)) {
+        continue;
+      }
+
+      visited.add(id);
+
+      if (this.#failedNodes.has(id) || !this.#validator.validateDepth(id, this.#graph).isValid) {
+        this.#queue.enqueue(id);
+        FormulaDebugger.traceEnqueue(id, `Depth change from ${nodeId}`);
+      }
+
+      pending.push(...this.#graph.getDependents(id));
+    }
   }
 
   /**
