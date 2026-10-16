@@ -4,6 +4,13 @@ import { playwright } from '@vitest/browser-playwright';
 import circularDependency from 'vite-plugin-circular-dependency';
 import { defineConfig } from 'vitest/config';
 
+// Benchmarks measure the built bundle: source modules pay for Vite's export getters on every call
+const benchResolve = {
+  alias: {
+    evalex: path.resolve(import.meta.dirname, './dist/index.js'),
+  },
+};
+
 export default defineConfig({
   plugins: [circularDependency()],
 
@@ -75,16 +82,33 @@ export default defineConfig({
       },
       {
         extends: true,
-        // Benchmarks measure the built bundle: source modules pay for Vite's export getters on every call
-        resolve: {
-          alias: {
-            evalex: path.resolve(import.meta.dirname, './dist/index.js'),
-          },
-        },
+        resolve: benchResolve,
         test: {
           name: 'bench',
           include: ['**/*.{bench,benchmark}.ts'],
           benchmark: { include: ['**/*.{bench,benchmark}.ts'] },
+        },
+      },
+      {
+        extends: true,
+        resolve: benchResolve,
+        // Cross-origin isolation gives performance.now() 10 µs steps instead of 100 µs
+        server: {
+          headers: {
+            'Cross-Origin-Opener-Policy': 'same-origin',
+            'Cross-Origin-Embedder-Policy': 'require-corp',
+          },
+        },
+        test: {
+          name: 'bench-browser',
+          include: ['**/*.{bench,benchmark}.ts'],
+          benchmark: { include: ['**/*.{bench,benchmark}.ts'] },
+          browser: {
+            provider: playwright(),
+            enabled: true,
+            headless: true,
+            instances: [{ browser: 'chromium' }],
+          },
         },
       },
     ],

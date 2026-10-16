@@ -1,402 +1,346 @@
 /* eslint-disable test/prefer-lowercase-title */
-import type { FormulaDataType, FormulaRuntimeOptions, NodeAdapter } from 'evalex';
+import type { FormulaDataType, NodeAdapter, Scheduler } from 'evalex';
+import type { CellValue, RawCellContent } from 'hyperformula';
 
 import {
+  BatchingScheduler,
   Expression,
   FormulaNull,
   FormulaNumber,
-  FormulaRuntime,
-  ImmediateScheduler,
-  SyncExecutor,
+  FormulaOrchestrator,
 } from 'evalex';
 import { HyperFormula } from 'hyperformula';
-import { it } from 'vitest';
-
-interface Node {
-  id: string;
-  value: FormulaDataType;
-  expression?: Expression;
-  activeDeps?: Set<string>;
-}
+import { expect, it } from 'vitest';
 
 /**
  * Head-to-head comparison benchmark: evalex vs HyperFormula
  *
- * Tests the same scenarios in both systems to enable direct comparison.
+ * Both engines hold the same order table. Each row has a price, a quantity and a discount,
+ * and five computed columns: subtotal, rounded total, size, caption and the row's share of the grand total.
+ * Totals are summed in blocks of 50 rows and the blocks into a grand total,
+ * so a price edit reaches its row, its block, the grand total and then the share of every row.
+ *
+ * Each engine is driven through the API its docs suggest to hosts:
+ * evalex through `FormulaOrchestrator`, HyperFormula through its sheet methods.
  */
+
+const BLOCK_SIZE = 50;
+
+// 1,900 rows keep the table under the runtime limit of 10,000 formulas
+const TABLE_SIZES = [200, 1900] as const;
+
+const PASTE_SIZE = 100;
+
+const HF_CONFIG = { licenseKey: 'gpl-v3' } as const;
+
+// Sheet columns of the HyperFormula table: A–C inputs, D–H computed, J block totals, K1 grand total
+const HF_COLUMN = {
+  price: 0,
+  size: 5,
+  label: 6,
+  share: 7,
+  grand: 10,
+} as const;
+
+interface OrderRow {
+  readonly price: number;
+  readonly quantity: number;
+  readonly discount: number;
+}
+
+interface Cell {
+  readonly id: string;
+  readonly expression?: Expression;
+  value: FormulaDataType | null;
+  error?: Error;
+}
+
+interface EvalexTable {
+  readonly orchestrator: FormulaOrchestrator<Cell>;
+  readonly cells: Map<string, Cell>;
+}
+
+interface PriceEdit {
+  readonly firstRow: number;
+  readonly prices: readonly number[];
+}
+
+const adapter: NodeAdapter<Cell> = {
+  shouldProcess: (cell) => cell.expression !== undefined,
+  toFormulaDataType: (cell) => cell.value ?? FormulaNull.instance(),
+  toExpression: (cell) => cell.expression ?? null,
+  onCalculate: (cell, value) => {
+    cell.value = value;
+    cell.error = undefined;
+  },
+  onError: (cell, error) => {
+    cell.error = error;
+  },
+};
+
+it('Comparison: both engines compute the same table', async () => {
+  const rows = orderRows(TABLE_SIZES[0]);
+  const table = await buildEvalexTable({ rows });
+  const sheet = HyperFormula.buildFromArray(sheetData(rows), HF_CONFIG);
+  const lastRow = rows.length - 1;
+
+  const failed = [...table.cells.values()].filter((cell) => cell.error !== undefined);
+
+  expect(failed).toEqual([]);
+
+  // evalex rounds the exact decimal half up, while HyperFormula rounds the binary double:
+  // a total such as 487.305 becomes 487.31 in evalex and 487.30 in HyperFormula, so each row may differ by a cent
+  expect(Math.abs((table.cells.get('grand')!.value!.value as number) - hfGrandTotal(sheet))).toBeLessThanOrEqual(rows.length * 0.01);
+  expect(table.cells.get(`share_${lastRow}`)!.value!.value).toBeCloseTo(hfCell({ sheet, col: HF_COLUMN.share, row: lastRow }) as number, 6);
+  expect(table.cells.get(`size_${lastRow}`)!.value!.value).toBe(hfCell({ sheet, col: HF_COLUMN.size, row: lastRow }));
+  expect(table.cells.get(`label_${lastRow}`)!.value!.value).toBe(hfCell({ sheet, col: HF_COLUMN.label, row: lastRow }));
+});
 
 /**
- * Scenario 1: Simple formula A + B
+ * Scenario 1: Opening a table
+ * Builds the engine from scratch and calculates every formula, as when a user opens a document
  */
-it('Comparison: Simple Formula (A + B)', async ({ bench }) => {
-  let evalexInitFn: () => Promise<void>;
-  let hfInstance: HyperFormula;
+for (const rowCount of TABLE_SIZES) {
+  it(`Comparison: open a ${rowCount}-row table (${formulaCount(rowCount)} formulas)`, async ({ bench }) => {
+    const rows = orderRows(rowCount);
 
-  const buildEvalex = () => {
-    const { registry, initializeFormulas } = setupEvalex();
-    registry.set('A1', { id: 'A1', value: new FormulaNumber(10) });
-    registry.set('B1', { id: 'B1', value: new FormulaNumber(20) });
-    registry.set('C1', {
-      id: 'C1',
-      value: new FormulaNumber(0),
-      expression: new Expression('A1 + B1'),
-    });
-    return initializeFormulas;
-  };
+    await bench.compare(
+      bench('evalex, new orchestrator', async () => {
+        const table = await buildEvalexTable({ rows });
+        evalexGrandTotal(table);
+      }),
+      bench('HyperFormula, new workbook', () => {
+        const sheet = HyperFormula.buildFromArray(sheetData(rows), HF_CONFIG);
+        hfGrandTotal(sheet);
+      }),
+      { warmupIterations: 3, iterations: 20 },
+    );
+  });
+}
 
-  await bench.compare(
-    bench('evalex, new runtime each run', async () => {
-      await buildEvalex()();
-    }),
-    bench(
-      'evalex, same runtime re-run, nothing changed, skipped',
-      {
-        beforeAll: () => {
-          evalexInitFn = buildEvalex();
+/**
+ * Scenario 2: Editing one price
+ * A price in the middle of the table changes, which reaches its row, its block,
+ * the grand total and the share of every row
+ */
+for (const rowCount of TABLE_SIZES) {
+  it(`Comparison: edit one price in a ${rowCount}-row table`, async ({ bench }) => {
+    const rows = orderRows(rowCount);
+    const firstRow = Math.floor(rowCount / 2);
+    let table: EvalexTable;
+    let sheet: HyperFormula;
+    let step = 0;
+
+    await bench.compare(
+      bench(
+        'evalex',
+        {
+          beforeAll: async () => {
+            table = await buildEvalexTable({ rows });
+          },
         },
-      },
-      async () => {
-        await evalexInitFn();
-      },
-    ),
-    bench('HyperFormula, new workbook each run', () => {
-      // HyperFormula calculates on build
-      hfInstance = HyperFormula.buildFromArray(
-        [
-          [10, 20, '=A1+B1'],
-        ],
-        { licenseKey: 'gpl-v3' },
-      );
-      hfInstance.getCellValue({ sheet: 0, col: 2, row: 0 });
-    }),
-    { warmupIterations: 10, iterations: 100 },
-  );
-});
-
-/**
- * Scenario 2: Chain of formulas (sequential dependency)
- */
-it('Comparison: Chain of 10 formulas', async ({ bench }) => {
-  let evalexInitFn: () => Promise<void>;
-
-  const buildEvalex = () => {
-    const { registry, initializeFormulas } = setupEvalex();
-    registry.set('A1', { id: 'A1', value: new FormulaNumber(1) });
-    for (let i = 2; i <= 11; i++) {
-      const prevCol = String.fromCharCode(64 + i - 1); // A, B, C...
-      const col = String.fromCharCode(64 + i);
-      registry.set(`${col}1`, {
-        id: `${col}1}`,
-        value: new FormulaNumber(0),
-        expression: new Expression(`${prevCol}1 + 1`),
-      });
-    }
-    return initializeFormulas;
-  };
-
-  await bench.compare(
-    bench('evalex, new runtime each run', async () => {
-      await buildEvalex()();
-    }),
-    bench(
-      'evalex, same runtime re-run, nothing changed, skipped',
-      {
-        beforeAll: () => {
-          evalexInitFn = buildEvalex();
+        async () => {
+          await editEvalexPrices({ table, edit: { firstRow, prices: [editedPrice(++step)] } });
+          evalexGrandTotal(table);
         },
-      },
-      async () => {
-        await evalexInitFn();
-      },
-    ),
-    bench('HyperFormula, new workbook each run', () => {
-      const row = [1];
-      for (let i = 1; i <= 10; i++) {
-        const prevCol = String.fromCharCode(64 + i); // A, B, C...
-        row.push(`=${prevCol}1+1` as unknown as number);
-      }
-      const hf = HyperFormula.buildFromArray([row], { licenseKey: 'gpl-v3' });
-      hf.getCellValue({ sheet: 0, col: 10, row: 0 });
-    }),
-    { warmupIterations: 10, iterations: 100 },
-  );
-});
-
-/**
- * Scenario 3: Fan-out (one cell affects many)
- */
-it('Comparison: 50 formulas depending on one cell', async ({ bench }) => {
-  let evalexInitFn: () => Promise<void>;
-
-  const buildEvalex = () => {
-    const { registry, initializeFormulas } = setupEvalex();
-    registry.set('A1', { id: 'A1', value: new FormulaNumber(10) });
-    for (let i = 0; i < 50; i++) {
-      registry.set(`B${i + 1}`, {
-        id: `B${i + 1}`,
-        value: new FormulaNumber(0),
-        expression: new Expression(`A1 * ${i + 1}`),
-      });
-    }
-    return initializeFormulas;
-  };
-
-  await bench.compare(
-    bench('evalex, new runtime each run', async () => {
-      await buildEvalex()();
-    }),
-    bench(
-      'evalex, same runtime re-run, nothing changed, skipped',
-      {
-        beforeAll: () => {
-          evalexInitFn = buildEvalex();
+      ),
+      bench(
+        'HyperFormula',
+        {
+          beforeAll: () => {
+            sheet = HyperFormula.buildFromArray(sheetData(rows), HF_CONFIG);
+          },
         },
-      },
-      async () => {
-        await evalexInitFn();
-      },
-    ),
-    bench('HyperFormula, new workbook each run', () => {
-      const data: (number | string)[][] = [[10]];
-      for (let i = 0; i < 50; i++) {
-        data.push([`=A1*${i + 1}`]);
-      }
-      const hf = HyperFormula.buildFromArray(data, { licenseKey: 'gpl-v3' });
-      hf.getCellValue({ sheet: 0, col: 0, row: 50 });
-    }),
-    { warmupIterations: 5, iterations: 50 },
-  );
-});
+        () => {
+          editHFPrices({ sheet, edit: { firstRow, prices: [editedPrice(++step)] } });
+          hfGrandTotal(sheet);
+        },
+      ),
+      { warmupIterations: 10, iterations: 100 },
+    );
+  });
+}
 
 /**
- * Scenario 4: Large sheet initialization (1000 formulas)
- * This is the HyperFormula-style benchmark for "cold start"
+ * Scenario 3: Pasting a column of prices
+ * 100 neighboring prices change at once, as when a user pastes a range
+ * evalex runs once with the default scheduler, which processes each update as it comes,
+ * and once with `BatchingScheduler`, which its docs suggest for bursts of input
  */
-it('Comparison: 1000 formulas initialization', async ({ bench }) => {
-  // Seeded random for reproducibility
-  const seededRandom = (seed: number) => {
-    return () => {
-      seed = (seed * 9301 + 49297) % 233280;
-      return seed / 233280;
-    };
+for (const rowCount of TABLE_SIZES) {
+  it(`Comparison: paste ${PASTE_SIZE} prices into a ${rowCount}-row table`, async ({ bench }) => {
+    const rows = orderRows(rowCount);
+    const firstRow = rowCount - PASTE_SIZE;
+    const pastedPrices = (start: number) => Array.from({ length: PASTE_SIZE }, (_, offset) => editedPrice(start + offset));
+    let immediateTable: EvalexTable;
+    let batchingTable: EvalexTable;
+    let sheet: HyperFormula;
+    let step = 0;
+
+    await bench.compare(
+      bench(
+        'evalex, default scheduler',
+        {
+          beforeAll: async () => {
+            immediateTable = await buildEvalexTable({ rows });
+          },
+        },
+        async () => {
+          await editEvalexPrices({ table: immediateTable, edit: { firstRow, prices: pastedPrices(++step) } });
+          evalexGrandTotal(immediateTable);
+        },
+      ),
+      bench(
+        'evalex, BatchingScheduler with no delay',
+        {
+          beforeAll: async () => {
+            batchingTable = await buildEvalexTable({ rows, scheduler: new BatchingScheduler({ delayMs: 0 }) });
+          },
+        },
+        async () => {
+          await editEvalexPrices({ table: batchingTable, edit: { firstRow, prices: pastedPrices(++step) } });
+          evalexGrandTotal(batchingTable);
+        },
+      ),
+      bench(
+        'HyperFormula',
+        {
+          beforeAll: () => {
+            sheet = HyperFormula.buildFromArray(sheetData(rows), HF_CONFIG);
+          },
+        },
+        () => {
+          editHFPrices({ sheet, edit: { firstRow, prices: pastedPrices(++step) } });
+          hfGrandTotal(sheet);
+        },
+      ),
+      { warmupIterations: 5, iterations: 50 },
+    );
+  });
+}
+
+// Prices with cents, quantities from 1 to 20 and discounts from 0 to 15%, the same on every run.
+// Decimals are parsed from text, so 32.77 is the double closest to 32.77 rather than 31.77 + 1
+function orderRows(count: number): OrderRow[] {
+  return Array.from({ length: count }, (_, i) => ({
+    price: Number(`${((i * 1297) % 10000) + 100}e-2`),
+    quantity: ((i * 7) % 20) + 1,
+    discount: Number(`${((i * 13) % 4) * 5}e-2`),
+  }));
+}
+
+// A price that differs from the one written on the previous step
+function editedPrice(step: number): number {
+  return Number(`${1000 + (step % 1000)}e-2`);
+}
+
+function blockCount(rowCount: number): number {
+  return Math.ceil(rowCount / BLOCK_SIZE);
+}
+
+function formulaCount(rowCount: number): number {
+  return rowCount * 5 + blockCount(rowCount) + 1;
+}
+
+async function buildEvalexTable({ rows, scheduler }: { rows: readonly OrderRow[]; scheduler?: Scheduler }): Promise<EvalexTable> {
+  const orchestrator = new FormulaOrchestrator<Cell>({ adapter, scheduler });
+  const cells = new Map<string, Cell>();
+
+  const add = (cell: Cell) => {
+    cells.set(cell.id, cell);
+    orchestrator.add(cell);
   };
 
-  await bench.compare(
-    bench('evalex, new runtime each run', async () => {
-      const random = seededRandom(42);
-      const { registry, initializeFormulas } = setupEvalex();
-
-      // 100 base values
-      for (let i = 0; i < 100; i++) {
-        registry.set(`P${i}`, { id: `P${i}`, value: new FormulaNumber(i) });
-      }
-
-      // 1000 formulas
-      for (let i = 0; i < 1000; i++) {
-        const numDeps = Math.floor(random() * 3) + 1;
-        const deps = [];
-        for (let j = 0; j < numDeps; j++) {
-          deps.push(`P${Math.floor(random() * 100)}`);
-        }
-        registry.set(`F${i}`, {
-          id: `F${i}`,
-          value: new FormulaNumber(0),
-          expression: new Expression(deps.join(' + ')),
-        });
-      }
-
-      await initializeFormulas();
-    }),
-    bench('HyperFormula, new workbook each run', () => {
-      const random = seededRandom(42);
-
-      // Build data array
-      const data: (number | string)[][] = [];
-
-      // 100 base values in first column
-      for (let i = 0; i < 100; i++) {
-        data.push([i]);
-      }
-
-      // 1000 formulas in second column
-      for (let i = 0; i < 1000; i++) {
-        const numDeps = Math.floor(random() * 3) + 1;
-        const deps = [];
-        for (let j = 0; j < numDeps; j++) {
-          const row = Math.floor(random() * 100) + 1;
-          deps.push(`A${row}`);
-        }
-        if (data[i]) {
-          data[i].push(deps.join('+'));
-        }
-        else {
-          data.push(['', `=${deps.join('+')}`]);
-        }
-      }
-
-      const hf = HyperFormula.buildFromArray(data, { licenseKey: 'gpl-v3' });
-      // Trigger calculation
-      hf.getCellValue({ sheet: 0, col: 1, row: 999 });
-    }),
-    { warmupIterations: 3, iterations: 20 },
-  );
-});
-
-/**
- * Scenario 5: Recalculation after value change (UPDATE scenario)
- * This is crucial for real-time editing
- */
-it('Comparison: Recalculation after value change (50 dependents)', async ({ bench }) => {
-  let evalexUpdateFn: (value: number) => Promise<void>;
-  let hfInstance: HyperFormula;
-  let next = 30;
-
-  const setupEvalexDependents = async () => {
-    const { registry, runtime, initializeFormulas } = setupEvalex();
-    registry.set('A1', { id: 'A1', value: new FormulaNumber(10) });
-    for (let i = 0; i < 50; i++) {
-      registry.set(`B${i + 1}`, {
-        id: `B${i + 1}`,
-        value: new FormulaNumber(0),
-        expression: new Expression(`A1 * ${i + 1}`),
-      });
-    }
-    await initializeFormulas();
-
-    evalexUpdateFn = async (value) => {
-      registry.get('A1')!.value = new FormulaNumber(value);
-      runtime.enqueueDependents('A1');
-      await runtime.waitForProcessing();
-    };
+  const addFormula = (id: string, formula: string) => {
+    add({ id, expression: new Expression(formula), value: null });
   };
 
-  const setupHyperFormula = () => {
-    const data: (number | string)[][] = [[10]];
-    for (let i = 0; i < 50; i++) {
-      data.push([`=A1*${i + 1}`]);
-    }
-    hfInstance = HyperFormula.buildFromArray(data, { licenseKey: 'gpl-v3' });
-  };
-
-  const updateHyperFormula = (value: number) => {
-    hfInstance.setCellContents({ sheet: 0, col: 0, row: 0 }, [[value]]);
-    // Force actual evaluation (HyperFormula is lazy)
-    for (let i = 0; i < 50; i++) {
-      hfInstance.getCellValue({ sheet: 0, col: 0, row: i + 1 });
-    }
-  };
-
-  await bench.compare(
-    bench('evalex, new value', { beforeAll: setupEvalexDependents }, async () => {
-      await evalexUpdateFn(++next);
-    }),
-    bench('HyperFormula, new value', { beforeAll: setupHyperFormula }, () => {
-      updateHyperFormula(++next);
-    }),
-    bench('evalex, same value, skipped', { beforeAll: setupEvalexDependents }, async () => {
-      await evalexUpdateFn(30);
-    }),
-    bench('HyperFormula, same value, skipped', { beforeAll: setupHyperFormula }, () => {
-      updateHyperFormula(30);
-    }),
-    { warmupIterations: 5, iterations: 50 },
-  );
-});
-
-/**
- * Scenario 6: 1000 formulas over decimal values
- * Prices and rates with fraction digits, where arithmetic works on decimals instead of integers
- */
-it('Comparison: 1000 formulas over decimal values', async ({ bench }) => {
-  const seededRandom = (seed: number) => {
-    return () => {
-      seed = (seed * 9301 + 49297) % 233280;
-      return seed / 233280;
-    };
-  };
-
-  // Values such as 3.7 or 12.95: two fraction digits, like prices
-  const baseValue = (i: number) => Number(`${(i * 1297) % 10000}e-2`);
-
-  const formulaOperands = (random: () => number) => Array.from({ length: 3 }, () => Math.floor(random() * 100));
-
-  await bench.compare(
-    bench('evalex, new runtime each run', async () => {
-      const random = seededRandom(42);
-      const { registry, initializeFormulas } = setupEvalex();
-
-      for (let i = 0; i < 100; i++) {
-        registry.set(`P${i}`, { id: `P${i}`, value: new FormulaNumber(baseValue(i)) });
-      }
-
-      for (let i = 0; i < 1000; i++) {
-        const [a, b, c] = formulaOperands(random);
-        registry.set(`F${i}`, {
-          id: `F${i}`,
-          value: new FormulaNumber(0),
-          expression: new Expression(`(P${a} + P${b}) * 1.05 - P${c} / 4`),
-        });
-      }
-
-      await initializeFormulas();
-    }),
-    bench('HyperFormula, new workbook each run', () => {
-      const random = seededRandom(42);
-      const data: (number | string)[][] = [];
-
-      for (let i = 0; i < 1000; i++) {
-        const [a, b, c] = formulaOperands(random);
-        data.push([i < 100 ? baseValue(i) : '', `=(A${a + 1}+A${b + 1})*1.05-A${c + 1}/4`]);
-      }
-
-      const hf = HyperFormula.buildFromArray(data, { licenseKey: 'gpl-v3' });
-      hf.getCellValue({ sheet: 0, col: 1, row: 999 });
-    }),
-    { warmupIterations: 3, iterations: 20 },
-  );
-});
-
-// Helper function for evalex setup
-function setupEvalex(options?: Partial<FormulaRuntimeOptions<Node>>) {
-  const adapter: NodeAdapter<Node> = {
-    shouldProcess: (node) => !!node.expression,
-    toFormulaDataType: (node) => node.value,
-    toExpression: (node) => node.expression ?? null,
-    onCalculate: (node, value, deps) => {
-      node.value = value;
-      node.activeDeps = deps ? new Set(deps) : undefined;
-    },
-    onError: (node) => {
-      node.value = new FormulaNull();
-      node.activeDeps = undefined;
-    },
-  };
-
-  const executor = new SyncExecutor();
-  const registry = new Map<string, Node>();
-
-  const runtime = new FormulaRuntime<Node>({
-    executor,
-    scheduler: new ImmediateScheduler(),
-    adapter,
-    nodeProvider: (id) => registry.get(id),
-    ...options,
+  // Inputs first, then every formula after the cells it reads, as a host loading a saved table would add them
+  rows.forEach((row, i) => {
+    add({ id: `price_${i}`, value: new FormulaNumber(row.price) });
+    add({ id: `quantity_${i}`, value: new FormulaNumber(row.quantity) });
+    add({ id: `discount_${i}`, value: new FormulaNumber(row.discount) });
   });
 
-  async function initializeFormulas() {
-    for (const [nodeId, node] of registry.entries()) {
-      if (adapter.shouldProcess(node)) {
-        runtime.enqueue(nodeId);
-      }
-    }
-    await runtime.waitForProcessing();
+  rows.forEach((_, i) => {
+    addFormula(`subtotal_${i}`, `price_${i} * quantity_${i}`);
+    addFormula(`total_${i}`, `round(subtotal_${i} * (1 - discount_${i}), 2)`);
+    addFormula(`size_${i}`, `if(total_${i} > 500, "large", "small")`);
+    addFormula(`label_${i}`, `"Order " + ${i + 1} + ": " + total_${i}`);
+  });
+
+  for (let block = 0; block < blockCount(rows.length); block++) {
+    const totals = rows
+      .slice(block * BLOCK_SIZE, (block + 1) * BLOCK_SIZE)
+      .map((_, offset) => `total_${block * BLOCK_SIZE + offset}`);
+
+    addFormula(`block_${block}`, `sum(${totals.join(', ')})`);
   }
 
-  return {
-    adapter,
-    executor,
-    registry,
-    runtime,
-    initializeFormulas,
-  };
+  const blocks = Array.from({ length: blockCount(rows.length) }, (_, block) => `block_${block}`);
+
+  addFormula('grand', `sum(${blocks.join(', ')})`);
+
+  rows.forEach((_, i) => {
+    addFormula(`share_${i}`, `total_${i} / grand`);
+  });
+
+  await orchestrator.waitForProcessing();
+
+  return { orchestrator, cells };
+}
+
+async function editEvalexPrices({ table, edit }: { table: EvalexTable; edit: PriceEdit }): Promise<void> {
+  edit.prices.forEach((price, offset) => {
+    const id = `price_${edit.firstRow + offset}`;
+
+    table.cells.get(id)!.value = new FormulaNumber(price);
+    table.orchestrator.enqueueDependents(id);
+  });
+
+  await table.orchestrator.waitForProcessing();
+}
+
+function evalexGrandTotal(table: EvalexTable): FormulaDataType | null {
+  return table.cells.get('grand')!.value;
+}
+
+// The same table as `buildEvalexTable`, laid out in columns A–H with block totals in J and the grand total in K1
+function sheetData(rows: readonly OrderRow[]): RawCellContent[][] {
+  const blocks = blockCount(rows.length);
+
+  return rows.map((row, i) => {
+    const r = i + 1;
+    const blockStart = i * BLOCK_SIZE + 1;
+    const blockEnd = Math.min((i + 1) * BLOCK_SIZE, rows.length);
+
+    return [
+      row.price,
+      row.quantity,
+      row.discount,
+      `=A${r}*B${r}`,
+      `=ROUND(D${r}*(1-C${r}),2)`,
+      `=IF(E${r}>500,"large","small")`,
+      `="Order "&${r}&": "&E${r}`,
+      `=E${r}/$K$1`,
+      null,
+      i < blocks ? `=SUM(E${blockStart}:E${blockEnd})` : null,
+      i === 0 ? `=SUM(J1:J${blocks})` : null,
+    ];
+  });
+}
+
+function editHFPrices({ sheet, edit }: { sheet: HyperFormula; edit: PriceEdit }): void {
+  sheet.setCellContents(
+    { sheet: 0, col: HF_COLUMN.price, row: edit.firstRow },
+    edit.prices.map((price) => [price]),
+  );
+}
+
+function hfCell({ sheet, col, row }: { sheet: HyperFormula; col: number; row: number }): CellValue {
+  return sheet.getCellValue({ sheet: 0, col, row });
+}
+
+function hfGrandTotal(sheet: HyperFormula): number {
+  return hfCell({ sheet, col: HF_COLUMN.grand, row: 0 }) as number;
 }

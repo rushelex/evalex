@@ -212,7 +212,7 @@ You need a current Node.js and pnpm 12.
 | `pnpm build` | Bundles the library into `dist/` with tsdown |
 | `pnpm dev` | Rebuilds on change |
 | `pnpm test` | Runs the Vitest suite |
-| `pnpm bench` | Builds, then runs benchmarks |
+| `pnpm bench` | Builds, then runs benchmarks in Node and in headless Chromium |
 | `pnpm typecheck` | Type-checks without emitting |
 | `pnpm lint` / `pnpm lint:fix` | Lints, or lints and fixes |
 
