@@ -27,7 +27,7 @@ evalex (*eval* + *expression*, pronounced "ee-VAL-ex") lets the people using you
 | **Batteries included** | 50+ built-in functions and methods for text, math, lists and dates |
 | **Precise errors** | Errors carry a machine-readable `code`, structured details and the span of the formula at fault |
 | **Dependency tracking** | Know which variables a formula reads, statically and at evaluation time |
-| **Reactive runtime** | Recalculates dependent formulas in order, detects cycles, batches updates |
+| **Reactive runtime** | Recalculates only the formulas an update reaches, in order, and skips those whose inputs did not change. Detects cycles, batches updates |
 | **Sandboxed** | No access to globals, no `eval`, no I/O — a formula can only read what you give it |
 
 ## Installation
