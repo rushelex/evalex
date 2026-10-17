@@ -610,6 +610,74 @@ describe(FormulaOrchestrator, () => {
         }));
       });
 
+      it('should calculate every formula when exactly MAX_FORMULAS_COUNT formulas exist', async () => {
+        const tested = startChainHost();
+        const formulas = fillFormulas(tested);
+        await tested.waitForProcessing();
+
+        const failed = formulas.filter((node) => node.error !== null || !(node.value instanceof FormulaNumber && node.value.value === 2));
+
+        expect(failed).toEqual([]);
+      });
+
+      it('should fail a node turned into a formula through enqueue once MAX_FORMULAS_COUNT formulas exist', async () => {
+        const tested = startChainHost();
+        const turned: TestNode = { id: 'turned', value: new FormulaNumber(42), error: null };
+
+        fillFormulas(tested);
+        tested.add(turned);
+        await tested.waitForProcessing();
+
+        turned.expression = new Expression('2 + 2');
+        tested.enqueue('turned');
+        await tested.waitForProcessing();
+
+        expect(turned.error).toEqual(Errors.Runtime.MaxFormulas.create({
+          nodeId: 'turned',
+          count: FORMULA_LIMITS.MAX_FORMULAS_COUNT,
+          limit: FORMULA_LIMITS.MAX_FORMULAS_COUNT,
+        }));
+      });
+
+      it('should calculate a node refused for MAX_FORMULAS_COUNT once a slot is free and it is enqueued again', async () => {
+        const tested = startChainHost();
+        const turned: TestNode = { id: 'turned', value: new FormulaNumber(42), error: null };
+
+        fillFormulas(tested);
+        tested.add(turned);
+        turned.expression = new Expression('2 + 2');
+        tested.enqueue('turned');
+        await tested.waitForProcessing();
+
+        tested.remove('f0');
+        tested.enqueue('turned');
+        await tested.waitForProcessing();
+
+        expect({ value: turned.value, error: turned.error }).toEqual({ value: new FormulaNumber(4), error: null });
+      });
+
+      it('should free a slot when a formula is turned into a plain value through enqueue', async () => {
+        const tested = startChainHost();
+        const formulas = fillFormulas(tested);
+        await tested.waitForProcessing();
+
+        formulas[0].expression = undefined;
+        tested.enqueue('f0');
+        await tested.waitForProcessing();
+
+        expect(() => tested.add({ id: 'next', value: FormulaNull.instance(), error: null, expression: new Expression('3 + 3') })).not.toThrow();
+      });
+
+      it('should free a slot when a formula is removed', async () => {
+        const tested = startChainHost();
+        fillFormulas(tested);
+        await tested.waitForProcessing();
+
+        tested.remove('f0');
+
+        expect(() => tested.add({ id: 'next', value: FormulaNull.instance(), error: null, expression: new Expression('3 + 3') })).not.toThrow();
+      });
+
       it('should allow adding non-formula nodes without limit', () => {
         // Add MAX_FORMULAS_COUNT formulas
         for (let i = 0; i < FORMULA_LIMITS.MAX_FORMULAS_COUNT; i++) {
@@ -908,6 +976,17 @@ function chain({ prefix, length }: { readonly prefix: string; readonly length: n
       expression: new Expression(`${prefix}${index} + 1`),
     })),
   ];
+}
+
+/** Adds formulas `f0`, `f1`… until the formula limit is reached. */
+function fillFormulas(orchestrator: FormulaOrchestrator<TestNode>): readonly TestNode[] {
+  return Array.from({ length: FORMULA_LIMITS.MAX_FORMULAS_COUNT }, (_, index) => {
+    const node: TestNode = { id: `f${index}`, value: FormulaNull.instance(), error: null, expression: new Expression('1 + 1') };
+
+    orchestrator.add(node);
+
+    return node;
+  });
 }
 
 /** Reads each link as its number, `too deep` for the depth limit, or the message of any other error. */

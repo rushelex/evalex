@@ -6,7 +6,6 @@ import type { FormulaNode, NodeAdapter } from './types';
 import { Errors } from '../core/errors';
 import { validateValueFormat } from '../core/value-format';
 import { SyncExecutor } from './executor';
-import { FORMULA_LIMITS } from './limits';
 import { FormulaRuntime } from './runtime';
 import { ImmediateScheduler } from './scheduler';
 
@@ -100,6 +99,7 @@ export class FormulaOrchestrator<T extends FormulaNode> {
    * @param node - The node to add
    * @param subscribe - Optional callback to subscribe to node changes
    * @throws FormulaError coded `DUPLICATE_NODE_ID` if a node with the same ID already exists
+   * @throws FormulaError coded `MAX_FORMULAS_EXCEEDED` if the node holds a formula and the formula limit is reached
    */
   add(node: T, subscribe?: () => () => void): void {
     // Validate uniqueness
@@ -107,19 +107,9 @@ export class FormulaOrchestrator<T extends FormulaNode> {
       throw Errors.Runtime.DuplicateNodeId.create({ nodeId: node.id });
     }
 
-    // Check formulas count limit
+    // Take a slot of the formulas count limit before the node is registered, so a refused node leaves no trace
     if (this.#adapter.shouldProcess(node)) {
-      const formulasCount = Array.from(this.#registry.values())
-        .filter((n) => this.#adapter.shouldProcess(n))
-        .length;
-
-      if (formulasCount >= FORMULA_LIMITS.MAX_FORMULAS_COUNT) {
-        throw Errors.Runtime.MaxFormulas.create({
-          nodeId: node.id,
-          count: formulasCount,
-          limit: FORMULA_LIMITS.MAX_FORMULAS_COUNT,
-        });
-      }
+      this.#runtime.admitFormula(node.id);
     }
 
     // Add to registry first

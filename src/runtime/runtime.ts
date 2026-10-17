@@ -4,10 +4,12 @@ import type { Scheduler } from './scheduler';
 import type { FormulaNode, NodeAdapter } from './types';
 
 import { FormulaDebugger } from '../core';
+import { Errors } from '../core/errors';
 import { isVolatileFormula } from '../core/volatile-formula';
 import { DependencyGraph } from './dependency-graph';
 import { FormulaValidator } from './formula-validator';
 import { isSameValue } from './is-same-value';
+import { FORMULA_LIMITS } from './limits';
 import { RecalculationQueue } from './recalculation-queue';
 
 /**
@@ -122,6 +124,8 @@ export class FormulaRuntime<T extends FormulaNode> {
   readonly #deliveredValues = new Map<string, FormulaDataType>();
   // Formulas whose last evaluation failed: an update must retry them even when it repeats a value
   readonly #failedNodes = new Set<string>();
+  // Nodes holding a slot under the formula limit; a node takes one when it is first treated as a formula
+  readonly #formulaIds = new Set<string>();
 
   constructor(options: FormulaRuntimeOptions<T>) {
     this.#nodeProvider = options.nodeProvider;
@@ -135,8 +139,34 @@ export class FormulaRuntime<T extends FormulaNode> {
       this.#volatileNodes.delete(id);
       this.#deliveredValues.delete(id);
       this.#failedNodes.delete(id);
+      this.#formulaIds.delete(id);
       options.onNodeCleanup?.(id);
     });
+  }
+
+  /**
+   * Takes one of the slots of the formula limit for a node, unless it already holds one.
+   *
+   * @remarks
+   * A node also takes a slot when it is first processed as a formula, and gives it back once it is processed
+   * without a formula, is unregistered or is garbage-collected.
+   *
+   * @throws FormulaError coded `MAX_FORMULAS_EXCEEDED` when every slot is taken
+   */
+  admitFormula(nodeId: string): void {
+    if (this.#formulaIds.has(nodeId)) {
+      return;
+    }
+
+    if (this.#formulaIds.size >= FORMULA_LIMITS.MAX_FORMULAS_COUNT) {
+      throw Errors.Runtime.MaxFormulas.create({
+        nodeId,
+        count: this.#formulaIds.size,
+        limit: FORMULA_LIMITS.MAX_FORMULAS_COUNT,
+      });
+    }
+
+    this.#formulaIds.add(nodeId);
   }
 
   /**
@@ -203,6 +233,7 @@ export class FormulaRuntime<T extends FormulaNode> {
    */
   unregister(target: FormulaNode): void {
     this.#finalizer.unregister(target);
+    this.#formulaIds.delete(target.id);
   }
 
   /**
@@ -372,14 +403,14 @@ export class FormulaRuntime<T extends FormulaNode> {
    */
   #extractAndValidateNode(nodeId: string): ProcessingContext<T> | null {
     const node = this.#nodeProvider(nodeId);
-    if (!node || !this.#adapter.shouldProcess(node)) {
+    const expression = node && this.#adapter.shouldProcess(node) ? this.#adapter.toExpression(node) : null;
+    if (!node || !expression) {
+      this.#formulaIds.delete(nodeId);
       return null;
     }
 
-    const expression = this.#adapter.toExpression(node);
-    if (!expression) {
-      return null;
-    }
+    // A node the host turned into a formula after adding it takes its slot here
+    this.admitFormula(nodeId);
 
     const currentFormulaString = expression.formula;
 
