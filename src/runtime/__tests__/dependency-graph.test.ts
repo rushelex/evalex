@@ -291,6 +291,15 @@ describe(DependencyGraph, () => {
       }).toThrow(Errors.Runtime.CircularDependency.create({ nodeId: 'A', dependsOnId: 'C' }));
     });
 
+    it('should name the first dependency in the set when several would create a cycle', () => {
+      graph.addDependency('B', 'A');
+      graph.addDependency('C', 'A');
+
+      expect(() => {
+        graph.replaceDependencies('A', new Set(['D', 'B', 'C']));
+      }).toThrow(Errors.Runtime.CircularDependency.create({ nodeId: 'A', dependsOnId: 'B' }));
+    });
+
     it('should not modify graph state when cycle detected', () => {
       graph.addDependency('A', 'B');
       graph.addDependency('B', 'C');

@@ -237,9 +237,13 @@ export class DependencyGraph {
 
   /**
    * Batch cycle detection - checks if adding edges from nodeId to any dep would create a cycle.
-   * Single BFS from all deps simultaneously.
    *
-   * @returns The dependency that would create a cycle, or null if safe
+   * @remarks
+   * An edge closes a cycle when the dependency already reads nodeId, so the walk goes down from nodeId
+   * through its dependents rather than up through everything the dependencies read: a formula added on top
+   * of the others has no dependents yet, which keeps its check constant however large the graph below it is.
+   *
+   * @returns The first dependency in `deps` that would create a cycle, or null if safe
    */
   #wouldCreateCycleBatch(nodeId: string, deps: ReadonlySet<string>): string | null {
     if (deps.size === 0)
@@ -249,35 +253,11 @@ export class DependencyGraph {
     if (deps.has(nodeId))
       return nodeId;
 
-    // BFS from all deps at once - check if any path leads to nodeId
-    const queue: string[] = [];
-    const visited = new Set<string>();
+    const downstream = this.#collectDownstream(nodeId);
 
     for (const dep of deps) {
-      if (!visited.has(dep)) {
-        visited.add(dep);
-        queue.push(dep);
-      }
-    }
-
-    let idx = 0;
-    while (idx < queue.length) {
-      const current = queue[idx++];
-
-      if (current === nodeId) {
-        // Find which original dep led here (for error message)
-        // Return the first dep that was in the path
-        return this.#findCycleCause(nodeId, deps);
-      }
-
-      const currentDeps = this.#dependencies.get(current);
-      if (currentDeps) {
-        for (const dep of currentDeps) {
-          if (!visited.has(dep)) {
-            visited.add(dep);
-            queue.push(dep);
-          }
-        }
+      if (downstream.has(dep)) {
+        return dep;
       }
     }
 
@@ -285,55 +265,36 @@ export class DependencyGraph {
   }
 
   /**
-   * Find which dependency would cause the cycle (for error messages)
+   * Single cycle detection, walking down from nodeId like the batch check.
    *
-   * @param nodeId - The node to find cycle cause for
-   * @param deps - The dependencies to check
-   * @returns The dependency that would cause the cycle
-   */
-  #findCycleCause(nodeId: string, deps: ReadonlySet<string>): string {
-    for (const dep of deps) {
-      if (this.#wouldCreateCycleSingle(nodeId, dep)) {
-        return dep;
-      }
-    }
-    return deps.values().next().value!;
-  }
-
-  /**
-   * Single cycle detection using index-based queue (O(1) dequeue)
-   *
-   * @param nodeId - The node to find cycle cause for
+   * @param nodeId - The node that would get the dependency
    * @param dependsOnId - The dependency to check
    * @returns True if a cycle would be created, false otherwise
    */
   #wouldCreateCycleSingle(nodeId: string, dependsOnId: string): boolean {
-    if (nodeId === dependsOnId)
-      return true;
+    return nodeId === dependsOnId || this.#collectDownstream(nodeId).has(dependsOnId);
+  }
 
-    const queue = [dependsOnId];
-    const visited = new Set<string>([dependsOnId]);
+  /** Collects every node that reads nodeId directly or through other nodes, using an index-based queue. */
+  #collectDownstream(nodeId: string): ReadonlySet<string> {
+    const queue = [nodeId];
+    const visited = new Set<string>();
     let idx = 0;
 
     while (idx < queue.length) {
-      const current = queue[idx++];
+      const dependents = this.#dependents.get(queue[idx++]);
 
-      if (current === nodeId) {
-        return true;
-      }
-
-      const currentDeps = this.#dependencies.get(current);
-      if (currentDeps) {
-        for (const dep of currentDeps) {
-          if (!visited.has(dep)) {
-            visited.add(dep);
-            queue.push(dep);
+      if (dependents) {
+        for (const dependent of dependents) {
+          if (!visited.has(dependent)) {
+            visited.add(dependent);
+            queue.push(dependent);
           }
         }
       }
     }
 
-    return false;
+    return visited;
   }
 
   /**
