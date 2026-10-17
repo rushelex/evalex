@@ -250,6 +250,32 @@ describe('FormulaRuntime', () => {
 
       await expect(detector.isLeaking()).resolves.toBe(false);
     });
+
+    it('should stop asking for an unregistered formula when its inputs change', async () => {
+      const requested: string[] = [];
+      const { registry, runtime, initializeFormulas } = setup({
+        nodeProvider: (id) => {
+          requested.push(id);
+          return registry.get(id);
+        },
+      });
+      const removed: Node = { id: 'removed', value: new FormulaNumber(0), expression: new Expression('price + 1') };
+
+      registry.set('price', { id: 'price', value: new FormulaNumber(1) });
+      registry.set(removed.id, removed);
+      await initializeFormulas();
+
+      runtime.unregister(removed);
+      registry.delete(removed.id);
+      await runtime.waitForProcessing();
+      requested.length = 0;
+
+      registry.get('price')!.value = new FormulaNumber(2);
+      runtime.enqueueDependents('price');
+      await runtime.waitForProcessing();
+
+      expect(requested).not.toContain('removed');
+    });
   });
 
   describe('Edge Cases', () => {

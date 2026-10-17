@@ -82,7 +82,7 @@ A node's `id` is the name formulas use to reference it: `total` reads `price` be
 | `add(node, subscribe?)` | A node appears. Formula nodes are calculated right away. Throws if the id is taken |
 | `enqueueDependents(id)` | A node's value changed and everything that reads it must recalculate. Give the node a new value instead of changing the old one in place |
 | `enqueue(id)` | A node's own formula changed. A formula with the same text and the same input values keeps its result |
-| `remove(id)` | A node disappears. Calls its unsubscribe function and drops it from the graph |
+| `remove(id)` | A node disappears. Calls its unsubscribe function and drops it from the graph. Formulas reading it are recalculated and fail with `REFERENCE_ERROR` until a node with the same id is added |
 | `waitForProcessing()` | You need every pending calculation to finish |
 | `get(id)`, `has(id)`, `getAllIds()` | You need to look nodes up |
 

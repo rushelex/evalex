@@ -134,12 +134,7 @@ export class FormulaRuntime<T extends FormulaNode> {
     this.#scheduler = options.scheduler;
     this.#format = options.format;
     this.#finalizer = new FinalizationRegistry<string>((id) => {
-      this.#graph.removeAll(id);
-      this.#cachedState.delete(id);
-      this.#volatileNodes.delete(id);
-      this.#deliveredValues.delete(id);
-      this.#failedNodes.delete(id);
-      this.#formulaIds.delete(id);
+      this.#forget(id);
       options.onNodeCleanup?.(id);
     });
   }
@@ -233,7 +228,29 @@ export class FormulaRuntime<T extends FormulaNode> {
    */
   unregister(target: FormulaNode): void {
     this.#finalizer.unregister(target);
-    this.#formulaIds.delete(target.id);
+    this.#forget(target.id);
+  }
+
+  /**
+   * Drops everything the runtime keeps for a node that is gone and recalculates the formulas reading it.
+   *
+   * @remarks
+   * The readers keep their edges to the id, as formulas naming a node that never existed do,
+   * so a node added again under that id reaches them.
+   */
+  #forget(id: string): void {
+    for (const dependentId of this.#graph.getDependents(id)) {
+      this.#queue.enqueue(dependentId);
+    }
+
+    this.#graph.replaceDependencies(id, new Set());
+    this.#cachedState.delete(id);
+    this.#volatileNodes.delete(id);
+    this.#deliveredValues.delete(id);
+    this.#failedNodes.delete(id);
+    this.#formulaIds.delete(id);
+
+    this.#scheduleProcessing();
   }
 
   /**
@@ -572,6 +589,10 @@ export class FormulaRuntime<T extends FormulaNode> {
         }
 
         context.set(depId, value);
+      }
+      // An input that is gone leaves the context, so the formula fails on the reference instead of reusing its value
+      else if (context.delete(depId)) {
+        changed = true;
       }
     }
 

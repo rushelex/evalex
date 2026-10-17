@@ -253,28 +253,55 @@ describe(FormulaOrchestrator, () => {
       expect(unsubscribe).toHaveBeenCalled();
     });
 
-    it('should remove node from dependency graph', async () => {
+    it.each([
+      { removed: 'a', kind: 'a value', reader: 'b' },
+      { removed: 'b', kind: 'a formula', reader: 'c' },
+    ])('should fail the formulas reading $kind with REFERENCE_ERROR once it is removed', async ({ removed, reader }) => {
       const a: TestNode = { id: 'a', value: new FormulaNumber(5), error: null };
       const b: TestNode = { id: 'b', value: new FormulaNumber(0), expression: new Expression('a * 2'), error: null };
       const c: TestNode = { id: 'c', value: new FormulaNumber(0), expression: new Expression('b + 3'), error: null };
 
+      [a, b, c].forEach((node) => orchestrator.add(node));
+      await orchestrator.waitForProcessing();
+
+      orchestrator.remove(removed);
+      await orchestrator.waitForProcessing();
+
+      const failed = orchestrator.get(reader)!.error;
+
+      expect(failed instanceof FormulaError ? failed.code : failed).toBe('REFERENCE_ERROR');
+    });
+
+    it('should recalculate the formulas reading a removed node once a node with its id is added again', async () => {
+      const a: TestNode = { id: 'a', value: new FormulaNumber(5), error: null };
+      const c: TestNode = { id: 'c', value: new FormulaNumber(0), expression: new Expression('a + 3'), error: null };
+
+      [a, c].forEach((node) => orchestrator.add(node));
+      await orchestrator.waitForProcessing();
+
+      orchestrator.remove('a');
+      await orchestrator.waitForProcessing();
+
+      orchestrator.add({ id: 'a', value: new FormulaNumber(7), error: null });
+      orchestrator.enqueueDependents('a');
+      await orchestrator.waitForProcessing();
+
+      expect(c.value).toEqual(new FormulaNumber(10));
+    });
+
+    it('should calculate a node added again under the id of a removed one with the same formula', async () => {
+      const a: TestNode = { id: 'a', value: new FormulaNumber(5), error: null };
+      const again: TestNode = { id: 'b', value: FormulaNull.instance(), expression: new Expression('a * 2'), error: null };
+
       orchestrator.add(a);
-      orchestrator.add(b);
-      orchestrator.add(c);
-
+      orchestrator.add({ id: 'b', value: FormulaNull.instance(), expression: new Expression('a * 2'), error: null });
       await orchestrator.waitForProcessing();
 
-      // Remove b - should break the chain
       orchestrator.remove('b');
-
-      // Change a - c should not update since b is gone
-      a.value = new FormulaNumber(10);
-      orchestrator.enqueue('a');
-
+      orchestrator.add(again);
       await orchestrator.waitForProcessing();
 
-      // c should still have old value since b is removed
-      expect(c.value).toEqual(new FormulaNumber(13)); // Old value: (5*2)+3
+      expect(again.value).toEqual(new FormulaNumber(10));
     });
   });
 
