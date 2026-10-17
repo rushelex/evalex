@@ -6,6 +6,7 @@ import { Temporal } from 'temporal-polyfill';
 import { FormulaArray } from './array';
 import { convertValueToFormulaType } from './converter';
 import { FormulaDate } from './date';
+import { FormulaDateRange } from './date-range';
 import { FormulaNumber } from './number';
 import { FormulaObject } from './object';
 
@@ -132,6 +133,51 @@ describe(convertValueToFormulaType, () => {
     it('should read a date and a date-time without a time zone in UTC', () => {
       expect(convertValueToFormulaType(Temporal.PlainDate.from('2024-07-28')).value).toEqual(FormulaDate.from(new Date('2024-07-28T00:00:00Z')).value);
       expect(convertValueToFormulaType(Temporal.PlainDateTime.from('2024-07-28T14:35')).value).toEqual(FormulaDate.from(new Date('2024-07-28T14:35:00Z')).value);
+    });
+  });
+
+  describe('date ranges', () => {
+    it.prop([fc.date({ noInvalidDate: true }), fc.date({ noInvalidDate: true })])('should convert an object of a start and an end date to a date range', (a, b) => {
+      const [start, end] = a <= b ? [a, b] : [b, a];
+      const converted = convertValueToFormulaType({ start, end });
+
+      expect(converted).toBeInstanceOf(FormulaDateRange);
+      expect(converted.value).toEqual(FormulaDateRange.from({ start, end }).value);
+    });
+
+    it.each([
+      ['Date', (text: string) => new Date(`${text}T00:00:00Z`)],
+      ['Temporal.ZonedDateTime', (text: string) => Temporal.ZonedDateTime.from(`${text}T03:00:00+03:00[Europe/Moscow]`)],
+      ['Temporal.Instant', (text: string) => Temporal.Instant.from(`${text}T00:00:00Z`)],
+      ['Temporal.PlainDateTime', (text: string) => Temporal.PlainDateTime.from(`${text}T00:00`)],
+      ['Temporal.PlainDate', (text: string) => Temporal.PlainDate.from(text)],
+    ])('should read the ends given as %s', (_label, make) => {
+      const converted = convertValueToFormulaType({ start: make('2024-07-01'), end: make('2024-07-28') });
+
+      expect(converted.value).toEqual(FormulaDateRange.from({ start: '2024-07-01', end: '2024-07-28' }).value);
+    });
+
+    it('should read ends of different date forms', () => {
+      const converted = convertValueToFormulaType({ start: new Date('2024-07-01T00:00:00Z'), end: Temporal.PlainDate.from('2024-07-28') });
+
+      expect(converted).toBeInstanceOf(FormulaDateRange);
+    });
+
+    it.each([
+      ['a third field', { start: new Date('2024-07-01'), end: new Date('2024-07-28'), title: 'July' }],
+      ['ends given as text', { start: '2024-07-01', end: '2024-07-28' }],
+      ['ends given as timestamps', { start: 0, end: 1 }],
+      ['only one of the ends', { start: new Date('2024-07-01') }],
+      ['one end that is not a date', { start: new Date('2024-07-01'), end: null }],
+    ])('should keep an object with %s as an object', (_label, value) => {
+      expect(convertValueToFormulaType(value)).toBeInstanceOf(FormulaObject);
+    });
+
+    it('should reject a range that ends before its start, naming its place', () => {
+      const error = conversionError(() => convertValueToFormulaType({ booking: { start: new Date('2024-07-28'), end: new Date('2024-07-01') } }));
+
+      expect(error).toBeInstanceOf(TypeError);
+      expect(error).toHaveProperty('message', 'Cannot convert booking to a formula value: the date range ends before it starts.');
     });
   });
 

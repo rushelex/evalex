@@ -159,14 +159,15 @@ A list of the wrong length throws a `TypeError` before the formula runs.
 | --- | --- |
 | `null`, `undefined`, a hole in a list | `null` |
 | A list, a `Set`, a typed array | a list |
-| A plain object, an object without a prototype, a class instance | an object of its own enumerable fields; getters on the prototype and symbol keys are not read |
+| An object of exactly two fields, `start` and `end`, both dates of the forms below | a date range |
+| Any other plain object, object without a prototype or class instance | an object of its own enumerable fields; getters on the prototype and symbol keys are not read |
 | `new Number(5)`, `new String('a')`, `new Boolean(true)` | the value it holds |
 | A `bigint` from `-(2^53 - 1)` to `2^53 - 1` | a number |
 | `Date`, `Temporal.ZonedDateTime`, `Temporal.Instant` | a date at that instant |
 | `Temporal.PlainDate`, `Temporal.PlainDateTime` | a date read in UTC |
 | A formula value, such as a `FormulaNumber` | itself |
 
-Every other value is rejected with a `TypeError` that names where it sits: `Cannot convert order.lines[2] to a formula value: Map has no formula form.` That covers functions, symbols, `NaN`, a `Date` that holds no instant, a larger `bigint`, built-in objects such as `Map`, `Promise`, `Error` or `Temporal.PlainTime`, a circular reference, and lists and objects nested more than 1000 deep. A value shared by two places is not circular. An error thrown by a field getter reaches the caller unchanged.
+Every other value is rejected with a `TypeError` that names where it sits: `Cannot convert order.lines[2] to a formula value: Map has no formula form.` That covers functions, symbols, `NaN`, a `Date` that holds no instant, a larger `bigint`, built-in objects such as `Map`, `Promise`, `Error` or `Temporal.PlainTime`, a date range that ends before it starts, a circular reference, and lists and objects nested more than 1000 deep. A value shared by two places is not circular. An error thrown by a field getter reaches the caller unchanged.
 
 Object fields are read with method syntax:
 

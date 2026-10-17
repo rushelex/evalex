@@ -5,6 +5,7 @@ import { Temporal } from 'temporal-polyfill';
 import { FormulaArray } from './array';
 import { FormulaBoolean } from './boolean';
 import { FormulaDate } from './date';
+import { FormulaDateRange } from './date-range';
 import { FormulaDuration } from './duration';
 import { FormulaDataType } from './FormulaDataType';
 import { FormulaNull } from './null';
@@ -32,11 +33,13 @@ interface Position {
  * @remarks
  * A value with an obvious formula form converts to it: a `Set` or a typed array becomes a list, a boxed primitive its
  * primitive, a `bigint` within the safe integers a number, a `Temporal` instant, date or date-time a date read in UTC.
- * A plain object or a class instance becomes an object of its own enumerable fields. A formula value is kept as it is.
+ * An object of exactly two fields, `start` and `end`, both dates, becomes a date range. Any other plain object or class
+ * instance becomes an object of its own enumerable fields. A formula value is kept as it is.
  *
  * @throws TypeError naming the path to the first value without a formula form: a function, a symbol, `NaN`, a `Date`
- * that holds no instant, a `bigint` beyond the safe integers, a built-in object such as `Map` or `Promise`, a circular
- * reference, or nesting deeper than 1000 lists and objects. An error thrown by a field getter reaches the caller unchanged.
+ * that holds no instant, a `bigint` beyond the safe integers, a built-in object such as `Map` or `Promise`, a date range
+ * that ends before it starts, a circular reference, or nesting deeper than 1000 lists and objects. An error thrown by
+ * a field getter reaches the caller unchanged.
  */
 export function convertValueToFormulaType(value: unknown): FormulaDataType {
   return convert(value, rootPosition());
@@ -117,10 +120,45 @@ function convertObject(value: object, position: Position): FormulaDataType {
 
   // Plain objects, objects without a prototype and class instances all report `Object`; built-ins report their own name.
   if (name === 'Object') {
-    return new FormulaObject(convertFields(value, position));
+    return toDateRange(value, position) ?? new FormulaObject(convertFields(value, position));
   }
 
   return reject(position, `${name} has no formula form`);
+}
+
+/** The date range an object of exactly a `start` and an `end` date stands for, the form a date range takes outside formulas. */
+function toDateRange(value: object, position: Position): FormulaDateRange | undefined {
+  const fields = Object.entries(value);
+
+  if (fields.length !== 2) {
+    return undefined;
+  }
+
+  const { start, end } = Object.fromEntries(fields);
+  const startDate = toDate(start);
+  const endDate = toDate(end);
+
+  if (!startDate || !endDate) {
+    return undefined;
+  }
+
+  // The shape alone makes a range, so an end before the start is an error rather than a reason to keep an object.
+  if (Temporal.ZonedDateTime.compare(startDate, endDate) > 0) {
+    return reject(position, 'the date range ends before it starts');
+  }
+
+  return new FormulaDateRange({ start: startDate, end: endDate });
+}
+
+/** The date a value converts to, or `undefined` when it does not convert to a date. */
+function toDate(value: unknown): Temporal.ZonedDateTime | undefined {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? undefined : FormulaDate.from(value).value;
+  }
+
+  const date = typeof value === 'object' && value !== null ? toZonedDateTime(value) : undefined;
+
+  return date && FormulaDate.from(date).value;
 }
 
 function convertItems(container: Iterable<unknown> | ArrayLike<unknown>, position: Position): FormulaDataType[] {
