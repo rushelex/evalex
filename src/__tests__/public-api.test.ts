@@ -23,6 +23,7 @@ describe('public API', () => {
       'FormulaOrchestrator',
       'FormulaRegExp',
       'FormulaRuntime',
+      'FormulaScope',
       'FormulaString',
       'ImmediateScheduler',
       'Kind',

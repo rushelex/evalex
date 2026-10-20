@@ -33,7 +33,47 @@ type NonMappableObject
     | Map<unknown, unknown>
     | ReadonlyMap<unknown, unknown>
     | WeakMap<object, unknown>
-    | WeakSet<object>;
+    | WeakSet<object>
+    | ArrayBuffer
+    | DataView
+    | Temporal.PlainTime
+    | Temporal.PlainYearMonth
+    | Temporal.PlainMonthDay;
+
+/** Values that convert without looking inside them. */
+type ConvertibleLeaf
+  = null
+    | undefined
+    | string
+    | number
+    | bigint
+    | boolean
+    | Date
+    | Temporal.ZonedDateTime
+    | Temporal.Instant
+    | Temporal.PlainDateTime
+    | Temporal.PlainDate
+    | Temporal.Duration
+    | RegExp
+    | TypedArray
+    | FormulaDataType;
+
+/**
+ * Host data as the converter accepts it: each value without a formula form becomes `never`, so passing it fails to compile.
+ *
+ * @remarks
+ * Fields holding functions are left out, so a class instance passes with its methods. An own field holding a function
+ * passes too, since a type cannot tell it from a method, and is rejected when converted. `unknown` and `any` pass as
+ * they are: the converter checks them at run time.
+ */
+export type HostValue<T>
+  = unknown extends T ? T
+  : T extends ConvertibleLeaf ? T
+  : T extends ReadonlyArray<infer I> ? ReadonlyArray<HostValue<I>>
+  : T extends ReadonlySet<infer I> ? ReadonlySet<HostValue<I>>
+  : T extends NonMappableObject ? never
+  : T extends object ? { readonly [K in keyof T as T[K] extends (...args: never[]) => unknown ? never : K]: HostValue<T[K]> }
+  : never;
 
 type FunctionPropertyKeys<T extends object> = {
   [K in keyof T]-?: T[K] extends (...args: readonly unknown[]) => unknown ? K : never

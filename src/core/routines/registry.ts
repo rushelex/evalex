@@ -1,7 +1,7 @@
 import type { Class } from 'type-fest';
 
 import type { AST } from '../../parser';
-import type { FormulaDataType } from '../data-types';
+import type { DataTypeClass, FormulaDataType } from '../data-types';
 import type { FormulaEvaluatorVisitor } from '../evaluator.visitor';
 import type { ArgumentsPattern, ProcessedArguments, Signatures, SubjectSignature, SubjectSignatures } from './arguments';
 import type { FunctionRoutineHandler, MethodRoutineHandler, SubjectRoutineHandler } from './routine';
@@ -312,7 +312,7 @@ function acceptsKind(argument: Argument, kind: Kind): boolean {
 }
 
 // Data types whose values some signature accepts as the subject, in the order of `ALL_DATA_TYPES`.
-function subjectDataTypes(signatures: readonly SubjectSignature[]): typeof ALL_DATA_TYPES {
+function subjectDataTypes(signatures: readonly SubjectSignature[]): readonly DataTypeClass[] {
   return ALL_DATA_TYPES.filter((ctor) => signatures.some(([subject]) => acceptsKind(subject, ctor.kind)));
 }
 

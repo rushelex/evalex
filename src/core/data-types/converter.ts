@@ -45,6 +45,11 @@ export function convertValueToFormulaType(value: unknown): FormulaDataType {
   return convert(value, rootPosition());
 }
 
+/** Converts a host value a formula reads by `name`, so a rejection names the path from it: `order.lines[2]`. */
+export function convertNamedValue({ name, value }: { name: string; value: unknown }): FormulaDataType {
+  return convert(value, { ...rootPosition(), path: name });
+}
+
 /** Converts the items of a list passed to `FormulaArray.from`, treating the list itself as the root of the host data. */
 export function convertListItems(items: readonly unknown[]): FormulaDataType[] {
   return convertItems(items, rootPosition());
@@ -60,7 +65,7 @@ function rootPosition(): Position {
 }
 
 function convert(value: unknown, position: Position): FormulaDataType {
-  if (isFormulaValue(value)) {
+  if (isFormulaDataType(value)) {
     return value;
   }
 
@@ -212,7 +217,7 @@ function toZonedDateTime(value: object): Temporal.ZonedDateTime | undefined {
 }
 
 // `instanceof` narrows a generic class to its `any` instantiation, so the guard names the base type.
-function isFormulaValue(value: unknown): value is FormulaDataType {
+function isFormulaDataType(value: unknown): value is FormulaDataType {
   return value instanceof FormulaDataType;
 }
 

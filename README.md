@@ -47,23 +47,21 @@ The build lands in `dist/` and exposes a single entry point, `evalex`.
 ## Quick start
 
 ```ts
-import { Expression, FormulaNumber } from 'evalex';
+import { FormulaScope } from 'evalex';
 
-const expression = new Expression('price * quantity * (1 - discount)');
+const scope = new FormulaScope();
 
-const { result, dependencies } = expression.evaluate({
-  context: {
-    price: new FormulaNumber(250),
-    quantity: new FormulaNumber(4),
-    discount: new FormulaNumber(0.1),
-  },
+const result = scope.evaluate('price * quantity * (1 - discount)', {
+  price: 250,
+  quantity: 4,
+  discount: 0.1,
 });
 
+result.kind;  // 'Number'
 result.value; // 900
-dependencies; // Set { 'price', 'quantity', 'discount' }
 ```
 
-Parsed formulas are cached, so creating the same `Expression` twice costs one parse.
+Values are plain JavaScript: numbers, text, dates, lists, objects, class instances. Parsed formulas are cached, so evaluating the same text twice costs one parse. See [core](src/core/README.md#formulascope) for settings and what each value converts to.
 
 ## The formula language
 

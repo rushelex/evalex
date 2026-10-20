@@ -1,11 +1,14 @@
 import type { FormulaDataType } from './data-types';
 
+/** Values a formula reads by name at the top level, looked up only by the names the formula reads. */
+export type GlobalProperties = Pick<ReadonlyMap<string, FormulaDataType>, 'get' | 'has'>;
+
 /**
  * Formula evaluation context.
  */
 export class FormulaEvaluationContext {
   // Properties available at the top level
-  #globalProperties: Map<string, FormulaDataType>;
+  #globalProperties: GlobalProperties;
   // Parent context for nested scopes
   #parentContext: FormulaEvaluationContext | null;
   // Local scope for variables
@@ -18,7 +21,7 @@ export class FormulaEvaluationContext {
    * @param initialLocalScope Optional map to initialize the local scope.
    */
   constructor(
-    globalProperties: Map<string, FormulaDataType> = new Map(),
+    globalProperties: GlobalProperties = new Map(),
     parentContext: FormulaEvaluationContext | null = null,
     initialLocalScope: Map<string, FormulaDataType> = new Map(),
   ) {

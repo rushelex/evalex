@@ -1,7 +1,7 @@
 import './bootstrap';
 
 export { initializeFormulaCore } from './bootstrap';
-export type { FormulaDataTypeByKind, ToFormulaDataType } from './data-types';
+export type { FormulaDataTypeByKind, FormulaValue, HostValue, ToFormulaDataType } from './data-types';
 export {
   FormulaArray,
   FormulaBoolean,
@@ -20,4 +20,6 @@ export { FormulaDebugger } from './debugger';
 export { Errors, FormulaError, FormulaErrorCode } from './errors';
 export type { EvaluateOptions, EvaluateResult } from './expression';
 export { Expression } from './expression';
+export type { FormulaScopeOptions } from './formula-scope';
+export { FormulaScope } from './formula-scope';
 export type { DateNames, ValueFormat } from './value-format';

@@ -1,4 +1,5 @@
-export { ALL_DATA_TYPES } from './all-data-types';
+export type { DataTypeClass, FormulaValue } from './all-data-types';
+export { ALL_DATA_TYPES, isFormulaValue } from './all-data-types';
 export { areEqual } from './are-equal';
 export { FormulaArray } from './array';
 export { FormulaBoolean } from './boolean';
@@ -12,4 +13,4 @@ export { decimalArithmetic, FormulaNumber } from './number';
 export { FormulaObject } from './object';
 export { FormulaRegExp } from './regexp';
 export { FormulaString } from './string';
-export type { FormulaDataTypeByKind, ToFormulaDataType } from './types';
+export type { FormulaDataTypeByKind, HostValue, ToFormulaDataType } from './types';

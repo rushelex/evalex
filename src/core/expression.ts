@@ -1,4 +1,5 @@
 import type { AST } from '../parser';
+import type { GlobalProperties } from './context';
 import type { FormulaDataType } from './data-types';
 import type { ValueFormat } from './value-format';
 
@@ -66,38 +67,44 @@ export class Expression {
   evaluate(options: EvaluateOptions = {}): EvaluateResult {
     validateValueFormat(options.format);
 
-    const ast = parseFormula(this.formula);
-
-    let initialProperties: Map<string, FormulaDataType>;
+    let properties: GlobalProperties;
     if (options.context instanceof Map) {
       // Fast path: use pre-built map directly (no copy needed, it's readonly)
-      initialProperties = options.context as Map<string, FormulaDataType>;
+      properties = options.context as Map<string, FormulaDataType>;
     }
     else if (options.context) {
-      initialProperties = new Map<string, FormulaDataType>(Object.entries(options.context));
+      properties = new Map<string, FormulaDataType>(Object.entries(options.context));
     }
     else {
-      initialProperties = EMPTY_MAP;
+      properties = EMPTY_MAP;
     }
 
-    const context = new FormulaEvaluationContext(initialProperties);
-
-    const dependencies = new Set<string>();
-
-    const visitor = new FormulaEvaluatorVisitor(
-      this.formula,
-      context,
-      {
-        onIdentifier: (id) => dependencies.add(id),
-        format: options.format,
-      },
-    );
-
-    const result = visitor.evaluateNode(ast);
-
-    return {
-      result,
-      dependencies,
-    };
+    return evaluateFormula({ formula: this.formula, properties, format: options.format });
   }
+}
+
+/**
+ * Evaluates formula text over values found by name, the step `Expression` and `FormulaScope` share.
+ * The format is expected to be validated by the caller, once per format rather than once per evaluation.
+ * @throws SyntaxError when the text is not a valid formula, FormulaError when the formula fails.
+ */
+export function evaluateFormula({ formula, properties, format }: { formula: string; properties: GlobalProperties; format: ValueFormat | undefined }): EvaluateResult {
+  const ast = parseFormula(formula);
+  const dependencies = new Set<string>();
+
+  const visitor = new FormulaEvaluatorVisitor(
+    formula,
+    new FormulaEvaluationContext(properties),
+    {
+      onIdentifier: (id) => dependencies.add(id),
+      format,
+    },
+  );
+
+  const result = visitor.evaluateNode(ast);
+
+  return {
+    result,
+    dependencies,
+  };
 }

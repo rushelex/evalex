@@ -4,7 +4,7 @@
 
 **Evaluates formulas into typed values — data types, built-in routines, errors and dependency tracking.**
 
-[Expression](#expression) · [Data types](#data-types) · [Built-in routines](#built-in-routines) · [Errors](#errors) · [Debugging](#debugging)
+[Scope](#formulascope) · [Expression](#expression) · [Data types](#data-types) · [Built-in routines](#built-in-routines) · [Errors](#errors) · [Debugging](#debugging)
 
 </div>
 
@@ -18,9 +18,32 @@ Everything below is imported from the package root:
 import { Expression, FormulaNumber, FormulaString } from 'evalex';
 ```
 
+## FormulaScope
+
+A scope evaluates formulas over plain host values. The host creates it once with its settings:
+
+```ts
+import { FormulaScope } from 'evalex';
+
+const scope = new FormulaScope({ format: { number: (value) => value.toFixed(2) } });
+
+const total = scope.evaluate('price * quantity', { price: 250, quantity: 4 });
+total.kind;  // 'Number'
+total.value; // 1000
+
+scope.evaluate('"Total: " + total', { total }).value; // 'Total: 1000.00'
+```
+
+- **Values in.** Each name the formula reads converts to a formula value as [Data types](#data-types) describes, the first time the formula reads it. A field the formula does not read is never converted, so it never fails the formula. Only own fields of the values are names. A value without a formula form fails to compile, and at run time throws a `TypeError` that names its path from the name: `Cannot convert order.tags to a formula value: Map has no formula form.`
+- **A formula value out.** `evaluate` returns the value the formula computes. Its `kind` tells what it holds and narrows the type: after `if (result.kind === 'Date')`, `result.value` is a `Temporal.ZonedDateTime`. A list holds formula values, each with its own `kind`.
+- **Results back in.** A result passed back as a value is read as it is, so `third * 3` with `third` from `1 / 3` gives `1`.
+- **Showing a result is up to the host.** `format` decides how values read only where a formula itself turns them into text, see [Text of values](#text-of-values). A host that passes the formatters it draws its cells with gets the same text in `"Total: " + price` as in the `price` cell. `toString()` gives machine text, not text for readers.
+
+`format` is checked when the scope is created: a name list of the wrong length throws a `TypeError` there.
+
 ## Expression
 
-`Expression` is the entry point. It wraps one formula and exposes two operations:
+`Expression` wraps one formula and exposes two operations:
 
 | Method | Returns | Notes |
 | --- | --- | --- |
