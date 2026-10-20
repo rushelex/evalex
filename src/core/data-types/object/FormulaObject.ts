@@ -46,7 +46,7 @@ import { Kind } from '../kind';
  * // Returns: FormulaString("adult")
  * ```
  */
-export class FormulaObject<T extends Record<string, FormulaDataType> = Record<string, FormulaDataType>> extends FormulaDataType<Readonly<T>> {
+export class FormulaObject<T extends Record<string, FormulaDataType> = Record<string, FormulaDataType>> extends FormulaDataType<Readonly<T>, typeof Kind.Object> {
   static readonly kind = Kind.Object;
 
   constructor(value: T, displayType?: string) {

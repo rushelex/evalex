@@ -9,7 +9,7 @@ import { Kind } from '../kind';
  * Represents a typed list of elements in the formula system.
  * @template TItem Type of elements in the list. Must be a subclass of FormulaDataType.
  */
-export class FormulaArray<TItem extends FormulaDataType = FormulaDataType> extends FormulaDataType<readonly TItem[]> {
+export class FormulaArray<TItem extends FormulaDataType = FormulaDataType> extends FormulaDataType<readonly TItem[], typeof Kind.Array> {
   static readonly SEPARATOR = ', ';
   static readonly kind = Kind.Array;
   readonly itemDisplayType: string;

@@ -28,7 +28,7 @@ interface RegExpData {
  * text.test(regex2)  // Returns FormulaBoolean
  * ```
  */
-export class FormulaRegExp extends FormulaDataType<RegExpData> {
+export class FormulaRegExp extends FormulaDataType<RegExpData, typeof Kind.RegExp> {
   static readonly kind = Kind.RegExp;
 
   /**

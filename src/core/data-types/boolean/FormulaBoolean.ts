@@ -11,7 +11,7 @@ let FALSE_INSTANCE: FormulaBoolean | null = null;
 /**
  * Represents a boolean data type in the formula system.
  */
-export class FormulaBoolean extends FormulaDataType<boolean> {
+export class FormulaBoolean extends FormulaDataType<boolean, typeof Kind.Boolean> {
   static readonly kind = Kind.Boolean;
 
   /**

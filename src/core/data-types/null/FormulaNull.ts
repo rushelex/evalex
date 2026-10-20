@@ -10,7 +10,7 @@ let NULL_INSTANCE: FormulaNull | null = null;
 /**
  * Represents null data type in the formula system.
  */
-export class FormulaNull extends FormulaDataType<null> {
+export class FormulaNull extends FormulaDataType<null, typeof Kind.Null> {
   static readonly kind = Kind.Null;
 
   /**

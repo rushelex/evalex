@@ -60,7 +60,7 @@ function rootPosition(): Position {
 }
 
 function convert(value: unknown, position: Position): FormulaDataType {
-  if (value instanceof FormulaDataType) {
+  if (isFormulaValue(value)) {
     return value;
   }
 
@@ -209,6 +209,11 @@ function toZonedDateTime(value: object): Temporal.ZonedDateTime | undefined {
   }
 
   return undefined;
+}
+
+// `instanceof` narrows a generic class to its `any` instantiation, so the guard names the base type.
+function isFormulaValue(value: unknown): value is FormulaDataType {
+  return value instanceof FormulaDataType;
 }
 
 function isTypedArray(value: object): value is TypedArray {

@@ -6,7 +6,7 @@ import { Kind } from '../kind';
 /**
  * Represents a text data type in the formula system.
  */
-export class FormulaString extends FormulaDataType<string> {
+export class FormulaString extends FormulaDataType<string, typeof Kind.String> {
   static readonly kind = Kind.String;
 
   /**

@@ -16,7 +16,7 @@ interface DateRangeBounds {
 /** A date or a value `FormulaDate.from` reads as one. */
 type DateInput = Parameters<typeof FormulaDate.from>[0];
 
-export class FormulaDateRange extends FormulaDataType<DateRangeBounds> {
+export class FormulaDateRange extends FormulaDataType<DateRangeBounds, typeof Kind.DateRange> {
   static readonly kind = Kind.DateRange;
 
   constructor(value: DateRangeBounds) {

@@ -6,7 +6,7 @@ import { formatWith } from '../../value-format';
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
 
-export class FormulaDuration extends FormulaDataType<Temporal.Duration> {
+export class FormulaDuration extends FormulaDataType<Temporal.Duration, typeof Kind.Duration> {
   static readonly kind = Kind.Duration;
 
   constructor(value: Temporal.Duration) {

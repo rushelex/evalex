@@ -16,7 +16,7 @@ const numberCache: (FormulaNumber | undefined)[] = Array.from({ length: CACHE_MA
 /**
  * Represents a number data type in the formula system.
  */
-export class FormulaNumber extends FormulaDataType<number> {
+export class FormulaNumber extends FormulaDataType<number, typeof Kind.Number> {
   static readonly kind = Kind.Number;
   /** The full double, so that `1 / 3 * 3` is `1` even though `value` of `1 / 3` is cut to 15 digits. */
   readonly [exactValue]: number;
