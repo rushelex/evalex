@@ -16,8 +16,8 @@ export interface FormulaScopeOptions {
  * Evaluates formulas over plain host values with settings the host gives once.
  *
  * @remarks
- * A host value converts to a formula value only when the formula reads its name, so a field the formula never reads
- * never fails it. Only own fields of `values` are names. A formula value passed back, such as an earlier result,
+ * A host value, and each field of an object inside it, converts to a formula value only when the formula reads it, so a
+ * value the formula never reads never fails it, and records that link to each other both ways work. Only own fields of `values` are names. A formula value passed back, such as an earlier result,
  * is read as it is, without losing precision.
  *
  * Showing a result is up to the host: `format` applies only where the formula itself turns values into text.

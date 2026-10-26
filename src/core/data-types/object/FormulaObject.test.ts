@@ -1,3 +1,4 @@
+import type { FormulaDataType } from '../FormulaDataType';
 import type { ToFormulaDataType } from '../types';
 
 import { Errors } from '~/core/errors';
@@ -189,11 +190,14 @@ describe('FormulaObject', () => {
       });
     });
 
-    it('should reject a circular reference in convert', () => {
+    it('should convert an object that contains itself to an object that links back to itself', () => {
       const obj: Record<string, unknown> = { name: 'John' };
       obj.self = obj;
 
-      expect(() => FormulaObject.convert(obj)).toThrow(new TypeError('Cannot convert self to a formula value: it is a circular reference.'));
+      const fields: Record<string, FormulaDataType> = FormulaObject.convert(obj);
+      const self = fields.self;
+
+      expect(self instanceof FormulaObject && self.value.self).toBe(self);
     });
   });
 

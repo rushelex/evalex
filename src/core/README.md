@@ -176,7 +176,7 @@ new Expression('formatDate(due, "D MMMM YYYY")').evaluate({
 
 A list of the wrong length throws a `TypeError` before the formula runs.
 
-`FormulaArray.from` and `FormulaObject.from` convert nested host values recursively:
+`FormulaArray.from` and `FormulaObject.from` convert nested host values: the items of a list right away, a field of an object the first time something reads it:
 
 | Host value | Becomes |
 | --- | --- |
@@ -190,7 +190,9 @@ A list of the wrong length throws a `TypeError` before the formula runs.
 | `Temporal.PlainDate`, `Temporal.PlainDateTime` | a date read in UTC |
 | A formula value, such as a `FormulaNumber` | itself |
 
-Every other value is rejected with a `TypeError` that names where it sits: `Cannot convert order.lines[2] to a formula value: Map has no formula form.` That covers a function in place of a value, such as an item of a list, symbols, `NaN`, a `Date` that holds no instant, a larger `bigint`, built-in objects such as `Map`, `Promise`, `Error` or `Temporal.PlainTime`, a date range that ends before it starts, a circular reference, and lists and objects nested more than 1000 deep. A value shared by two places is not circular. An error thrown by a field getter reaches the caller unchanged.
+Every other value is rejected with a `TypeError` that names where it sits: `Cannot convert order.lines[2] to a formula value: Map has no formula form.` That covers a function in place of a value, such as an item of a list, symbols, `NaN`, a `Date` that holds no instant, a larger `bigint`, built-in objects such as `Map`, `Promise`, `Error` or `Temporal.PlainTime`, a date range that ends before it starts, a list that contains itself, and lists and objects nested more than 1000 deep. A field is rejected when it is read, so `order.qty()` works even when `order.tags` holds a `Map`. A field getter runs only when its field is read, and an error it throws reaches the caller unchanged.
+
+Records may link to each other both ways, such as a project that lists its tasks and tasks that point back at the project: one host object converts to one formula object, and a formula follows the links as far as it reads them. The text of an object writes a link back to an object it is already inside as `{…}`: `{ title: "Design", project: { name: "Apollo", tasks: [{…}] } }`. Two such objects are equal when nothing reachable from them differs.
 
 Object fields are read with method syntax:
 

@@ -17,22 +17,25 @@ const DURATION_FIELDS = ['years', 'months', 'weeks', 'days', 'hours', 'minutes',
  * @remarks
  * Lists are equal item by item in order, objects key by key in any order, dates when they mark the same instant, date ranges when both ends do,
  * durations when every field matches (`P1D` differs from `PT24H`), regular expressions by pattern and flags.
- * Values of different types are never equal, and `NaN` is not equal to itself.
+ * Values of different types are never equal, and `NaN` is not equal to itself. Objects that link back to themselves are
+ * equal when nothing reachable from them differs.
  */
 export function areEqual(a: FormulaDataType, b: FormulaDataType): boolean {
+  return compare(a, b, new Map());
+}
+
+/** Compares two values; `comparing` holds the pairs of objects whose comparison is under way. */
+function compare(a: FormulaDataType, b: FormulaDataType, comparing: Map<FormulaObject, Set<FormulaObject>>): boolean {
   if (a.kind !== b.kind) {
     return false;
   }
 
   if (isList(a) && isList(b)) {
-    return a.value.length === b.value.length && a.value.every((item, index) => areEqual(item, b.value[index]));
+    return a.value.length === b.value.length && a.value.every((item, index) => compare(item, b.value[index], comparing));
   }
 
   if (isObject(a) && isObject(b)) {
-    const keys = Object.keys(a.value);
-
-    return keys.length === Object.keys(b.value).length
-      && keys.every((key) => Object.hasOwn(b.value, key) && areEqual(a.value[key], b.value[key]));
+    return compareObjects(a, b, comparing);
   }
 
   if (a instanceof FormulaDate && b instanceof FormulaDate) {
@@ -52,6 +55,27 @@ export function areEqual(a: FormulaDataType, b: FormulaDataType): boolean {
   }
 
   return a.value === b.value;
+}
+
+function compareObjects(a: FormulaObject, b: FormulaObject, comparing: Map<FormulaObject, Set<FormulaObject>>): boolean {
+  const against = comparing.get(a) ?? new Set();
+
+  // A pair met again while its comparison is under way differs only if some other field differs, which that comparison finds.
+  if (against.has(b)) {
+    return true;
+  }
+
+  comparing.set(a, against.add(b));
+
+  try {
+    const keys = Object.keys(a.value);
+
+    return keys.length === Object.keys(b.value).length
+      && keys.every((key) => Object.hasOwn(b.value, key) && compare(a.value[key], b.value[key], comparing));
+  }
+  finally {
+    against.delete(b);
+  }
 }
 
 function isSameInstant(a: Temporal.ZonedDateTime, b: Temporal.ZonedDateTime): boolean {

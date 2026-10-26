@@ -23,8 +23,10 @@ const IDENTIFIER = /^[A-Z_$][\w$]*$/i;
 interface Position {
   readonly path: string;
   readonly nesting: number;
-  /** Lists and objects that enclose the value, to tell a circular reference from a value shared by two places. */
+  /** Lists that enclose the value, to tell a list that contains itself from a list shared by two places. */
   readonly ancestors: WeakSet<object>;
+  /** Objects converted from the same host data, so a link back to one of them closes a loop instead of growing the tree. */
+  readonly objects: WeakMap<object, FormulaObject>;
 }
 
 /**
@@ -37,10 +39,13 @@ interface Position {
  * instance becomes an object of its own enumerable fields; fields holding functions are left out, like methods.
  * A formula value is kept as it is.
  *
+ * A field of an object converts the first time it is read, so a field nobody reads never fails, a host getter runs only
+ * when its field is read, and objects that link back to each other convert into objects that do the same.
+ *
  * @throws TypeError naming the path to the first value without a formula form: a function in place of a value, a symbol, `NaN`, a `Date`
  * that holds no instant, a `bigint` beyond the safe integers, a built-in object such as `Map` or `Promise`, a date range
- * that ends before it starts, a circular reference, or nesting deeper than 1000 lists and objects. An error thrown by
- * a field getter reaches the caller unchanged.
+ * that ends before it starts, a list that contains itself, or nesting deeper than 1000 lists and objects. Inside an
+ * object, it is thrown when the field is read, and so is an error a field getter throws, unchanged.
  */
 export function convertValueToFormulaType(value: unknown): FormulaDataType {
   return convert(value, rootPosition());
@@ -62,7 +67,7 @@ export function convertObjectFields(object: object): Record<string, FormulaDataT
 }
 
 function rootPosition(): Position {
-  return { path: '', nesting: 0, ancestors: new WeakSet() };
+  return { path: '', nesting: 0, ancestors: new WeakSet(), objects: new WeakMap() };
 }
 
 function convert(value: unknown, position: Position): FormulaDataType {
@@ -126,21 +131,37 @@ function convertObject(value: object, position: Position): FormulaDataType {
 
   // Plain objects, objects without a prototype and class instances all report `Object`; built-ins report their own name.
   if (name === 'Object') {
-    return toDateRange(value, position) ?? new FormulaObject(convertFields(value, position));
+    return toDateRange(value, position) ?? toObject(value, position);
   }
 
   return reject(position, `${name} has no formula form`);
 }
 
+/** The object a host object converts to, the same one wherever the host data links to it. */
+function toObject(value: object, position: Position): FormulaObject {
+  const converted = position.objects.get(value);
+
+  if (converted) {
+    return converted;
+  }
+
+  const object = new FormulaObject(convertFields(value, position));
+
+  position.objects.set(value, object);
+
+  return object;
+}
+
 /** The date range an object of exactly a `start` and an `end` date stands for, the form a date range takes outside formulas. */
 function toDateRange(value: object, position: Position): FormulaDateRange | undefined {
-  const fields = ownFields(value);
+  const keys = fieldKeys(value);
 
-  if (fields.length !== 2) {
+  if (keys.length !== 2 || !keys.includes('start') || !keys.includes('end')) {
     return undefined;
   }
 
-  const { start, end } = Object.fromEntries(fields);
+  const start: unknown = Reflect.get(value, 'start');
+  const end: unknown = Reflect.get(value, 'end');
   const startDate = toDate(start);
   const endDate = toDate(end);
 
@@ -174,19 +195,41 @@ function convertItems(container: Iterable<unknown> | ArrayLike<unknown>, positio
   });
 }
 
+/**
+ * Fields that read and convert the host field the first time something reads them.
+ *
+ * @remarks
+ * A field nobody reads never fails the value, a getter of the host runs only when its field is read, and a link back to
+ * an enclosing object is converted only as far as it is followed.
+ */
 function convertFields(container: object, position: Position): Record<string, FormulaDataType> {
-  return within(container, position, (inner) => {
-    // `Object.fromEntries` defines each key as a field, so a `__proto__` key stays data instead of replacing the prototype.
-    return Object.fromEntries(ownFields(container).map(([key, item]) => [key, convert(item, { ...inner, path: fieldPath(position.path, key) })]));
-  });
+  if (position.nesting >= MAX_NESTING) {
+    return reject(position, `it is nested deeper than ${MAX_NESTING} levels`);
+  }
+
+  // A link back to the object does not repeat a list that encloses it, so only lists that enclose a field stay ancestors.
+  const inner: Position = { ...position, nesting: position.nesting + 1, ancestors: new WeakSet() };
+  const fields: Record<string, FormulaDataType> = {};
+
+  for (const key of fieldKeys(container)) {
+    let converted: FormulaDataType | undefined;
+
+    // Defining each key as a field keeps a `__proto__` key data instead of replacing the prototype.
+    Object.defineProperty(fields, key, {
+      enumerable: true,
+      get: () => converted ??= convert(Reflect.get(container, key), { ...inner, path: fieldPath(position.path, key) }),
+    });
+  }
+
+  return fields;
 }
 
-/** The own enumerable fields of an object, except those holding functions, which are left out like methods. */
-function ownFields(object: object): [string, unknown][] {
-  return Object.entries(object).filter(([, value]) => typeof value !== 'function');
+/** The own enumerable fields of an object, except data fields holding functions, which are left out like methods. */
+function fieldKeys(object: object): string[] {
+  return Object.keys(object).filter((key) => typeof Object.getOwnPropertyDescriptor(object, key)?.value !== 'function');
 }
 
-/** Runs `read` with `container` counted among the ancestors of its items, rejecting a circular reference and too deep nesting. */
+/** Runs `read` with `container` counted among the ancestors of its items, rejecting a list that contains itself and too deep nesting. */
 function within<T>(container: object, position: Position, read: (inner: Position) => T): T {
   if (position.ancestors.has(container)) {
     return reject(position, 'it is a circular reference');

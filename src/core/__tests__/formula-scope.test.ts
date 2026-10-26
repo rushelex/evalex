@@ -1,7 +1,7 @@
 import { it } from '@fast-check/vitest';
 
 import { formulaValueArbitrary, loc } from '../../testing-library';
-import { FormulaDateRange, FormulaNumber, FormulaString } from '../data-types';
+import { FormulaBoolean, FormulaDateRange, FormulaNumber, FormulaString } from '../data-types';
 import { Errors } from '../errors';
 import { FormulaScope } from '../formula-scope';
 
@@ -56,8 +56,66 @@ describe(FormulaScope, () => {
 
     it('should name the path of a value it cannot convert, starting at its name', () => {
       // @ts-expect-error a map fails to compile; a host without types reaches the check at run time
-      expect(() => new FormulaScope().evaluate('order.qty()', { order: { qty: 1, tags: new Map() } }))
+      expect(() => new FormulaScope().evaluate('order.tags()', { order: { qty: 1, tags: new Map() } }))
         .toThrow(new TypeError('Cannot convert order.tags to a formula value: Map has no formula form.'));
+    });
+
+    it('should not convert a field the formula does not read', () => {
+      // @ts-expect-error a map fails to compile; a host without types reaches the check at run time
+      expect(new FormulaScope().evaluate('order.qty()', { order: { qty: 1, tags: new Map() } })).toBeFormulaDataType(FormulaNumber, 1);
+    });
+
+    it('should read a getter of a record only when the formula reads its field', () => {
+      let reads = 0;
+      const order = {
+        qty: 1,
+        get total(): number {
+          reads++;
+          return 10;
+        },
+      };
+
+      new FormulaScope().evaluate('order.qty()', { order });
+
+      expect(reads).toBe(0);
+    });
+
+    describe('records that link to each other', () => {
+      interface Project { readonly name: string; readonly rate: number; readonly tasks: Task[] }
+      interface Task { readonly title: string; project?: Project }
+
+      function linkedRecords(): { readonly project: Project; readonly task: Task } {
+        const task: Task = { title: 'Design' };
+        const project: Project = { name: 'Apollo', rate: 100, tasks: [task] };
+        task.project = project;
+
+        return { project, task };
+      }
+
+      it('should follow the links both ways', () => {
+        const { project, task } = linkedRecords();
+        const scope = new FormulaScope();
+
+        expect(scope.evaluate('task.project().rate()', { task })).toBeFormulaDataType(FormulaNumber, 100);
+        expect(scope.evaluate('project.tasks().first().project().tasks().length()', { project })).toBeFormulaDataType(FormulaNumber, 1);
+      });
+
+      it('should write a record that links back, stopping at the link', () => {
+        const { task } = linkedRecords();
+
+        expect(new FormulaScope().evaluate('format(task)', { task })).toBeFormulaDataType(FormulaString, '{ title: "Design", project: { name: "Apollo", rate: 100, tasks: [{…}] } }');
+      });
+
+      it('should compare records that link back by what they hold', () => {
+        const { project, task } = linkedRecords();
+        const other = linkedRecords();
+        other.task.project = { ...other.project, rate: 200 };
+
+        const scope = new FormulaScope();
+
+        expect(scope.evaluate('task.project() == project', { task, project })).toBeFormulaDataType(FormulaBoolean, true);
+        expect(scope.evaluate('task == other', { task, other: other.task })).toBeFormulaDataType(FormulaBoolean, false);
+      });
     });
 
     it('should read a value once however many times the formula reads its name', () => {

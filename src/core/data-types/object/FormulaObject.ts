@@ -48,6 +48,8 @@ import { Kind } from '../kind';
  */
 export class FormulaObject<T extends Record<string, FormulaDataType> = Record<string, FormulaDataType>> extends FormulaDataType<Readonly<T>, typeof Kind.Object> {
   static readonly kind = Kind.Object;
+  /** Objects whose text is being written, so a link back to one of them is written as `{…}` instead of looping. */
+  static readonly #writing = new Set<FormulaObject>();
 
   constructor(value: T, displayType?: string) {
     super(Kind.Object, value, displayType || 'Object');
@@ -58,10 +60,21 @@ export class FormulaObject<T extends Record<string, FormulaDataType> = Record<st
   }
 
   toString(options?: ToStringOptions): string {
-    const entries = Object.entries<FormulaDataType>(this.value).map(([key, value]) => `${key}: ${value.toString({ ...options, asJSON: options?.asJSON ?? true })}`);
-    if (entries.length === 0)
-      return '{}';
-    return `{ ${entries.join(', ')} }`;
+    if (FormulaObject.#writing.has(this)) {
+      return '{…}';
+    }
+
+    FormulaObject.#writing.add(this);
+
+    try {
+      const entries = Object.entries<FormulaDataType>(this.value).map(([key, value]) => `${key}: ${value.toString({ ...options, asJSON: options?.asJSON ?? true })}`);
+      if (entries.length === 0)
+        return '{}';
+      return `{ ${entries.join(', ')} }`;
+    }
+    finally {
+      FormulaObject.#writing.delete(this);
+    }
   }
 
   /**

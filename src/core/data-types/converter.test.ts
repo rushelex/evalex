@@ -113,10 +113,10 @@ describe(convertValueToFormulaType, () => {
     { label: 'the value', value: () => 1, message: 'Cannot convert the value to a formula value: Function has no formula form.' },
     { label: 'an item of a list', value: { hooks: [() => 1] }, message: 'Cannot convert hooks[0] to a formula value: Function has no formula form.' },
   ])('should reject a function as $label', ({ value, message }) => {
-    expect(conversionError(() => convertValueToFormulaType(value))).toHaveProperty('message', message);
+    expect(conversionError(() => toPlain(convertValueToFormulaType(value)))).toHaveProperty('message', message);
   });
 
-  it('should let an error thrown by a field getter reach the host unchanged', () => {
+  it('should let an error thrown by a field getter reach the host unchanged when the field is read', () => {
     const failure = new Error('getter failed');
     const order = {
       get total(): number {
@@ -124,7 +124,7 @@ describe(convertValueToFormulaType, () => {
       },
     };
 
-    expect(conversionError(() => convertValueToFormulaType(order))).toBe(failure);
+    expect(conversionError(() => toPlain(convertValueToFormulaType(order)))).toBe(failure);
   });
 
   describe('values with an obvious formula form', () => {
@@ -200,7 +200,7 @@ describe(convertValueToFormulaType, () => {
     });
 
     it('should reject a range that ends before its start, naming its place', () => {
-      const error = conversionError(() => convertValueToFormulaType({ booking: { start: new Date('2024-07-28'), end: new Date('2024-07-01') } }));
+      const error = conversionError(() => toPlain(convertValueToFormulaType({ booking: { start: new Date('2024-07-28'), end: new Date('2024-07-01') } })));
 
       expect(error).toBeInstanceOf(TypeError);
       expect(error).toHaveProperty('message', 'Cannot convert booking to a formula value: the date range ends before it starts.');
@@ -209,7 +209,7 @@ describe(convertValueToFormulaType, () => {
 
   describe('values without a formula form', () => {
     it.each(valuesWithoutFormulaForm)('should reject %s', (_label, make, reason) => {
-      const error = conversionError(() => convertValueToFormulaType({ field: make() }));
+      const error = conversionError(() => toPlain(convertValueToFormulaType({ field: make() })));
 
       expect(error).toBeInstanceOf(TypeError);
       expect(error).toHaveProperty('message', `Cannot convert field to a formula value: ${reason}.`);
@@ -222,14 +222,14 @@ describe(convertValueToFormulaType, () => {
       const data = steps.reduceRight<unknown>((inner, step) => typeof step === 'number' ? placeAt(step, inner) : Object.fromEntries([[step, inner]]), make());
       const path = steps.map((step, index) => typeof step === 'number' ? `[${step}]` : `${index === 0 ? '' : '.'}${step}`).join('');
 
-      expect(conversionError(() => convertValueToFormulaType(data))).toHaveProperty('message', expect.stringMatching(new RegExp(`^Cannot convert ${escapeRegExp(path)} to a formula value: `)));
+      expect(conversionError(() => toPlain(convertValueToFormulaType(data)))).toHaveProperty('message', expect.stringMatching(new RegExp(`^Cannot convert ${escapeRegExp(path)} to a formula value: `)));
     });
 
     it.each([
       { key: 'first name', path: 'order["first name"]' },
       { key: '2nd', path: 'order["2nd"]' },
     ])('should quote the field name $key, which is not an identifier', ({ key, path }) => {
-      const error = conversionError(() => convertValueToFormulaType({ order: { [key]: Symbol('s') } }));
+      const error = conversionError(() => toPlain(convertValueToFormulaType({ order: { [key]: Symbol('s') } })));
 
       expect(error).toHaveProperty('message', `Cannot convert ${path} to a formula value: Symbol has no formula form.`);
     });
@@ -245,11 +245,14 @@ describe(convertValueToFormulaType, () => {
       expect(conversionError(() => convertValueToFormulaType(Symbol('s')))).toHaveProperty('message', 'Cannot convert the value to a formula value: Symbol has no formula form.');
     });
 
-    it('should reject an object that contains itself', () => {
+    it('should convert an object that contains itself to an object that links back to itself', () => {
       const order: Record<string, unknown> = { qty: 2 };
       order.lines = [{ order }];
 
-      expect(conversionError(() => convertValueToFormulaType(order))).toHaveProperty('message', 'Cannot convert lines[0].order to a formula value: it is a circular reference.');
+      const converted = convertValueToFormulaType(order);
+      const line = isObject(converted) && isList(converted.value.lines) ? converted.value.lines.value[0] : undefined;
+
+      expect(line && isObject(line) && line.value.order).toBe(converted);
     });
 
     it('should reject a list that contains itself', () => {
@@ -260,8 +263,8 @@ describe(convertValueToFormulaType, () => {
     });
 
     it('should accept 1000 levels of nesting and reject one more', () => {
-      expect(() => convertValueToFormulaType(nest(1000))).not.toThrow();
-      expect(conversionError(() => convertValueToFormulaType(nest(1001)))).toHaveProperty('message', expect.stringMatching(/: it is nested deeper than 1000 levels\.$/));
+      expect(() => toPlain(convertValueToFormulaType(nest(1000)))).not.toThrow();
+      expect(conversionError(() => toPlain(convertValueToFormulaType(nest(1001))))).toHaveProperty('message', expect.stringMatching(/: it is nested deeper than 1000 levels\.$/));
     });
   });
 });
@@ -279,11 +282,14 @@ describe('conversion through FormulaArray.from and FormulaObject.from', () => {
     expect(conversionError(() => FormulaArray.from(list))).toHaveProperty('message', 'Cannot convert [1] to a formula value: it is a circular reference.');
   });
 
-  it('should reject an object that contains itself', () => {
+  it('should convert an object that contains itself to an object that links back to itself', () => {
     const order: Record<string, unknown> = { qty: 2 };
     order.self = order;
 
-    expect(conversionError(() => FormulaObject.from(order))).toHaveProperty('message', 'Cannot convert self to a formula value: it is a circular reference.');
+    const fields: Readonly<Record<string, FormulaDataType>> = FormulaObject.from(order).value;
+    const self = fields.self;
+
+    expect(isObject(self) && self.value.self).toBe(self);
   });
 });
 
