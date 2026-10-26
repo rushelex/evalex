@@ -132,6 +132,9 @@ Invalid input throws the parser's `SyntaxError`, a subclass of the built-in one.
 | `"\u12"` | `Invalid Unicode escape sequence. [1,5]` |
 | `"\xZ1"` | `Invalid hexadecimal escape sequence. [1,3]` |
 | `"(a)\1"` | `Escape sequence \1 is not allowed; write \\1 for a backslash followed by 1. [4,6]` |
+| 256 nested `(` around `1` | `Nested or chained more than 256 levels deep. [256,257]` |
+
+A formula nests at most 256 levels, so parsing and evaluating it never overflows the stack. Each parenthesis, list, call, prefix operator and ternary branch around a part counts a level, and so does each operator of a chain like `a + b + c` or each call of `a.b().c()`.
 
 ## Extending the grammar
 

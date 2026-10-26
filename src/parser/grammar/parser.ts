@@ -108,6 +108,16 @@ interface LetScope {
  */
 const PREFIX_BP = 17;
 
+/**
+ * How many levels a formula may nest, counting each operator of a chain and each call of a method chain as a level.
+ *
+ * @remarks
+ * Parsing and evaluation recurse once per level, so without a bound a deep formula overflows the stack with a plain
+ * `RangeError`. Nested calls cost the most stack and overflow Node's default stack at about 620 levels; 256 leaves
+ * room for the stack the host already uses.
+ */
+const MAX_NESTING = 256;
+
 const KEYWORDS = new Set([
   'null',
   'undefined',
@@ -166,6 +176,8 @@ class Parser {
   // Inside the value or body of `let`, a bare `in` ends that part; brackets and parentheses lift this again.
   #noIn = false;
   readonly #letScopes: LetScope[] = [];
+  // Levels of nesting around the current position, bounded by MAX_NESTING
+  #depth = 0;
 
   constructor(input: string) {
     this.#input = input;
@@ -218,6 +230,8 @@ class Parser {
     // parseGrouped() returns the inner expression with location [1,4],
     // but the binary `*` node needs location [0,9] covering the parens.
     const ruleStart = this.#mark();
+    const outerDepth = this.#depth;
+    this.#nest(this.#nextCharLoc());
 
     // Step 1: parse prefix operator or atom (the "nud" phase)
     let left = this.#nud();
@@ -253,7 +267,9 @@ class Parser {
       // Binary operators — check if the next operator binds tighter
       const op = this.#peekOp();
       if (op && op.lbp > minBp) {
+        const opStart = this.#mark();
         this.#consumeOp(op);
+        const opLocation = this.#loc(opStart);
         this.#skipWhitespace();
         // If no valid expression follows the operator, backtrack.
         // This handles cases like trailing operators in partial input.
@@ -262,6 +278,8 @@ class Parser {
           break;
         }
         const right = this.#parseExpr(op.rbp);
+        // A chain like `a + b + c` nests its left side without recursing, so each operator counts a level
+        this.#nest(opLocation);
         left = new BinaryExpressionNode(
           op.text,
           left,
@@ -276,6 +294,7 @@ class Parser {
       this.#restore(saved);
       break;
     }
+    this.#depth = outerDepth;
     return left;
   }
 
@@ -469,12 +488,16 @@ class Parser {
     while (true) {
       const saved = this.#save();
       this.#skipWhitespace();
+      // Like an operator chain, each call of `a.b().c()` nests the calls before it
+      const suffixLocation = this.#nextCharLoc();
       if (this.#peek() === '.') {
         suffixes.push(this.#parseMemberCallSuffix());
+        this.#nest(suffixLocation);
         continue;
       }
       if (this.#peek() === '(') {
         suffixes.push(this.#parseDirectCallSuffix());
+        this.#nest(suffixLocation);
         continue;
       }
       this.#restore(saved);
@@ -1158,6 +1181,26 @@ class Parser {
   /** Throws a SyntaxError at the given location. Always returns `never`. */
   #fail(message: string, location: Location): never {
     throw new SyntaxError(message, location);
+  }
+
+  /** Enters one more level of nesting; the parser leaves it when the enclosing `#parseExpr` returns. */
+  #nest(location: Location): void {
+    this.#depth++;
+    if (this.#depth > MAX_NESTING) {
+      this.#fail(`Nested or chained more than ${MAX_NESTING} levels deep.`, location);
+    }
+  }
+
+  /** Builds the Location of the next character, empty at the end of input. */
+  #nextCharLoc(): Location {
+    const saved = this.#save();
+    const start = this.#mark();
+    if (!this.#isEnd()) {
+      this.#advance();
+    }
+    const location = this.#loc(start);
+    this.#restore(saved);
+    return location;
   }
 
   /** Builds a Location from a start position to an optional end position (defaults to current). */

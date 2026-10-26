@@ -331,7 +331,7 @@ Conditions read a value the same way everywhere — in `if`, in `? :` and in `an
 
 ## Errors
 
-Parse errors throw `SyntaxError`, a subclass of the built-in one. Evaluation errors throw `FormulaError`:
+Parse errors throw `SyntaxError`, a subclass of the built-in one. A formula that nests or chains more than 256 levels, such as a sum of 257 terms, is one of them, so a long formula never overflows the stack. See the [parser README](../parser/README.md#syntax-errors) for what counts a level. Evaluation errors throw `FormulaError`:
 
 | Property | Contents |
 | --- | --- |

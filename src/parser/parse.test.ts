@@ -1154,6 +1154,27 @@ describe(parse, () => {
       }).toThrow('Expected end of input but "x" found. [11,12]');
     });
   });
+
+  describe('Nesting limit', () => {
+    const shapes = [
+      { shape: 'parentheses', build: (n: number): string => `${'('.repeat(n)}1${')'.repeat(n)}`, deepest: 255, location: '[256,257]' },
+      { shape: 'prefix operators', build: (n: number): string => `${'-'.repeat(n)}1`, deepest: 255, location: '[256,257]' },
+      { shape: 'calls', build: (n: number): string => `${'abs('.repeat(n)}1${')'.repeat(n)}`, deepest: 255, location: '[1024,1025]' },
+      { shape: 'lists', build: (n: number): string => `${'['.repeat(n)}1${']'.repeat(n)}`, deepest: 255, location: '[256,257]' },
+      { shape: 'a left-associative chain', build: (n: number): string => `${'1+'.repeat(n - 1)}1`, deepest: 256, location: '[512,513]' },
+      { shape: 'a right-associative chain', build: (n: number): string => `${'1^'.repeat(n - 1)}1`, deepest: 256, location: '[512,513]' },
+      { shape: 'ternaries', build: (n: number): string => `${'a?1:'.repeat(n)}0`, deepest: 255, location: '[1022,1023]' },
+      { shape: 'a method chain', build: (n: number): string => `x${'.abs()'.repeat(n)}`, deepest: 255, location: '[1531,1532]' },
+    ];
+
+    it.each(shapes)('should parse $shape as deep as the limit allows', ({ build, deepest }) => {
+      expect(() => parse(build(deepest))).not.toThrow();
+    });
+
+    it.each(shapes)('should point at the first part of $shape past the limit', ({ build, deepest, location }) => {
+      expect(() => parse(build(deepest + 1))).toThrow(`Nested or chained more than 256 levels deep. ${location}`);
+    });
+  });
 });
 
 function syntaxErrorOf(formula: string): SyntaxError {

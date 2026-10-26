@@ -37,6 +37,15 @@ describe(FormulaScope, () => {
 
       expect(scope.evaluate('third * 3', { third })).toBeFormulaDataType(FormulaNumber, 1);
     });
+
+    it('should evaluate calls nested as deep as the limit allows', () => {
+      expect(new FormulaScope().evaluate(`${'abs('.repeat(255)}1${')'.repeat(255)}`)).toBeFormulaDataType(FormulaNumber, 1);
+    });
+
+    it('should reject a formula nested too deep with a syntax error instead of overflowing the stack', () => {
+      expect(() => new FormulaScope().evaluate(`${'('.repeat(5000)}1${')'.repeat(5000)}`))
+        .toThrow('Nested or chained more than 256 levels deep. [256,257]');
+    });
   });
 
   describe('host values', () => {
