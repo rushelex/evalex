@@ -101,8 +101,17 @@ jobs:
       - name: Set up project
         uses: ./.github/actions/setup
 
-      - name: Audit dependencies
-        run: pnpm audit
+      - name: Audit new advisories
+        env:
+          # Zeros when a push creates the branch, so every advisory counts as new
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ "$BASE_SHA" =~ ^0+$ ]]; then
+            scripts/audit-new-advisories.sh
+          else
+            git fetch --quiet --depth=1 origin "$BASE_SHA"
+            scripts/audit-new-advisories.sh "$BASE_SHA"
+          fi
 
   build:
     runs-on: ubuntu-latest
