@@ -102,7 +102,7 @@ Every node carries `type` and `location`, and implements `accept(visitor)`. Type
 | `ArrayExpression` | `elements` |
 | `LetExpression` | `declarations: { name: Identifier, value, location }[]`, `body` |
 
-`location` holds `start` and `end`, each with a zero-based `offset` and one-based `line` and `column`. In a method chain such as `a.b().c()`, every call and member node shares one span, from the start of `a` to the final closing parenthesis.
+`location` holds `start` and `end`, each with a zero-based `offset` and one-based `line` and `column`. In a method chain such as `a.b().c()`, every node spans from the start of `a` to its own end: the call `a.b()` ends at its closing parenthesis, the member `a.b` at `b`.
 
 ### Visitors
 

@@ -67,8 +67,8 @@ interface OpInfo {
  * the same location span.
  */
 type Suffix
-  = | { readonly type: 'MemberCall'; readonly property: IdentifierNode; readonly args: AstNode[] }
-    | { readonly type: 'DirectCall'; readonly args: AstNode[] };
+  = | { readonly type: 'MemberCall'; readonly property: IdentifierNode; readonly args: AstNode[]; readonly end: Pos }
+    | { readonly type: 'DirectCall'; readonly args: AstNode[]; readonly end: Pos };
 
 /**
  * Names of one `let` while it is parsed, to reject a name used before its declaration.
@@ -478,9 +478,8 @@ class Parser {
    * Collects `.method(args)` and `(args)` suffixes after an expression,
    * then reduces them into a chain of CallExpression/MemberExpression nodes.
    *
-   * Suffixes are collected first (instead of building nodes inline) so that
-   * every node in a chain like `obj.a().b()` shares the same location span
-   * from the head's start to the final `)`.
+   * Every node of a chain like `obj.a().b()` spans from the head's start to its
+   * own end, so an error about `obj.a()` underlines `obj.a()`, not the whole chain.
    */
   #parseSuffixes(head: AstNode): AstNode {
     const start = head.location.start;
@@ -536,7 +535,7 @@ class Parser {
       this.#throwUnclosedParen(lpStart, lpEnd, args);
     }
     this.#advance();
-    return { type: 'MemberCall', property: prop, args };
+    return { type: 'MemberCall', property: prop, args, end: this.#mark() };
   }
 
   /** Parses `(args)` and returns a suffix descriptor. */
@@ -551,16 +550,16 @@ class Parser {
       this.#throwUnclosedParen(lpStart, lpEnd, args);
     }
     this.#advance();
-    return { type: 'DirectCall', args };
+    return { type: 'DirectCall', args, end: this.#mark() };
   }
 
-  /** Reduces a list of collected suffixes into a chain of AST nodes. */
+  /** Reduces a list of collected suffixes into a chain of AST nodes, each spanning from the head to its own end. */
   #buildSuffixChain(head: AstNode, suffixes: Suffix[], start: Pos): AstNode {
-    const location = this.#loc(start);
     let node: AstNode = head;
     for (const suffix of suffixes) {
+      const location = this.#loc(start, suffix.end);
       if (suffix.type === 'MemberCall') {
-        const member = new MemberExpressionNode(node, suffix.property, false, location);
+        const member = new MemberExpressionNode(node, suffix.property, false, this.#loc(start, suffix.property.location.end));
         node = new CallExpressionNode(member, suffix.args, location);
       }
       else {

@@ -350,7 +350,7 @@ Parse errors throw `SyntaxError`, a subclass of the built-in one. A formula that
 | `EVALUATE_ERROR` | An operator gets operands it cannot combine, or text is not a valid regular expression |
 | `RANGE_ERROR` | An unsupported operator or an out-of-range value |
 
-An error about a value points at the part of the formula the value came from. When `if`, `? :`, parentheses or a `let` body hand on a value unchanged, the location narrows to that value: in `sum(if(flag, 1, "a"))` with `flag` false, the error points at `"a"`, not at the whole `if`. A value read through a name points at the name. Reading from an empty value points at that value: `project.rate()` with `project` empty fails with `Cannot read "rate" of an empty value.` at `project`.
+An error about a value points at the part of the formula the value came from. When `if`, `? :`, parentheses or a `let` body hand on a value unchanged, the location narrows to that value: in `sum(if(flag, 1, "a"))` with `flag` false, the error points at `"a"`, not at the whole `if`. A value read through a name points at the name. Reading from an empty value points at that value: `project.rate()` with `project` empty fails with `Cannot read "rate" of an empty value.` at `project`, and `task.project().rate()` at `task.project()`.
 
 The runtime adds `TYPE_MISMATCH`, `CIRCULAR_DEPENDENCY`, `MAX_DEPENDENCIES_EXCEEDED`, `MAX_FORMULA_DEPTH_EXCEEDED`, `MAX_FORMULAS_EXCEEDED`, `DUPLICATE_NODE_ID` and `EXECUTION_TIMEOUT`; see the [runtime README](../runtime/README.md#errors-and-limits).
 

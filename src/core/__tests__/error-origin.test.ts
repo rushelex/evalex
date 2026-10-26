@@ -1,7 +1,7 @@
 import { fc, it } from '@fast-check/vitest';
 
 import { evaluate } from '../../testing-library';
-import { FormulaNull } from '../data-types';
+import { FormulaNull, FormulaObject } from '../data-types';
 
 // Parts of a formula that hand on the value written in place of `VALUE` without changing it.
 const PASS_THROUGH = [
@@ -70,5 +70,15 @@ describe('error locations', () => {
 
   it('should point at the name an empty value was read through', () => {
     expect(() => evaluate('project.rate()', { context: { project: FormulaNull.instance() } })).toThrow('Cannot read "rate" of an empty value. [0,7]');
+  });
+
+  it.each([
+    { formula: 'task.project().rate()', at: [0, 14] },
+    { formula: 'task.project().rate().round()', at: [0, 14] },
+    { formula: 'task.owner().project().rate()', at: [0, 22] },
+  ])('should point at the link of a chain that returned an empty value in $formula', ({ formula, at }) => {
+    const task = FormulaObject.from({ project: null, owner: { project: null } });
+
+    expect(() => evaluate(formula, { context: { task } })).toThrow(`Cannot read "rate" of an empty value. [${at[0]},${at[1]}]`);
   });
 });
