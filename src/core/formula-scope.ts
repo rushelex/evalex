@@ -3,7 +3,7 @@ import type { HostValue } from './data-types/types';
 import type { ValueFormat } from './value-format';
 
 import { isFormulaValue } from './data-types';
-import { evaluateFormula } from './expression';
+import { evaluateFormula, parseFormula } from './expression';
 import { HostValues } from './host-values';
 import { validateValueFormat } from './value-format';
 
@@ -54,7 +54,12 @@ export class FormulaScope {
    * @throws TypeError naming the path, such as `order.lines[2]`, to a value the formula reads that has no formula form.
    */
   evaluate<T extends object = Record<string, never>>(formula: string, values?: T & HostValue<T>): FormulaValue {
-    const { result } = evaluateFormula({ formula, properties: new HostValues(values ?? {}), format: this.#format });
+    const { result } = evaluateFormula({
+      formula,
+      ast: parseFormula(formula),
+      properties: new HostValues(values ?? {}),
+      format: this.#format,
+    });
 
     if (!isFormulaValue(result)) {
       throw new TypeError(`The formula computed a value of an unknown data type, ${result.kind}.`);

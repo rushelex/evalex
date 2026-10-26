@@ -61,7 +61,7 @@ result.kind;  // 'Number'
 result.value; // 900
 ```
 
-Values are plain JavaScript: numbers, text, dates, lists, objects, class instances. Parsed formulas are cached, so evaluating the same text twice costs one parse. See [core](src/core/README.md#formulascope) for settings and what each value converts to.
+Values are plain JavaScript: numbers, text, dates, lists, objects, class instances. Recently used formulas stay parsed, so evaluating the same text twice costs one parse. See [core](src/core/README.md#formulascope) for settings and what each value converts to.
 
 ## The formula language
 

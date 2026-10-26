@@ -50,7 +50,7 @@ scope.evaluate('"Total: " + total', { total }).value; // 'Total: 1000.00'
 | `evaluate({ context, format })` | `{ result, dependencies }` | Throws `SyntaxError` or `FormulaError`; `format` is optional, see [Text of values](#text-of-values) |
 | `extractDependencies()` | `ReadonlySet<string>` | Every identifier in the formula, found without evaluating it. Throws `SyntaxError` |
 
-ASTs and static dependencies are cached per formula text, so recreating an `Expression` for the same string is cheap.
+ASTs and static dependencies are cached per formula text among the 1,000 most recently used texts, so recreating an `Expression` for the same string is cheap, and texts no longer in use do not stay in memory. An `Expression` keeps its own parse for as long as it lives.
 
 ```ts
 const expression = new Expression('if(score >= 50, "pass", "fail")');
@@ -390,6 +390,7 @@ While enabled, the runtime logs every enqueue, cascade, evaluation and error wit
 | Path | Contents |
 | --- | --- |
 | [`expression.ts`](./expression.ts) | `Expression` and its caches |
+| [`lru-cache.ts`](./lru-cache.ts) | The bounded cache that keeps parses of recently used formula texts |
 | [`evaluator.visitor.ts`](./evaluator.visitor.ts) | Walks the AST and computes values |
 | [`dependency-extractor.visitor.ts`](./dependency-extractor.visitor.ts) | Collects identifiers for static dependencies and finds calls to volatile routines |
 | [`volatile-formula.ts`](./volatile-formula.ts) | Tells the runtime which formulas must be recalculated even with unchanged inputs |

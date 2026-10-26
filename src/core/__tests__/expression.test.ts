@@ -1,5 +1,12 @@
 import { FormulaArray, FormulaNumber } from '../data-types';
-import { Expression, parseFormula } from '../expression';
+import { Expression, PARSED_TEXTS_CAPACITY, parseFormula } from '../expression';
+
+// Parses as many other texts as the shared cache holds, so a text not used meanwhile is evicted
+function parseOtherTexts(): void {
+  for (let index = 0; index < PARSED_TEXTS_CAPACITY; index++) {
+    parseFormula(`other + ${index}`);
+  }
+}
 
 describe(parseFormula, () => {
   it('should parse a valid formula', () => {
@@ -15,6 +22,25 @@ describe(parseFormula, () => {
     const ast1 = parseFormula('1 + 1');
     const ast2 = parseFormula('1 + 1');
     expect(ast1).toBe(ast2);
+  });
+
+  it('should drop the parse of a text not used while as many other texts were parsed', () => {
+    const first = parseFormula('evicted + 1');
+
+    parseOtherTexts();
+
+    expect(parseFormula('evicted + 1')).not.toBe(first);
+  });
+
+  it('should keep the parse of a text used again while other texts were parsed', () => {
+    const first = parseFormula('kept + 1');
+
+    for (let index = 0; index < PARSED_TEXTS_CAPACITY; index++) {
+      parseFormula(`other + ${index}`);
+      parseFormula('kept + 1');
+    }
+
+    expect(parseFormula('kept + 1')).toBe(first);
   });
 });
 
@@ -33,6 +59,15 @@ describe(Expression, () => {
       const dependencies1 = new Expression('a + b').extractDependencies();
       const dependencies2 = new Expression('a + b').extractDependencies();
       expect(dependencies1).toBe(dependencies2);
+    });
+
+    it('should keep the parse of an expression for as long as the expression lives', () => {
+      const expression = new Expression('held + 1');
+      const first = expression.extractDependencies();
+
+      parseOtherTexts();
+
+      expect(expression.extractDependencies()).toBe(first);
     });
 
     it.each([
