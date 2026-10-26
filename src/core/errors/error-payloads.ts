@@ -63,24 +63,6 @@ export interface CircularDependencyPayload {
   readonly dependsOnId: string;
 }
 
-export interface MaxDependenciesPayload {
-  readonly nodeId: string;
-  readonly count: number;
-  readonly limit: number;
-}
-
-export interface MaxFormulaDepthPayload {
-  readonly nodeId: string;
-  readonly depth: number;
-  readonly limit: number;
-}
-
-export interface MaxFormulasPayload {
-  readonly nodeId: string;
-  readonly count: number;
-  readonly limit: number;
-}
-
 export interface DuplicateNodeIdPayload {
   readonly nodeId: string;
 }
@@ -103,9 +85,6 @@ export interface FormulaErrorPayloads {
   [FormulaErrorCode.RANGE_ERROR]: RangeErrorPayload;
   [FormulaErrorCode.EVALUATE_ERROR]: EvaluateErrorPayload;
   [FormulaErrorCode.CIRCULAR_DEPENDENCY]: CircularDependencyPayload;
-  [FormulaErrorCode.MAX_DEPENDENCIES_EXCEEDED]: MaxDependenciesPayload;
-  [FormulaErrorCode.MAX_FORMULA_DEPTH_EXCEEDED]: MaxFormulaDepthPayload;
-  [FormulaErrorCode.MAX_FORMULAS_EXCEEDED]: MaxFormulasPayload;
   [FormulaErrorCode.DUPLICATE_NODE_ID]: DuplicateNodeIdPayload;
   [FormulaErrorCode.EXECUTION_TIMEOUT]: ExecutionTimeoutPayload;
 }

@@ -70,7 +70,7 @@ A node's `id` is the name formulas use to reference it: `total` reads `price` be
 | `toFormulaDataType(node)` | Read a node's current value when another formula depends on it | A `FormulaDataType` |
 | `toExpression(node)` | Get the node's formula | An `Expression`, or `null` to skip the node |
 | `onCalculate(node, value, dependencies)` | Store a fresh result; `dependencies` are the ids the evaluation actually read. Not called for a formula that was not recalculated, see [Skipped recalculation](#skipped-recalculation) | — |
-| `onError(node, error)` | Store a failure: a `SyntaxError`, a `FormulaError` or a runtime limit error | — |
+| `onError(node, error)` | Store a failure: a `SyntaxError` or a `FormulaError` | — |
 
 > [!TIP]
 > Return the same `Expression` instance, or at least the same formula text, between calls. The runtime caches validation per node and skips it while the formula text stays the same.
@@ -162,12 +162,11 @@ It is fixed for the life of the orchestrator: when the user switches language, c
 
 Problems with one formula never stop the rest: the error goes to that node's `onError`, and every other formula keeps calculating.
 
+The runtime limits neither the number of formulas, nor how long a chain of formulas reading each other gets, nor how many names a formula reads. One formula is limited only by how deep it nests, see the [core README](../core/README.md#errors).
+
 | Code | Raised when |
 | --- | --- |
 | `CIRCULAR_DEPENDENCY` | A formula would depend on itself, directly or through other formulas |
-| `MAX_DEPENDENCIES_EXCEEDED` | A formula references more than 100 identifiers |
-| `MAX_FORMULA_DEPTH_EXCEEDED` | A chain of formulas is deeper than 50 levels |
-| `MAX_FORMULAS_EXCEEDED` | A node with a formula is added, or a node gets a formula and is enqueued, when 10,000 formulas already exist; thrown from `add` itself, reported through `onError` otherwise. Removing a formula node or its formula frees the slot |
 | `DUPLICATE_NODE_ID` | `add` is called with an id another node already holds; thrown from `add` itself |
 | `EXECUTION_TIMEOUT` | A formula runs longer than the `timeoutMs` of `AsyncExecutor` |
 | `TYPE_MISMATCH` | `toExpression` returns an expression whose formula is empty or not text |
@@ -197,6 +196,6 @@ onError: (cell, error) => {
 | [`is-same-value.ts`](./is-same-value.ts) | The equality that decides whether recalculation can be skipped |
 | [`dependency-graph.ts`](./dependency-graph.ts) | `DependencyGraph` |
 | [`recalculation-queue.ts`](./recalculation-queue.ts) | `RecalculationQueue`, which hands out the shallowest waiting formula first |
-| [`formula-validator.ts`](./formula-validator.ts), [`limits.ts`](./limits.ts) | Limit checks and their values |
+| [`formula-validator.ts`](./formula-validator.ts) | The check of the formula text a host passes |
 | [`scheduler/`](./scheduler), [`executor/`](./executor) | Schedulers and executors |
 | [`types.ts`](./types.ts) | `FormulaNode` and `NodeAdapter` |

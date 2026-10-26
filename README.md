@@ -182,7 +182,7 @@ orchestrator.enqueueDependents('price');
 await orchestrator.waitForProcessing(); // total = 300, tax = 30
 ```
 
-Schedulers, async executors, limits and cycle detection are covered in the [runtime README](./src/runtime/README.md).
+Schedulers, async executors and cycle detection are covered in the [runtime README](./src/runtime/README.md).
 
 ## Architecture
 

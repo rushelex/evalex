@@ -230,9 +230,34 @@ export class DependencyGraph {
       return cached;
     }
 
-    const depth = this.#calculateDepth(nodeId, new Set());
-    this.#depthCache.set(nodeId, depth);
-    return depth;
+    // An explicit stack instead of recursion, so a chain of any length leaves the call stack alone
+    const pending = [nodeId];
+
+    while (pending.length > 0) {
+      const id = pending.at(-1)!;
+      let depth = 0;
+      let ready = true;
+
+      for (const dependency of this.getDependencies(id)) {
+        const dependencyDepth = this.#depthCache.get(dependency);
+
+        if (dependencyDepth === undefined) {
+          ready = false;
+          pending.push(dependency);
+        }
+        else {
+          depth = Math.max(depth, dependencyDepth + 1);
+        }
+      }
+
+      // A node waits on the stack until every dependency above it has its depth
+      if (ready) {
+        this.#depthCache.set(id, depth);
+        pending.pop();
+      }
+    }
+
+    return this.#depthCache.get(nodeId)!;
   }
 
   /**
@@ -295,41 +320,6 @@ export class DependencyGraph {
     }
 
     return visited;
-  }
-
-  /**
-   * Calculate depth using iterative approach with explicit stack
-   *
-   * @param nodeId - The node to calculate depth for
-   * @param visited - Set of visited nodes to detect cycles
-   * @returns The depth of the node
-   */
-  #calculateDepth(nodeId: string, visited: Set<string>): number {
-    if (visited.has(nodeId)) {
-      return Infinity; // Cycle
-    }
-
-    const deps = this.#dependencies.get(nodeId);
-    if (!deps || deps.size === 0) {
-      return 0;
-    }
-
-    visited.add(nodeId);
-
-    let maxDepth = 0;
-    for (const depId of deps) {
-      // Check cache first
-      let depDepth = this.#depthCache.get(depId);
-      if (depDepth === undefined) {
-        depDepth = this.#calculateDepth(depId, visited);
-      }
-      if (depDepth > maxDepth) {
-        maxDepth = depDepth;
-      }
-    }
-
-    visited.delete(nodeId);
-    return maxDepth + 1;
   }
 
   /**

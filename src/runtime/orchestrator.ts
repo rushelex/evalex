@@ -99,17 +99,11 @@ export class FormulaOrchestrator<T extends FormulaNode> {
    * @param node - The node to add
    * @param subscribe - Optional callback to subscribe to node changes
    * @throws FormulaError coded `DUPLICATE_NODE_ID` if a node with the same ID already exists
-   * @throws FormulaError coded `MAX_FORMULAS_EXCEEDED` if the node holds a formula and the formula limit is reached
    */
   add(node: T, subscribe?: () => () => void): void {
     // Validate uniqueness
     if (this.#registry.has(node.id)) {
       throw Errors.Runtime.DuplicateNodeId.create({ nodeId: node.id });
-    }
-
-    // Take a slot of the formulas count limit before the node is registered, so a refused node leaves no trace
-    if (this.#adapter.shouldProcess(node)) {
-      this.#runtime.admitFormula(node.id);
     }
 
     // Add to registry first

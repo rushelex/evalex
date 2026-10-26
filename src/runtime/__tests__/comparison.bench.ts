@@ -26,7 +26,6 @@ import { expect, it } from 'vitest';
 
 const BLOCK_SIZE = 50;
 
-// 1,900 rows keep the table under the runtime limit of 10,000 formulas
 const TABLE_SIZES = [200, 1900] as const;
 
 const PASTE_SIZE = 100;

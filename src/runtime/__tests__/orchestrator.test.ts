@@ -9,7 +9,6 @@ import { Expression, FormulaArray, FormulaNull, FormulaNumber, FormulaString } f
 import { Errors, FormulaError } from '../../core/errors';
 import { evaluateOutcome } from '../../testing-library';
 import { AsyncExecutor, SyncExecutor } from '../executor';
-import { FORMULA_LIMITS } from '../limits';
 import { FormulaOrchestrator } from '../orchestrator';
 import { BatchingScheduler, ImmediateScheduler } from '../scheduler';
 
@@ -57,9 +56,9 @@ const runtimeSetup = fc.record({
   asyncEvaluation: fc.boolean(),
 });
 
-// The order to add the links of a chain that is up to 5 links longer than the depth limit allows.
-const chainAddOrder = fc.integer({ min: 1, max: 5 }).chain((extra) => {
-  const indexes = Array.from({ length: FORMULA_LIMITS.MAX_FORMULA_DEPTH + extra }, (_, index) => index);
+// The order to add the links of a chain of 51 to 55 links, longer than any depth a runtime could cap.
+const chainAddOrder = fc.integer({ min: 51, max: 55 }).chain((length) => {
+  const indexes = Array.from({ length }, (_, index) => index);
 
   return fc.shuffledSubarray(indexes, { minLength: indexes.length });
 });
@@ -609,329 +608,67 @@ describe(FormulaOrchestrator, () => {
     });
   });
 
-  describe('Runtime Limits', () => {
-    describe('Max Formulas Count', () => {
-      it('should throw when exceeding maximum formulas count', () => {
-        // Add MAX_FORMULAS_COUNT formulas
-        for (let i = 0; i < FORMULA_LIMITS.MAX_FORMULAS_COUNT; i++) {
-          orchestrator.add({
-            id: `f${i}`,
-            value: new FormulaNumber(0),
-            expression: new Expression('1 + 1'),
-            error: null,
-          });
-        }
+  describe('Size', () => {
+    it.prop([chainAddOrder])('should calculate every link of a chain longer than 50 links, whatever order it is added in', async (addOrder) => {
+      const tested = startChainHost();
+      const [base, ...links] = chain({ prefix: 'f', length: addOrder.length });
 
-        // Adding one more should throw
-        expect(() => {
-          orchestrator.add({
-            id: 'overflow',
-            value: new FormulaNumber(0),
-            expression: new Expression('2 + 2'),
-            error: null,
-          });
-        }).toThrow(Errors.Runtime.MaxFormulas.create({
-          nodeId: 'overflow',
-          count: FORMULA_LIMITS.MAX_FORMULAS_COUNT,
-          limit: FORMULA_LIMITS.MAX_FORMULAS_COUNT,
-        }));
-      });
+      tested.add(base);
+      addOrder.forEach((index) => tested.add(links[index]));
+      await tested.waitForProcessing();
 
-      it('should calculate every formula when exactly MAX_FORMULAS_COUNT formulas exist', async () => {
-        const tested = startChainHost();
-        const formulas = fillFormulas(tested);
-        await tested.waitForProcessing();
-
-        const failed = formulas.filter((node) => node.error !== null || !(node.value instanceof FormulaNumber && node.value.value === 2));
-
-        expect(failed).toEqual([]);
-      });
-
-      it('should fail a node turned into a formula through enqueue once MAX_FORMULAS_COUNT formulas exist', async () => {
-        const tested = startChainHost();
-        const turned: TestNode = { id: 'turned', value: new FormulaNumber(42), error: null };
-
-        fillFormulas(tested);
-        tested.add(turned);
-        await tested.waitForProcessing();
-
-        turned.expression = new Expression('2 + 2');
-        tested.enqueue('turned');
-        await tested.waitForProcessing();
-
-        expect(turned.error).toEqual(Errors.Runtime.MaxFormulas.create({
-          nodeId: 'turned',
-          count: FORMULA_LIMITS.MAX_FORMULAS_COUNT,
-          limit: FORMULA_LIMITS.MAX_FORMULAS_COUNT,
-        }));
-      });
-
-      it('should calculate a node refused for MAX_FORMULAS_COUNT once a slot is free and it is enqueued again', async () => {
-        const tested = startChainHost();
-        const turned: TestNode = { id: 'turned', value: new FormulaNumber(42), error: null };
-
-        fillFormulas(tested);
-        tested.add(turned);
-        turned.expression = new Expression('2 + 2');
-        tested.enqueue('turned');
-        await tested.waitForProcessing();
-
-        tested.remove('f0');
-        tested.enqueue('turned');
-        await tested.waitForProcessing();
-
-        expect({ value: turned.value, error: turned.error }).toEqual({ value: new FormulaNumber(4), error: null });
-      });
-
-      it('should free a slot when a formula is turned into a plain value through enqueue', async () => {
-        const tested = startChainHost();
-        const formulas = fillFormulas(tested);
-        await tested.waitForProcessing();
-
-        formulas[0].expression = undefined;
-        tested.enqueue('f0');
-        await tested.waitForProcessing();
-
-        expect(() => tested.add({ id: 'next', value: FormulaNull.instance(), error: null, expression: new Expression('3 + 3') })).not.toThrow();
-      });
-
-      it('should free a slot when a formula is removed', async () => {
-        const tested = startChainHost();
-        fillFormulas(tested);
-        await tested.waitForProcessing();
-
-        tested.remove('f0');
-
-        expect(() => tested.add({ id: 'next', value: FormulaNull.instance(), error: null, expression: new Expression('3 + 3') })).not.toThrow();
-      });
-
-      it('should allow adding non-formula nodes without limit', () => {
-        // Add MAX_FORMULAS_COUNT formulas
-        for (let i = 0; i < FORMULA_LIMITS.MAX_FORMULAS_COUNT; i++) {
-          orchestrator.add({
-            id: `f${i}`,
-            value: new FormulaNumber(0),
-            expression: new Expression('1 + 1'),
-            error: null,
-          });
-        }
-
-        // Should still allow adding plain nodes
-        expect(() => {
-          orchestrator.add({
-            id: 'plain',
-            value: new FormulaNumber(42),
-            error: null,
-          });
-        }).not.toThrow();
-      });
+      expect(chainOutcomes(links)).toEqual(links.map((_, index) => index + 2));
     });
 
-    describe('Max Dependencies per Formula', () => {
-      it('should throw when formula has too many dependencies', async () => {
-        // Create base nodes
-        for (let i = 0; i < FORMULA_LIMITS.MAX_DEPENDENCIES_PER_FORMULA + 5; i++) {
-          orchestrator.add({
-            id: `n${i}`,
-            value: new FormulaNumber(i),
-            error: null,
-          });
-        }
+    it('should calculate a chain of 5,000 links added from its end', async () => {
+      const tested = startChainHost();
+      const [base, ...links] = chain({ prefix: 'f', length: 5000 });
 
-        // Create formula with too many dependencies
-        const deps = Array.from(
-          { length: FORMULA_LIMITS.MAX_DEPENDENCIES_PER_FORMULA + 1 },
-          (_, i) => `n${i}`,
-        ).join(' + ');
+      links.toReversed().forEach((node) => tested.add(node));
+      tested.add(base);
+      tested.enqueueDependents('f0');
+      await tested.waitForProcessing();
 
-        orchestrator.add({
-          id: 'formula',
-          value: new FormulaNumber(0),
-          expression: new Expression(deps),
-          error: null,
-        });
-
-        await orchestrator.waitForProcessing();
-
-        // Formula should have error due to too many dependencies
-        const formula = orchestrator.get('formula');
-        expect(formula?.value).toBeInstanceOf(FormulaNull);
-        if (Errors.Runtime.MaxDependencies.is(formula?.error)) {
-          expect(formula.error).toEqual(Errors.Runtime.MaxDependencies.create({
-            nodeId: 'formula',
-            count: FORMULA_LIMITS.MAX_DEPENDENCIES_PER_FORMULA + 1,
-            limit: FORMULA_LIMITS.MAX_DEPENDENCIES_PER_FORMULA,
-          }));
-        }
-        else {
-          throw new Error('Formula should have Errors.Runtime.MaxDependencies error');
-        }
-      });
-
-      it('should allow formula with exactly MAX_DEPENDENCIES_PER_FORMULA dependencies', async () => {
-        // Create base nodes
-        for (let i = 0; i < FORMULA_LIMITS.MAX_DEPENDENCIES_PER_FORMULA; i++) {
-          orchestrator.add({
-            id: `n${i}`,
-            value: new FormulaNumber(1),
-            error: null,
-          });
-        }
-
-        // Create formula with exactly max dependencies
-        const deps = Array.from(
-          { length: FORMULA_LIMITS.MAX_DEPENDENCIES_PER_FORMULA },
-          (_, i) => `n${i}`,
-        ).join(' + ');
-
-        orchestrator.add({
-          id: 'formula',
-          value: new FormulaNumber(0),
-          expression: new Expression(deps),
-          error: null,
-        });
-
-        await orchestrator.waitForProcessing();
-
-        // Formula should calculate successfully
-        const formula = orchestrator.get('formula');
-        expect(formula?.value).toBeInstanceOf(FormulaNumber);
-        expect(formula?.error).toBe(null);
-      });
+      expect(chainOutcomes(links)).toEqual(links.map((_, index) => index + 2));
     });
 
-    describe('Max Formula Depth', () => {
-      it.prop([chainAddOrder])('should fail exactly the formulas deeper than MAX_FORMULA_DEPTH, whatever order the chain is added in', async (addOrder) => {
-        const tested = startChainHost();
-        const [base, ...links] = chain({ prefix: 'f', length: addOrder.length });
+    it.each([
+      { change: 'values change', formula: 'g10 + 1', shift: 10 },
+      { change: 'values stay the same', formula: 'g10 - 9', shift: 0 },
+    ])('should recalculate a chain that an edit below makes 10 links deeper when $change', async ({ formula, shift }) => {
+      const tested = startChainHost();
+      const f = chain({ prefix: 'f', length: 50 });
+      const links = f.slice(1);
 
-        tested.add(base);
-        addOrder.forEach((index) => tested.add(links[index]));
-        await tested.waitForProcessing();
+      [...f, ...chain({ prefix: 'g', length: 10 })].forEach((node) => tested.add(node));
+      await tested.waitForProcessing();
 
-        expect(chainOutcomes(links)).toEqual(links.map((_, index) => (index + 1 <= FORMULA_LIMITS.MAX_FORMULA_DEPTH ? index + 2 : 'too deep')));
-      });
+      links[0].expression = new Expression(formula);
+      tested.enqueue('f1');
+      await tested.waitForProcessing();
 
-      it.each([
-        { change: 'values change', formula: 'g10 + 1', shift: 10 },
-        { change: 'values stay the same', formula: 'g10 - 9', shift: 0 },
-      ])('should fail the formulas an edit below pushes past MAX_FORMULA_DEPTH when $change', async ({ formula, shift }) => {
-        const tested = startChainHost();
-        const f = chain({ prefix: 'f', length: FORMULA_LIMITS.MAX_FORMULA_DEPTH });
-        const links = f.slice(1);
+      expect(chainOutcomes(links)).toEqual(links.map((_, index) => index + 2 + shift));
+    });
 
-        [...f, ...chain({ prefix: 'g', length: 10 })].forEach((node) => tested.add(node));
-        await tested.waitForProcessing();
+    it('should calculate more than 10,000 formulas', async () => {
+      const tested = startChainHost();
+      const formulas = Array.from({ length: 10_001 }, (_, index): TestNode => ({ id: `f${index}`, value: FormulaNull.instance(), error: null, expression: new Expression('1 + 1') }));
 
-        links[0].expression = new Expression(formula);
-        tested.enqueue('f1');
-        await tested.waitForProcessing();
+      formulas.forEach((node) => tested.add(node));
+      await tested.waitForProcessing();
 
-        // f1 now reads the end of the 10-link chain, so every link of `f` is 10 levels deeper
-        expect(chainOutcomes(links)).toEqual(links.map((_, index) => (index + 11 <= FORMULA_LIMITS.MAX_FORMULA_DEPTH ? index + 2 + shift : 'too deep')));
-      });
+      expect(formulas.filter((node) => node.error !== null || !(node.value instanceof FormulaNumber && node.value.value === 2))).toEqual([]);
+    });
 
-      it('should fail the formulas above an edited formula that goes past MAX_FORMULA_DEPTH itself', async () => {
-        const tested = startChainHost();
-        const f = chain({ prefix: 'f', length: 5 });
-        const links = f.slice(1);
+    it('should calculate a formula that reads 300 names', async () => {
+      const tested = startChainHost();
+      const values = Array.from({ length: 300 }, (_, index): TestNode => ({ id: `n${index}`, value: new FormulaNumber(1), error: null }));
+      const total: TestNode = { id: 'total', value: FormulaNull.instance(), error: null, expression: new Expression(`sum(${values.map((node) => node.id).join(', ')})`) };
 
-        [...f, ...chain({ prefix: 'g', length: FORMULA_LIMITS.MAX_FORMULA_DEPTH })].forEach((node) => tested.add(node));
-        await tested.waitForProcessing();
+      [...values, total].forEach((node) => tested.add(node));
+      await tested.waitForProcessing();
 
-        links[0].expression = new Expression(`g${FORMULA_LIMITS.MAX_FORMULA_DEPTH} + 1`);
-        tested.enqueue('f1');
-        await tested.waitForProcessing();
-
-        expect(chainOutcomes(links)).toEqual(links.map(() => 'too deep'));
-      });
-
-      it.each([
-        { change: 'values change', formula: '16', shift: 10 },
-        { change: 'values stay the same', formula: '6', shift: 0 },
-      ])('should recalculate the formulas an edit below brings back within MAX_FORMULA_DEPTH when $change', async ({ formula, shift }) => {
-        const tested = startChainHost();
-        const f = chain({ prefix: 'f', length: FORMULA_LIMITS.MAX_FORMULA_DEPTH + 5 });
-        const links = f.slice(1);
-
-        f.forEach((node) => tested.add(node));
-        await tested.waitForProcessing();
-
-        links[4].expression = new Expression(formula);
-        tested.enqueue('f5');
-        await tested.waitForProcessing();
-
-        // f5 no longer reads anything, so the links above it are 5 levels shallower
-        expect(chainOutcomes(links)).toEqual(links.map((_, index) => (index < 4 ? index + 2 : index + 2 + shift)));
-      });
-
-      it('should recalculate the formulas an edit pushed past MAX_FORMULA_DEPTH once a later edit brings them back', async () => {
-        const tested = startChainHost();
-        const f = chain({ prefix: 'f', length: FORMULA_LIMITS.MAX_FORMULA_DEPTH });
-        const links = f.slice(1);
-
-        [...f, ...chain({ prefix: 'g', length: 10 })].forEach((node) => tested.add(node));
-        await tested.waitForProcessing();
-
-        links[0].expression = new Expression('g10 - 9');
-        tested.enqueue('f1');
-        await tested.waitForProcessing();
-
-        links[0].expression = new Expression('f0 + 1');
-        tested.enqueue('f1');
-        await tested.waitForProcessing();
-
-        expect(chainOutcomes(links)).toEqual(links.map((_, index) => index + 2));
-      });
-
-      it('should handle formulas up to MAX_FORMULA_DEPTH', async () => {
-        // Create a chain up to max depth
-        orchestrator.add({ id: 'f0', value: new FormulaNumber(1), error: null });
-
-        for (let i = 1; i < FORMULA_LIMITS.MAX_FORMULA_DEPTH; i++) {
-          orchestrator.add({
-            id: `f${i}`,
-            value: new FormulaNumber(0),
-            expression: new Expression(`f${i - 1} + 1`),
-            error: null,
-          });
-        }
-
-        await orchestrator.waitForProcessing();
-
-        const lastFormula = orchestrator.get(`f${FORMULA_LIMITS.MAX_FORMULA_DEPTH - 1}`);
-        expect(lastFormula?.value).toBeInstanceOf(FormulaNumber);
-        if (lastFormula?.value instanceof FormulaNumber) {
-          expect(lastFormula.value.value).toBe(FORMULA_LIMITS.MAX_FORMULA_DEPTH);
-        }
-      });
-
-      it('should throw when exceeding MAX_FORMULA_DEPTH', async () => {
-        // Create a chain exceeding max depth
-        orchestrator.add({ id: 'f0', value: new FormulaNumber(1), error: null });
-
-        for (let i = 1; i <= FORMULA_LIMITS.MAX_FORMULA_DEPTH + 5; i++) {
-          orchestrator.add({
-            id: `f${i}`,
-            value: new FormulaNumber(0),
-            expression: new Expression(`f${i - 1} + 1`),
-            error: null,
-          });
-        }
-
-        await orchestrator.waitForProcessing();
-
-        // At least one formula in the chain should have depth error
-        let hasDepthError = false;
-        for (let i = FORMULA_LIMITS.MAX_FORMULA_DEPTH; i <= FORMULA_LIMITS.MAX_FORMULA_DEPTH + 5; i++) {
-          const formula = orchestrator.get(`f${i}`);
-          if (Errors.Runtime.MaxFormulaDepth.is(formula?.error)) {
-            hasDepthError = true;
-            break;
-          }
-        }
-        expect(hasDepthError).toBe(true);
-      });
+      expect({ value: total.value, error: total.error }).toEqual({ value: new FormulaNumber(300), error: null });
     });
   });
 
@@ -1005,24 +742,9 @@ function chain({ prefix, length }: { readonly prefix: string; readonly length: n
   ];
 }
 
-/** Adds formulas `f0`, `f1`… until the formula limit is reached. */
-function fillFormulas(orchestrator: FormulaOrchestrator<TestNode>): readonly TestNode[] {
-  return Array.from({ length: FORMULA_LIMITS.MAX_FORMULAS_COUNT }, (_, index) => {
-    const node: TestNode = { id: `f${index}`, value: FormulaNull.instance(), error: null, expression: new Expression('1 + 1') };
-
-    orchestrator.add(node);
-
-    return node;
-  });
-}
-
-/** Reads each link as its number, `too deep` for the depth limit, or the message of any other error. */
+/** Reads each link as its number, or the message of its error. */
 function chainOutcomes(links: readonly TestNode[]): readonly (number | string)[] {
   return links.map((node) => {
-    if (Errors.Runtime.MaxFormulaDepth.is(node.error)) {
-      return 'too deep';
-    }
-
     if (node.error !== null) {
       return `${node.id}: ${node.error.message}`;
     }

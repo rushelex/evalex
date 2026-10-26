@@ -63,12 +63,9 @@ export const Errors = {
     FieldNotDefined: Defs.FieldNotDefined,
   },
 
-  /** Runtime limit errors */
+  /** Runtime errors */
   Runtime: {
     CircularDependency: Defs.CircularDependencyDetected,
-    MaxDependencies: Defs.MaxDependenciesExceeded,
-    MaxFormulaDepth: Defs.MaxFormulaDepthExceeded,
-    MaxFormulas: Defs.MaxFormulasExceeded,
     DuplicateNodeId: Defs.DuplicateNodeId,
     ExecutionTimeout: Defs.ExecutionTimeout,
   },

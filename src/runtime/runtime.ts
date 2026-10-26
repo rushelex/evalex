@@ -4,12 +4,10 @@ import type { Scheduler } from './scheduler';
 import type { FormulaNode, NodeAdapter } from './types';
 
 import { FormulaDebugger } from '../core';
-import { Errors } from '../core/errors';
 import { isVolatileFormula } from '../core/volatile-formula';
 import { DependencyGraph } from './dependency-graph';
 import { FormulaValidator } from './formula-validator';
 import { isSameValue } from './is-same-value';
-import { FORMULA_LIMITS } from './limits';
 import { RecalculationQueue } from './recalculation-queue';
 
 /**
@@ -124,8 +122,6 @@ export class FormulaRuntime<T extends FormulaNode> {
   readonly #deliveredValues = new Map<string, FormulaDataType>();
   // Formulas whose last evaluation failed: an update must retry them even when it repeats a value
   readonly #failedNodes = new Set<string>();
-  // Nodes holding a slot under the formula limit; a node takes one when it is first treated as a formula
-  readonly #formulaIds = new Set<string>();
 
   constructor(options: FormulaRuntimeOptions<T>) {
     this.#nodeProvider = options.nodeProvider;
@@ -137,31 +133,6 @@ export class FormulaRuntime<T extends FormulaNode> {
       this.#forget(id);
       options.onNodeCleanup?.(id);
     });
-  }
-
-  /**
-   * Takes one of the slots of the formula limit for a node, unless it already holds one.
-   *
-   * @remarks
-   * A node also takes a slot when it is first processed as a formula, and gives it back once it is processed
-   * without a formula, is unregistered or is garbage-collected.
-   *
-   * @throws FormulaError coded `MAX_FORMULAS_EXCEEDED` when every slot is taken
-   */
-  admitFormula(nodeId: string): void {
-    if (this.#formulaIds.has(nodeId)) {
-      return;
-    }
-
-    if (this.#formulaIds.size >= FORMULA_LIMITS.MAX_FORMULAS_COUNT) {
-      throw Errors.Runtime.MaxFormulas.create({
-        nodeId,
-        count: this.#formulaIds.size,
-        limit: FORMULA_LIMITS.MAX_FORMULAS_COUNT,
-      });
-    }
-
-    this.#formulaIds.add(nodeId);
   }
 
   /**
@@ -248,7 +219,6 @@ export class FormulaRuntime<T extends FormulaNode> {
     this.#volatileNodes.delete(id);
     this.#deliveredValues.delete(id);
     this.#failedNodes.delete(id);
-    this.#formulaIds.delete(id);
 
     this.#scheduleProcessing();
   }
@@ -422,12 +392,8 @@ export class FormulaRuntime<T extends FormulaNode> {
     const node = this.#nodeProvider(nodeId);
     const expression = node && this.#adapter.shouldProcess(node) ? this.#adapter.toExpression(node) : null;
     if (!node || !expression) {
-      this.#formulaIds.delete(nodeId);
       return null;
     }
-
-    // A node the host turned into a formula after adding it takes its slot here
-    this.admitFormula(nodeId);
 
     const currentFormulaString = expression.formula;
 
@@ -435,9 +401,6 @@ export class FormulaRuntime<T extends FormulaNode> {
     const cached = this.#cachedState.get(nodeId);
     if (cached && cached.formulaString === currentFormulaString) {
       // Fast path: formula unchanged, only values changed
-      // Skip validation except the depth, which an edit below can push past the limit
-      this.#assertDepth(nodeId);
-
       FormulaDebugger.traceProcessing(nodeId, cached.expression);
 
       const inputsChanged = this.#updateExecutionContextInPlace(cached.dependencies, cached.context);
@@ -470,15 +433,7 @@ export class FormulaRuntime<T extends FormulaNode> {
     // Extract static dependencies
     const staticDeps = expression.extractDependencies();
 
-    // Validate using FormulaValidator
-    const depsValidation = this.#validator.validateDependencies(nodeId, staticDeps);
-    if (!depsValidation.isValid) {
-      this.#cachedState.delete(nodeId);
-      throw depsValidation.error;
-    }
-
     // Update dependency graph
-    const previousDepth = this.#graph.getNodeDepth(nodeId);
     this.#graph.replaceDependencies(nodeId, staticDeps);
 
     if (isVolatileFormula(expression)) {
@@ -487,12 +442,6 @@ export class FormulaRuntime<T extends FormulaNode> {
     else {
       this.#volatileNodes.delete(nodeId);
     }
-
-    if (this.#graph.getNodeDepth(nodeId) !== previousDepth) {
-      this.#enqueueDepthLimitChanges(nodeId);
-    }
-
-    this.#assertDepth(nodeId);
 
     // Build execution context - use Map for performance
     const context = this.#buildExecutionContext(staticDeps);
@@ -507,42 +456,6 @@ export class FormulaRuntime<T extends FormulaNode> {
     this.#cachedState.set(nodeId, state);
 
     return { node, expression, context, state };
-  }
-
-  // Fails a formula deeper than the limit, dropping its cached state like any other validation failure
-  #assertDepth(nodeId: string): void {
-    const depthValidation = this.#validator.validateDepth(nodeId, this.#graph);
-
-    if (!depthValidation.isValid) {
-      this.#cachedState.delete(nodeId);
-      throw depthValidation.error;
-    }
-  }
-
-  /**
-   * Enqueues the formulas below a node whose depth changed that are now past the depth limit or failed before,
-   * since their own text and inputs may stay the same and would not bring them back to processing.
-   */
-  #enqueueDepthLimitChanges(nodeId: string): void {
-    const visited = new Set<string>([nodeId]);
-    const pending = [...this.#graph.getDependents(nodeId)];
-
-    for (let index = 0; index < pending.length; index++) {
-      const id = pending[index];
-
-      if (visited.has(id)) {
-        continue;
-      }
-
-      visited.add(id);
-
-      if (this.#failedNodes.has(id) || !this.#validator.validateDepth(id, this.#graph).isValid) {
-        this.#queue.enqueue(id);
-        FormulaDebugger.traceEnqueue(id, `Depth change from ${nodeId}`);
-      }
-
-      pending.push(...this.#graph.getDependents(id));
-    }
   }
 
   /**
