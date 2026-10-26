@@ -10,6 +10,19 @@ Rules for working in this repository. Each module under `src/` has its own `AGEN
 - Never name other formula products, including the ones evalex is modeled on, in code, examples, tests, docs or commit messages. The one exception is comparison benchmarks: they may import the engine they measure against and name it in their code and labels.
 - Everything a user can trigger with formula text fails with a `SyntaxError` or a `FormulaError` that points at the part of the formula at fault. A plain `Error` reaching the user is a bug.
 
+## Scope
+
+evalex is a library: the host calls it and keeps its data, storage, rendering and timing. Its job is what formula text means and what it equals on the host's data.
+
+A feature belongs in evalex only when all four hold:
+
+1. It shows in formula text: the formula author writes or reads something differently. Otherwise it belongs to the host.
+2. The host cannot do it as well. evalex does better only what needs the parsed formula: dependencies, recalculation order, errors that point into the formula.
+3. It works on the shapes JSON has: values, objects and lists. Rows, columns, totals, foreign keys and other domain or storage concepts belong to the host.
+4. evalex neither stores nor changes host data.
+
+A feature that fails one of them stays out of the core even when hosts need it. Once two hosts write the same code for it, it may ship outside the core, as a separate entry point or package.
+
 ## Public API
 
 - The package root export is the only public surface. Adding, renaming or removing an export is an API decision: propose it, don't just do it.
