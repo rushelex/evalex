@@ -342,7 +342,7 @@ Parse errors throw `SyntaxError`, a subclass of the built-in one. A formula that
 
 | Code | Raised when |
 | --- | --- |
-| `REFERENCE_ERROR` | A variable, function, method or object field does not exist |
+| `REFERENCE_ERROR` | A variable, function, method or object field does not exist, or the formula reads one from an empty value |
 | `ARGUMENT_TYPE_MISMATCH` | An argument has the wrong type or an invalid value, such as an unknown date unit, or a callback returns a value of the wrong type |
 | `ARGUMENT_COUNT_MISMATCH` | Too few or too many arguments |
 | `PATTERN_MISMATCH` | The arguments fit none of the routine's accepted signatures |
@@ -350,7 +350,7 @@ Parse errors throw `SyntaxError`, a subclass of the built-in one. A formula that
 | `EVALUATE_ERROR` | An operator gets operands it cannot combine, or text is not a valid regular expression |
 | `RANGE_ERROR` | An unsupported operator or an out-of-range value |
 
-An error about a value points at the part of the formula the value came from. When `if`, `? :`, parentheses or a `let` body hand on a value unchanged, the location narrows to that value: in `sum(if(flag, 1, "a"))` with `flag` false, the error points at `"a"`, not at the whole `if`. A value read through a name points at the name.
+An error about a value points at the part of the formula the value came from. When `if`, `? :`, parentheses or a `let` body hand on a value unchanged, the location narrows to that value: in `sum(if(flag, 1, "a"))` with `flag` false, the error points at `"a"`, not at the whole `if`. A value read through a name points at the name. Reading from an empty value points at that value: `project.rate()` with `project` empty fails with `Cannot read "rate" of an empty value.` at `project`.
 
 The runtime adds `TYPE_MISMATCH`, `CIRCULAR_DEPENDENCY`, `MAX_DEPENDENCIES_EXCEEDED`, `MAX_FORMULA_DEPTH_EXCEEDED`, `MAX_FORMULAS_EXCEEDED`, `DUPLICATE_NODE_ID` and `EXECUTION_TIMEOUT`; see the [runtime README](../runtime/README.md#errors-and-limits).
 

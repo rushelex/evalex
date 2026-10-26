@@ -4,7 +4,7 @@ import type { AST } from '../../parser';
 import type { FormulaDataType } from '../data-types';
 import type { FormulaEvaluatorVisitor } from '../evaluator.visitor';
 
-import { FormulaObject } from '../data-types';
+import { FormulaNull, FormulaObject } from '../data-types';
 import { Errors } from '../errors';
 import { routinesRegistry } from './registry';
 
@@ -56,6 +56,14 @@ export class RoutineDispatcher {
       if (res.handled) {
         return res.result;
       }
+    }
+
+    if (instance instanceof FormulaNull) {
+      // `visitor.origin` still points at the empty value, since nothing was evaluated after it
+      throw Errors.Reference.EmptyValueRead.create(
+        { name: methodNode.name, target: instance.displayType },
+        { location: visitor.origin ?? methodNode.location },
+      );
     }
 
     throw Errors.Reference.MethodNotDefined.create(

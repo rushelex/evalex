@@ -110,6 +110,29 @@ export const MethodNotDefined = createErrorDefinition({
 });
 
 /**
+ * Error thrown when a formula reads a method or field the empty value does not have.
+ *
+ * @remarks
+ * Points at the empty value rather than at the name read from it: the value is what the user has to fix, such as
+ * a link the host left empty.
+ *
+ * @example
+ * ```typescript
+ * evaluate('project.rate()', { project: null }) // throws EmptyValueRead at `project`
+ * evaluate('null.empty()') // OK - empty values have `empty()`
+ * ```
+ */
+export const EmptyValueRead = createErrorDefinition({
+  code: FormulaErrorCode.REFERENCE_ERROR,
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.REFERENCE_ERROR], 'referenceType'>) => ({
+    referenceType: 'method',
+    ...payload,
+  }),
+  formatMessage: ({ name }) => `Cannot read "${name}" of an empty value.`,
+  messageKey: 'formula_error.empty_value_read',
+});
+
+/**
  * Error thrown when a field is not defined on an object.
  *
  * @example

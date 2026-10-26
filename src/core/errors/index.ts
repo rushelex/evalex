@@ -59,6 +59,7 @@ export const Errors = {
     VariableNotDefined: Defs.VariableNotDefined,
     FunctionNotDefined: Defs.FunctionNotDefined,
     MethodNotDefined: Defs.MethodNotDefined,
+    EmptyValueRead: Defs.EmptyValueRead,
     FieldNotDefined: Defs.FieldNotDefined,
   },
 

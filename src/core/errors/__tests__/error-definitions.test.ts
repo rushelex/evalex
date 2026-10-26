@@ -36,6 +36,7 @@ const samples: readonly DefinitionSample[] = [
   { name: 'Reference.VariableNotDefined', definition: Errors.Reference.VariableNotDefined, error: Errors.Reference.VariableNotDefined.create({ name: 'price' }) },
   { name: 'Reference.FunctionNotDefined', definition: Errors.Reference.FunctionNotDefined, error: Errors.Reference.FunctionNotDefined.create({ name: 'total' }) },
   { name: 'Reference.MethodNotDefined', definition: Errors.Reference.MethodNotDefined, error: Errors.Reference.MethodNotDefined.create({ name: 'total', target: 'String' }) },
+  { name: 'Reference.EmptyValueRead', definition: Errors.Reference.EmptyValueRead, error: Errors.Reference.EmptyValueRead.create({ name: 'rate', target: 'Null' }) },
   { name: 'Reference.FieldNotDefined', definition: Errors.Reference.FieldNotDefined, error: Errors.Reference.FieldNotDefined.create({ name: 'email', target: 'user' }) },
   { name: 'Runtime.CircularDependency', definition: Errors.Runtime.CircularDependency, error: Errors.Runtime.CircularDependency.create({ nodeId: 'a', dependsOnId: 'b' }) },
   { name: 'Runtime.MaxDependencies', definition: Errors.Runtime.MaxDependencies, error: Errors.Runtime.MaxDependencies.create({ nodeId: 'a', count: 11, limit: 10 }) },

@@ -1,6 +1,7 @@
 import { fc, it } from '@fast-check/vitest';
 
 import { evaluate } from '../../testing-library';
+import { FormulaNull } from '../data-types';
 
 // Parts of a formula that hand on the value written in place of `VALUE` without changing it.
 const PASS_THROUGH = [
@@ -58,5 +59,16 @@ describe('error locations', () => {
 
   it('should point an outer callback error at the outer callback, not inside an inner one', () => {
     expect(() => evaluate('[[1]].filter(current.filter(if(true, true, 5)).length())')).toThrow('Expected callback to return type Boolean, but got Number. [13,55]');
+  });
+
+  it.prop([fc.constantFrom(...PASS_THROUGH)])('should point at an empty value a method is read from, not at the method', (passThrough) => {
+    const formula = `(${passThrough.replace('VALUE', 'null')}).rate()`;
+    const start = 1 + passThrough.indexOf('VALUE');
+
+    expect(() => evaluate(formula)).toThrow(`Cannot read "rate" of an empty value. [${start},${start + 4}]`);
+  });
+
+  it('should point at the name an empty value was read through', () => {
+    expect(() => evaluate('project.rate()', { context: { project: FormulaNull.instance() } })).toThrow('Cannot read "rate" of an empty value. [0,7]');
   });
 });
