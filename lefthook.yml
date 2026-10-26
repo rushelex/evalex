@@ -17,7 +17,7 @@ pre-commit:
 pre-push:
   jobs:
     - name: packages audit
-      run: pnpm audit
+      run: scripts/audit-new-advisories.sh "$(git merge-base HEAD origin/main)"
 
     - name: tests
       run: pnpm test
