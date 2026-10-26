@@ -27,7 +27,6 @@ const hostValue = fc.anything({
 
 /** Host values that have no formula form, with the reason a rejection gives for each. */
 const valuesWithoutFormulaForm: ReadonlyArray<readonly [label: string, make: () => unknown, reason: string]> = [
-  ['a function', () => () => 1, 'Function has no formula form'],
   ['a symbol', () => Symbol('s'), 'Symbol has no formula form'],
   ['a boxed symbol', () => new Object(Symbol('s')), 'Symbol has no formula form'],
   ['a map', () => new Map([[1, 2]]), 'Map has no formula form'],
@@ -96,6 +95,27 @@ describe(convertValueToFormulaType, () => {
     expect(toPlain(convertValueToFormulaType(new Order()))).toEqual({ qty: 2 });
   });
 
+  it('should leave out fields that hold functions, as it leaves out methods', () => {
+    class Order {
+      readonly qty = 2;
+      readonly total = (): number => this.qty * 10;
+
+      describe(): string {
+        return 'order';
+      }
+    }
+
+    expect(toPlain(convertValueToFormulaType(new Order()))).toEqual({ qty: 2 });
+    expect(toPlain(convertValueToFormulaType({ qty: 2, onChange: () => undefined }))).toEqual({ qty: 2 });
+  });
+
+  it.each([
+    { label: 'the value', value: () => 1, message: 'Cannot convert the value to a formula value: Function has no formula form.' },
+    { label: 'an item of a list', value: { hooks: [() => 1] }, message: 'Cannot convert hooks[0] to a formula value: Function has no formula form.' },
+  ])('should reject a function as $label', ({ value, message }) => {
+    expect(conversionError(() => convertValueToFormulaType(value))).toHaveProperty('message', message);
+  });
+
   it('should let an error thrown by a field getter reach the host unchanged', () => {
     const failure = new Error('getter failed');
     const order = {
@@ -155,6 +175,12 @@ describe(convertValueToFormulaType, () => {
       const converted = convertValueToFormulaType({ start: make('2024-07-01'), end: make('2024-07-28') });
 
       expect(converted.value).toEqual(FormulaDateRange.from({ start: '2024-07-01', end: '2024-07-28' }).value);
+    });
+
+    it('should read a range whose object also holds a function', () => {
+      const converted = convertValueToFormulaType({ start: new Date('2024-07-01'), end: new Date('2024-07-28'), describe: () => 'July' });
+
+      expect(converted).toBeInstanceOf(FormulaDateRange);
     });
 
     it('should read ends of different date forms', () => {

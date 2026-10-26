@@ -34,9 +34,10 @@ interface Position {
  * A value with an obvious formula form converts to it: a `Set` or a typed array becomes a list, a boxed primitive its
  * primitive, a `bigint` within the safe integers a number, a `Temporal` instant, date or date-time a date read in UTC.
  * An object of exactly two fields, `start` and `end`, both dates, becomes a date range. Any other plain object or class
- * instance becomes an object of its own enumerable fields. A formula value is kept as it is.
+ * instance becomes an object of its own enumerable fields; fields holding functions are left out, like methods.
+ * A formula value is kept as it is.
  *
- * @throws TypeError naming the path to the first value without a formula form: a function, a symbol, `NaN`, a `Date`
+ * @throws TypeError naming the path to the first value without a formula form: a function in place of a value, a symbol, `NaN`, a `Date`
  * that holds no instant, a `bigint` beyond the safe integers, a built-in object such as `Map` or `Promise`, a date range
  * that ends before it starts, a circular reference, or nesting deeper than 1000 lists and objects. An error thrown by
  * a field getter reaches the caller unchanged.
@@ -133,7 +134,7 @@ function convertObject(value: object, position: Position): FormulaDataType {
 
 /** The date range an object of exactly a `start` and an `end` date stands for, the form a date range takes outside formulas. */
 function toDateRange(value: object, position: Position): FormulaDateRange | undefined {
-  const fields = Object.entries(value);
+  const fields = ownFields(value);
 
   if (fields.length !== 2) {
     return undefined;
@@ -176,8 +177,13 @@ function convertItems(container: Iterable<unknown> | ArrayLike<unknown>, positio
 function convertFields(container: object, position: Position): Record<string, FormulaDataType> {
   return within(container, position, (inner) => {
     // `Object.fromEntries` defines each key as a field, so a `__proto__` key stays data instead of replacing the prototype.
-    return Object.fromEntries(Object.entries(container).map(([key, item]) => [key, convert(item, { ...inner, path: fieldPath(position.path, key) })]));
+    return Object.fromEntries(ownFields(container).map(([key, item]) => [key, convert(item, { ...inner, path: fieldPath(position.path, key) })]));
   });
+}
+
+/** The own enumerable fields of an object, except those holding functions, which are left out like methods. */
+function ownFields(object: object): [string, unknown][] {
+  return Object.entries(object).filter(([, value]) => typeof value !== 'function');
 }
 
 /** Runs `read` with `container` counted among the ancestors of its items, rejecting a circular reference and too deep nesting. */

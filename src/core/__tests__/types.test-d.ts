@@ -88,19 +88,21 @@ describe('ToFormulaDataType', () => {
     expectTypeOf<ToFormulaDataType<WeakSet<object>>>().toEqualTypeOf<never>();
   });
 
-  it('should map functions and objects with methods to never', () => {
+  it('should map a function to never', () => {
     type Fn = () => void;
     expectTypeOf<ToFormulaDataType<Fn>>().toEqualTypeOf<never>();
+  });
 
+  it('should leave out fields that hold functions', () => {
     interface ObjectWithMethod {
       a: number;
       foo: () => void;
     }
 
-    expectTypeOf<ToFormulaDataType<ObjectWithMethod>>().toEqualTypeOf<never>();
+    expectTypeOf<ToFormulaDataType<ObjectWithMethod>>().toEqualTypeOf<{ a: FormulaNumber }>();
   });
 
-  it('should map class instances to never (best effort)', () => {
+  it('should map a class instance to its fields without methods', () => {
     class ExampleClass {
       readonly a = 1;
 
@@ -108,6 +110,6 @@ describe('ToFormulaDataType', () => {
       }
     }
 
-    expectTypeOf<ToFormulaDataType<ExampleClass>>().toEqualTypeOf<never>();
+    expectTypeOf<ToFormulaDataType<ExampleClass>>().toEqualTypeOf<{ readonly a: FormulaNumber }>();
   });
 });

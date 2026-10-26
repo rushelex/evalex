@@ -62,9 +62,8 @@ type ConvertibleLeaf
  * Host data as the converter accepts it: each value without a formula form becomes `never`, so passing it fails to compile.
  *
  * @remarks
- * Fields holding functions are left out, so a class instance passes with its methods. An own field holding a function
- * passes too, since a type cannot tell it from a method, and is rejected when converted. `unknown` and `any` pass as
- * they are: the converter checks them at run time.
+ * Fields holding functions are left out, as conversion leaves them out, so a class instance passes with its methods.
+ * `unknown` and `any` pass as they are: the converter checks them at run time.
  */
 export type HostValue<T>
   = unknown extends T ? T
@@ -75,14 +74,8 @@ export type HostValue<T>
   : T extends object ? { readonly [K in keyof T as T[K] extends (...args: never[]) => unknown ? never : K]: HostValue<T[K]> }
   : never;
 
-type FunctionPropertyKeys<T extends object> = {
-  [K in keyof T]-?: T[K] extends (...args: readonly unknown[]) => unknown ? K : never
-}[keyof T];
-
-type HasFunctionProperties<T extends object>
-  = FunctionPropertyKeys<T> extends never ? false : true;
-
-type MapObjectPropertiesToFormula<T> = { [K in keyof T]: ToFormulaDataType<T[K], true> };
+/** The fields of an object without those holding functions, which conversion leaves out like methods. */
+type MapObjectPropertiesToFormula<T> = { [K in keyof T as T[K] extends (...args: never[]) => unknown ? never : K]: ToFormulaDataType<T[K], true> };
 
 type WrapObjectConditionally<T, ShouldWrap extends boolean>
   = ShouldWrap extends true
@@ -101,7 +94,6 @@ export type ToFormulaDataType<T, ShouldWrapObject extends boolean = false>
   : T extends TypedArray ? FormulaArray<FormulaNumber>
   : T extends object
     ? T extends NonMappableObject ? never
-    : HasFunctionProperties<T> extends true ? never
     : WrapObjectConditionally<T, ShouldWrapObject>
     : never;
 

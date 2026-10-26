@@ -34,7 +34,7 @@ total.value; // 1000
 scope.evaluate('"Total: " + total', { total }).value; // 'Total: 1000.00'
 ```
 
-- **Values in.** Each name the formula reads converts to a formula value as [Data types](#data-types) describes, the first time the formula reads it. A field the formula does not read is never converted, so it never fails the formula. Only own fields of the values are names. A value without a formula form fails to compile, and at run time throws a `TypeError` that names its path from the name: `Cannot convert order.tags to a formula value: Map has no formula form.`
+- **Values in.** Each name the formula reads converts to a formula value as [Data types](#data-types) describes, the first time the formula reads it. A field the formula does not read is never converted, so it never fails the formula. Only own fields of the values are names, except those holding functions. A value without a formula form fails to compile, and at run time throws a `TypeError` that names its path from the name: `Cannot convert order.tags to a formula value: Map has no formula form.`
 - **A formula value out.** `evaluate` returns the value the formula computes. Its `kind` tells what it holds and narrows the type: after `if (result.kind === 'Date')`, `result.value` is a `Temporal.ZonedDateTime`. A list holds formula values, each with its own `kind`.
 - **Results back in.** A result passed back as a value is read as it is, so `third * 3` with `third` from `1 / 3` gives `1`.
 - **Showing a result is up to the host.** `format` decides how values read only where a formula itself turns them into text, see [Text of values](#text-of-values). A host that passes the formatters it draws its cells with gets the same text in `"Total: " + price` as in the `price` cell. `toString()` gives machine text, not text for readers.
@@ -183,14 +183,14 @@ A list of the wrong length throws a `TypeError` before the formula runs.
 | `null`, `undefined`, a hole in a list | `null` |
 | A list, a `Set`, a typed array | a list |
 | An object of exactly two fields, `start` and `end`, both dates of the forms below | a date range |
-| Any other plain object, object without a prototype or class instance | an object of its own enumerable fields; getters on the prototype and symbol keys are not read |
+| Any other plain object, object without a prototype or class instance | an object of its own enumerable fields; getters on the prototype, symbol keys and fields holding functions are left out, like methods |
 | `new Number(5)`, `new String('a')`, `new Boolean(true)` | the value it holds |
 | A `bigint` from `-(2^53 - 1)` to `2^53 - 1` | a number |
 | `Date`, `Temporal.ZonedDateTime`, `Temporal.Instant` | a date at that instant |
 | `Temporal.PlainDate`, `Temporal.PlainDateTime` | a date read in UTC |
 | A formula value, such as a `FormulaNumber` | itself |
 
-Every other value is rejected with a `TypeError` that names where it sits: `Cannot convert order.lines[2] to a formula value: Map has no formula form.` That covers functions, symbols, `NaN`, a `Date` that holds no instant, a larger `bigint`, built-in objects such as `Map`, `Promise`, `Error` or `Temporal.PlainTime`, a date range that ends before it starts, a circular reference, and lists and objects nested more than 1000 deep. A value shared by two places is not circular. An error thrown by a field getter reaches the caller unchanged.
+Every other value is rejected with a `TypeError` that names where it sits: `Cannot convert order.lines[2] to a formula value: Map has no formula form.` That covers a function in place of a value, such as an item of a list, symbols, `NaN`, a `Date` that holds no instant, a larger `bigint`, built-in objects such as `Map`, `Promise`, `Error` or `Temporal.PlainTime`, a date range that ends before it starts, a circular reference, and lists and objects nested more than 1000 deep. A value shared by two places is not circular. An error thrown by a field getter reaches the caller unchanged.
 
 Object fields are read with method syntax:
 

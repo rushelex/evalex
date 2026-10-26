@@ -68,6 +68,7 @@ describe(FormulaScope, () => {
     it.each([
       { label: 'a name the values inherit', name: 'price', values: Object.create({ price: 1 }) as object },
       { label: 'a name of the object prototype', name: 'toString', values: {} },
+      { label: 'a name that holds a function', name: 'onChange', values: { onChange: () => undefined } },
     ])('should not find $label', ({ name, values }) => {
       expect(() => new FormulaScope().evaluate(name, values)).toThrow(Errors.Reference.VariableNotDefined.create(
         { name },
