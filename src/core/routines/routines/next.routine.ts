@@ -1,14 +1,15 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaNumber } from '../../data-types';
+import { FormulaArray } from '../../data-types';
 import { Errors } from '../../errors';
 import { routinesRegistry } from '../registry';
 import { neighborHandler } from './neighbor-routine';
 
 const routineExamples: readonly RoutineExampleOptions[] = [
   {
-    formula: (name) => name('rest', '0'),
-    result: () => new FormulaNumber(0),
+    formula: (name) => `${name('rest', '0')} + amount`,
+    records: { cell: 'rest', list: [{ amount: 10 }, { amount: 5 }, { amount: 20 }] },
+    result: () => FormulaArray.from([35, 25, 20]),
   },
   {
     formula: () => 'next(rest)',

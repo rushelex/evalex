@@ -1,7 +1,8 @@
-import type { FormulaDataType } from '~/core';
-import type { RoutineExample } from '~/core/routines/routine-example';
+import type { RoutineExample, RoutineExampleData } from '~/core/routines/routine-example';
 
 import type { MatcherState } from './utils';
+
+import { FormulaArray, FormulaDataType, FormulaScope } from '~/core';
 
 import { evaluate } from '../evaluate';
 
@@ -33,7 +34,7 @@ export function toBeCorrectRoutineExample(received: RoutineExample, form: Routin
 }
 
 function check(example: RoutineExample, form: RoutineForm, context: MatcherState): MatcherResult {
-  const outcome = run(example.formula);
+  const outcome = run(example);
 
   if (example.error) {
     const { type, message, location } = example.error;
@@ -83,13 +84,41 @@ function check(example: RoutineExample, form: RoutineForm, context: MatcherState
   };
 }
 
-function run(formula: string) {
+function run(example: RoutineExample) {
+  const data = example.data();
+
   try {
-    return { failed: false, value: evaluate(formula) } as const;
+    return { failed: false, value: data ? runOverRecords({ example, data }) : evaluate(example.formula) } as const;
   }
   catch (error) {
     return { failed: true, error } as const;
   }
+}
+
+/** Runs an example over records the way a host does, giving the cells as a list, or throwing the first failed cell. */
+function runOverRecords({ example, data }: { example: RoutineExample; data: RoutineExampleData }): FormulaArray {
+  const { records } = new FormulaScope().evaluator().evaluate(data);
+  const cell = example.records!.cell;
+
+  const cells: FormulaDataType[] = records.map((record) => {
+    const value = record[cell];
+
+    if (value instanceof Error) {
+      throw value;
+    }
+
+    if (!isFormulaDataType(value)) {
+      throw new TypeError(`The record holds no cell "${cell}".`);
+    }
+
+    return value;
+  });
+
+  return new FormulaArray(cells);
+}
+
+function isFormulaDataType(value: unknown): value is FormulaDataType {
+  return value instanceof FormulaDataType;
 }
 
 function show(value: FormulaDataType): string {

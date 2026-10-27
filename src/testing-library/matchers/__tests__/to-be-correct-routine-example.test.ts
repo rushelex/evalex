@@ -62,4 +62,36 @@ describe(toBeCorrectRoutineExample, () => {
     expect(() => expect(example).toBeCorrectRoutineExample('function'))
       .toThrow('"filter([1, 2], 3)" failed with "Expected callback to return type Boolean, but got Number. [15,16]" instead of returning FormulaArray()');
   });
+
+  describe('examples over records', () => {
+    it('should accept an example whose cells hold its result, record by record', () => {
+      expect(runningTotal([1, 3])).toBeCorrectRoutineExample('function');
+    });
+
+    it('should reject an example whose cells hold other values', () => {
+      expect(() => expect(runningTotal([1, 2])).toBeCorrectRoutineExample('function'))
+        .toThrow('"previous(total, 0) + amount" returned FormulaArray(1, 3) instead of FormulaArray(1, 2)');
+    });
+
+    it('should reject an example whose formula fails in a cell', () => {
+      const example = new RoutineExample('previous', {
+        formula: () => 'previous(total, 0) + missing',
+        records: { cell: 'total', list: [{ amount: 1 }] },
+        result: () => FormulaArray.from([1]),
+      });
+
+      expect(() => expect(example).toBeCorrectRoutineExample('function'))
+        .toThrow('"previous(total, 0) + missing" failed with "Variable "missing" is not defined. [21,28]" instead of returning FormulaArray(1)');
+    });
+  });
 });
+
+// Helpers
+
+function runningTotal(result: number[]): RoutineExample {
+  return new RoutineExample('previous', {
+    formula: () => 'previous(total, 0) + amount',
+    records: { cell: 'total', list: [{ amount: 1 }, { amount: 2 }] },
+    result: () => FormulaArray.from(result),
+  });
+}

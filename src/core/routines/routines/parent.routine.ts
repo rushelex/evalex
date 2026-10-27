@@ -2,14 +2,15 @@ import type { GlobalProperties } from '../../context';
 import type { FormulaDataType } from '../../data-types';
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaNumber } from '../../data-types';
+import { FormulaArray } from '../../data-types';
 import { Errors } from '../../errors';
 import { routinesRegistry } from '../registry';
 
 const routineExamples: readonly RoutineExampleOptions[] = [
   {
-    formula: (name) => name('2 * 3'),
-    result: () => new FormulaNumber(6),
+    formula: (name) => `amount * ${name('taxRate')}`,
+    records: { cell: 'tax', list: [{ amount: 100, taxRate: 0.1 }, { amount: 50, taxRate: 0.1 }], around: { taxRate: 0.2 } },
+    result: () => FormulaArray.from([20, 10]),
   },
   {
     formula: () => 'parent(rate, 1)',

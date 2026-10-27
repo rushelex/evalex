@@ -1,4 +1,5 @@
-import { FormulaNumber } from '../../data-types';
+import { FormulaArray, FormulaNumber } from '../../data-types';
+import { Formula } from '../../formula';
 import { RoutineExample } from '../routine-example';
 import { RoutineExamples } from '../routine-examples';
 
@@ -26,6 +27,30 @@ describe('RoutineExamples', () => {
       expect(examples.examples[1].routineName).toBe('format');
       expect(examples.examples[1].formula).toBe('"hello".format()');
       expect(examples.examples[1].result!()).toBeFormulaDataType(FormulaNumber, 3);
+    });
+  });
+
+  describe('data', () => {
+    it('should give the data a host passes, with the formula in the cell of every record', () => {
+      const [example] = new RoutineExamples('parent', [{
+        formula: (name) => `amount * ${name('rate')}`,
+        records: { cell: 'tax', list: [{ amount: 100 }, { amount: 50 }], around: { rate: 0.2 } },
+        result: () => FormulaArray.from([20, 10]),
+      }]).examples;
+
+      expect(example?.data()).toStrictEqual({
+        rate: 0.2,
+        records: [
+          { amount: 100, tax: new Formula('amount * parent(rate)') },
+          { amount: 50, tax: new Formula('amount * parent(rate)') },
+        ],
+      });
+    });
+
+    it('should give no data for an example without records', () => {
+      const [example] = new RoutineExamples('abs', [{ formula: (name) => name('-1'), result: () => new FormulaNumber(1) }]).examples;
+
+      expect(example?.data()).toBeUndefined();
     });
   });
 

@@ -1,6 +1,7 @@
 import type { FormulaDataType } from '../data-types';
 
 import { parse } from '../../parser';
+import { Formula } from '../formula';
 
 /** Offsets of a part of the formula, end exclusive. */
 type Offsets = readonly [start: number, end: number];
@@ -15,8 +16,28 @@ export interface RoutineExampleError {
   readonly location: { readonly function?: Offsets; readonly method?: Offsets };
 }
 
+/**
+ * Records an example formula is written in, for a routine that reads the records around its formula.
+ *
+ * @remarks
+ * The example runs as a host runs it, see {@link RoutineExample.data}: the formula fills the field `cell` of every record
+ * in `list`, the list is the field `records` of an object with the fields of `around`, and the example's result is the
+ * list of what the cells hold, record by record.
+ */
+export interface RoutineExampleRecords {
+  readonly cell: string;
+  readonly list: readonly Readonly<Record<string, unknown>>[];
+  readonly around?: Readonly<Record<string, unknown>>;
+}
+
 interface RoutineExampleFormula {
   readonly formula: (createFormula: (...args: string[]) => string) => string;
+  readonly records?: RoutineExampleRecords;
+}
+
+/** The host data an example over records runs over. */
+export interface RoutineExampleData {
+  readonly records: readonly Readonly<Record<string, unknown>>[];
 }
 
 /** A call written once with `name(subject, ...args)`, with either the value it returns or the error it fails with. */
@@ -30,6 +51,7 @@ export class RoutineExample {
   readonly formula: string;
   readonly result?: () => FormulaDataType;
   readonly error?: RoutineExampleError;
+  readonly records?: RoutineExampleRecords;
   readonly #options: RoutineExampleOptions;
 
   constructor(
@@ -40,7 +62,23 @@ export class RoutineExample {
     this.formula = options.formula((...args) => `${this.routineName}(${args.join(', ')})`);
     this.result = options.result;
     this.error = options.error;
+    this.records = options.records;
     this.#options = options;
+  }
+
+  /**
+   * The data a host passes to `scope.evaluator().evaluate` to run an example over records: the fields of `around` and
+   * the list `records`, with the formula in the field `cell` of every record. `undefined` for an example without records,
+   * which runs with `scope.evaluate`.
+   */
+  data(): RoutineExampleData | undefined {
+    if (!this.records) {
+      return undefined;
+    }
+
+    const { cell, list, around } = this.records;
+
+    return { ...around, records: list.map((record) => ({ ...record, [cell]: new Formula(this.formula) })) };
   }
 
   /** Returns the same example written as another formula, such as the other call form. */
