@@ -17,6 +17,13 @@ describe('public API', () => {
     expectTypeOf<API.SyntaxError['location']['start']['offset']>().toEqualTypeOf<number>();
   });
 
+  it('should type the evaluator, its options and the view it gives back', () => {
+    expectTypeOf<API.FormulaScope['evaluator']>().parameters.toEqualTypeOf<[options?: API.FormulaEvaluatorOptions]>();
+    expectTypeOf<API.FormulaScope['evaluator']>().returns.toEqualTypeOf<API.FormulaEvaluator>();
+    expectTypeOf<API.FormulaView<{ cost: API.Formula }>>().toEqualTypeOf<{ cost: API.FormulaCell }>();
+    expectTypeOf<API.FormulaCell>().toEqualTypeOf<API.FormulaValue | API.FormulaError | API.SyntaxError>();
+  });
+
   it('should keep the syntax tree out of Expression', () => {
     expectTypeOf<API.Expression>().not.toHaveProperty('parse');
     expectTypeOf<API.Expression['extractDependencies']>().parameters.toEqualTypeOf<[]>();
