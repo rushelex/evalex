@@ -1,6 +1,8 @@
+import { fc, it } from '@fast-check/vitest';
+
 import { SyntaxError } from '../../parser/grammar/parser';
 import { FormulaNumber, FormulaString } from '../data-types';
-import { FormulaError } from '../errors';
+import { Errors, FormulaError } from '../errors';
 import { Formula } from '../formula';
 import { FormulaScope } from '../formula-scope';
 
@@ -212,6 +214,70 @@ describe('FormulaEvaluator', () => {
       expect(view.broken).toBeInstanceOf(SyntaxError);
     });
   });
+
+  describe('order', () => {
+    it.prop([permutation(300)], { numRuns: 20 })('should compute a chain of formulas whatever the order of its cells', (order) => {
+      const view = scope.evaluator().evaluate(chain(order));
+
+      expect(view.v299).toBeFormulaDataType(FormulaNumber, 300);
+    });
+
+    it('should compute a chain of 20,000 formulas written from its end', () => {
+      const order = Array.from({ length: 20_000 }, (_, index) => 19_999 - index);
+
+      expect(scope.evaluator().evaluate(chain(order)).v19999).toBeFormulaDataType(FormulaNumber, 20_000);
+    });
+
+    it('should compute a chain of 20,000 formulas that read each other through records', () => {
+      const records = Array.from({ length: 20_000 }, () => ({ next: {}, value: new Formula('next.value() + 1') }));
+
+      records.forEach((record, index) => {
+        record.next = records[index + 1] ?? { value: 0 };
+      });
+
+      expect(scope.evaluator().evaluate({ records }).records[0]?.value).toBeFormulaDataType(FormulaNumber, 20_000);
+    });
+  });
+
+  describe('cycles', () => {
+    it('should fail every cell of a cycle, pointing at the reference into the cycle', () => {
+      const view = scope.evaluator().evaluate({ a: new Formula('b + 1'), b: new Formula('2 * a'), c: new Formula('1 + 1') });
+
+      expect(messageOf(view.a)).toBe('Circular reference: "b" depends on this formula. [0,1]');
+      expect(messageOf(view.b)).toBe('Circular reference: "a" depends on this formula. [4,5]');
+      expect(view.c).toBeFormulaDataType(FormulaNumber, 2);
+    });
+
+    it('should fail a formula that reads itself', () => {
+      const view = scope.evaluator().evaluate({ a: new Formula('a + 1') });
+
+      expect(Errors.Reference.CircularReference.is(view.a)).toBe(true);
+      expect(messageOf(view.a)).toBe('Circular reference: "a" depends on this formula. [0,1]');
+    });
+
+    it('should point at the read of a field that leads into the cycle', () => {
+      const view = scope.evaluator().evaluate({ project: { cost: new Formula('total * 2') }, total: new Formula('project.cost() + 1') });
+
+      expect(messageOf(view.total)).toBe('Circular reference: "project.cost()" depends on this formula. [0,14]');
+      expect(messageOf(view.project.cost)).toBe('Circular reference: "total" depends on this formula. [0,5]');
+    });
+
+    it('should fail every cell of a cycle of 1,000 formulas, whatever the order of its cells', () => {
+      const data = chain(Array.from({ length: 1000 }, (_, index) => 999 - index));
+
+      data.v0 = new Formula('v999 + 1');
+
+      const view = scope.evaluator().evaluate(data);
+      const reads = Object.entries(view).map(([key, cell]) => [key, messageOf(cell)]);
+      const expected = Object.keys(data).map((key) => {
+        const read = key === 'v0' ? 'v999' : `v${Number(key.slice(1)) - 1}`;
+
+        return [key, `Circular reference: "${read}" depends on this formula. [0,${read.length}]`];
+      });
+
+      expect(reads).toStrictEqual(expected);
+    });
+  });
 });
 
 describe(Formula, () => {
@@ -219,3 +285,20 @@ describe(Formula, () => {
     expect(new Formula('a + 1').text).toBe('a + 1');
   });
 });
+
+// Helpers
+
+/** A record of cells `v0` to `v{n-1}`, each one more than the cell before it, written in the order of `order`. */
+function chain(order: readonly number[]): Record<string, Formula | number> {
+  return Object.fromEntries(order.map((index) => [`v${index}`, index === 0 ? 1 : new Formula(`v${index - 1} + 1`)]));
+}
+
+function permutation(length: number): fc.Arbitrary<number[]> {
+  const indexes = Array.from({ length }, (_, index) => index);
+
+  return fc.shuffledSubarray(indexes, { minLength: length });
+}
+
+function messageOf(cell: unknown): string {
+  return cell instanceof Error ? cell.message : String(cell);
+}

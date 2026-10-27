@@ -5,6 +5,7 @@ import type { ValueFormat } from './value-format';
 
 import { Temporal } from 'temporal-polyfill';
 
+import { CellReadFailure } from './cell-read-failure';
 import {
   areEqual,
   decimalArithmetic,
@@ -61,7 +62,22 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
    * origin. A literal or a variable is always its own origin, since one value can stand in several places.
    */
   evaluateNode(node: AST.AstNode): FormulaDataType {
-    const result = node.accept(this);
+    let result: FormulaDataType;
+
+    try {
+      result = node.accept(this);
+    }
+    catch (error) {
+      // Caught by the innermost node only: the error it becomes is no longer a read failure.
+      if (error instanceof CellReadFailure) {
+        const { location } = node;
+
+        throw error.create({ name: this.formula.slice(location.start.offset, location.end.offset), location });
+      }
+
+      throw error;
+    }
+
     const origin = this.#origin;
 
     // A new value is checked first: most nodes produce one, so the node type is rarely read.

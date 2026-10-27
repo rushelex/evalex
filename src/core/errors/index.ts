@@ -61,6 +61,7 @@ export const Errors = {
     MethodNotDefined: Defs.MethodNotDefined,
     EmptyValueRead: Defs.EmptyValueRead,
     FieldNotDefined: Defs.FieldNotDefined,
+    CircularReference: Defs.CircularReference,
   },
 
   /** Runtime errors */
