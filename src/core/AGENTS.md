@@ -11,7 +11,15 @@
 - New capabilities are added as optional trailing arguments. The meaning of an existing argument never changes.
 - An argument that takes a pattern accepts both text and a regular expression. Flags travel inside the regex literal, never as a separate argument. Text is compiled as a regular expression, except in routines whose job is plain substring search.
 - Text routines count and slice user-perceived characters (grapheme clusters), not UTF-16 code units.
-- A routine whose result can differ for the same arguments, such as `now` or `today`, is registered with `volatile: true`. Otherwise the runtime keeps a stale result when the inputs of a formula do not change.
+- A routine whose result can differ for the same arguments, such as `now` or `today`, is registered with `volatile: true`. Otherwise an evaluator keeps a stale result when the reads of a formula do not change.
+
+## Evaluator
+
+- One failing formula never stops the others: it fails its own cell, and the cells that read it fail with `INPUT_ERROR`. A pass throws only for a misuse of the API by the host.
+- After a pass, every formula cell holds the value it would have if all formulas were evaluated in dependency order.
+- The limits of the evaluator, such as how deep cells nest before they wait on the explicit stack, are product guarantees. Changing a limit needs the owner's approval.
+- The evaluator stays usable on a browser main thread. `evaluateAsync` honors timeouts and abort signals.
+- Ordering and cancellation are tested under arbitrary timing, not only along the happy path.
 
 ## Values and errors
 

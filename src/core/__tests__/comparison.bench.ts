@@ -1,14 +1,8 @@
 /* eslint-disable test/prefer-lowercase-title */
-import type { FormulaDataType, NodeAdapter, Scheduler } from 'evalex';
+import type { FormulaEvaluator, FormulaView } from 'evalex';
 import type { CellValue, RawCellContent } from 'hyperformula';
 
-import {
-  BatchingScheduler,
-  Expression,
-  FormulaNull,
-  FormulaNumber,
-  FormulaOrchestrator,
-} from 'evalex';
+import { Formula, FormulaScope } from 'evalex';
 import { HyperFormula } from 'hyperformula';
 import { expect, it } from 'vitest';
 
@@ -21,7 +15,7 @@ import { expect, it } from 'vitest';
  * so a price edit reaches its row, its block, the grand total and then the share of every row.
  *
  * Each engine is driven through the API its docs suggest to hosts:
- * evalex through `FormulaOrchestrator`, HyperFormula through its sheet methods.
+ * evalex through `evaluator.evaluate` over the host's records, HyperFormula through its sheet methods.
  */
 
 const BLOCK_SIZE = 50;
@@ -47,16 +41,30 @@ interface OrderRow {
   readonly discount: number;
 }
 
-interface Cell {
-  readonly id: string;
-  readonly expression?: Expression;
-  value: FormulaDataType | null;
-  error?: Error;
+interface OrderLine extends OrderRow {
+  price: number;
+  readonly number: number;
+  readonly subtotal: Formula;
+  readonly total: Formula;
+  readonly size: Formula;
+  readonly label: Formula;
+  readonly share: Formula;
+}
+
+interface OrderBlock {
+  readonly lines: readonly OrderLine[];
+  readonly total: Formula;
+}
+
+interface OrderTable {
+  readonly blocks: readonly OrderBlock[];
+  readonly grand: Formula;
 }
 
 interface EvalexTable {
-  readonly orchestrator: FormulaOrchestrator<Cell>;
-  readonly cells: Map<string, Cell>;
+  readonly evaluator: FormulaEvaluator;
+  readonly data: OrderTable;
+  view: FormulaView<OrderTable>;
 }
 
 interface PriceEdit {
@@ -64,52 +72,38 @@ interface PriceEdit {
   readonly prices: readonly number[];
 }
 
-const adapter: NodeAdapter<Cell> = {
-  shouldProcess: (cell) => cell.expression !== undefined,
-  toFormulaDataType: (cell) => cell.value ?? FormulaNull.instance(),
-  toExpression: (cell) => cell.expression ?? null,
-  onCalculate: (cell, value) => {
-    cell.value = value;
-    cell.error = undefined;
-  },
-  onError: (cell, error) => {
-    cell.error = error;
-  },
-};
+const scope = new FormulaScope();
 
-it('Comparison: both engines compute the same table', async () => {
+it('Comparison: both engines compute the same table', () => {
   const rows = orderRows(TABLE_SIZES[0]);
-  const table = await buildEvalexTable({ rows });
+  const { view } = buildEvalexTable(rows);
   const sheet = HyperFormula.buildFromArray(sheetData(rows), HF_CONFIG);
   const lastRow = rows.length - 1;
-
-  const failed = [...table.cells.values()].filter((cell) => cell.error !== undefined);
-
-  expect(failed).toEqual([]);
+  const lastLine = view.blocks.at(-1)!.lines.at(-1)!;
 
   // evalex rounds the exact decimal half up, while HyperFormula rounds the binary double:
   // a total such as 487.305 becomes 487.31 in evalex and 487.30 in HyperFormula, so each row may differ by a cent
-  expect(Math.abs((table.cells.get('grand')!.value!.value as number) - hfGrandTotal(sheet))).toBeLessThanOrEqual(rows.length * 0.01);
-  expect(table.cells.get(`share_${lastRow}`)!.value!.value).toBeCloseTo(hfCell({ sheet, col: HF_COLUMN.share, row: lastRow }) as number, 6);
-  expect(table.cells.get(`size_${lastRow}`)!.value!.value).toBe(hfCell({ sheet, col: HF_COLUMN.size, row: lastRow }));
-  expect(table.cells.get(`label_${lastRow}`)!.value!.value).toBe(hfCell({ sheet, col: HF_COLUMN.label, row: lastRow }));
+  expect(Math.abs(Number(String(view.grand)) - hfGrandTotal(sheet))).toBeLessThanOrEqual(rows.length * 0.01);
+  expect(Number(String(lastLine.share))).toBeCloseTo(Number(hfCell({ sheet, col: HF_COLUMN.share, row: lastRow })), 6);
+  expect(String(lastLine.size)).toBe(hfCell({ sheet, col: HF_COLUMN.size, row: lastRow }));
+  expect(String(lastLine.label)).toBe(hfCell({ sheet, col: HF_COLUMN.label, row: lastRow }));
 });
 
 /**
  * Scenario 1: Opening a table
- * Builds the engine from scratch and calculates every formula, as when a user opens a document
+ * Computes every formula of new data with a new evaluator, as when a user opens a document
  */
 for (const rowCount of TABLE_SIZES) {
   it(`Comparison: open a ${rowCount}-row table (${formulaCount(rowCount)} formulas)`, async ({ bench }) => {
     const rows = orderRows(rowCount);
 
     await bench.compare(
-      bench('evalex, new orchestrator', async () => {
-        const table = await buildEvalexTable({ rows });
-        evalexGrandTotal(table);
+      bench('evalex, new evaluator', () => {
+        evalexGrandTotal(buildEvalexTable(rows));
       }),
       bench('HyperFormula, new workbook', () => {
         const sheet = HyperFormula.buildFromArray(sheetData(rows), HF_CONFIG);
+
         hfGrandTotal(sheet);
       }),
       { warmupIterations: 3, iterations: 20 },
@@ -134,12 +128,12 @@ for (const rowCount of TABLE_SIZES) {
       bench(
         'evalex',
         {
-          beforeAll: async () => {
-            table = await buildEvalexTable({ rows });
+          beforeAll: () => {
+            table = buildEvalexTable(rows);
           },
         },
-        async () => {
-          await editEvalexPrices({ table, edit: { firstRow, prices: [editedPrice(++step)] } });
+        () => {
+          editEvalexPrices({ table, edit: { firstRow, prices: [editedPrice(++step)] } });
           evalexGrandTotal(table);
         },
       ),
@@ -162,43 +156,28 @@ for (const rowCount of TABLE_SIZES) {
 
 /**
  * Scenario 3: Pasting a column of prices
- * 100 neighboring prices change at once, as when a user pastes a range
- * evalex runs once with the default scheduler, which processes each update as it comes,
- * and once with `BatchingScheduler`, which its docs suggest for bursts of input
+ * 100 neighboring prices change at once, as when a user pastes a range, and the host evaluates once after the paste
  */
 for (const rowCount of TABLE_SIZES) {
   it(`Comparison: paste ${PASTE_SIZE} prices into a ${rowCount}-row table`, async ({ bench }) => {
     const rows = orderRows(rowCount);
     const firstRow = rowCount - PASTE_SIZE;
     const pastedPrices = (start: number) => Array.from({ length: PASTE_SIZE }, (_, offset) => editedPrice(start + offset));
-    let immediateTable: EvalexTable;
-    let batchingTable: EvalexTable;
+    let table: EvalexTable;
     let sheet: HyperFormula;
     let step = 0;
 
     await bench.compare(
       bench(
-        'evalex, default scheduler',
+        'evalex',
         {
-          beforeAll: async () => {
-            immediateTable = await buildEvalexTable({ rows });
+          beforeAll: () => {
+            table = buildEvalexTable(rows);
           },
         },
-        async () => {
-          await editEvalexPrices({ table: immediateTable, edit: { firstRow, prices: pastedPrices(++step) } });
-          evalexGrandTotal(immediateTable);
-        },
-      ),
-      bench(
-        'evalex, BatchingScheduler with no delay',
-        {
-          beforeAll: async () => {
-            batchingTable = await buildEvalexTable({ rows, scheduler: new BatchingScheduler({ delayMs: 0 }) });
-          },
-        },
-        async () => {
-          await editEvalexPrices({ table: batchingTable, edit: { firstRow, prices: pastedPrices(++step) } });
-          evalexGrandTotal(batchingTable);
+        () => {
+          editEvalexPrices({ table, edit: { firstRow, prices: pastedPrices(++step) } });
+          evalexGrandTotal(table);
         },
       ),
       bench(
@@ -241,67 +220,38 @@ function formulaCount(rowCount: number): number {
   return rowCount * 5 + blockCount(rowCount) + 1;
 }
 
-async function buildEvalexTable({ rows, scheduler }: { rows: readonly OrderRow[]; scheduler?: Scheduler }): Promise<EvalexTable> {
-  const orchestrator = new FormulaOrchestrator<Cell>({ adapter, scheduler });
-  const cells = new Map<string, Cell>();
+// Rows in blocks of 50, each block with its total, and the grand total the share of every row reads by name
+function buildEvalexTable(rows: readonly OrderRow[]): EvalexTable {
+  const blocks = Array.from({ length: blockCount(rows.length) }, (_, block): OrderBlock => ({
+    lines: rows.slice(block * BLOCK_SIZE, (block + 1) * BLOCK_SIZE).map((row, offset) => ({
+      ...row,
+      number: block * BLOCK_SIZE + offset + 1,
+      subtotal: new Formula('price * quantity'),
+      total: new Formula('round(subtotal * (1 - discount), 2)'),
+      size: new Formula('if(total > 500, "large", "small")'),
+      label: new Formula('"Order " + number + ": " + total'),
+      share: new Formula('total / grand'),
+    })),
+    total: new Formula('lines.map(current.total()).sum()'),
+  }));
+  const data: OrderTable = { blocks, grand: new Formula('blocks.map(current.total()).sum()') };
+  const evaluator = scope.evaluator();
 
-  const add = (cell: Cell) => {
-    cells.set(cell.id, cell);
-    orchestrator.add(cell);
-  };
-
-  const addFormula = (id: string, formula: string) => {
-    add({ id, expression: new Expression(formula), value: null });
-  };
-
-  // Inputs first, then every formula after the cells it reads, as a host loading a saved table would add them
-  rows.forEach((row, i) => {
-    add({ id: `price_${i}`, value: new FormulaNumber(row.price) });
-    add({ id: `quantity_${i}`, value: new FormulaNumber(row.quantity) });
-    add({ id: `discount_${i}`, value: new FormulaNumber(row.discount) });
-  });
-
-  rows.forEach((_, i) => {
-    addFormula(`subtotal_${i}`, `price_${i} * quantity_${i}`);
-    addFormula(`total_${i}`, `round(subtotal_${i} * (1 - discount_${i}), 2)`);
-    addFormula(`size_${i}`, `if(total_${i} > 500, "large", "small")`);
-    addFormula(`label_${i}`, `"Order " + ${i + 1} + ": " + total_${i}`);
-  });
-
-  for (let block = 0; block < blockCount(rows.length); block++) {
-    const totals = rows
-      .slice(block * BLOCK_SIZE, (block + 1) * BLOCK_SIZE)
-      .map((_, offset) => `total_${block * BLOCK_SIZE + offset}`);
-
-    addFormula(`block_${block}`, `sum(${totals.join(', ')})`);
-  }
-
-  const blocks = Array.from({ length: blockCount(rows.length) }, (_, block) => `block_${block}`);
-
-  addFormula('grand', `sum(${blocks.join(', ')})`);
-
-  rows.forEach((_, i) => {
-    addFormula(`share_${i}`, `total_${i} / grand`);
-  });
-
-  await orchestrator.waitForProcessing();
-
-  return { orchestrator, cells };
+  return { evaluator, data, view: evaluator.evaluate(data) };
 }
 
-async function editEvalexPrices({ table, edit }: { table: EvalexTable; edit: PriceEdit }): Promise<void> {
+function editEvalexPrices({ table, edit }: { table: EvalexTable; edit: PriceEdit }): void {
   edit.prices.forEach((price, offset) => {
-    const id = `price_${edit.firstRow + offset}`;
+    const row = edit.firstRow + offset;
 
-    table.cells.get(id)!.value = new FormulaNumber(price);
-    table.orchestrator.enqueueDependents(id);
+    table.data.blocks[Math.floor(row / BLOCK_SIZE)].lines[row % BLOCK_SIZE].price = price;
   });
 
-  await table.orchestrator.waitForProcessing();
+  table.view = table.evaluator.evaluate(table.data);
 }
 
-function evalexGrandTotal(table: EvalexTable): FormulaDataType | null {
-  return table.cells.get('grand')!.value;
+function evalexGrandTotal(table: EvalexTable): unknown {
+  return table.view.grand;
 }
 
 // The same table as `buildEvalexTable`, laid out in columns A–H with block totals in J and the grand total in K1
@@ -341,5 +291,5 @@ function hfCell({ sheet, col, row }: { sheet: HyperFormula; col: number; row: nu
 }
 
 function hfGrandTotal(sheet: HyperFormula): number {
-  return hfCell({ sheet, col: HF_COLUMN.grand, row: 0 }) as number;
+  return Number(hfCell({ sheet, col: HF_COLUMN.grand, row: 0 }));
 }

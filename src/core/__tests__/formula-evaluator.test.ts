@@ -7,6 +7,7 @@ import { FormulaDataType, FormulaNumber, FormulaString } from '../data-types';
 import { Errors, FormulaError } from '../errors';
 import { Formula } from '../formula';
 import { FormulaScope } from '../formula-scope';
+import { yieldToHost } from '../yield-to-host';
 
 const scope = new FormulaScope();
 
@@ -783,6 +784,44 @@ describe('FormulaEvaluator', () => {
   });
 
   describe('order', () => {
+    it.prop([dependencySheet(), fc.array(dependencyChange(), { maxLength: 8 }), fc.boolean()])('should leave every formula cell with the value of evaluating the formulas in dependency order, after any changes', async (sheet, changes, asynchronously) => {
+      const evaluator = scope.evaluator();
+      const data = dependencyData(sheet);
+      const evaluate = async (): Promise<Record<string, unknown>> => asynchronously ? evaluator.evaluateAsync<Record<string, unknown>>(data) : evaluator.evaluate<Record<string, unknown>>(data);
+
+      await evaluate();
+
+      for (const change of changes) {
+        data[change.id] = change.value;
+
+        expect(describeFormulaCells(await evaluate())).toStrictEqual(inDependencyOrder(data));
+      }
+    });
+
+    it.prop([dependencySheet(), fc.array(fc.tuple(dependencyChange(), fc.nat(4)), { maxLength: 6 })])('should resolve the last call with the values in dependency order and abort the calls it replaced, whatever moment the changes come', async (sheet, steps) => {
+      const evaluator = scope.evaluator();
+      const data = dependencyData(sheet);
+      const replaced: Promise<unknown>[] = [];
+
+      for (const [change, waits] of steps) {
+        replaced.push(evaluator.evaluateAsync(data).catch((error: unknown) => error instanceof DOMException ? error.name : error));
+
+        for (let wait = 0; wait < waits; wait++) {
+          await yieldToHost();
+        }
+
+        data[change.id] = change.value;
+      }
+
+      const last = evaluator.evaluateAsync<Record<string, unknown>>(data);
+
+      for (const outcome of await Promise.all(replaced)) {
+        expect(outcome === 'AbortError' || typeof outcome === 'object').toBe(true);
+      }
+
+      expect(describeFormulaCells(await last)).toStrictEqual(inDependencyOrder(data));
+    });
+
     it.prop([permutation(300)], { numRuns: 20 })('should compute a chain of formulas whatever the order of its cells', (order) => {
       const view = scope.evaluator().evaluate(chain(order));
 
@@ -999,6 +1038,84 @@ function throwingRecord(thrown: unknown): object {
   });
 
   return record;
+}
+
+const DEPENDENCY_VALUE_IDS = ['a', 'b', 'c'] as const;
+
+// Each formula reads only the values and the formulas before it, so the list order is a dependency order.
+const DEPENDENCY_FORMULA_IDS = ['x', 'y', 'z'] as const;
+
+const DEPENDENCY_TEMPLATES = [
+  (p: string, q: string): string => `${p} + ${q}`,
+  (p: string): string => `${p} * 2`,
+  (p: string, q: string): string => `max(${p}, ${q}) - 1`,
+  (p: string, q: string): string => `if(${p} > ${q}, ${p}, ${q})`,
+  (p: string): string => p,
+];
+
+// Small numbers repeat often, which exercises the paths that keep unchanged results.
+const smallNumber = fc.integer({ min: -2, max: 2 });
+
+function dependencyFormula(index: number): fc.Arbitrary<Formula> {
+  const readable = [...DEPENDENCY_VALUE_IDS, ...DEPENDENCY_FORMULA_IDS.slice(0, index)];
+
+  return fc.tuple(fc.constantFrom(...DEPENDENCY_TEMPLATES), fc.constantFrom(...readable), fc.constantFrom(...readable)).map(([template, p, q]) => new Formula(template(p, q)));
+}
+
+interface DependencyChange {
+  readonly id: string;
+  readonly value: number | Formula;
+}
+
+function dependencyChange(): fc.Arbitrary<DependencyChange> {
+  return fc.oneof(
+    fc.record({ id: fc.constantFrom(...DEPENDENCY_VALUE_IDS), value: smallNumber }),
+    ...DEPENDENCY_FORMULA_IDS.map((id, index) => dependencyFormula(index).map((value): DependencyChange => ({ id, value }))),
+  );
+}
+
+interface DependencySheet {
+  readonly values: readonly [number, number, number];
+  readonly formulas: readonly [Formula, Formula, Formula];
+  /** The order of the cells in the data, which is not the dependency order. */
+  readonly keys: readonly string[];
+}
+
+function dependencySheet(): fc.Arbitrary<DependencySheet> {
+  return fc.record({
+    values: fc.tuple(smallNumber, smallNumber, smallNumber),
+    formulas: fc.tuple(dependencyFormula(0), dependencyFormula(1), dependencyFormula(2)),
+    keys: fc.shuffledSubarray<string>([...DEPENDENCY_VALUE_IDS, ...DEPENDENCY_FORMULA_IDS], { minLength: 6 }),
+  });
+}
+
+function dependencyData({ values, formulas, keys }: DependencySheet): Record<string, number | Formula> {
+  const cells = new Map<string, number | Formula>([
+    ...DEPENDENCY_VALUE_IDS.map((id, index): [string, number] => [id, values[index]]),
+    ...DEPENDENCY_FORMULA_IDS.map((id, index): [string, Formula] => [id, formulas[index]]),
+  ]);
+
+  return Object.fromEntries(keys.map((id) => [id, cells.get(id)!]));
+}
+
+/** What each formula cell holds when the formulas are evaluated one by one in dependency order. */
+function inDependencyOrder(data: Readonly<Record<string, number | Formula>>): Record<string, string> {
+  const values: Record<string, unknown> = Object.fromEntries(DEPENDENCY_VALUE_IDS.map((id) => [id, data[id]]));
+  const cells: Record<string, string> = {};
+
+  for (const id of DEPENDENCY_FORMULA_IDS) {
+    const formula = data[id];
+    const value = formula instanceof Formula ? scope.evaluate(formula.text, values) : formula;
+
+    values[id] = value;
+    cells[id] = describeCell(value);
+  }
+
+  return cells;
+}
+
+function describeFormulaCells(view: Readonly<Record<string, unknown>>): Record<string, string> {
+  return Object.fromEntries(DEPENDENCY_FORMULA_IDS.map((id) => [id, describeCell(view[id])]));
 }
 
 /** A cell of a backend response: a value, or the text of a formula, which the response cannot hold as a `Formula`. */

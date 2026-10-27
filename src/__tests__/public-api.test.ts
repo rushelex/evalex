@@ -3,10 +3,7 @@ import * as API from '../index';
 describe('public API', () => {
   it('should export exactly the documented runtime values', () => {
     expect(Object.keys(API).sort()).toEqual([
-      'AsyncExecutor',
-      'BatchingScheduler',
       'Errors',
-      'Executor',
       'Expression',
       'Formula',
       'FormulaArray',
@@ -21,14 +18,10 @@ describe('public API', () => {
       'FormulaNull',
       'FormulaNumber',
       'FormulaObject',
-      'FormulaOrchestrator',
       'FormulaRegExp',
-      'FormulaRuntime',
       'FormulaScope',
       'FormulaString',
-      'ImmediateScheduler',
       'Kind',
-      'SyncExecutor',
       'initializeFormulaCore',
     ]);
   });

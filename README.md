@@ -10,7 +10,7 @@
 [![CI](https://github.com/rushelex/evalex/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/rushelex/evalex/actions/workflows/ci.yml?query=branch%3Amain+event%3Apush)
 [![Coverage](https://codecov.io/gh/rushelex/evalex/graph/badge.svg)](https://codecov.io/gh/rushelex/evalex)
 
-[Quick start](#quick-start) · [Language](#the-formula-language) · [Runtime](#reactive-runtime) · [Architecture](#architecture) · [Contributing](#development)
+[Quick start](#quick-start) · [Language](#the-formula-language) · [Formulas in data](#formulas-in-data) · [Architecture](#architecture) · [Contributing](#development)
 
 </div>
 
@@ -27,7 +27,7 @@ evalex (*eval* + *expression*, pronounced "ee-VAL-ex") lets the people using you
 | **Batteries included** | 50+ built-in functions and methods for text, math, lists and dates |
 | **Precise errors** | Errors carry a machine-readable `code`, structured details and the span of the formula at fault |
 | **Dependency tracking** | Know which variables a formula reads, statically and at evaluation time |
-| **Reactive runtime** | Recalculates only the formulas an update reaches, in order, and skips those whose inputs did not change. Detects cycles, batches updates |
+| **Formulas in data** | Computes the formulas in your own objects and lists in the order they read each other, and again only where something changed. Fails each cell of a cycle |
 | **Sandboxed** | No access to globals, no `eval`, no I/O — a formula can only read what you give it |
 
 ## Installation
@@ -140,66 +140,43 @@ catch (error) {
 
 Use `location` to underline the offending part of the formula in your editor UI.
 
-## Reactive runtime
+## Formulas in data
 
-When formulas reference each other — a spreadsheet, a table with computed columns, a form with derived fields — `FormulaOrchestrator` keeps every result up to date:
+When formulas read each other — a spreadsheet, a table with computed columns, a form with derived fields — put them right into your data with `new Formula(text)`. An evaluator gives back the same data with every formula replaced by its result:
 
 ```ts
-import { Expression, FormulaNull, FormulaNumber, FormulaOrchestrator } from 'evalex';
-import type { FormulaDataType } from 'evalex';
+import { Formula, FormulaScope } from 'evalex';
 
-interface Cell {
-  readonly id: string;
-  readonly formula?: string;
-  value: FormulaDataType | null;
-}
+const evaluator = new FormulaScope().evaluator();
 
-const orchestrator = new FormulaOrchestrator<Cell>({
-  adapter: {
-    shouldProcess: (cell) => cell.formula !== undefined,
-    toFormulaDataType: (cell) => cell.value ?? FormulaNull.instance(),
-    toExpression: (cell) => (cell.formula ? new Expression(cell.formula) : null),
-    onCalculate: (cell, value) => {
-      cell.value = value;
-    },
-    onError: (cell, error) => {
-      console.error(cell.id, error.message);
-    },
-  },
-});
+const order = {
+  price: 100,
+  total: new Formula('price * 2'),
+  tax: new Formula('total * 0.1'),
+};
 
-const price: Cell = { id: 'price', value: new FormulaNumber(100) };
-const total: Cell = { id: 'total', formula: 'price * 2', value: null };
-const tax: Cell = { id: 'tax', formula: 'total * 0.1', value: null };
+evaluator.evaluate(order); // total = 200, tax = 20
 
-orchestrator.add(price);
-orchestrator.add(total);
-orchestrator.add(tax);
-await orchestrator.waitForProcessing(); // total = 200, tax = 20
-
-price.value = new FormulaNumber(150);
-orchestrator.enqueueDependents('price');
-await orchestrator.waitForProcessing(); // total = 300, tax = 30
+order.price = 150;
+evaluator.evaluate(order); // total = 300, tax = 30
 ```
 
-Schedulers, async executors and cycle detection are covered in the [runtime README](./src/runtime/README.md).
+A formula reads the fields of its own record and of the records around it, cells compute in the order they read each other, and a later call computes again only what changed. Cycles, failed inputs, data read through a format of your own and large data computed without blocking are covered in the [core README](./src/core/README.md#formulas-in-data).
 
 ## Architecture
 
 ```mermaid
 flowchart LR
   A["Formula text"] --> P["parser<br/><sub>text → AST</sub>"]
-  P --> C["core<br/><sub>AST → typed value</sub>"]
-  C --> R["runtime<br/><sub>graph of formulas → reactive values</sub>"]
+  P --> C["core<br/><sub>AST and data → typed values</sub>"]
 ```
 
 | Module | What it does | Docs |
 | --- | --- | --- |
 | [`src/parser`](./src/parser) | Hand-written Pratt parser that turns formula text into an AST with source locations | [README](./src/parser/README.md) |
-| [`src/core`](./src/core) | Evaluates the AST: data types, built-in routines, errors, dependency extraction | [README](./src/core/README.md) |
-| [`src/runtime`](./src/runtime) | Dependency graph, recalculation queue, schedulers and executors | [README](./src/runtime/README.md) |
+| [`src/core`](./src/core) | Evaluates formulas: data types, built-in routines, errors, and the formula cells of host data | [README](./src/core/README.md) |
 
-All three ship in one package. `core` and `runtime` are re-exported from `evalex`; the parser is used internally.
+Both ship in one package. `core` is re-exported from `evalex`; the parser is used internally.
 
 ## Development
 

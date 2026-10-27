@@ -6,12 +6,6 @@ import type { FormulaErrorCode } from './error-codes';
 // Payload interfaces (without code - code belongs to FormulaError)
 // ============================================================================
 
-export interface TypeMismatchPayload {
-  readonly expected: readonly unknown[];
-  readonly actual: unknown;
-  readonly message?: string;
-}
-
 export interface ArgumentTypeMismatchPayload {
   readonly expected: readonly unknown[];
   readonly actual: unknown;
@@ -68,15 +62,6 @@ export interface EvaluateErrorPayload {
   readonly reason?: string;
 }
 
-export interface CircularDependencyPayload {
-  readonly nodeId: string;
-  readonly dependsOnId: string;
-}
-
-export interface DuplicateNodeIdPayload {
-  readonly nodeId: string;
-}
-
 export interface ExecutionTimeoutPayload {
   readonly timeoutMs: number;
 }
@@ -86,7 +71,6 @@ export interface ExecutionTimeoutPayload {
 // ============================================================================
 
 export interface FormulaErrorPayloads {
-  [FormulaErrorCode.TYPE_MISMATCH]: TypeMismatchPayload;
   [FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]: ArgumentTypeMismatchPayload;
   [FormulaErrorCode.ARGUMENT_COUNT_MISMATCH]: ArgumentCountMismatchPayload;
   [FormulaErrorCode.PATTERN_MISMATCH]: PatternMismatchPayload;
@@ -96,7 +80,5 @@ export interface FormulaErrorPayloads {
   [FormulaErrorCode.INPUT_ERROR]: InputErrorPayload;
   [FormulaErrorCode.RANGE_ERROR]: RangeErrorPayload;
   [FormulaErrorCode.EVALUATE_ERROR]: EvaluateErrorPayload;
-  [FormulaErrorCode.CIRCULAR_DEPENDENCY]: CircularDependencyPayload;
-  [FormulaErrorCode.DUPLICATE_NODE_ID]: DuplicateNodeIdPayload;
   [FormulaErrorCode.EXECUTION_TIMEOUT]: ExecutionTimeoutPayload;
 }

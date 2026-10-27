@@ -16,8 +16,8 @@ export { formatTypes, getRegExpFallbackError } from './utils';
  * throw Errors.Argument.TooFew.create({ expectedMin: 2, expectedMax: 5, actual: 1 });
  *
  * // Check error type
- * if (Errors.Runtime.CircularDependency.is(error)) {
- *   console.log(error.payload.nodeId);
+ * if (Errors.Reference.CircularReference.is(error)) {
+ *   console.log(error.payload.name);
  * }
  * ```
  */
@@ -65,17 +65,13 @@ export const Errors = {
     InputError: Defs.InputError,
   },
 
-  /** Runtime errors */
+  /** Errors of a computation as a whole */
   Runtime: {
-    CircularDependency: Defs.CircularDependencyDetected,
-    DuplicateNodeId: Defs.DuplicateNodeId,
     ExecutionTimeout: Defs.ExecutionTimeout,
   },
 
   /** Input validation errors */
   Validation: {
-    StringFormulaExpected: Defs.StringFormulaExpected,
-    NonEmptyFormulaExpected: Defs.NonEmptyFormulaExpected,
     PositiveNumberExpected: Defs.PositiveNumberExpected,
   },
 

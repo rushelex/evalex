@@ -7,8 +7,8 @@ describe('public API', () => {
   });
 
   it('should type error codes as plain text', () => {
-    expectTypeOf<'CIRCULAR_DEPENDENCY'>().toExtend<API.FormulaErrorCode>();
-    expectTypeOf<typeof API.FormulaErrorCode.CIRCULAR_DEPENDENCY>().toEqualTypeOf<'CIRCULAR_DEPENDENCY'>();
+    expectTypeOf<'CIRCULAR_REFERENCE'>().toExtend<API.FormulaErrorCode>();
+    expectTypeOf<typeof API.FormulaErrorCode.CIRCULAR_REFERENCE>().toEqualTypeOf<'CIRCULAR_REFERENCE'>();
     expectTypeOf<API.FormulaError['code']>().toEqualTypeOf<API.FormulaErrorCode>();
   });
 

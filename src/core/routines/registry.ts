@@ -23,8 +23,8 @@ interface SingleFormDefinition<TSignatures extends Signatures | undefined> {
    * The result can differ between calls with the same arguments, as with `now()`.
    *
    * @remarks
-   * The runtime skips recalculating a formula whose inputs did not change; a formula calling a volatile routine
-   * is recalculated anyway whenever one of its inputs is updated.
+   * An evaluator keeps the result of a formula whose reads did not change; a formula calling a volatile routine is
+   * evaluated in every pass.
    */
   readonly volatile?: boolean;
 }
@@ -61,8 +61,8 @@ export interface RoutineDefinition<TSignatures extends SubjectSignatures> {
    * The result can differ between calls with the same arguments, as with `now()`.
    *
    * @remarks
-   * The runtime skips recalculating a formula whose inputs did not change; a formula calling a volatile routine
-   * is recalculated anyway whenever one of its inputs is updated.
+   * An evaluator keeps the result of a formula whose reads did not change; a formula calling a volatile routine is
+   * evaluated in every pass.
    */
   readonly volatile?: boolean;
   /** Implementation shared by both forms; receives the call subject apart from the remaining arguments. */

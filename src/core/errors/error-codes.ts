@@ -3,8 +3,6 @@
  * Each code represents a specific error type with its own payload structure.
  */
 export const FormulaErrorCode = {
-  // Core errors
-  TYPE_MISMATCH: 'TYPE_MISMATCH',
   ARGUMENT_TYPE_MISMATCH: 'ARGUMENT_TYPE_MISMATCH',
   ARGUMENT_COUNT_MISMATCH: 'ARGUMENT_COUNT_MISMATCH',
   PATTERN_MISMATCH: 'PATTERN_MISMATCH',
@@ -14,10 +12,6 @@ export const FormulaErrorCode = {
   INPUT_ERROR: 'INPUT_ERROR',
   RANGE_ERROR: 'RANGE_ERROR',
   EVALUATE_ERROR: 'EVALUATE_ERROR',
-
-  // Runtime errors
-  CIRCULAR_DEPENDENCY: 'CIRCULAR_DEPENDENCY',
-  DUPLICATE_NODE_ID: 'DUPLICATE_NODE_ID',
   EXECUTION_TIMEOUT: 'EXECUTION_TIMEOUT',
 } as const;
 
