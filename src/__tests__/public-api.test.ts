@@ -8,6 +8,7 @@ describe('public API', () => {
       'Errors',
       'Executor',
       'Expression',
+      'Formula',
       'FormulaArray',
       'FormulaBoolean',
       'FormulaDataType',

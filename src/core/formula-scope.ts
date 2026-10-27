@@ -4,6 +4,7 @@ import type { ValueFormat } from './value-format';
 
 import { isFormulaValue } from './data-types';
 import { evaluateFormula, parseFormula } from './expression';
+import { FormulaEvaluator } from './formula-evaluator';
 import { HostValues } from './host-values';
 import { validateValueFormat } from './value-format';
 
@@ -40,6 +41,21 @@ export class FormulaScope {
   constructor(options: FormulaScopeOptions = {}) {
     validateValueFormat(options.format);
     this.#format = options.format;
+  }
+
+  /**
+   * Creates an evaluator that computes the formula cells of host data with the settings of the scope.
+   *
+   * @example
+   * ```ts
+   * const evaluator = scope.evaluator();
+   * const view = evaluator.evaluate({ price: 250, quantity: 4, cost: new Formula('price * quantity') });
+   *
+   * view.cost.value; // 1000
+   * ```
+   */
+  evaluator(): FormulaEvaluator {
+    return new FormulaEvaluator(this.#format);
   }
 
   /**

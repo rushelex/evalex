@@ -27,6 +27,19 @@ interface Position {
   readonly ancestors: WeakSet<object>;
   /** Objects converted from the same host data, so a link back to one of them closes a loop instead of growing the tree. */
   readonly objects: WeakMap<object, FormulaObject>;
+  readonly readCell: CellReader | undefined;
+}
+
+/**
+ * Reads a field or a list item of host data before it converts: the value a computed cell holds, or `undefined` to
+ * convert the value the host put there.
+ */
+export type CellReader = (value: unknown, place: CellPlace) => FormulaDataType | undefined;
+
+/** The object or list that holds a cell, and the key of the cell in it. */
+export interface CellPlace {
+  readonly owner: object;
+  readonly key: string | number;
 }
 
 /**
@@ -51,9 +64,18 @@ export function convertValueToFormulaType(value: unknown): FormulaDataType {
   return convert(value, rootPosition());
 }
 
-/** Converts a host value a formula reads by `name`, so a rejection names the path from it: `order.lines[2]`. */
-export function convertNamedValue({ name, value }: { name: string; value: unknown }): FormulaDataType {
-  return convert(value, { ...rootPosition(), path: name });
+/**
+ * Converts a host value a formula reads by `name`, so a rejection names the path from it: `order.lines[2]`.
+ *
+ * @remarks
+ * `readCell` reads the cells inside the value before they convert, such as fields that hold formulas.
+ */
+export function convertNamedValue({ name, value, readCell }: {
+  name: string;
+  value: unknown;
+  readCell?: CellReader;
+}): FormulaDataType {
+  return convert(value, { ...rootPosition(), path: name, readCell });
 }
 
 /** Converts the items of a list passed to `FormulaArray.from`, treating the list itself as the root of the host data. */
@@ -67,7 +89,7 @@ export function convertObjectFields(object: object): Record<string, FormulaDataT
 }
 
 function rootPosition(): Position {
-  return { path: '', nesting: 0, ancestors: new WeakSet(), objects: new WeakMap() };
+  return { path: '', nesting: 0, ancestors: new WeakSet(), objects: new WeakMap(), readCell: undefined };
 }
 
 function convert(value: unknown, position: Position): FormulaDataType {
@@ -191,8 +213,16 @@ function toDate(value: unknown): Temporal.ZonedDateTime | undefined {
 function convertItems(container: Iterable<unknown> | ArrayLike<unknown>, position: Position): FormulaDataType[] {
   return within(container, position, (inner) => {
     // `Array.from` visits holes of a sparse list as `undefined`, which `map` skips.
-    return Array.from(container, (item, index) => convert(item, { ...inner, path: `${position.path}[${index}]` }));
+    return Array.from(container, (item, index) => convertCell({
+      value: item,
+      place: { owner: container, key: index },
+      position: { ...inner, path: `${position.path}[${index}]` },
+    }));
   });
+}
+
+function convertCell({ value, place, position }: { value: unknown; place: CellPlace; position: Position }): FormulaDataType {
+  return position.readCell?.(value, place) ?? convert(value, position);
 }
 
 /**
@@ -217,7 +247,11 @@ function convertFields(container: object, position: Position): Record<string, Fo
     // Defining each key as a field keeps a `__proto__` key data instead of replacing the prototype.
     Object.defineProperty(fields, key, {
       enumerable: true,
-      get: () => converted ??= convert(Reflect.get(container, key), { ...inner, path: fieldPath(position.path, key) }),
+      get: () => converted ??= convertCell({
+        value: Reflect.get(container, key),
+        place: { owner: container, key },
+        position: { ...inner, path: fieldPath(position.path, key) },
+      }),
     });
   }
 

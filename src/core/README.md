@@ -4,13 +4,13 @@
 
 **Evaluates formulas into typed values — data types, built-in routines, errors and dependency tracking.**
 
-[Scope](#formulascope) · [Expression](#expression) · [Data types](#data-types) · [Built-in routines](#built-in-routines) · [Errors](#errors) · [Debugging](#debugging)
+[Scope](#formulascope) · [Formulas in data](#formulas-in-data) · [Expression](#expression) · [Data types](#data-types) · [Built-in routines](#built-in-routines) · [Errors](#errors) · [Debugging](#debugging)
 
 </div>
 
 ---
 
-`core` takes formula text, parses it with the [parser](../parser/README.md), and evaluates the result against a context of typed values. It holds no state between calls: the same formula with the same context always produces the same value. For formulas that depend on each other, use the [runtime](../runtime/README.md) on top of it.
+`core` takes formula text, parses it with the [parser](../parser/README.md), and evaluates the result against a context of typed values. It holds no state between calls: the same formula with the same context always produces the same value. Formulas that live in host data and read each other are computed by an evaluator, see [Formulas in data](#formulas-in-data).
 
 Everything below is imported from the package root:
 
@@ -40,6 +40,37 @@ scope.evaluate('"Total: " + total', { total }).value; // 'Total: 1000.00'
 - **Showing a result is up to the host.** `format` decides how values read only where a formula itself turns them into text, see [Text of values](#text-of-values). A host that passes the formatters it draws its cells with gets the same text in `"Total: " + price` as in the `price` cell. `toString()` gives machine text, not text for readers.
 
 `format` is checked when the scope is created: a name list of the wrong length throws a `TypeError` there.
+
+## Formulas in data
+
+A formula is a cell of the host's own data: `new Formula(text)` in any field of an object or item of a list. `scope.evaluator()` creates an evaluator that computes every formula cell with the settings of the scope and gives back data of the same shape, with results in place of formulas:
+
+```ts
+import { Formula, FormulaScope } from 'evalex';
+
+const evaluator = new FormulaScope().evaluator();
+
+const order = {
+  taxRate: 0.2,
+  lines: [
+    { price: 250, quantity: 4, cost: new Formula('price * quantity'), tax: new Formula('cost * taxRate') },
+    { price: 100, quantity: 1, cost: new Formula('price * quantity'), tax: new Formula('cost * taxRate') },
+  ],
+  total: new Formula('lines.map(current.cost() + current.tax()).sum()'),
+};
+
+const view = evaluator.evaluate(order);
+view.lines[0].tax; // FormulaNumber, value 200
+view.total;        // FormulaNumber, value 1320
+```
+
+- **Names resolve outward.** A formula reads the fields of its own record first, then the fields of each enclosing object up to the root. Lists hold no names: a record in `lines` reads `taxRate` from the object that holds `lines`, and a list is read by the name of the field that holds it. An inner field hides an outer field of the same name. A field holding a function is not a name.
+- **Formulas read formulas.** A formula that reads another formula cell, by name or through a record or list, gets its value, whatever the order of the cells in the data.
+- **What is walked.** Records are found through data properties only: a getter is read only when a formula reads it. A record reached by several paths has one place, the shallowest one, the first in key order among equally shallow ones. Its formulas are computed once, with the names around that place; every other reference is a link to it.
+- **The view.** A formula cell holds its value, or the `FormulaError` or `SyntaxError` of its formula. An object or list that holds formulas, directly or through its fields, is a copy with the same prototype, and a link to it in the view leads to the copy. Everything else is what the data holds, and the data itself never changes.
+- **Changes.** Each `evaluate` reads the data as it is at the call: change the data however you like and call it again.
+
+The type of the view follows from the type of the data: a `Formula` field becomes `FormulaValue | FormulaError | SyntaxError`, other fields keep their types.
 
 ## Expression
 
@@ -392,6 +423,8 @@ While enabled, the runtime logs every enqueue, cascade, evaluation and error wit
 | Path | Contents |
 | --- | --- |
 | [`expression.ts`](./expression.ts) | `Expression` and its caches |
+| [`formula.ts`](./formula.ts) | `Formula`, the marker of a formula cell in host data |
+| [`formula-evaluator.ts`](./formula-evaluator.ts) | `FormulaEvaluator`, which computes the formula cells of host data |
 | [`lru-cache.ts`](./lru-cache.ts) | The bounded cache that keeps parses of recently used formula texts |
 | [`evaluator.visitor.ts`](./evaluator.visitor.ts) | Walks the AST and computes values |
 | [`dependency-extractor.visitor.ts`](./dependency-extractor.visitor.ts) | Collects identifiers for static dependencies and finds calls to volatile routines |
