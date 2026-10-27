@@ -86,6 +86,43 @@ export function convertNamedValue({ name, value, readCell }: {
   return convert(value, { ...rootPosition(), path: name, readCell });
 }
 
+/**
+ * What converting a host value reads of it beyond its identity, so a value changed in place converts differently: the
+ * length of a list, the fields of an object, the instant of a `Date`. `undefined` for a value that does not change.
+ *
+ * @remarks
+ * Shapes of one value compare with `Object.is`. Items and field values are not part of the shape: they are read, and
+ * compared, as cells of their own.
+ */
+export function hostShape(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) {
+    return undefined;
+  }
+
+  if (Array.isArray(value) || isTypedArray(value)) {
+    return value.length;
+  }
+
+  if (value instanceof Set) {
+    return value.size;
+  }
+
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+
+  if (builtInName(value) !== 'Object') {
+    return undefined;
+  }
+
+  const keys = fieldKeys(value);
+  const range = keys.length === 2 && keys.includes('start') && keys.includes('end')
+    ? [toDate(Reflect.get(value, 'start'))?.epochNanoseconds, toDate(Reflect.get(value, 'end'))?.epochNanoseconds]
+    : [];
+
+  return [...keys, ...range].join('\0');
+}
+
 /** Converts the items of a list passed to `FormulaArray.from`, treating the list itself as the root of the host data. */
 export function convertListItems(items: readonly unknown[]): FormulaDataType[] {
   return convertItems(items, rootPosition());
@@ -253,15 +290,17 @@ function convertFields(container: object, position: Position): Record<string, Fo
 
   for (const key of fieldKeys(container)) {
     let converted: FormulaDataType | undefined;
+    const readField = (): FormulaDataType => convertCell({
+      place: { owner: container, key },
+      read: (): unknown => Reflect.get(container, key),
+      position: { ...inner, path: fieldPath(position.path, key) },
+    });
 
-    // Defining each key as a field keeps a `__proto__` key data instead of replacing the prototype.
+    // Defining each key as a field keeps a `__proto__` key data instead of replacing the prototype. A reader may keep a
+    // value across reads of changing data, so a field read through it is read again each time.
     Object.defineProperty(fields, key, {
       enumerable: true,
-      get: () => converted ??= convertCell({
-        place: { owner: container, key },
-        read: (): unknown => Reflect.get(container, key),
-        position: { ...inner, path: fieldPath(position.path, key) },
-      }),
+      get: position.readCell ? readField : () => converted ??= readField(),
     });
   }
 

@@ -10,7 +10,7 @@
 
 ---
 
-`core` takes formula text, parses it with the [parser](../parser/README.md), and evaluates the result against a context of typed values. It holds no state between calls: the same formula with the same context always produces the same value. Formulas that live in host data and read each other are computed by an evaluator, see [Formulas in data](#formulas-in-data).
+`core` takes formula text, parses it with the [parser](../parser/README.md), and evaluates the result against a context of typed values. The same formula with the same context always produces the same value. Formulas that live in host data and read each other are computed by an evaluator, which keeps what each formula read to compute again only what changed, see [Formulas in data](#formulas-in-data).
 
 Everything below is imported from the package root:
 
@@ -71,7 +71,7 @@ view.total;        // FormulaNumber, value 1320
 - **Failed inputs.** A formula that reads a failed cell fails with `INPUT_ERROR` at the read, with that cell's error as `cause`: with `total = missing * 2`, `tax = total * 0.1` fails with `Cannot use "total": its value failed. [0,5]`. Each formula points at the input written in its own text, not at what broke that input, and a cell outside a cycle that reads into it fails the same way. A read of host data that fails, a getter that throws or a value without a formula form such as a `Map`, fails the reading formula the same way, with the host's own error as `cause`. `scope.evaluator({ onInputError })` gets each such failure once a pass, however many formulas read it, and the getter runs only once. A `FormulaError` or `SyntaxError` is for the formula author; the `cause` and `onInputError` are for the host.
 - **What is walked.** Records are found through data properties only: a getter is read only when a formula reads it. A record reached by several paths has one place, the shallowest one, the first in key order among equally shallow ones. Its formulas are computed once, with the names around that place; every other reference is a link to it.
 - **The view.** A formula cell holds its value, or the `FormulaError` or `SyntaxError` of its formula; the type `SyntaxError` is exported to read its `location`. `FormulaView<T>` is the type of the view of data of type `T`, and `FormulaCell` the type of what a formula cell holds. An object or list that holds formulas, directly or through its fields, is a copy with the same prototype, and a link to it in the view leads to the copy. Everything else is what the data holds, and the data itself never changes.
-- **Changes.** Each `evaluate` reads the data as it is at the call: change the data however you like and call it again.
+- **Changes.** Each `evaluate` reads the data as it is at the call: change the data however you like, in place or by replacing objects, and call it again. The evaluator keeps what each formula read, as long as you keep the object that holds the formula, and evaluates again only the formulas whose reads changed, including a list that grew, a record that moved and a `Date` changed in place. A formula that calls `now()` or `today()` is evaluated in every pass. Every other formula cell keeps the very same result, and a copied object or list whose fields hold the same keeps the very same copy, so a memoized row does not re-render. A formula reading a field of a result kept from an earlier pass reads the field as it is now. Each pass still walks all of the data and reads again what the formulas read: with 200,000 formulas over 100,000 records, a pass with one edit takes less than half the time a new evaluator takes, and the more a formula computes, the more a pass saves.
 
 The type of the view follows from the type of the data: a `Formula` field becomes `FormulaValue | FormulaError | SyntaxError`, other fields keep their types.
 
@@ -433,6 +433,11 @@ While enabled, the runtime logs every enqueue, cascade, evaluation and error wit
 | [`expression.ts`](./expression.ts) | `Expression` and its caches |
 | [`formula.ts`](./formula.ts) | `Formula`, the marker of a formula cell in host data |
 | [`formula-evaluator.ts`](./formula-evaluator.ts) | `FormulaEvaluator`, which computes the formula cells of host data |
+| [`evaluation-pass.ts`](./evaluation-pass.ts) | One pass of an evaluator: the walk, the order of cells, cycles, reuse of results and the view |
+| [`evaluator-memory.ts`](./evaluator-memory.ts) | What an evaluator keeps between passes: the reads and result of each cell, and the copies of the view |
+| [`record-names.ts`](./record-names.ts) | The names a formula reads from the records around it, its enclosing object and neighbor records |
+| [`host-containers.ts`](./host-containers.ts) | Which host values hold cells, and how a field is read again |
+| [`cell-read-failure.ts`](./cell-read-failure.ts) | The failure of a read of a cell, turned into an error at the part of the formula that read it |
 | [`lru-cache.ts`](./lru-cache.ts) | The bounded cache that keeps parses of recently used formula texts |
 | [`evaluator.visitor.ts`](./evaluator.visitor.ts) | Walks the AST and computes values |
 | [`dependency-extractor.visitor.ts`](./dependency-extractor.visitor.ts) | Collects identifiers for static dependencies and finds calls to volatile routines |

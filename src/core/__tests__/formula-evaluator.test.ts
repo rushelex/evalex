@@ -1,7 +1,9 @@
+import type { FormulaView } from '../formula-evaluator';
+
 import { fc, it } from '@fast-check/vitest';
 
 import { SyntaxError } from '../../parser/grammar/parser';
-import { FormulaNumber, FormulaString } from '../data-types';
+import { FormulaDataType, FormulaNumber, FormulaString } from '../data-types';
 import { Errors, FormulaError } from '../errors';
 import { Formula } from '../formula';
 import { FormulaScope } from '../formula-scope';
@@ -411,6 +413,197 @@ describe('FormulaEvaluator', () => {
     });
   });
 
+  describe('passes', () => {
+    it.prop([fc.array(edit(), { maxLength: 12 })], { numRuns: 200 })('should give after any edits what a new evaluator gives', (edits) => {
+      const evaluator = scope.evaluator();
+      const sheet = newSheet();
+
+      for (const change of edits) {
+        evaluator.evaluate(sheet);
+        change(sheet);
+
+        expect(describeView(evaluator.evaluate(sheet))).toStrictEqual(describeView(scope.evaluator().evaluate(sheet)));
+      }
+    });
+
+    it('should give back the same view when nothing changed', () => {
+      const evaluator = scope.evaluator();
+      const data = { rows: [{ price: 2, cost: new Formula('price * 3') }] };
+
+      expect(evaluator.evaluate(data)).toBe(evaluator.evaluate(data));
+    });
+
+    it('should give a new result only to the cells whose reads changed, keeping the copies of unchanged records', () => {
+      const evaluator = scope.evaluator();
+      const data = { rows: [{ price: 2, cost: new Formula('price * 3') }, { price: 5, cost: new Formula('price * 3') }] };
+      const before = evaluator.evaluate(data);
+
+      data.rows[1].price = 6;
+
+      const after = evaluator.evaluate(data);
+
+      expect(after.rows[0]).toBe(before.rows[0]);
+      expect(after.rows[1]?.cost).toBeFormulaDataType(FormulaNumber, 18);
+      expect(after).not.toBe(before);
+    });
+
+    it('should keep the very result of a formula whose reads did not change, such as a list', () => {
+      const evaluator = scope.evaluator();
+      const data = { items: [1, 2], other: 1, doubled: new Formula('items.map(current * 2)') };
+      const before = evaluator.evaluate(data).doubled;
+
+      data.other = 2;
+
+      expect(evaluator.evaluate(data).doubled).toBe(before);
+    });
+
+    it('should keep the results of records that moved when a record is inserted before them', () => {
+      const evaluator = scope.evaluator();
+      const rows = [1, 2, 3].map((amount) => ({ amount, double: new Formula('amount * 2'), total: new Formula('previous(total, 0) + amount') }));
+      const before = evaluator.evaluate({ rows });
+
+      rows.unshift({ amount: 10, double: new Formula('amount * 2'), total: new Formula('previous(total, 0) + amount') });
+
+      const after = evaluator.evaluate({ rows });
+
+      expect(after.rows[1]?.double).toBe(before.rows[0]?.double);
+      expect(after.rows[3]?.total).toBeFormulaDataType(FormulaNumber, 16);
+    });
+
+    it('should compute again a formula that reads a list changed in place', () => {
+      const evaluator = scope.evaluator();
+      const data = { items: [1, 2], total: new Formula('items.sum()') };
+
+      evaluator.evaluate(data);
+      data.items.push(3);
+
+      expect(evaluator.evaluate(data).total).toBeFormulaDataType(FormulaNumber, 6);
+    });
+
+    it('should read again the fields of a record kept in the result of an earlier pass', () => {
+      const evaluator = scope.evaluator();
+      const rows = [{ price: 200, quantity: 1 }, { price: 50, quantity: 1 }];
+      const data = { rows, expensive: new Formula('rows.filter(current.price() > 100)'), quantity: new Formula('expensive.map(current.quantity()).sum()') };
+
+      evaluator.evaluate(data);
+      rows[0].quantity = 7;
+
+      expect(evaluator.evaluate(data).quantity).toBeFormulaDataType(FormulaNumber, 7);
+    });
+
+    it('should compute again a formula whose text changed, and keep the result of a new formula with the same text', () => {
+      const evaluator = scope.evaluator();
+      const data = { a: 2, b: new Formula('a * 2') };
+      const before = evaluator.evaluate(data).b;
+
+      data.b = new Formula('a * 2');
+
+      expect(evaluator.evaluate(data).b).toBe(before);
+
+      data.b = new Formula('a * 3');
+
+      expect(evaluator.evaluate(data).b).toBeFormulaDataType(FormulaNumber, 6);
+    });
+
+    it('should keep the result a formula computes again equal to the one before', () => {
+      const evaluator = scope.evaluator();
+      const data = { a: 1, b: 2, half: new Formula('(a + b) / 2') };
+      const before = evaluator.evaluate(data).half;
+
+      data.a = 2;
+      data.b = 1;
+
+      expect(evaluator.evaluate(data).half).toBe(before);
+    });
+
+    it('should give fresh results in a record that comes back to the data after a pass without it', () => {
+      const evaluator = scope.evaluator();
+      const inner = { a: 1, double: new Formula('a * 2') };
+      const outer = { inner };
+
+      evaluator.evaluate({ outer });
+      inner.a = 5;
+      evaluator.evaluate({ inner });
+
+      expect(evaluator.evaluate({ outer }).outer.inner.double).toBeFormulaDataType(FormulaNumber, 10);
+    });
+
+    it('should evaluate a formula that calls a volatile routine in every pass', () => {
+      const evaluator = scope.evaluator();
+      const data = { at: new Formula('now()') };
+
+      expect(evaluator.evaluate(data).at).not.toBe(evaluator.evaluate(data).at);
+    });
+
+    it('should read names from the new place of a record moved to another object', () => {
+      const evaluator = scope.evaluator();
+      const record = { amount: 10, cost: new Formula('amount * rate') };
+      const data = { low: { rate: 1, rows: [record] }, high: { rate: 2, rows: [] as typeof record[] } };
+
+      evaluator.evaluate(data);
+      data.high.rows.push(...data.low.rows.splice(0));
+
+      expect(evaluator.evaluate(data).high.rows[0]?.cost).toBeFormulaDataType(FormulaNumber, 20);
+    });
+
+    it('should compute again a formula when a field added to its record hides the field it read further out', () => {
+      const evaluator = scope.evaluator();
+      const record: Record<string, unknown> = { amount: 10, cost: new Formula('amount * rate') };
+      const data = { rate: 1, rows: [record] };
+
+      evaluator.evaluate(data);
+      record.rate = 3;
+
+      expect(evaluator.evaluate(data).rows[0]?.cost).toBeFormulaDataType(FormulaNumber, 30);
+    });
+
+    it('should compute again a formula that reads a date changed in place', () => {
+      const evaluator = scope.evaluator();
+      const data = { due: new Date('2026-01-01T00:00:00Z'), later: new Formula('due.add(1, "days")') };
+
+      evaluator.evaluate(data);
+      data.due.setTime(Date.parse('2026-03-01T00:00:00Z'));
+
+      expect(String(evaluator.evaluate(data).later)).toContain('2026-03-02');
+    });
+
+    it('should compute again a formula that reads a set changed in place', () => {
+      const evaluator = scope.evaluator();
+      const data = { tags: new Set([1]), total: new Formula('tags.sum()') };
+
+      evaluator.evaluate(data);
+      data.tags.delete(1);
+      data.tags.add(5);
+
+      expect(evaluator.evaluate(data).total).toBeFormulaDataType(FormulaNumber, 5);
+    });
+
+    it('should report a failure of host data again in a later pass', () => {
+      const onInputError = vi.fn();
+      const evaluator = scope.evaluator({ onInputError });
+      const data = { tags: new Map(), count: new Formula('tags.size()') };
+
+      evaluator.evaluate(data);
+      evaluator.evaluate(data);
+
+      expect(onInputError).toHaveBeenCalledTimes(2);
+    });
+
+    it('should fail a cycle an edit closes and compute its cells again once the edit is undone', () => {
+      const evaluator = scope.evaluator();
+      const data = { a: new Formula('b + 1'), b: new Formula('2') };
+
+      evaluator.evaluate(data);
+      data.b = new Formula('a * 2');
+
+      expect(Errors.Reference.CircularReference.is(evaluator.evaluate(data).a)).toBe(true);
+
+      data.b = new Formula('2');
+
+      expect(evaluator.evaluate(data).a).toBeFormulaDataType(FormulaNumber, 3);
+    });
+  });
+
   describe('order', () => {
     it.prop([permutation(300)], { numRuns: 20 })('should compute a chain of formulas whatever the order of its cells', (order) => {
       const view = scope.evaluator().evaluate(chain(order));
@@ -487,6 +680,119 @@ describe(Formula, () => {
 /** A record of cells `v0` to `v{n-1}`, each one more than the cell before it, written in the order of `order`. */
 function chain(order: readonly number[]): Record<string, Formula | number> {
   return Object.fromEntries(order.map((index) => [`v${index}`, index === 0 ? 1 : new Formula(`v${index - 1} + 1`)]));
+}
+
+interface SheetRow {
+  a: number;
+  b: number | Formula;
+  t: Formula;
+  rate?: number;
+}
+
+interface Sheet {
+  rate: number;
+  rows: SheetRow[];
+  total: Formula;
+}
+
+/** Formulas the cells `b` and `t` of a sheet row take, reading every way a formula reads: names, neighbors, lists, cycles. */
+const SHEET_FORMULAS = ['previous(t, 0) + a', 'next(t, 0) + a', 'a * rate', 'parent(rate) + a', 'b + a', 'rows.map(current.a()).sum()', 't', 'b', 'missing'] as const;
+
+type SheetEdit
+  = | { readonly kind: 'a' | 'b' | 'rate'; readonly row: number; readonly value: number }
+    | { readonly kind: 'formula b' | 'formula t'; readonly row: number; readonly text: string }
+    | { readonly kind: 'insert'; readonly at: number; readonly value: number }
+    | { readonly kind: 'remove' | 'unhide' | 'copy'; readonly row: number }
+    | { readonly kind: 'reverse' | 'new list' }
+    | { readonly kind: 'sheet rate'; readonly value: number };
+
+function newSheet(): Sheet {
+  return { rate: 2, rows: [1, 2, 3].map((value) => newRow(value)), total: new Formula('rows.map(current.t()).sum()') };
+}
+
+function newRow(a: number): SheetRow {
+  return { a, b: new Formula('a * rate'), t: new Formula('previous(t, 0) + a') };
+}
+
+function edit(): fc.Arbitrary<(sheet: Sheet) => void> {
+  const row = fc.nat();
+  const value = fc.integer({ min: -3, max: 3 });
+  const text = fc.constantFrom(...SHEET_FORMULAS);
+  const edits: fc.Arbitrary<SheetEdit> = fc.oneof(
+    fc.record({ kind: fc.constantFrom('a', 'b', 'rate'), row, value }),
+    fc.record({ kind: fc.constantFrom('formula b', 'formula t'), row, text }),
+    fc.record({ kind: fc.constant('insert'), at: row, value }),
+    fc.record({ kind: fc.constantFrom('remove', 'unhide', 'copy'), row }),
+    fc.record({ kind: fc.constantFrom('reverse', 'new list') }),
+    fc.record({ kind: fc.constant('sheet rate'), value }),
+  );
+
+  return edits.map((change) => Object.assign((sheet: Sheet) => applyEdit(sheet, change), { toString: () => JSON.stringify(change) }));
+}
+
+function applyEdit(sheet: Sheet, change: SheetEdit): void {
+  const { rows } = sheet;
+  const index = 'row' in change ? change.row % Math.max(rows.length, 1) : 0;
+  const row = rows[index];
+
+  switch (change.kind) {
+    case 'a':
+    case 'b':
+    case 'rate':
+      if (row) {
+        row[change.kind] = change.value;
+      }
+      break;
+
+    case 'formula b':
+    case 'formula t':
+      if (row) {
+        row[change.kind === 'formula b' ? 'b' : 't'] = new Formula(change.text);
+      }
+      break;
+
+    case 'insert':
+      rows.splice(change.at % (rows.length + 1), 0, newRow(change.value));
+      break;
+
+    case 'remove':
+      rows.splice(index, 1);
+      break;
+
+    case 'unhide':
+      delete row?.rate;
+      break;
+
+    case 'copy':
+      if (row) {
+        rows[index] = { ...row };
+      }
+      break;
+
+    case 'reverse':
+      rows.reverse();
+      break;
+
+    case 'new list':
+      sheet.rows = [...rows];
+      break;
+
+    case 'sheet rate':
+      sheet.rate = change.value;
+      break;
+  }
+}
+
+function describeView(view: FormulaView<Sheet>): unknown {
+  return { total: describeCell(view.total), rows: view.rows.map((row) => [describeCell(row.b), describeCell(row.t)]) };
+}
+
+function describeCell(cell: unknown): string {
+  if (cell instanceof Error) {
+    return `${cell.name}: ${cell.message}`;
+  }
+
+  return cell instanceof FormulaDataType ? `${cell.kind} ${cell.toString()}` : String(cell);
 }
 
 function permutation(length: number): fc.Arbitrary<number[]> {
