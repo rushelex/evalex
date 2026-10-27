@@ -62,6 +62,7 @@ export const Errors = {
     EmptyValueRead: Defs.EmptyValueRead,
     FieldNotDefined: Defs.FieldNotDefined,
     CircularReference: Defs.CircularReference,
+    InputError: Defs.InputError,
   },
 
   /** Runtime errors */

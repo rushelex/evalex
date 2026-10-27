@@ -12,6 +12,11 @@ describe('public API', () => {
     expectTypeOf<API.FormulaError['code']>().toEqualTypeOf<API.FormulaErrorCode>();
   });
 
+  it('should type a syntax error with the location it points at', () => {
+    expectTypeOf<API.SyntaxError>().toExtend<globalThis.SyntaxError>();
+    expectTypeOf<API.SyntaxError['location']['start']['offset']>().toEqualTypeOf<number>();
+  });
+
   it('should keep the syntax tree out of Expression', () => {
     expectTypeOf<API.Expression>().not.toHaveProperty('parse');
     expectTypeOf<API.Expression['extractDependencies']>().parameters.toEqualTypeOf<[]>();

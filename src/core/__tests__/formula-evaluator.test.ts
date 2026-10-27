@@ -104,6 +104,16 @@ describe('FormulaEvaluator', () => {
 
       expect(view.group.value).toBeFormulaDataType(FormulaNumber, 2);
     });
+
+    it('should read a getter as a name whatever it returns, failing on a function', () => {
+      const group = { value: new Formula('rate') };
+
+      Object.defineProperty(group, 'rate', { enumerable: true, get: () => () => 3 });
+
+      const view = scope.evaluator().evaluate({ rate: 2, group });
+
+      expect(messageOf(view.group.value)).toBe('Cannot use "rate": its value failed. [0,4]');
+    });
   });
 
   describe('parent', () => {
@@ -306,6 +316,101 @@ describe('FormulaEvaluator', () => {
     });
   });
 
+  describe('failed inputs', () => {
+    it('should fail a formula that reads a failed cell with an input error at the read, caused by that cell', () => {
+      const view = scope.evaluator().evaluate({ total: new Formula('missing * 2'), tax: new Formula('total * 0.1') });
+
+      expect(Errors.Reference.InputError.is(view.tax)).toBe(true);
+      expect(messageOf(view.tax)).toBe('Cannot use "total": its value failed. [0,5]');
+      expect(causeOf(view.tax)).toBe(view.total);
+    });
+
+    it('should point each formula at the input it reads, not at what broke that input', () => {
+      const view = scope.evaluator().evaluate({ a: new Formula('missing'), b: new Formula('a + 1'), c: new Formula('2 * b') });
+
+      expect(messageOf(view.c)).toBe('Cannot use "b": its value failed. [4,5]');
+      expect(causeOf(view.c)).toBe(view.b);
+    });
+
+    it('should fail a formula that reads a cell that does not parse, caused by its syntax error', () => {
+      const view = scope.evaluator().evaluate({ broken: new Formula('1 +'), next: new Formula('broken + 1') });
+
+      expect(messageOf(view.next)).toBe('Cannot use "broken": its value failed. [0,6]');
+      expect(causeOf(view.next)).toBe(view.broken);
+    });
+
+    it('should fail a formula outside a cycle that reads a cell of the cycle with an input error', () => {
+      const view = scope.evaluator().evaluate({ a: new Formula('b + 1'), b: new Formula('2 * a'), c: new Formula('a + 1') });
+
+      expect(Errors.Reference.CircularReference.is(view.a)).toBe(true);
+      expect(messageOf(view.c)).toBe('Cannot use "a": its value failed. [0,1]');
+      expect(causeOf(view.c)).toBe(view.a);
+    });
+
+    it('should fail a formula that reads a value without a formula form, caused by the conversion error', () => {
+      const view = scope.evaluator().evaluate({ tags: new Map(), count: new Formula('tags.size()') });
+
+      expect(messageOf(view.count)).toBe('Cannot use "tags": its value failed. [0,4]');
+      expect(causeOf(view.count)).toStrictEqual(new TypeError('Cannot convert tags to a formula value: Map has no formula form.'));
+    });
+
+    it('should fail a formula that reads a list with an item without a formula form, naming the item', () => {
+      const view = scope.evaluator().evaluate({ items: [1, Number.NaN], total: new Formula('items.sum()') });
+
+      expect(messageOf(view.total)).toBe('Cannot use "items": its value failed. [0,5]');
+      expect(messageOf(causeOf(view.total))).toBe('Cannot convert items[1] to a formula value: NaN has no formula form.');
+    });
+
+    it('should fail a formula whose read of a field runs a getter that throws, pointing at the field read', () => {
+      const offline = new Error('db offline');
+      const view = scope.evaluator().evaluate({ order: throwingRecord(offline), count: new Formula('order.tags().count()') });
+
+      expect(messageOf(view.count)).toBe('Cannot use "order.tags()": its value failed. [0,12]');
+      expect(causeOf(view.count)).toBe(offline);
+    });
+
+    it('should report a failure of host data once, however many formulas read it', () => {
+      const offline = new Error('db offline');
+      const read = vi.fn((): never => {
+        throw offline;
+      });
+      const onInputError = vi.fn();
+      const order = {};
+
+      Object.defineProperty(order, 'tags', { enumerable: true, get: read });
+
+      const view = scope.evaluator({ onInputError }).evaluate({ order, a: new Formula('order.tags()'), b: new Formula('order.tags()') });
+
+      expect(causeOf(view.a)).toBe(offline);
+      expect(causeOf(view.b)).toBe(offline);
+      expect(read).toHaveBeenCalledOnce();
+      expect(onInputError.mock.calls).toStrictEqual([[offline]]);
+    });
+
+    it('should not report a failed formula as a failure of host data', () => {
+      const onInputError = vi.fn();
+
+      scope.evaluator({ onInputError }).evaluate({ total: new Formula('missing'), tax: new Formula('total * 0.1') });
+
+      expect(onInputError).not.toHaveBeenCalled();
+    });
+
+    it('should report a thrown value that is not an error as an error caused by it', () => {
+      const onInputError = vi.fn();
+      const view = scope.evaluator({ onInputError }).evaluate({ order: throwingRecord('offline'), count: new Formula('order.tags()') });
+
+      expect(causeOf(view.count)).toStrictEqual(new Error('A getter of host data threw offline.'));
+      expect(causeOf(causeOf(view.count))).toBe('offline');
+      expect(onInputError).toHaveBeenCalledWith(causeOf(view.count));
+    });
+
+    it('should keep computing the formulas that read nothing failed', () => {
+      const view = scope.evaluator().evaluate({ tags: new Map(), count: new Formula('tags.size()'), fine: new Formula('1 + 1') });
+
+      expect(view.fine).toBeFormulaDataType(FormulaNumber, 2);
+    });
+  });
+
   describe('order', () => {
     it.prop([permutation(300)], { numRuns: 20 })('should compute a chain of formulas whatever the order of its cells', (order) => {
       const view = scope.evaluator().evaluate(chain(order));
@@ -392,4 +497,22 @@ function permutation(length: number): fc.Arbitrary<number[]> {
 
 function messageOf(cell: unknown): string {
   return cell instanceof Error ? cell.message : String(cell);
+}
+
+function causeOf(cell: unknown): unknown {
+  return cell instanceof Error ? cell.cause : undefined;
+}
+
+/** A record whose field `tags` is a getter that throws `thrown`. */
+function throwingRecord(thrown: unknown): object {
+  const record = {};
+
+  Object.defineProperty(record, 'tags', {
+    enumerable: true,
+    get: (): never => {
+      throw thrown;
+    },
+  });
+
+  return record;
 }

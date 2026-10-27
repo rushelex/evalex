@@ -1,5 +1,7 @@
 import './bootstrap';
 
+export type { SyntaxError } from '../parser/grammar/parser';
+
 export { initializeFormulaCore } from './bootstrap';
 export type { FormulaDataTypeByKind, FormulaValue, HostValue, ToFormulaDataType } from './data-types';
 export {

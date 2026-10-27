@@ -39,6 +39,7 @@ const samples: readonly DefinitionSample[] = [
   { name: 'Reference.EmptyValueRead', definition: Errors.Reference.EmptyValueRead, error: Errors.Reference.EmptyValueRead.create({ name: 'rate', target: 'Null' }) },
   { name: 'Reference.FieldNotDefined', definition: Errors.Reference.FieldNotDefined, error: Errors.Reference.FieldNotDefined.create({ name: 'email', target: 'user' }) },
   { name: 'Reference.CircularReference', definition: Errors.Reference.CircularReference, error: Errors.Reference.CircularReference.create({ name: 'total' }) },
+  { name: 'Reference.InputError', definition: Errors.Reference.InputError, error: Errors.Reference.InputError.create({ name: 'total' }) },
   { name: 'Runtime.CircularDependency', definition: Errors.Runtime.CircularDependency, error: Errors.Runtime.CircularDependency.create({ nodeId: 'a', dependsOnId: 'b' }) },
   { name: 'Runtime.DuplicateNodeId', definition: Errors.Runtime.DuplicateNodeId, error: Errors.Runtime.DuplicateNodeId.create({ nodeId: 'a' }) },
   { name: 'Runtime.ExecutionTimeout', definition: Errors.Runtime.ExecutionTimeout, error: Errors.Runtime.ExecutionTimeout.create({ timeoutMs: 100 }) },

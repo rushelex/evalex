@@ -1,5 +1,6 @@
 import type { FormulaValue } from './data-types';
 import type { HostValue } from './data-types/types';
+import type { FormulaEvaluatorOptions } from './formula-evaluator';
 import type { ValueFormat } from './value-format';
 
 import { isFormulaValue } from './data-types';
@@ -54,8 +55,8 @@ export class FormulaScope {
    * view.cost.value; // 1000
    * ```
    */
-  evaluator(): FormulaEvaluator {
-    return new FormulaEvaluator(this.#format);
+  evaluator(options: FormulaEvaluatorOptions = {}): FormulaEvaluator {
+    return new FormulaEvaluator({ ...options, format: this.#format });
   }
 
   /**

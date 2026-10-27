@@ -1,7 +1,7 @@
 import type { AST } from '../parser';
 import type { GlobalProperties } from './context';
 import type { FormulaValue } from './data-types';
-import type { CellPlace } from './data-types/converter';
+import type { CellPlace, CellReader } from './data-types/converter';
 import type { ValueFormat } from './value-format';
 
 import { SyntaxError } from '../parser/grammar/parser';
@@ -21,6 +21,14 @@ export type FormulaView<T> = T extends Formula ? FormulaCell
   : T extends object ? { [K in keyof T]: FormulaView<T[K]> }
   : T;
 
+export interface FormulaEvaluatorOptions {
+  /**
+   * Gets a failure of host data a formula reads, such as a getter that threw or a value without a formula form, once
+   * per failure in a pass. The formula itself fails with an `INPUT_ERROR` caused by it.
+   */
+  readonly onInputError?: (error: Error) => void;
+}
+
 /**
  * Computes the formula cells of host data, giving back data of the same shape with the results in place of formulas.
  *
@@ -30,10 +38,12 @@ export type FormulaView<T> = T extends Formula ? FormulaCell
  */
 export class FormulaEvaluator {
   readonly #format: ValueFormat | undefined;
+  readonly #onInputError: ((error: Error) => void) | undefined;
 
-  /** @param format Validated by the scope that creates the evaluator. */
-  constructor(format: ValueFormat | undefined) {
+  /** Takes `format` validated by the scope that creates the evaluator. */
+  constructor({ format, onInputError }: FormulaEvaluatorOptions & { format: ValueFormat | undefined }) {
     this.#format = format;
+    this.#onInputError = onInputError;
   }
 
   /**
@@ -41,10 +51,9 @@ export class FormulaEvaluator {
    *
    * @returns Data of the shape of `data`: a formula cell holds its value or the error of its formula, an object or list
    * that holds formulas, directly or through its fields, is a copy, and everything else is what `data` holds.
-   * @throws TypeError naming the path to a value a formula reads that has no formula form.
    */
   evaluate<T extends object>(data: T): FormulaView<T> {
-    const pass = new EvaluationPass({ data, format: this.#format });
+    const pass = new EvaluationPass({ data, format: this.#format, onInputError: this.#onInputError });
 
     return pass.view() as FormulaView<T>;
   }
@@ -110,10 +119,17 @@ class CellNotReady extends Error {
  * Cells in progress, computing or waiting, form one path, each reading the next. A read of a cell in progress closes a
  * cycle: the reading cell fails, and so does every cell that reads a failed cell of the cycle while the cell the cycle
  * was found at is still in progress, since that cell depends on it.
+ *
+ * Any other read of a failed cell fails the reading formula with an `INPUT_ERROR` caused by that cell's error, and so
+ * does a read of host data that fails. A failed place of host data is read once a pass: later reads fail with the same
+ * cause without running the host's getter again.
  */
 class EvaluationPass {
   readonly #root: object;
   readonly #format: ValueFormat | undefined;
+  readonly #onInputError: ((error: Error) => void) | undefined;
+  /** Failures of host data by owner and key, keyed as {@link EvaluationPass.#cells}. */
+  readonly #failures = new Map<object, Map<string, Error>>();
   readonly #places = new Map<object, Place>();
   readonly #found: { readonly place: CellPlace; readonly formula: Formula }[] = [];
   /** Containers each container is held by, through any of its data properties, to find the containers a view copies. */
@@ -127,9 +143,10 @@ class EvaluationPass {
   /** Copies of the containers that hold formulas, by container. */
   readonly #views = new Map<object, object>();
 
-  constructor({ data, format }: { data: object; format: ValueFormat | undefined }) {
+  constructor({ data, format, onInputError }: { data: object; format: ValueFormat | undefined; onInputError: ((error: Error) => void) | undefined }) {
     this.#root = data;
     this.#format = format;
+    this.#onInputError = onInputError;
     this.#walk();
   }
 
@@ -144,12 +161,52 @@ class EvaluationPass {
   }
 
   /** Reads a cell for a formula that reads it: a formula cell gives its value, anything else converts as host data. */
-  readonly #readCell = (value: unknown, place: CellPlace): FormulaDataType | undefined => {
-    if (!(value instanceof Formula)) {
-      return undefined;
+  readonly #readCell: CellReader = ({ place, read, convert }) => {
+    const failure = this.#failures.get(place.owner)?.get(String(place.key));
+
+    if (failure) {
+      throw inputFailure(failure);
     }
 
-    const cell = this.#cellAt(place, value);
+    let value: unknown;
+
+    try {
+      value = read();
+
+      if (!(value instanceof Formula)) {
+        return convert(value);
+      }
+    }
+    catch (error) {
+      // A failure of a field or an item inside the value is already a read failure, and so is a cell not ready yet.
+      if (error instanceof CellReadFailure || error instanceof CellNotReady) {
+        throw error;
+      }
+
+      throw this.#failInput(place, error);
+    }
+
+    return this.#formulaCellValue(place, value);
+  };
+
+  /** Records a failure of host data and reports it to the host, giving the read failure for the formula that read it. */
+  #failInput(place: CellPlace, thrown: unknown): CellReadFailure {
+    const error = thrown instanceof Error ? thrown : new Error(`A getter of host data threw ${String(thrown)}.`, { cause: thrown });
+    let failures = this.#failures.get(place.owner);
+
+    if (!failures) {
+      failures = new Map();
+      this.#failures.set(place.owner, failures);
+    }
+
+    failures.set(String(place.key), error);
+    this.#onInputError?.(error);
+
+    return inputFailure(error);
+  }
+
+  #formulaCellValue(place: CellPlace, formula: Formula): FormulaValue {
+    const cell = this.#cellAt(place, formula);
 
     if (!cell.result) {
       if (cell.computing || cell.waiting) {
@@ -159,21 +216,20 @@ class EvaluationPass {
       if (this.#nesting + cell.nesting > NESTING_BUDGET) {
         throw new CellNotReady(cell);
       }
-
-      this.#compute(cell);
     }
+
+    const result = this.#compute(cell);
 
     if (cell.cycle && (cell.cycle.computing || cell.cycle.waiting)) {
       throw this.#cycleAt(cell.cycle);
     }
 
-    // A failed cell fails the formula that reads it.
-    if (cell.result instanceof Error) {
-      throw cell.result;
+    if (result instanceof Error) {
+      throw inputFailure(result);
     }
 
-    return cell.result;
-  };
+    return result;
+  }
 
   /** Fails the cell whose formula is reading, as a cell of the cycle found at `cell`. */
   #cycleAt(cell: Cell): CellReadFailure {
@@ -277,9 +333,9 @@ class EvaluationPass {
     return target.result!;
   }
 
-  #compute(cell: Cell): void {
+  #compute(cell: Cell): FormulaCell {
     if (cell.result) {
-      return;
+      return cell.result;
     }
 
     cell.computing = true;
@@ -288,6 +344,8 @@ class EvaluationPass {
 
     try {
       cell.result = this.#evaluate(cell);
+
+      return cell.result;
     }
     finally {
       cell.computing = false;
@@ -375,7 +433,7 @@ class EvaluationPass {
 
 /** What the names of records take from their pass: the cells formulas read, and the places of records. */
 interface PassNames {
-  readonly readCell: (value: unknown, place: CellPlace) => FormulaDataType | undefined;
+  readonly readCell: CellReader;
   readonly placeOf: (container: object) => Place;
 }
 
@@ -383,7 +441,8 @@ interface PassNames {
  * Names a formula reads from the records around a place, the innermost record first; lists hold no names.
  *
  * @remarks
- * Only own fields count, and a field holding a function is skipped as if absent, so the name is looked up further out.
+ * Only own fields count, and a data field holding a function is skipped as if absent, so the name is looked up further
+ * out; a getter is not run to tell, so it is a name whatever it returns, as it is a field of an object.
  * The first record on the way out is the record the names belong to: `enclosing` starts at the record after it, and
  * `neighbor` at the record next to it in the list that holds it.
  */
@@ -436,19 +495,24 @@ class RecordNames implements GlobalProperties {
     for (let place = this.#place; place; place = place.parent) {
       const record = place.container;
 
-      if (Array.isArray(record) || !Object.hasOwn(record, name)) {
+      if (Array.isArray(record) || !Object.hasOwn(record, name) || typeof Object.getOwnPropertyDescriptor(record, name)?.value === 'function') {
         continue;
       }
 
-      const value: unknown = Reflect.get(record, name);
-
-      if (typeof value !== 'function') {
-        return readCell(value, { owner: record, key: name }) ?? convertNamedValue({ name, value, readCell });
-      }
+      return readCell({
+        place: { owner: record, key: name },
+        read: (): unknown => Reflect.get(record, name),
+        convert: (value) => convertNamedValue({ name, value, readCell }),
+      });
     }
 
     return undefined;
   }
+}
+
+/** The read failure of an input without a value, for the formula that reads it. */
+function inputFailure(cause: Error): CellReadFailure {
+  return new CellReadFailure(({ name, location }) => Errors.Reference.InputError.create({ name }, { location, cause }));
 }
 
 /** The place of the first record at or outside `place`, skipping lists. */

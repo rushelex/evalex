@@ -31,10 +31,18 @@ interface Position {
 }
 
 /**
- * Reads a field or a list item of host data before it converts: the value a computed cell holds, or `undefined` to
- * convert the value the host put there.
+ * Reads a field or a list item of host data in place of the converter: the value a computed cell holds, or the host
+ * value converted.
+ *
+ * @remarks
+ * `read` gives the host value, running a getter of the host if the field has one, and `convert` converts it; both fail
+ * on the host side, so the reader decides what a failure becomes.
  */
-export type CellReader = (value: unknown, place: CellPlace) => FormulaDataType | undefined;
+export type CellReader = (cell: {
+  place: CellPlace;
+  read: () => unknown;
+  convert: (value: unknown) => FormulaDataType;
+}) => FormulaDataType;
 
 /** The object or list that holds a cell, and the key of the cell in it. */
 export interface CellPlace {
@@ -68,7 +76,7 @@ export function convertValueToFormulaType(value: unknown): FormulaDataType {
  * Converts a host value a formula reads by `name`, so a rejection names the path from it: `order.lines[2]`.
  *
  * @remarks
- * `readCell` reads the cells inside the value before they convert, such as fields that hold formulas.
+ * `readCell` reads the fields and items inside the value in place of the converter, such as fields that hold formulas.
  */
 export function convertNamedValue({ name, value, readCell }: {
   name: string;
@@ -214,15 +222,17 @@ function convertItems(container: Iterable<unknown> | ArrayLike<unknown>, positio
   return within(container, position, (inner) => {
     // `Array.from` visits holes of a sparse list as `undefined`, which `map` skips.
     return Array.from(container, (item, index) => convertCell({
-      value: item,
       place: { owner: container, key: index },
+      read: () => item,
       position: { ...inner, path: `${position.path}[${index}]` },
     }));
   });
 }
 
-function convertCell({ value, place, position }: { value: unknown; place: CellPlace; position: Position }): FormulaDataType {
-  return position.readCell?.(value, place) ?? convert(value, position);
+function convertCell({ place, read, position }: { place: CellPlace; read: () => unknown; position: Position }): FormulaDataType {
+  const convertValue = (value: unknown): FormulaDataType => convert(value, position);
+
+  return position.readCell ? position.readCell({ place, read, convert: convertValue }) : convertValue(read());
 }
 
 /**
@@ -248,8 +258,8 @@ function convertFields(container: object, position: Position): Record<string, Fo
     Object.defineProperty(fields, key, {
       enumerable: true,
       get: () => converted ??= convertCell({
-        value: Reflect.get(container, key),
         place: { owner: container, key },
+        read: (): unknown => Reflect.get(container, key),
         position: { ...inner, path: fieldPath(position.path, key) },
       }),
     });

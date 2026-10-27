@@ -52,6 +52,11 @@ export interface CircularReferencePayload {
   readonly name: string;
 }
 
+export interface InputErrorPayload {
+  /** The part of the formula that reads the failed input, as written: `total`, `order.tags()`. */
+  readonly name: string;
+}
+
 export interface RangeErrorPayload {
   readonly value: string | number;
   readonly min?: number;
@@ -88,6 +93,7 @@ export interface FormulaErrorPayloads {
   [FormulaErrorCode.ARITHMETIC_ERROR]: ArithmeticErrorPayload;
   [FormulaErrorCode.REFERENCE_ERROR]: ReferenceErrorPayload;
   [FormulaErrorCode.CIRCULAR_REFERENCE]: CircularReferencePayload;
+  [FormulaErrorCode.INPUT_ERROR]: InputErrorPayload;
   [FormulaErrorCode.RANGE_ERROR]: RangeErrorPayload;
   [FormulaErrorCode.EVALUATE_ERROR]: EvaluateErrorPayload;
   [FormulaErrorCode.CIRCULAR_DEPENDENCY]: CircularDependencyPayload;
