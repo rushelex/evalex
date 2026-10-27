@@ -4,7 +4,7 @@ import { FormulaEvaluationContext } from '~/core/context';
 
 import { FormulaEvaluatorVisitor } from '~/core/evaluator.visitor';
 
-import { parseFormula } from '../../expression';
+import { parseFormula } from '../../parse-formula';
 
 /**
  * Interface for resolving the data type from a formula string

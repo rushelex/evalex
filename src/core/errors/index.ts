@@ -10,7 +10,7 @@ export { formatTypes, getRegExpFallbackError } from './utils';
  *
  * @example
  * ```typescript
- * import { Errors } from '@evalex/core/errors';
+ * import { Errors } from 'evalex';
  *
  * // Create errors
  * throw Errors.Argument.TooFew.create({ expectedMin: 2, expectedMax: 5, actual: 1 });
@@ -46,7 +46,7 @@ export const Errors = {
     DateOutOfRange: Defs.DateOutOfRange,
   },
 
-  /** Expression evaluation errors */
+  /** Formula evaluation errors */
   Evaluation: {
     ComparisonTypeMismatch: Defs.ComparisonTypeMismatch,
     NonNumericMath: Defs.NonNumericMathOperation,
@@ -68,11 +68,6 @@ export const Errors = {
   /** Errors of a computation as a whole */
   Runtime: {
     ExecutionTimeout: Defs.ExecutionTimeout,
-  },
-
-  /** Input validation errors */
-  Validation: {
-    PositiveNumberExpected: Defs.PositiveNumberExpected,
   },
 
   /** Operator errors */

@@ -18,10 +18,7 @@ export {
   FormulaString,
   Kind,
 } from './data-types';
-export { FormulaDebugger } from './debugger';
 export { Errors, FormulaError, FormulaErrorCode } from './errors';
-export type { EvaluateOptions, EvaluateResult } from './expression';
-export { Expression } from './expression';
 export { Formula } from './formula';
 export type { FormulaCell, FormulaCellPlace, FormulaEvaluator, FormulaEvaluatorOptions, FormulaView } from './formula-evaluator';
 export type { FormulaScopeOptions } from './formula-scope';

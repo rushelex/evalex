@@ -2,20 +2,20 @@
 
 # evalex / core
 
-**Evaluates formulas into typed values — data types, built-in routines, errors and dependency tracking.**
+**Evaluates formulas into typed values — data types, built-in routines, errors and formulas in host data.**
 
-[Scope](#formulascope) · [Formulas in data](#formulas-in-data) · [Expression](#expression) · [Data types](#data-types) · [Built-in routines](#built-in-routines) · [Errors](#errors) · [Debugging](#debugging)
+[Scope](#formulascope) · [Formulas in data](#formulas-in-data) · [Names with `let`](#names-with-let) · [Data types](#data-types) · [Built-in routines](#built-in-routines) · [Errors](#errors)
 
 </div>
 
 ---
 
-`core` takes formula text, parses it with the [parser](../parser/README.md), and evaluates the result against a context of typed values. The same formula with the same context always produces the same value. Formulas that live in host data and read each other are computed by an evaluator, which keeps what each formula read to compute again only what changed, see [Formulas in data](#formulas-in-data).
+`core` takes formula text, parses it with the [parser](../parser/README.md), and evaluates the result against host values found by name. The same formula with the same values always produces the same value. Formulas that live in host data and read each other are computed by an evaluator, which keeps what each formula read to compute again only what changed, see [Formulas in data](#formulas-in-data).
 
 Everything below is imported from the package root:
 
 ```ts
-import { Expression, FormulaNumber, FormulaString } from 'evalex';
+import { Formula, FormulaNumber, FormulaScope } from 'evalex';
 ```
 
 ## FormulaScope
@@ -39,7 +39,7 @@ scope.evaluate('"Total: " + total', { total }).value; // 'Total: 1000.00'
 - **Results back in.** A result passed back as a value is read as it is, so `third * 3` with `third` from `1 / 3` gives `1`.
 - **Showing a result is up to the host.** `format` decides how values read only where a formula itself turns them into text, see [Text of values](#text-of-values). A host that passes the formatters it draws its cells with gets the same text in `"Total: " + price` as in the `price` cell. `toString()` gives machine text, not text for readers.
 
-`format` is checked when the scope is created: a name list of the wrong length throws a `TypeError` there.
+`format` is checked when the scope is created: a name list of the wrong length throws a `TypeError` there. Parses are cached per formula text among the 1,000 most recently used texts, so evaluating the same text again does not parse it again, and texts no longer in use do not stay in memory.
 
 ## Formulas in data
 
@@ -93,77 +93,27 @@ evaluator.evaluate<ReportView>(report).rows[0].cost; // FormulaNumber, value 500
 
 `cell` is called once a pass for each field and item, never for a list item past the end of the list. For a cell that has not changed it gives the same value, which keeps the results that read it. An error it throws is a failed input: the formulas that read the cell fail with `INPUT_ERROR`, `onInputError` gets it once, and the view shows what the field holds.
 
-## Expression
-
-`Expression` wraps one formula and exposes two operations:
-
-| Method | Returns | Notes |
-| --- | --- | --- |
-| `evaluate({ context, format })` | `{ result, dependencies }` | Throws `SyntaxError` or `FormulaError`; `format` is optional, see [Text of values](#text-of-values) |
-| `extractDependencies()` | `ReadonlySet<string>` | Every identifier in the formula, found without evaluating it. Throws `SyntaxError` |
-
-ASTs and static dependencies are cached per formula text among the 1,000 most recently used texts, so recreating an `Expression` for the same string is cheap, and texts no longer in use do not stay in memory. An `Expression` keeps its own parse for as long as it lives.
-
-```ts
-const expression = new Expression('if(score >= 50, "pass", "fail")');
-
-const { result, dependencies } = expression.evaluate({
-  context: { score: new FormulaNumber(72) },
-});
-
-result.value;    // 'pass'
-dependencies;    // Set { 'score' }
-```
-
-`context` accepts a plain object or a `Map` of `FormulaDataType` values. Pass a prebuilt `Map` when evaluating many formulas against the same values — it is used as is, without copying.
-
-### Static vs. runtime dependencies
-
-`extractDependencies()` lists every context variable the formula mentions. `evaluate()` returns only the ones it actually read, which is narrower when branches are skipped:
-
-```ts
-const expression = new Expression('if(flag, a, b)');
-
-expression.extractDependencies();
-// Set { 'flag', 'a', 'b' }
-
-expression.evaluate({
-  context: { flag: new FormulaBoolean(false), a: new FormulaNumber(1), b: new FormulaNumber(2) },
-}).dependencies;
-// Set { 'flag', 'b' }
-```
-
-Neither set includes function names, the names a callback introduces or the names a `let` declares. Inside a callback, `current` and `index` shadow context variables with the same names:
-
-```ts
-new Expression('current + items.map(current * index * price).sum()').extractDependencies();
-// Set { 'current', 'items', 'price' }
-```
-
-> [!TIP]
-> Use static dependencies to validate a formula before saving it, and runtime dependencies to decide what to recalculate.
-
-### Names with `let`
+## Names with `let`
 
 `let` names a value once and reuses it, anywhere an expression can stand, callbacks included:
 
 ```ts
-new Expression(`
+scope.evaluate(`
   orders.map(
     let
       net = current.price() * current.qty(),
       tax = net * rate
     in net + tax
-  )
-`).extractDependencies();
-// Set { 'orders', 'rate' }
+  ).sum()
+`, { orders: [{ price: 10, qty: 2 }], rate: 0.2 }).value;
+// 24
 ```
 
-Each value is computed once, in order, even if the body does not read it; inside a callback it is computed for every item, and inside a branch that is not taken it is not computed at all. A declared name hides a context variable or an outer name with the same name. The parser's README lists the syntax rules.
+Each value is computed once, in order, even if the body does not read it; inside a callback it is computed for every item, and inside a branch that is not taken it is not computed at all. A declared name hides a host value or an outer name with the same name. The parser's README lists the syntax rules.
 
 ## Data types
 
-Every value inside a formula is an instance of a `FormulaDataType` subclass. Wrap your data with constructors or `from()` factories before putting it into a context, and read `.value` from results.
+Every value inside a formula is an instance of a `FormulaDataType` subclass. Host values convert to them as the table further down shows, a formula value passed in is read as it is, and a result holds its JavaScript value in `.value`.
 
 | Kind | Class | JS value | Create with |
 | --- | --- | --- | --- |
@@ -189,10 +139,9 @@ Once a formula turns a value into text, the host can no longer format that value
 ```ts
 const dates = new Intl.DateTimeFormat('en-GB', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/London' });
 
-new Expression('"Due: " + due').evaluate({
-  context: { due: FormulaDate.from('2024-07-28T14:35Z') },
-  format: { date: (value) => dates.format(value.epochMilliseconds) },
-}).result.value;
+const scope = new FormulaScope({ format: { date: (value) => dates.format(value.epochMilliseconds) } });
+
+scope.evaluate('"Due: " + due', { due: new Date('2024-07-28T14:35Z') }).value;
 // 'Due: 28 July 2024 at 15:35'
 ```
 
@@ -210,10 +159,9 @@ Text and regular expressions keep their own text. Error payloads keep machine te
 `format.names` gives the words of [date patterns](#dates-and-durations) in the host's language. Each list is optional, and a token whose list is left out stays English:
 
 ```ts
-new Expression('formatDate(due, "D MMMM YYYY")').evaluate({
-  context: { due },
-  format: { names: { months: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'] } },
-}).result.value;
+const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+new FormulaScope({ format: { names: { months } } }).evaluate('formatDate(due, "D MMMM YYYY")', { due }).value;
 // '28 июля 2024'
 ```
 
@@ -249,13 +197,13 @@ Records may link to each other both ways, such as a project that lists its tasks
 Object fields are read with method syntax:
 
 ```ts
-const order = FormulaObject.from({
+const order = {
   customer: { name: 'Ada' },
   lines: [{ qty: 2 }, { qty: 3 }],
-});
+};
 
-new Expression('order.customer().name()').evaluate({ context: { order } }).result.value;           // 'Ada'
-new Expression('order.lines().map(current.qty()).sum()').evaluate({ context: { order } }).result.value; // 5
+scope.evaluate('order.customer().name()', { order }).value;                // 'Ada'
+scope.evaluate('order.lines().map(current.qty()).sum()', { order }).value; // 5
 ```
 
 Dates are backed by [`Temporal`](https://tc39.es/proposal-temporal/docs/) through `temporal-polyfill`.
@@ -416,7 +364,7 @@ Several errors share a code. `Errors.<Group>.<Error>.is(error)` matches exactly 
 
 ```ts
 try {
-  new Expression('price * qty').evaluate({ context: { price: new FormulaNumber(10) } });
+  scope.evaluate('price * qty', { price: 10 });
 }
 catch (error) {
   if (Errors.Reference.VariableNotDefined.is(error)) {
@@ -431,23 +379,13 @@ catch (error) {
 }
 ```
 
-## Debugging
-
-```ts
-import { FormulaDebugger } from 'evalex';
-
-FormulaDebugger.enable();
-// [Formula Queue] Enqueued total: Manual enqueue
-// [Formula Process] Evaluating total: price * 2
-```
-
-While enabled, the runtime logs every enqueue, cascade, evaluation and error with `console.info`. Call `FormulaDebugger.disable()` to stop.
-
 ## Source layout
 
 | Path | Contents |
 | --- | --- |
-| [`expression.ts`](./expression.ts) | `Expression` and its caches |
+| [`formula-scope.ts`](./formula-scope.ts) | `FormulaScope`, which evaluates one formula over host values and creates evaluators |
+| [`parse-formula.ts`](./parse-formula.ts) | Parsing with the cache of recently used formula texts |
+| [`evaluate-formula.ts`](./evaluate-formula.ts) | Evaluating a parsed formula over values found by name, shared by the scope and the evaluator |
 | [`formula.ts`](./formula.ts) | `Formula`, the marker of a formula cell in host data |
 | [`formula-evaluator.ts`](./formula-evaluator.ts) | `FormulaEvaluator`, which computes the formula cells of host data |
 | [`evaluation-pass.ts`](./evaluation-pass.ts) | One pass of an evaluator: the walk, the order of cells, cycles, reuse of results and the view |
@@ -459,7 +397,7 @@ While enabled, the runtime logs every enqueue, cascade, evaluation and error wit
 | [`lru-cache.ts`](./lru-cache.ts) | The bounded cache that keeps parses of recently used formula texts |
 | [`evaluator.visitor.ts`](./evaluator.visitor.ts) | Walks the AST and computes values |
 | [`dependency-extractor.visitor.ts`](./dependency-extractor.visitor.ts) | Collects identifiers for static dependencies and finds calls to volatile routines |
-| [`volatile-formula.ts`](./volatile-formula.ts) | Tells the runtime which formulas must be recalculated even with unchanged inputs |
+| [`volatile-formula.ts`](./volatile-formula.ts) | Tells the evaluator which formulas to evaluate in every pass, even with unchanged reads |
 | [`context.ts`](./context.ts) | Variable scopes, including the nested scopes used by callbacks |
 | [`data-types/`](./data-types) | One folder per data type |
 | [`routines/`](./routines) | Routine registry, argument validation and one file per routine in `routines/routines/` |

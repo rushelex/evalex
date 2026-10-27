@@ -10,7 +10,7 @@
 
 ---
 
-The parser is an internal module: `evalex` does not export it, and [`core`](../core/README.md) calls it through `Expression`.
+The parser is an internal module: `evalex` does not export it, and [`core`](../core/README.md) calls it through `FormulaScope` and the evaluator.
 
 It is a hand-written, scannerless [Pratt parser](https://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/) in a single file, [`grammar/parser.ts`](./grammar/parser.ts). Characters are read directly, without a separate tokenizer, and operator precedence is a table of numbers rather than a chain of grammar rules.
 

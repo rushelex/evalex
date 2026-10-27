@@ -24,9 +24,4 @@ describe('public API', () => {
     expectTypeOf<API.FormulaCell>().toEqualTypeOf<API.FormulaValue | API.FormulaError | API.SyntaxError>();
     expectTypeOf<API.FormulaEvaluatorOptions['cell']>().toEqualTypeOf<((value: unknown, place: API.FormulaCellPlace) => unknown) | undefined>();
   });
-
-  it('should keep the syntax tree out of Expression', () => {
-    expectTypeOf<API.Expression>().not.toHaveProperty('parse');
-    expectTypeOf<API.Expression['extractDependencies']>().parameters.toEqualTypeOf<[]>();
-  });
 });

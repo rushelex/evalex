@@ -10,12 +10,13 @@ import { SyntaxError } from '../parser/grammar/parser';
 import { CellReadFailure } from './cell-read-failure';
 import { areEqual, isFormulaValue, Kind } from './data-types';
 import { hostShape } from './data-types/converter';
-import { DependencyExtractorVisitor } from './dependency-extractor.visitor';
 import { Errors, FormulaError } from './errors';
-import { evaluateFormula, parseFormula } from './expression';
+import { evaluateFormula } from './evaluate-formula';
 import { Formula } from './formula';
 import { ABSENT, isContainer, readAgain } from './host-containers';
+import { parseFormula } from './parse-formula';
 import { RecordNames } from './record-names';
+import { isVolatileFormula } from './volatile-formula';
 
 /**
  * How deep cells compute inside one another before the rest wait on an explicit stack, in levels of formula nesting.
@@ -28,9 +29,6 @@ const CELL_NESTING = 10;
 
 /** Nesting of each parsed formula, kept as long as its parse is cached. */
 const nestings = new WeakMap<AST.AstNode, number>();
-
-/** Whether each parsed formula calls a volatile routine, kept as long as its parse is cached. */
-const volatiles = new WeakMap<AST.AstNode, boolean>();
 
 /** Kinds of results that equal content shows the same in every way, so an equal new result can keep the old one. */
 const PLAIN_KINDS: ReadonlySet<string> = new Set([Kind.Number, Kind.String, Kind.Boolean, Kind.Null]);
@@ -568,7 +566,7 @@ export class EvaluationPass {
     const result = memo && isSameResult(memo.result, evaluated) ? memo.result : evaluated;
     let memos = this.#memory.cells.get(cell.owner);
 
-    if (cell.reads && !cell.cycle && !isVolatile(cell.formula)) {
+    if (cell.reads && !cell.cycle && !isVolatileFormula(cell.formula.text)) {
       if (!memos) {
         memos = new Map();
         this.#memory.cells.set(cell.owner, memos);
@@ -587,7 +585,7 @@ export class EvaluationPass {
 
   #evaluate({ owner, formula }: Cell): FormulaCell {
     try {
-      const { result } = evaluateFormula({
+      const result = evaluateFormula({
         formula: formula.text,
         ast: parseFormula(formula.text),
         properties: new RecordNames({ place: this.#placeOf(owner), pass: this.#names }),
@@ -807,27 +805,6 @@ function ownFields(container: object): unknown[] {
   }
 
   return fields;
-}
-
-/** Tells whether a formula calls a volatile routine, such as `now`, so its result may change with nothing it reads. */
-function isVolatile(formula: Formula): boolean {
-  let ast: AST.AstNode;
-
-  try {
-    ast = parseFormula(formula.text);
-  }
-  catch {
-    return false;
-  }
-
-  let volatile = volatiles.get(ast);
-
-  if (volatile === undefined) {
-    volatile = DependencyExtractorVisitor.isVolatile(ast);
-    volatiles.set(ast, volatile);
-  }
-
-  return volatile;
 }
 
 /** How deep the parts of a formula nest, or none for a formula that does not parse and so evaluates nothing. */

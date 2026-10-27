@@ -9,10 +9,9 @@ import type { Temporal } from 'temporal-polyfill';
  *
  * @example
  * ```ts
- * new Expression('formatDate(due, "D MMMM YYYY")').evaluate({
- *   context: { due },
- *   format: { names: { months: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'] } },
- * });
+ * const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+ *
+ * new FormulaScope({ format: { names: { months } } }).evaluate('formatDate(due, "D MMMM YYYY")', { due });
  * // "28 июля 2024"
  * ```
  */
@@ -50,10 +49,9 @@ export interface DateNames {
  * ```ts
  * const dates = new Intl.DateTimeFormat('en-GB', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/London' });
  *
- * new Expression('"Due: " + due').evaluate({
- *   context: { due: FormulaDate.from('2024-07-28T14:35Z') },
- *   format: { date: (value) => dates.format(value.epochMilliseconds) },
- * });
+ * const scope = new FormulaScope({ format: { date: (value) => dates.format(value.epochMilliseconds) } });
+ *
+ * scope.evaluate('"Due: " + due', { due: new Date('2024-07-28T14:35Z') });
  * // "Due: 28 July 2024 at 15:35"
  * ```
  */

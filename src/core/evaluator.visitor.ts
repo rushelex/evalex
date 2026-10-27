@@ -22,7 +22,6 @@ import { Errors } from './errors';
 import { routineDispatcher } from './routines/dispatcher';
 
 interface EvaluationHooks {
-  onIdentifier?: (name: string) => void;
   /** The host's formatters for values the formula turns into text. */
   format?: ValueFormat;
 }
@@ -293,11 +292,6 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
   }
 
   visitIdentifierNode(node: AST.IIdentifierNode): FormulaDataType {
-    // Callback variables such as `current` are not dependencies of the formula.
-    if (!this.context.isLocalVariable(node.name)) {
-      this.#hooks?.onIdentifier?.(node.name);
-    }
-
     // An identifier can be a variable from the current lexical context
     // (e.g., "current" in a map function) or a global property.
     // The context handles resolving this.

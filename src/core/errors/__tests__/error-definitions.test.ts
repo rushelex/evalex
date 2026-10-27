@@ -41,7 +41,6 @@ const samples: readonly DefinitionSample[] = [
   { name: 'Reference.CircularReference', definition: Errors.Reference.CircularReference, error: Errors.Reference.CircularReference.create({ name: 'total' }) },
   { name: 'Reference.InputError', definition: Errors.Reference.InputError, error: Errors.Reference.InputError.create({ name: 'total' }) },
   { name: 'Runtime.ExecutionTimeout', definition: Errors.Runtime.ExecutionTimeout, error: Errors.Runtime.ExecutionTimeout.create({ timeoutMs: 100 }) },
-  { name: 'Validation.PositiveNumberExpected', definition: Errors.Validation.PositiveNumberExpected, error: Errors.Validation.PositiveNumberExpected.create({ value: -1 }) },
   { name: 'Operators.UnsupportedBinary', definition: Errors.Operators.UnsupportedBinary, error: Errors.Operators.UnsupportedBinary.create('<>') },
   { name: 'Operators.UnsupportedUnary', definition: Errors.Operators.UnsupportedUnary, error: Errors.Operators.UnsupportedUnary.create('~') },
 ];

@@ -4,9 +4,10 @@ import type { FormulaEvaluatorOptions } from './formula-evaluator';
 import type { ValueFormat } from './value-format';
 
 import { isFormulaValue } from './data-types';
-import { evaluateFormula, parseFormula } from './expression';
+import { evaluateFormula } from './evaluate-formula';
 import { FormulaEvaluator } from './formula-evaluator';
 import { HostValues } from './host-values';
+import { parseFormula } from './parse-formula';
 import { validateValueFormat } from './value-format';
 
 export interface FormulaScopeOptions {
@@ -71,7 +72,7 @@ export class FormulaScope {
    * @throws TypeError naming the path, such as `order.lines[2]`, to a value the formula reads that has no formula form.
    */
   evaluate<T extends object = Record<string, never>>(formula: string, values?: T & HostValue<T>): FormulaValue {
-    const { result } = evaluateFormula({
+    const result = evaluateFormula({
       formula,
       ast: parseFormula(formula),
       properties: new HostValues(values ?? {}),

@@ -1,5 +1,4 @@
 import { FormulaNumber } from '../data-types';
-import { Expression } from '../expression';
 import { arg } from '../routines/arguments';
 import { routinesRegistry } from '../routines/registry';
 import { isVolatileFormula } from '../volatile-formula';
@@ -19,7 +18,7 @@ describe('isVolatileFormula', () => {
     'a > 0 ? now() : today()',
     'items.map(now())',
   ])('should mark %s as volatile', (formula) => {
-    expect(isVolatileFormula(new Expression(formula))).toBe(true);
+    expect(isVolatileFormula(formula)).toBe(true);
   });
 
   it.each([
@@ -27,12 +26,12 @@ describe('isVolatileFormula', () => {
     'items.map(current * 2)',
     'abs(a)',
   ])('should not mark %s as volatile', (formula) => {
-    expect(isVolatileFormula(new Expression(formula))).toBe(false);
+    expect(isVolatileFormula(formula)).toBe(false);
   });
 
   it('should mark a routine registered as volatile in both call forms', () => {
-    expect(isVolatileFormula(new Expression('volatileProbe(a)'))).toBe(true);
-    expect(isVolatileFormula(new Expression('a.volatileProbe()'))).toBe(true);
+    expect(isVolatileFormula('volatileProbe(a)')).toBe(true);
+    expect(isVolatileFormula('a.volatileProbe()')).toBe(true);
   });
 });
 

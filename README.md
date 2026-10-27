@@ -26,7 +26,6 @@ evalex (*eval* + *expression*, pronounced "ee-VAL-ex") lets the people using you
 | **Typed values** | Numbers, text, booleans, dates, durations, lists, objects and regular expressions |
 | **Batteries included** | 50+ built-in functions and methods for text, math, lists and dates |
 | **Precise errors** | Errors carry a machine-readable `code`, structured details and the span of the formula at fault |
-| **Dependency tracking** | Know which variables a formula reads, statically and at evaluation time |
 | **Formulas in data** | Computes the formulas in your own objects and lists in the order they read each other, and again only where something changed. Fails each cell of a cycle |
 | **Sandboxed** | No access to globals, no `eval`, no I/O — a formula can only read what you give it |
 
@@ -124,10 +123,10 @@ The full catalog of built-in functions, methods and data types lives in the [cor
 Parse errors throw `SyntaxError`. Everything that fails during evaluation throws `FormulaError` with a machine-readable `code`:
 
 ```ts
-import { Expression, FormulaError } from 'evalex';
+import { FormulaError, FormulaScope } from 'evalex';
 
 try {
-  new Expression('sum("a")').evaluate();
+  new FormulaScope().evaluate('sum("a")');
 }
 catch (error) {
   if (error instanceof FormulaError) {
