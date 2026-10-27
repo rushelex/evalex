@@ -1,4 +1,5 @@
-import type { EvaluateOptions, FormulaDataType } from '../core';
+import type { FormulaDataType } from '../core';
+import type { EvaluateOptions } from './evaluate';
 
 import { FormulaError } from '../core';
 import { evaluate } from './evaluate';

@@ -1,4 +1,4 @@
-import type { EvaluateOptions } from '../expression';
+import type { EvaluateOptions } from '../../testing-library';
 
 import { evaluate } from '../../testing-library';
 import { FormulaBoolean, FormulaNumber } from '../data-types';

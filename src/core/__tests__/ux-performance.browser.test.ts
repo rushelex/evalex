@@ -5,11 +5,12 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { Expression, FormulaNumber } from '../index';
+import { FormulaNumber, FormulaScope } from '../index';
+
+const scope = new FormulaScope();
 
 describe('UX Performance: Formula Evaluation Latency', () => {
   it('should evaluate simple formula under 1ms', () => {
-    const expression = new Expression('A + B');
     const context = {
       A: new FormulaNumber(10),
       B: new FormulaNumber(20),
@@ -19,7 +20,7 @@ describe('UX Performance: Formula Evaluation Latency', () => {
 
     for (let i = 0; i < 100; i++) {
       const start = performance.now();
-      expression.evaluate({ context });
+      scope.evaluate('A + B', context);
       const end = performance.now();
       latencies.push(end - start);
     }
@@ -36,7 +37,6 @@ describe('UX Performance: Formula Evaluation Latency', () => {
   });
 
   it('should evaluate complex formula under 5ms', () => {
-    const expression = new Expression('(A + B) * (A - B) / 2 + A * A + B * B');
     const context = {
       A: new FormulaNumber(100),
       B: new FormulaNumber(50),
@@ -46,7 +46,7 @@ describe('UX Performance: Formula Evaluation Latency', () => {
 
     for (let i = 0; i < 100; i++) {
       const start = performance.now();
-      expression.evaluate({ context });
+      scope.evaluate('(A + B) * (A - B) / 2 + A * A + B * B', context);
       const end = performance.now();
       latencies.push(end - start);
     }
@@ -86,8 +86,7 @@ describe('UX Performance: Formula Evaluation Latency', () => {
     for (const formula of formulas) {
       const start = performance.now();
       try {
-        const expression = new Expression(formula);
-        expression.evaluate({ context });
+        scope.evaluate(formula, context);
       }
       catch {
         // Expected for incomplete formulas
@@ -109,7 +108,6 @@ describe('UX Performance: Formula Evaluation Latency', () => {
   });
 
   it('should measure 60fps budget compliance (16.67ms)', () => {
-    const expression = new Expression('A * B + A / B - A % B + A ^ 2');
     const contextBase = {
       A: new FormulaNumber(100),
       B: new FormulaNumber(7),
@@ -127,7 +125,7 @@ describe('UX Performance: Formula Evaluation Latency', () => {
       };
 
       const start = performance.now();
-      expression.evaluate({ context });
+      scope.evaluate('A * B + A / B - A % B + A ^ 2', context);
       const end = performance.now();
       latencies.push(end - start);
     }
@@ -146,7 +144,6 @@ describe('UX Performance: Formula Evaluation Latency', () => {
   });
 
   it('should provide latency percentiles', () => {
-    const expression = new Expression('A + B * 2');
     const context = {
       A: new FormulaNumber(10),
       B: new FormulaNumber(20),
@@ -157,7 +154,7 @@ describe('UX Performance: Formula Evaluation Latency', () => {
     // Run 1000 iterations for good percentile data
     for (let i = 0; i < 1000; i++) {
       const start = performance.now();
-      expression.evaluate({ context });
+      scope.evaluate('A + B * 2', context);
       const end = performance.now();
       latencies.push(end - start);
     }

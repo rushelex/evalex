@@ -1,4 +1,4 @@
-import type { EvaluateOptions } from '../expression';
+import type { EvaluateOptions } from '../../testing-library';
 
 import { Temporal } from 'temporal-polyfill';
 
