@@ -22,8 +22,11 @@ export interface PassNames {
   readonly placeOf: (container: object) => Place;
   /** Gives the place a place sits in, noting that the formula depends on where the container of `place` sits. */
   readonly parentOf: (place: Place) => Place | undefined;
-  /** Notes that the formula read `value` at `key` of `owner`, or found no own field there when `value` is `ABSENT`. */
-  readonly noteField: (owner: object, key: string | number, value: unknown) => void;
+  /**
+   * Reads what the field at `key` of `owner` holding `held` gives formulas, through the `cell` option, and notes that the
+   * formula read it; `held` is `ABSENT` for a field that does not exist, which is never a cell.
+   */
+  readonly readField: (owner: object, key: string | number, held: unknown) => unknown;
 }
 
 /**
@@ -60,9 +63,7 @@ export class RecordNames implements GlobalProperties {
     }
 
     const index = own.key + offset;
-    const record: unknown = list[index];
-
-    this.#pass.noteField(list, index, record);
+    const record = this.#pass.readField(list, index, index in list ? list[index] : ABSENT);
 
     return isContainer(record) && !Array.isArray(record) ? new RecordNames({ place: this.#pass.placeOf(record), pass: this.#pass }) : undefined;
   }
@@ -84,7 +85,7 @@ export class RecordNames implements GlobalProperties {
   }
 
   #find(name: string): FormulaDataType | undefined {
-    const { readCell, parentOf, noteField } = this.#pass;
+    const { readCell, parentOf, readField } = this.#pass;
 
     for (let place = this.#place; place; place = parentOf(place)) {
       const record = place.container;
@@ -94,14 +95,14 @@ export class RecordNames implements GlobalProperties {
       }
 
       if (!Object.hasOwn(record, name)) {
-        noteField(record, name, ABSENT);
+        readField(record, name, ABSENT);
         continue;
       }
 
       const descriptorValue: unknown = Object.getOwnPropertyDescriptor(record, name)?.value;
 
       if (typeof descriptorValue === 'function') {
-        noteField(record, name, descriptorValue);
+        readField(record, name, descriptorValue);
         continue;
       }
 

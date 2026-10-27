@@ -2,7 +2,7 @@ import type { AST } from '../parser';
 import type { FormulaValue } from './data-types';
 import type { CellPlace, CellReader } from './data-types/converter';
 import type { CellMemo, EvaluatorMemory, Read } from './evaluator-memory';
-import type { FormulaCell } from './formula-evaluator';
+import type { FormulaCell, FormulaCellPlace } from './formula-evaluator';
 import type { PassNames, Place } from './record-names';
 import type { ValueFormat } from './value-format';
 
@@ -14,7 +14,7 @@ import { DependencyExtractorVisitor } from './dependency-extractor.visitor';
 import { Errors, FormulaError } from './errors';
 import { evaluateFormula, parseFormula } from './expression';
 import { Formula } from './formula';
-import { isContainer, readAgain } from './host-containers';
+import { ABSENT, isContainer, readAgain } from './host-containers';
 import { RecordNames } from './record-names';
 
 /**
@@ -120,11 +120,15 @@ export class EvaluationPass {
   readonly #views = new Map<object, object>();
   /** The own fields of each container as {@link ownFields} gives them, read once a pass. */
   readonly #ownFields = new Map<object, unknown[]>();
+  readonly #cell: ((value: unknown, place: FormulaCellPlace) => unknown) | undefined;
+  /** What `cell` gave for each place, keyed as {@link EvaluationPass.#cells}. */
+  readonly #cellValues = new Map<object, Map<string, unknown>>();
 
-  constructor({ data, format, onInputError, memory, number, hostReader }: {
+  constructor({ data, format, onInputError, cell, memory, number, hostReader }: {
     data: object;
     format: ValueFormat | undefined;
     onInputError: ((error: Error) => void) | undefined;
+    cell: ((value: unknown, place: FormulaCellPlace) => unknown) | undefined;
     memory: EvaluatorMemory;
     number: number;
     hostReader: CellReader;
@@ -132,6 +136,7 @@ export class EvaluationPass {
     this.#root = data;
     this.#format = format;
     this.#onInputError = onInputError;
+    this.#cell = cell;
     this.#memory = memory;
     this.#number = number;
     this.#hostReader = hostReader;
@@ -161,7 +166,7 @@ export class EvaluationPass {
     let value: unknown;
 
     try {
-      value = read();
+      value = this.#throughCell(place, read());
 
       if (!(value instanceof Formula)) {
         this.#note({ kind: 'field', owner: place.owner, key: place.key, value, shape: hostShape(value) });
@@ -175,15 +180,60 @@ export class EvaluationPass {
         throw error;
       }
 
-      throw this.#failInput(place, error);
+      throw this.#failInput({ place, thrown: error });
     }
 
     return this.#formulaCellValue(place, value);
   };
 
+  /**
+   * What a cell holds as the `cell` option reads it, called once a pass for each place; the host value itself without
+   * the option, and `ABSENT` for a field that does not exist.
+   *
+   * @throws CellReadFailure when `cell` throws, after recording the failure for the place and reporting it.
+   */
+  #throughCell(place: CellPlace, value: unknown): unknown {
+    if (!this.#cell || value === ABSENT) {
+      return value;
+    }
+
+    const key = String(place.key);
+    let values = this.#cellValues.get(place.owner);
+
+    if (values?.has(key)) {
+      return values.get(key);
+    }
+
+    const failure = this.#failures.get(place.owner)?.get(key);
+
+    if (failure) {
+      this.#readerCannotKeep();
+
+      throw inputFailure(failure);
+    }
+
+    let read: unknown;
+
+    try {
+      read = this.#cell(value, { owner: place.owner, key: place.key });
+    }
+    catch (error) {
+      throw this.#failInput({ place, thrown: error, thrower: 'The cell option' });
+    }
+
+    if (!values) {
+      values = new Map();
+      this.#cellValues.set(place.owner, values);
+    }
+
+    values.set(key, read);
+
+    return read;
+  }
+
   /** Records a failure of host data and reports it to the host, giving the read failure for the formula that read it. */
-  #failInput(place: CellPlace, thrown: unknown): CellReadFailure {
-    const error = thrown instanceof Error ? thrown : new Error(`A getter of host data threw ${String(thrown)}.`, { cause: thrown });
+  #failInput({ place, thrown, thrower = 'A getter of host data' }: { place: CellPlace; thrown: unknown; thrower?: string }): CellReadFailure {
+    const error = thrown instanceof Error ? thrown : new Error(`${thrower} threw ${String(thrown)}.`, { cause: thrown });
     let failures = this.#failures.get(place.owner);
 
     if (!failures) {
@@ -258,8 +308,28 @@ export class EvaluationPass {
 
       return place.parent;
     },
-    noteField: (owner, key, value) => this.#note({ kind: 'field', owner, key, value, shape: hostShape(value) }),
+    readField: (owner, key, held) => {
+      const value = this.#throughCell({ owner, key }, held);
+
+      this.#note({ kind: 'field', owner, key, value, shape: hostShape(value) });
+
+      return value;
+    },
   };
+
+  /** What a field shows outside formulas, in the walk and in the view: what `cell` gave, or what it holds if `cell` failed. */
+  #shownCell(place: CellPlace, held: unknown): unknown {
+    try {
+      return this.#throughCell(place, held);
+    }
+    catch (error) {
+      if (error instanceof CellReadFailure) {
+        return held;
+      }
+
+      throw error;
+    }
+  }
 
   #walk(): void {
     const queue = [this.#root];
@@ -269,7 +339,9 @@ export class EvaluationPass {
     for (let index = 0; index < queue.length; index++) {
       const container = queue[index];
       const place = this.#places.get(container)!;
-      const visit = (key: string | number, value: unknown): void => {
+      const visit = (key: string | number, held: unknown): void => {
+        const value = this.#shownCell({ owner: container, key }, held);
+
         if (value instanceof Formula) {
           this.#found.push({ place: { owner: container, key }, formula: value });
         }
@@ -427,7 +499,7 @@ export class EvaluationPass {
     let value: unknown;
 
     try {
-      value = readAgain(read.owner, read.key);
+      value = this.#throughCell({ owner: read.owner, key: read.key }, readAgain(read.owner, read.key));
     }
     catch {
       // Evaluating the formula reads the failing value again and fails as a read of host data does.
@@ -587,8 +659,7 @@ export class EvaluationPass {
 
     for (let index = 0; index < fields.length; index += 4) {
       const key = fields[index] as string;
-      const value = fields[index + 2];
-      const shown = value instanceof Formula ? this.#resultOf({ owner: container, key }, value) : value;
+      const shown = this.#shownField({ container, key, attributes: fields[index + 1] as number, held: fields[index + 2] });
 
       if (key !== kept[index] || fields[index + 1] !== kept[index + 1] || !Object.is(shown, kept[index + 2]) || fields[index + 3] !== kept[index + 3]) {
         return false;
@@ -606,14 +677,22 @@ export class EvaluationPass {
     const fields = [...this.#rawFieldsOf(container)];
 
     for (let index = 0; index < fields.length; index += 4) {
-      const value = fields[index + 2];
-
-      if (value instanceof Formula) {
-        fields[index + 2] = this.#resultOf({ owner: container, key: fields[index] as string }, value);
-      }
+      fields[index + 2] = this.#shownField({ container, key: fields[index] as string, attributes: fields[index + 1] as number, held: fields[index + 2] });
     }
 
     return fields;
+  }
+
+  /** What a field of a container shows in the view: a cell what `cell` gave, a formula cell what it holds. */
+  #shownField({ container, key, attributes, held }: { container: object; key: string; attributes: number; held: unknown }): unknown {
+    if ((attributes & ACCESSOR) !== 0 || (attributes & ENUMERABLE) === 0) {
+      return held;
+    }
+
+    const place = { owner: container, key };
+    const value = this.#shownCell(place, held);
+
+    return value instanceof Formula ? this.#resultOf(place, value) : value;
   }
 
   #rawFieldsOf(container: object): unknown[] {

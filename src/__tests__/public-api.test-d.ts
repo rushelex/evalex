@@ -22,6 +22,7 @@ describe('public API', () => {
     expectTypeOf<API.FormulaScope['evaluator']>().returns.toEqualTypeOf<API.FormulaEvaluator>();
     expectTypeOf<API.FormulaView<{ cost: API.Formula }>>().toEqualTypeOf<{ cost: API.FormulaCell }>();
     expectTypeOf<API.FormulaCell>().toEqualTypeOf<API.FormulaValue | API.FormulaError | API.SyntaxError>();
+    expectTypeOf<API.FormulaEvaluatorOptions['cell']>().toEqualTypeOf<((value: unknown, place: API.FormulaCellPlace) => unknown) | undefined>();
   });
 
   it('should keep the syntax tree out of Expression', () => {

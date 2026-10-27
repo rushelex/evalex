@@ -75,6 +75,19 @@ view.total;        // FormulaNumber, value 1320
 
 The type of the view follows from the type of the data: a `Formula` field becomes `FormulaValue | FormulaError | SyntaxError`, other fields keep their types.
 
+Data that cannot hold a `Formula`, such as a backend response with cells like `{ value, isFormula }`, is read through the `cell` option. It gets what each field or list item holds, with its place, `{ owner, key }`, and gives the value of the cell, or a `Formula` for a formula cell; any other field it gives back as is. Formulas read what it gives, and the view shows it, or the result of the formula it gives. The view of such data has a shape the host names, `evaluate<ReportView>(report)`:
+
+```ts
+const evaluator = new FormulaScope().evaluator({
+  cell: (held) => isBackendCell(held) ? (held.isFormula ? new Formula(held.value) : held.value) : held,
+});
+
+const report = { rows: [{ price: { value: 250, isFormula: false }, cost: { value: 'price * 2', isFormula: true } }] };
+evaluator.evaluate<ReportView>(report).rows[0].cost; // FormulaNumber, value 500
+```
+
+`cell` is called once a pass for each field and item, never for a list item past the end of the list. For a cell that has not changed it gives the same value, which keeps the results that read it. An error it throws is a failed input: the formulas that read the cell fail with `INPUT_ERROR`, `onInputError` gets it once, and the view shows what the field holds.
+
 ## Expression
 
 `Expression` wraps one formula and exposes two operations:

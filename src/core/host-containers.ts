@@ -14,12 +14,13 @@ export function isContainer(value: unknown): value is object {
 }
 
 /**
- * Reads a field or an item again the way a formula read it: an item of a list as the list gives it, a field of an
- * object only when it is an own field, `ABSENT` otherwise. A getter runs, and a getter that throws throws.
+ * Reads a field or an item again the way a formula read it: an item of a list as the list gives it when the list has
+ * it, a field of an object only when it is an own field, `ABSENT` otherwise. A getter runs, and a getter that throws
+ * throws.
  */
 export function readAgain(owner: object, key: string | number): unknown {
   if (Array.isArray(owner) || ArrayBuffer.isView(owner)) {
-    return Reflect.get(owner, key);
+    return key in owner ? Reflect.get(owner, key) : ABSENT;
   }
 
   return Object.hasOwn(owner, key) ? Reflect.get(owner, key) : ABSENT;

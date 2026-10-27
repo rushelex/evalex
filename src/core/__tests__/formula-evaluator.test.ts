@@ -1,4 +1,4 @@
-import type { FormulaView } from '../formula-evaluator';
+import type { FormulaCell, FormulaCellPlace, FormulaView } from '../formula-evaluator';
 
 import { fc, it } from '@fast-check/vitest';
 
@@ -604,6 +604,74 @@ describe('FormulaEvaluator', () => {
     });
   });
 
+  describe('cell option', () => {
+    it('should compute formulas over cells of a host format, showing what the cells give', () => {
+      const report = { rows: [{ price: valueCell(3), qty: valueCell(2), total: formulaCell('price * qty') }] };
+      const view = scope.evaluator({ cell: readBackendCell }).evaluate<ReportView>(report);
+
+      expect(view.rows[0]?.total).toBeFormulaDataType(FormulaNumber, 6);
+      expect(view.rows[0]?.price).toBe(3);
+      expect(report.rows[0]?.total).toStrictEqual(formulaCell('price * qty'));
+    });
+
+    it('should read each field through the cell option once a pass, with the place of the field', () => {
+      const cell = vi.fn<(value: unknown, place: FormulaCellPlace) => unknown>(readBackendCell);
+      const evaluator = scope.evaluator({ cell });
+      const data = { a: valueCell(1), b: formulaCell('a + 1'), c: formulaCell('a * 2') };
+
+      evaluator.evaluate(data);
+      evaluator.evaluate(data);
+
+      expect(cell).toHaveBeenCalledTimes(6);
+      expect(cell).toHaveBeenCalledWith(data.a, { owner: data, key: 'a' });
+    });
+
+    it('should keep the result of a formula whose cells give the same, and compute it again when a cell changes in place', () => {
+      const evaluator = scope.evaluator({ cell: readBackendCell });
+      const data = { items: [1, 2], a: valueCell(1), scaled: formulaCell('items.map(current * a)') };
+      const first = evaluator.evaluate<Record<string, unknown>>(data).scaled;
+
+      expect(evaluator.evaluate<Record<string, unknown>>(data).scaled).toBe(first);
+
+      data.a.value = 3;
+
+      expect(String(evaluator.evaluate<Record<string, unknown>>(data).scaled)).toBe('3, 6');
+    });
+
+    it('should fail the readers of a cell the option cannot read, report it once and show the field as it is', () => {
+      const broken = new Error('unknown cell format');
+      const onInputError = vi.fn();
+      const cell = (value: unknown, place: FormulaCellPlace): unknown => {
+        if (place.key === 'a') {
+          throw broken;
+        }
+
+        return readBackendCell(value);
+      };
+      const data = { a: valueCell(1), b: formulaCell('a + 1'), c: formulaCell('a * 2') };
+      const view = scope.evaluator({ cell, onInputError }).evaluate<Record<string, unknown>>(data);
+
+      expect(messageOf(view.b)).toBe('Cannot use "a": its value failed. [0,1]');
+      expect(causeOf(view.c)).toBe(broken);
+      expect(onInputError.mock.calls).toStrictEqual([[broken]]);
+      expect(view.a).toBe(data.a);
+    });
+
+    it('should read the neighbor records through the cell option, never past the ends of the list', () => {
+      const cell = vi.fn<(value: unknown, place: FormulaCellPlace) => unknown>(readBackendCell);
+      const evaluator = scope.evaluator({ cell });
+      const data = { rows: [1, 2, 3].map((amount) => ({ amount: valueCell(amount), total: formulaCell('previous(total, 0) + amount'), rest: formulaCell('next(rest, 0) + amount') })) };
+
+      evaluator.evaluate(data);
+
+      const view = evaluator.evaluate<ReportView>(data);
+
+      expect(view.rows.map((row) => String(row.total))).toStrictEqual(['1', '3', '6']);
+      expect(view.rows.map((row) => String(row.rest))).toStrictEqual(['6', '5', '3']);
+      expect(cell).not.toHaveBeenCalledWith(undefined, expect.anything());
+    });
+  });
+
   describe('order', () => {
     it.prop([permutation(300)], { numRuns: 20 })('should compute a chain of formulas whatever the order of its cells', (order) => {
       const view = scope.evaluator().evaluate(chain(order));
@@ -821,4 +889,34 @@ function throwingRecord(thrown: unknown): object {
   });
 
   return record;
+}
+
+/** A cell of a backend response: a value, or the text of a formula, which the response cannot hold as a `Formula`. */
+interface BackendCell {
+  value: number | string;
+  readonly isFormula: boolean;
+}
+
+interface ReportView {
+  readonly rows: ReadonlyArray<Readonly<Record<string, FormulaCell | number | string>>>;
+}
+
+function valueCell(value: number): BackendCell {
+  return { value, isFormula: false };
+}
+
+function formulaCell(text: string): BackendCell {
+  return { value: text, isFormula: true };
+}
+
+function readBackendCell(value: unknown): unknown {
+  if (!isBackendCell(value)) {
+    return value;
+  }
+
+  return value.isFormula ? new Formula(String(value.value)) : value.value;
+}
+
+function isBackendCell(value: unknown): value is BackendCell {
+  return typeof value === 'object' && value !== null && 'isFormula' in value;
 }
