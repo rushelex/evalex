@@ -75,6 +75,11 @@ view.total;        // FormulaNumber, value 1320
 
 The type of the view follows from the type of the data: a `Formula` field becomes `FormulaValue | FormulaError | SyntaxError`, other fields keep their types.
 
+`evaluate` computes inside the call, so a result is fresh right after a change. For data too large to compute at once, such as the first pass over 100,000 records, `await evaluator.evaluateAsync(data, { signal, timeoutMs })` gives the same view without holding the main thread for long:
+
+- The cells compute in slices of about 8 ms, and the host runs its own tasks in between, so it may change the data meanwhile. A last pass then reads again what each formula read and computes again only what changed, so the view matches the data as it is when the promise resolves. That pass is not split and takes as long as a pass of `evaluate` with nothing changed: with 200,000 formulas over 100,000 records, the main thread is held at most about 250 ms at a time instead of 650 ms, and the whole call takes about 15% longer than `evaluate`.
+- A later call of `evaluate` or `evaluateAsync` aborts the pending one: its promise rejects with an `AbortError`. An aborted `signal` rejects it with the reason of the signal, and `timeoutMs` running out with an `EXECUTION_TIMEOUT` error. Either is checked between slices.
+
 Data that cannot hold a `Formula`, such as a backend response with cells like `{ value, isFormula }`, is read through the `cell` option. It gets what each field or list item holds, with its place, `{ owner, key }`, and gives the value of the cell, or a `Formula` for a formula cell; any other field it gives back as is. Formulas read what it gives, and the view shows it, or the result of the formula it gives. The view of such data has a shape the host names, `evaluate<ReportView>(report)`:
 
 ```ts
@@ -403,10 +408,11 @@ Parse errors throw `SyntaxError`, a subclass of the built-in one. A formula that
 | `RANGE_ERROR` | An unsupported operator or an out-of-range value |
 | `CIRCULAR_REFERENCE` | A formula cell reads a cell that depends on it, see [Formulas in data](#formulas-in-data) |
 | `INPUT_ERROR` | A formula cell reads a failed cell or host data that cannot be read; the failure is its `cause`, see [Formulas in data](#formulas-in-data) |
+| `EXECUTION_TIMEOUT` | `evaluateAsync` runs longer than its `timeoutMs`; the promise rejects with it, see [Formulas in data](#formulas-in-data) |
 
 An error about a value points at the part of the formula the value came from. When `if`, `? :`, parentheses or a `let` body hand on a value unchanged, the location narrows to that value: in `sum(if(flag, 1, "a"))` with `flag` false, the error points at `"a"`, not at the whole `if`. A value read through a name points at the name. Reading from an empty value points at that value: `project.rate()` with `project` empty fails with `Cannot read "rate" of an empty value.` at `project`, and `task.project().rate()` at `task.project()`.
 
-The runtime adds `TYPE_MISMATCH`, `CIRCULAR_DEPENDENCY`, `DUPLICATE_NODE_ID` and `EXECUTION_TIMEOUT`; see the [runtime README](../runtime/README.md#errors-and-limits).
+The runtime adds `TYPE_MISMATCH`, `CIRCULAR_DEPENDENCY` and `DUPLICATE_NODE_ID`, and uses `EXECUTION_TIMEOUT` too; see the [runtime README](../runtime/README.md#errors-and-limits).
 
 Several errors share a code. `Errors.<Group>.<Error>.is(error)` matches exactly one of them; comparing `code` matches all errors with that code:
 
@@ -447,6 +453,7 @@ While enabled, the runtime logs every enqueue, cascade, evaluation and error wit
 | [`formula.ts`](./formula.ts) | `Formula`, the marker of a formula cell in host data |
 | [`formula-evaluator.ts`](./formula-evaluator.ts) | `FormulaEvaluator`, which computes the formula cells of host data |
 | [`evaluation-pass.ts`](./evaluation-pass.ts) | One pass of an evaluator: the walk, the order of cells, cycles, reuse of results and the view |
+| [`yield-to-host.ts`](./yield-to-host.ts) | Lets the host run its own tasks between the slices of `evaluateAsync` |
 | [`evaluator-memory.ts`](./evaluator-memory.ts) | What an evaluator keeps between passes: the reads and result of each cell, and the copies of the view |
 | [`record-names.ts`](./record-names.ts) | The names a formula reads from the records around it, its enclosing object and neighbor records |
 | [`host-containers.ts`](./host-containers.ts) | Which host values hold cells, and how a field is read again |

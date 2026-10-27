@@ -107,7 +107,12 @@ export class EvaluationPass {
   /** Failures of host data by owner and key, keyed as {@link EvaluationPass.#cells}. */
   readonly #failures = new Map<object, Map<string, Error>>();
   readonly #places = new Map<object, Place>();
+  /** Containers in the order the walk reaches them, the root first, and how many of them it has visited. */
+  readonly #queue: object[];
+  #walked = 0;
   readonly #found: { readonly place: CellPlace; readonly formula: Formula }[] = [];
+  /** How many of the cells found {@link EvaluationPass.advance} has computed. */
+  #computed = 0;
   /** Containers each container is held by, through any of its data properties, to find the containers a view copies. */
   readonly #holders = new Map<object, object[]>();
   /** Cells by owner and key; a list item is keyed by its index as text, as the view reads it from descriptors. */
@@ -134,20 +139,51 @@ export class EvaluationPass {
     hostReader: CellReader;
   }) {
     this.#root = data;
+    this.#queue = [data];
     this.#format = format;
     this.#onInputError = onInputError;
     this.#cell = cell;
     this.#memory = memory;
     this.#number = number;
     this.#hostReader = hostReader;
-    this.#walk();
+    this.#places.set(data, { container: data, parent: undefined, key: undefined });
+  }
+
+  /**
+   * Walks the data, then computes the cells found, from where the last call stopped until `due` tells to stop.
+   *
+   * @remarks
+   * Work stops only between containers and between cells, never inside a computation. The data may change between
+   * calls: what was read keeps for the next pass to read again, as everything a pass reads does.
+   *
+   * @returns Whether all of the work is done.
+   */
+  advance(due: () => boolean): boolean {
+    while (this.#walked < this.#queue.length) {
+      this.#walkContainer(this.#queue[this.#walked]);
+      this.#walked += 1;
+
+      if (due()) {
+        return false;
+      }
+    }
+
+    while (this.#computed < this.#found.length) {
+      const { place, formula } = this.#found[this.#computed];
+
+      this.#resultOf(place, formula);
+      this.#computed += 1;
+
+      if (due()) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   view(): object {
-    for (const { place, formula } of this.#found) {
-      this.#resultOf(place, formula);
-    }
-
+    this.advance(() => false);
     this.#copyContainers(this.#containersToCopy());
 
     return this.#views.get(this.#root) ?? this.#root;
@@ -331,49 +367,43 @@ export class EvaluationPass {
     }
   }
 
-  #walk(): void {
-    const queue = [this.#root];
+  /** Visits the fields of a container in the walk by depth, finding the formula cells and the containers it holds. */
+  #walkContainer(container: object): void {
+    const place = this.#places.get(container)!;
+    const visit = (key: string | number, held: unknown): void => {
+      const value = this.#shownCell({ owner: container, key }, held);
 
-    this.#places.set(this.#root, { container: this.#root, parent: undefined, key: undefined });
+      if (value instanceof Formula) {
+        this.#found.push({ place: { owner: container, key }, formula: value });
+      }
+      else if (isContainer(value)) {
+        this.#holdersOf(value).push(container);
 
-    for (let index = 0; index < queue.length; index++) {
-      const container = queue[index];
-      const place = this.#places.get(container)!;
-      const visit = (key: string | number, held: unknown): void => {
-        const value = this.#shownCell({ owner: container, key }, held);
-
-        if (value instanceof Formula) {
-          this.#found.push({ place: { owner: container, key }, formula: value });
+        if (!this.#places.has(value)) {
+          this.#places.set(value, { container: value, parent: place, key });
+          this.#queue.push(value);
         }
-        else if (isContainer(value)) {
-          this.#holdersOf(value).push(container);
+      }
+    };
 
-          if (!this.#places.has(value)) {
-            this.#places.set(value, { container: value, parent: place, key });
-            queue.push(value);
-          }
-        }
-      };
-
-      if (Array.isArray(container)) {
-        for (let item = 0; item < container.length; item++) {
-          visit(item, container[item]);
-        }
-
-        continue;
+    if (Array.isArray(container)) {
+      for (let item = 0; item < container.length; item++) {
+        visit(item, container[item]);
       }
 
-      // The fields read once serve both the walk, which follows enumerable data fields only, and the copy in the view.
-      const fields = ownFields(container);
+      return;
+    }
 
-      this.#ownFields.set(container, fields);
+    // The fields read once serve both the walk, which follows enumerable data fields only, and the copy in the view.
+    const fields = ownFields(container);
 
-      for (let field = 0; field < fields.length; field += 4) {
-        const attributes = fields[field + 1] as number;
+    this.#ownFields.set(container, fields);
 
-        if ((attributes & ENUMERABLE) !== 0 && (attributes & ACCESSOR) === 0) {
-          visit(fields[field] as string, fields[field + 2]);
-        }
+    for (let field = 0; field < fields.length; field += 4) {
+      const attributes = fields[field + 1] as number;
+
+      if ((attributes & ENUMERABLE) !== 0 && (attributes & ACCESSOR) === 0) {
+        visit(fields[field] as string, fields[field + 2]);
       }
     }
   }

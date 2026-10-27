@@ -49,5 +49,10 @@ describe('FormulaEvaluator view', () => {
     const report: { rows: Array<Record<string, BackendCell>> } = { rows: [] };
 
     expectTypeOf(evaluator.evaluate<ReportView>(report)).toEqualTypeOf<ReportView>();
+    expectTypeOf(evaluator.evaluateAsync<ReportView>(report)).toEqualTypeOf<Promise<ReportView>>();
+  });
+
+  it('should type the view evaluateAsync resolves with as the view evaluate gives', () => {
+    expectTypeOf(evaluator.evaluateAsync({ qty: 2, cost: {} as Formula })).toEqualTypeOf<Promise<{ qty: number; cost: FormulaValue | FormulaError | SyntaxError }>>();
   });
 });

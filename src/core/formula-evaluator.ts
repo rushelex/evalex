@@ -6,7 +6,9 @@ import type { EvaluatorMemory } from './evaluator-memory';
 import type { Formula } from './formula';
 import type { ValueFormat } from './value-format';
 
+import { Errors } from './errors';
 import { EvaluationPass } from './evaluation-pass';
+import { yieldToHost } from './yield-to-host';
 
 /** What a formula cell holds once computed: its value, or the error of the formula. */
 export type FormulaCell = FormulaValue | FormulaError | SyntaxError;
@@ -42,6 +44,9 @@ export interface FormulaEvaluatorOptions {
   readonly onInputError?: (error: Error) => void;
 }
 
+/** How long `evaluateAsync` works before it lets the host run, in milliseconds: half of a frame at 60 Hz. */
+const SLICE_MS = 8;
+
 /**
  * Computes the formula cells of host data, giving back data of the same shape with the results in place of formulas.
  *
@@ -62,6 +67,8 @@ export class FormulaEvaluator {
   #passes = 0;
   /** The last pass, which reads the fields of the values it computed for as long as they are read. */
   #pass: EvaluationPass | undefined;
+  /** Aborts the call of `evaluateAsync` still computing, if any. */
+  #pending: AbortController | undefined;
 
   /** Takes `format` validated by the scope that creates the evaluator. */
   constructor({ format, onInputError, cell }: FormulaEvaluatorOptions & { format: ValueFormat | undefined }) {
@@ -80,6 +87,97 @@ export class FormulaEvaluator {
   evaluate<T extends object>(data: T): FormulaView<T>;
   evaluate<View>(data: object): View;
   evaluate(data: object): unknown {
+    this.#abortPending();
+
+    return this.#evaluate(data);
+  }
+
+  /**
+   * Computes what `evaluate` computes without holding the main thread for long, for data too large to compute at once.
+   *
+   * @remarks
+   * The cells compute in short slices, with the host running its own tasks in between, so the data may change while they
+   * compute. Then a pass like `evaluate` reads again what each cell read and computes again only what changed, so the
+   * view matches the data as it is when the promise resolves. That last pass is not split: it takes as long as a pass of
+   * `evaluate` after a change.
+   *
+   * A later call of `evaluate` or `evaluateAsync` aborts the pending call: its promise rejects with an `AbortError`.
+   *
+   * @param options.signal - Aborts the call; the promise rejects with the reason of the signal.
+   * @param options.timeoutMs - How long the call may take; the promise rejects with an `EXECUTION_TIMEOUT` error once a
+   * slice ends later.
+   * @returns A promise of what `evaluate` gives.
+   */
+  evaluateAsync<T extends object>(data: T, options?: { readonly signal?: AbortSignal; readonly timeoutMs?: number }): Promise<FormulaView<T>>;
+  evaluateAsync<View>(data: object, options?: { readonly signal?: AbortSignal; readonly timeoutMs?: number }): Promise<View>;
+  async evaluateAsync(data: object, { signal, timeoutMs }: { readonly signal?: AbortSignal; readonly timeoutMs?: number } = {}): Promise<unknown> {
+    this.#abortPending();
+
+    const pending = new AbortController();
+    const start = performance.now();
+    // Its failures are reported by the pass that gives the view, which evaluates again every cell that read one.
+    const slices = new EvaluationPass({
+      data,
+      format: this.#format,
+      onInputError: undefined,
+      cell: this.#cell,
+      memory: this.#memory,
+      number: ++this.#passes,
+      hostReader: this.#hostReader,
+    });
+
+    const resume = async (): Promise<void> => {
+      await yieldToHost();
+      pending.signal.throwIfAborted();
+      signal?.throwIfAborted();
+
+      if (timeoutMs !== undefined && performance.now() - start >= timeoutMs) {
+        throw Errors.Runtime.ExecutionTimeout.create({ timeoutMs });
+      }
+    };
+
+    this.#pending = pending;
+
+    try {
+      do {
+        await resume();
+      } while (!this.#slice(slices));
+
+      await resume();
+      // The copies it keeps spare the last pass making them, so that pass only compares them.
+      slices.view();
+      await resume();
+    }
+    finally {
+      if (this.#pending === pending) {
+        this.#pending = undefined;
+      }
+    }
+
+    return this.#evaluate(data);
+  }
+
+  /** Computes a slice of a pass, with the fields of computed values read through it meanwhile; tells whether it is done. */
+  #slice(pass: EvaluationPass): boolean {
+    const latest = this.#pass;
+    const end = performance.now() + SLICE_MS;
+
+    this.#pass = pass;
+
+    try {
+      return pass.advance(() => performance.now() >= end);
+    }
+    finally {
+      this.#pass = latest;
+    }
+  }
+
+  #abortPending(): void {
+    this.#pending?.abort(new DOMException('A later call of the evaluator replaced this one.', 'AbortError'));
+    this.#pending = undefined;
+  }
+
+  #evaluate(data: object): unknown {
     this.#passes += 1;
     this.#pass = new EvaluationPass({
       data,

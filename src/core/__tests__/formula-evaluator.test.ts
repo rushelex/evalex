@@ -672,6 +672,116 @@ describe('FormulaEvaluator', () => {
     });
   });
 
+  describe('evaluateAsync', () => {
+    it.prop([fc.array(edit(), { maxLength: 8 })], { numRuns: 40 })('should resolve after any edits with what a new evaluator gives', async (edits) => {
+      const evaluator = scope.evaluator();
+      const sheet = newSheet();
+
+      for (const change of edits) {
+        await evaluator.evaluateAsync(sheet);
+        change(sheet);
+
+        expect(describeView(await evaluator.evaluateAsync(sheet))).toStrictEqual(describeView(scope.evaluator().evaluate(sheet)));
+      }
+    });
+
+    it('should compute nothing within the call itself', async () => {
+      const cell = vi.fn((value: unknown) => value);
+      const pending = scope.evaluator({ cell }).evaluateAsync({ a: 1, b: new Formula('a + 1') });
+
+      expect(cell).not.toHaveBeenCalled();
+      expect((await pending).b).toBeFormulaDataType(FormulaNumber, 2);
+    });
+
+    it('should let the host run between the cells it computes', async () => {
+      const log: string[] = [];
+      const rows = Array.from({ length: 20_000 }, () => {
+        const row = { total: new Formula('previous(total, 0) + amount') };
+
+        Object.defineProperty(row, 'amount', {
+          enumerable: true,
+          get: (): number => {
+            if (log.push('read') === 1) {
+              setTimeout(() => log.push('host'), 0);
+            }
+
+            return 1;
+          },
+        });
+
+        return row;
+      });
+
+      await scope.evaluator().evaluateAsync({ rows });
+
+      expect(log.indexOf('host')).toBeLessThan(rows.length);
+    });
+
+    it('should resolve with the data as it is when it resolves, after an edit made while it computes', async () => {
+      const rows = Array.from({ length: 20_000 }, () => ({ amount: 1, total: new Formula('previous(total, 0) + amount') }));
+      let editScheduled = false;
+      const cell = (value: unknown): unknown => {
+        if (!editScheduled) {
+          editScheduled = true;
+          setTimeout(() => {
+            rows[0].amount = 100;
+          }, 0);
+        }
+
+        return value;
+      };
+
+      const view = await scope.evaluator({ cell }).evaluateAsync({ rows }, { timeoutMs: 60_000 });
+
+      expect(view.rows[19_999]?.total).toBeFormulaDataType(FormulaNumber, 20_099);
+    });
+
+    it('should reject a pending call with an AbortError once a later call starts, and resolve the later one', async () => {
+      const evaluator = scope.evaluator();
+      const data = { a: 1, b: new Formula('a + 1') };
+      const first = evaluator.evaluateAsync(data);
+      const second = evaluator.evaluateAsync(data);
+
+      await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+      expect((await second).b).toBeFormulaDataType(FormulaNumber, 2);
+    });
+
+    it('should reject a pending call with an AbortError once evaluate is called', async () => {
+      const evaluator = scope.evaluator();
+      const data = { a: 1, b: new Formula('a + 1') };
+      const pending = evaluator.evaluateAsync(data);
+
+      evaluator.evaluate(data);
+
+      await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    });
+
+    it('should reject with the reason of the signal once it aborts', async () => {
+      const controller = new AbortController();
+      const reason = new Error('the user left the page');
+      const pending = scope.evaluator().evaluateAsync({ b: new Formula('1 + 1') }, { signal: controller.signal });
+
+      controller.abort(reason);
+
+      await expect(pending).rejects.toBe(reason);
+    });
+
+    it('should reject with an EXECUTION_TIMEOUT error once the time runs out', async () => {
+      const pending = scope.evaluator().evaluateAsync({ b: new Formula('1 + 1') }, { timeoutMs: 0 });
+
+      await expect(pending).rejects.toSatisfy((error) => Errors.Runtime.ExecutionTimeout.is(error));
+      await expect(pending).rejects.toThrow('Formula execution timed out after 0ms');
+    });
+
+    it('should report a failure of host data once', async () => {
+      const onInputError = vi.fn();
+
+      await scope.evaluator({ onInputError }).evaluateAsync({ tags: new Map(), count: new Formula('tags.size()') });
+
+      expect(onInputError).toHaveBeenCalledOnce();
+    });
+  });
+
   describe('order', () => {
     it.prop([permutation(300)], { numRuns: 20 })('should compute a chain of formulas whatever the order of its cells', (order) => {
       const view = scope.evaluator().evaluate(chain(order));

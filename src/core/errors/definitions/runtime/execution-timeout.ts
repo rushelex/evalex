@@ -4,21 +4,18 @@ import { createErrorDefinition } from '../../create-error-definition';
 import { FormulaErrorCode } from '../../error-codes';
 
 /**
- * Error reported when a formula runs longer than the executor's `timeoutMs`.
+ * Error reported when a computation runs longer than the `timeoutMs` it was given.
  *
  * @example
  * ```typescript
- * const orchestrator = new FormulaOrchestrator({
- *   adapter,
- *   executor: new AsyncExecutor({ timeoutMs: 500 }),
- * });
- *
- * // In the adapter
- * onError: (node, error) => {
+ * try {
+ *   await evaluator.evaluateAsync(data, { timeoutMs: 500 });
+ * }
+ * catch (error) {
  *   if (ExecutionTimeout.is(error)) {
  *     console.log(error.payload.timeoutMs); // 500
  *   }
- * };
+ * }
  * ```
  *
  * @param payload - Object containing the timeoutMs that ran out
