@@ -54,6 +54,8 @@ export class FormulaEvaluator {
 interface Place {
   readonly container: object;
   readonly parent: Place | undefined;
+  /** The key of the container in its parent. */
+  readonly key: string | number | undefined;
 }
 
 /**
@@ -187,7 +189,7 @@ class EvaluationPass {
   #walk(): void {
     const queue = [this.#root];
 
-    this.#places.set(this.#root, { container: this.#root, parent: undefined });
+    this.#places.set(this.#root, { container: this.#root, parent: undefined, key: undefined });
 
     for (let index = 0; index < queue.length; index++) {
       const container = queue[index];
@@ -201,7 +203,7 @@ class EvaluationPass {
           this.#holdersOf(value).push(container);
 
           if (!this.#places.has(value)) {
-            this.#places.set(value, { container: value, parent: place });
+            this.#places.set(value, { container: value, parent: place, key });
             queue.push(value);
           }
         }
@@ -299,7 +301,7 @@ class EvaluationPass {
       const { result } = evaluateFormula({
         formula: formula.text,
         ast: parseFormula(formula.text),
-        properties: new RecordNames({ records: this.#recordsAround(owner), readCell: this.#readCell }),
+        properties: new RecordNames({ place: this.#placeOf(owner), pass: this.#names }),
         format: this.#format,
       });
 
@@ -318,24 +320,15 @@ class EvaluationPass {
     }
   }
 
-  /** The records a formula held by `owner` reads names from, innermost first: lists hold no names. */
-  #recordsAround(owner: object): object[] {
-    const records: object[] = [];
-    let place = this.#places.get(owner);
-
-    if (!place) {
-      // A container reached only through a getter has no place of its own: its formulas read only its fields.
-      return Array.isArray(owner) ? records : [owner];
-    }
-
-    for (; place; place = place.parent) {
-      if (!Array.isArray(place.container)) {
-        records.push(place.container);
-      }
-    }
-
-    return records;
+  #placeOf(container: object): Place {
+    // A container reached only through a getter has no place in the walk: its formulas read only its own fields.
+    return this.#places.get(container) ?? { container, parent: undefined, key: undefined };
   }
+
+  readonly #names: PassNames = {
+    readCell: this.#readCell,
+    placeOf: (container) => this.#placeOf(container),
+  };
 
   /** Containers holding formula cells, and every container that holds one of those, through any number of steps. */
   #containersToCopy(): Set<object> {
@@ -380,23 +373,45 @@ class EvaluationPass {
   }
 }
 
+/** What the names of records take from their pass: the cells formulas read, and the places of records. */
+interface PassNames {
+  readonly readCell: (value: unknown, place: CellPlace) => FormulaDataType | undefined;
+  readonly placeOf: (container: object) => Place;
+}
+
 /**
- * Names a formula reads from the records around its cell, the innermost record first.
+ * Names a formula reads from the records around a place, the innermost record first; lists hold no names.
  *
  * @remarks
  * Only own fields count, and a field holding a function is skipped as if absent, so the name is looked up further out.
+ * The first record on the way out is the record the names belong to: `enclosing` starts at the record after it, and
+ * `neighbor` at the record next to it in the list that holds it.
  */
 class RecordNames implements GlobalProperties {
-  readonly #records: readonly object[];
-  readonly #readCell: (value: unknown, place: CellPlace) => FormulaDataType | undefined;
+  readonly #place: Place | undefined;
+  readonly #pass: PassNames;
   readonly #read = new Map<string, FormulaDataType | undefined>();
 
-  constructor({ records, readCell }: {
-    records: readonly object[];
-    readCell: (value: unknown, place: CellPlace) => FormulaDataType | undefined;
-  }) {
-    this.#records = records;
-    this.#readCell = readCell;
+  constructor({ place, pass }: { place: Place | undefined; pass: PassNames }) {
+    this.#place = place;
+    this.#pass = pass;
+  }
+
+  enclosing(): GlobalProperties {
+    return new RecordNames({ place: recordPlace(this.#place)?.parent, pass: this.#pass });
+  }
+
+  neighbor(offset: -1 | 1): GlobalProperties | undefined {
+    const own = recordPlace(this.#place);
+    const list = own?.parent?.container;
+
+    if (!Array.isArray(list) || typeof own?.key !== 'number') {
+      return undefined;
+    }
+
+    const record: unknown = list[own.key + offset];
+
+    return isContainer(record) && !Array.isArray(record) ? new RecordNames({ place: this.#pass.placeOf(record), pass: this.#pass }) : undefined;
   }
 
   has(name: string): boolean {
@@ -416,20 +431,35 @@ class RecordNames implements GlobalProperties {
   }
 
   #find(name: string): FormulaDataType | undefined {
-    for (const record of this.#records) {
-      if (!Object.hasOwn(record, name)) {
+    const { readCell } = this.#pass;
+
+    for (let place = this.#place; place; place = place.parent) {
+      const record = place.container;
+
+      if (Array.isArray(record) || !Object.hasOwn(record, name)) {
         continue;
       }
 
       const value: unknown = Reflect.get(record, name);
 
       if (typeof value !== 'function') {
-        return this.#readCell(value, { owner: record, key: name }) ?? convertNamedValue({ name, value, readCell: this.#readCell });
+        return readCell(value, { owner: record, key: name }) ?? convertNamedValue({ name, value, readCell });
       }
     }
 
     return undefined;
   }
+}
+
+/** The place of the first record at or outside `place`, skipping lists. */
+function recordPlace(place: Place | undefined): Place | undefined {
+  let record = place;
+
+  while (record && Array.isArray(record.container)) {
+    record = record.parent;
+  }
+
+  return record;
 }
 
 /** The fields of a container that are data properties, so a getter is read only when a formula reads it. */

@@ -106,6 +106,97 @@ describe('FormulaEvaluator', () => {
     });
   });
 
+  describe('parent', () => {
+    it('should read a name hidden by a field of the own record from the enclosing object', () => {
+      const view = scope.evaluator().evaluate({ rate: 2, group: { rate: 3, value: new Formula('parent(rate) * 10 + rate') } });
+
+      expect(view.group.value).toBeFormulaDataType(FormulaNumber, 23);
+    });
+
+    it('should go one enclosing object further with each parent', () => {
+      const view = scope.evaluator().evaluate({ rate: 1, a: { rate: 2, b: { rate: 3, value: new Formula('parent(parent(rate))') } } });
+
+      expect(view.a.b.value).toBeFormulaDataType(FormulaNumber, 1);
+    });
+
+    it('should skip the list that holds the record', () => {
+      const view = scope.evaluator().evaluate({ rate: 2, rows: [{ rate: 3, value: new Formula('parent(rate)') }] });
+
+      expect(view.rows[0]?.value).toBeFormulaDataType(FormulaNumber, 2);
+    });
+
+    it('should keep the names of the formula itself, such as the item of a callback', () => {
+      const view = scope.evaluator().evaluate({ rate: 2, group: { rate: 3, value: new Formula('[10].map(parent(rate) + current).sum()') } });
+
+      expect(view.group.value).toBeFormulaDataType(FormulaNumber, 12);
+    });
+
+    it('should find no names above the root', () => {
+      const view = scope.evaluator().evaluate({ rate: 2, value: new Formula('parent(rate)') });
+
+      expect(messageOf(view.value)).toBe('Variable "rate" is not defined. [7,11]');
+    });
+
+    it('should find no enclosing object for a formula evaluated by name', () => {
+      expect(() => scope.evaluate('parent(rate)', { rate: 2 })).toThrow('Variable "rate" is not defined. [7,11]');
+    });
+  });
+
+  describe('previous and next', () => {
+    it('should read the previous record of the list', () => {
+      const view = scope.evaluator().evaluate({ rows: [1, 2, 3].map((amount) => ({ amount, total: new Formula('previous(total, 0) + amount') })) });
+
+      expect(view.rows.map((row) => String(row.total))).toStrictEqual(['1', '3', '6']);
+    });
+
+    it('should read the next record of the list', () => {
+      const view = scope.evaluator().evaluate({ rows: [1, 2, 3].map((amount) => ({ amount, rest: new Formula('next(rest, 0) + amount') })) });
+
+      expect(view.rows.map((row) => String(row.rest))).toStrictEqual(['6', '5', '3']);
+    });
+
+    it('should evaluate the default over the own record where there is no neighbor', () => {
+      const view = scope.evaluator().evaluate({ rows: [{ amount: 5, before: new Formula('previous(amount, amount * 2)') }] });
+
+      expect(view.rows[0]?.before).toBeFormulaDataType(FormulaNumber, 10);
+    });
+
+    it('should read names outward from the neighbor record', () => {
+      const view = scope.evaluator().evaluate({
+        rate: 2,
+        rows: [{ amount: 1 }, { amount: 5, change: new Formula('amount - previous(amount * rate, 0)') }],
+      });
+
+      expect(view.rows[1]?.change).toBeFormulaDataType(FormulaNumber, 3);
+    });
+
+    it('should give the default to a record outside a list', () => {
+      const view = scope.evaluator().evaluate({ amount: 1, before: new Formula('previous(amount, 0)') });
+
+      expect(view.before).toBeFormulaDataType(FormulaNumber, 0);
+    });
+
+    it('should give the default where the neighbor is not a record', () => {
+      const view = scope.evaluator().evaluate({ rows: [1, { amount: 2, before: new Formula('previous(amount, 0)') }] });
+      const [, row] = view.rows;
+
+      expect(typeof row === 'object' && row.before).toBeFormulaDataType(FormulaNumber, 0);
+    });
+
+    it('should compute a running total of 20,000 records', () => {
+      const rows = Array.from({ length: 20_000 }, () => ({ amount: 1, total: new Formula('previous(total, 0) + amount') }));
+
+      expect(scope.evaluator().evaluate({ rows }).rows[19_999]?.total).toBeFormulaDataType(FormulaNumber, 20_000);
+    });
+
+    it('should fail the records that read each other as neighbors, pointing at the read', () => {
+      const view = scope.evaluator().evaluate({ rows: [{ x: new Formula('next(x, 0)') }, { x: new Formula('previous(x, 0)') }] });
+
+      expect(messageOf(view.rows[0]?.x)).toBe('Circular reference: "x" depends on this formula. [5,6]');
+      expect(messageOf(view.rows[1]?.x)).toBe('Circular reference: "x" depends on this formula. [9,10]');
+    });
+  });
+
   describe('records reached by several paths', () => {
     it('should place a record at its shallowest path', () => {
       const shared = { value: new Formula('hours') };

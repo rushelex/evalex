@@ -1,7 +1,12 @@
 import type { FormulaDataType } from './data-types';
 
 /** Values a formula reads by name at the top level, looked up only by the names the formula reads. */
-export type GlobalProperties = Pick<ReadonlyMap<string, FormulaDataType>, 'get' | 'has'>;
+export interface GlobalProperties extends Pick<ReadonlyMap<string, FormulaDataType>, 'get' | 'has'> {
+  /** Names of the object enclosing the record these names start at, for `parent`; none where nothing encloses it. */
+  readonly enclosing?: () => GlobalProperties;
+  /** Names of the record next to this one in its list, for `previous` and `next`; `undefined` where there is none. */
+  readonly neighbor?: (offset: -1 | 1) => GlobalProperties | undefined;
+}
 
 /**
  * Formula evaluation context.
@@ -34,22 +39,7 @@ export class FormulaEvaluationContext {
    * Checks if a variable with the given name exists in the current or any parent scope.
    */
   hasVariable(name: string): boolean {
-    // First search in the local scope
-    if (this.#localScope.has(name)) {
-      return true;
-    }
-
-    // Then in the global properties of the current context
-    if (this.#globalProperties.has(name)) {
-      return true;
-    }
-
-    // If there is a parent context, delegate to it
-    if (this.#parentContext) {
-      return this.#parentContext.hasVariable(name);
-    }
-
-    return false;
+    return this.isLocalVariable(name) || this.#globalProperties.has(name);
   }
 
   /**
@@ -57,15 +47,28 @@ export class FormulaEvaluationContext {
    */
   getVariable(name: string): FormulaDataType | undefined {
     // Local scopes from the innermost out, so a formula's own names hide the host's properties
+    const localScope = this.#localScopeWith(name);
+
+    // The innermost global properties, which `parent`, `previous` and `next` replace for their expression
+    return localScope ? localScope.get(name) : this.#globalProperties.get(name);
+  }
+
+  #localScopeWith(name: string): ReadonlyMap<string, FormulaDataType> | undefined {
     if (this.#localScope.has(name)) {
-      return this.#localScope.get(name);
+      return this.#localScope;
     }
 
-    if (this.#parentContext) {
-      return this.#parentContext.getVariable(name);
-    }
+    return this.#parentContext ? this.#parentContext.#localScopeWith(name) : undefined;
+  }
 
-    return this.#globalProperties.get(name);
+  /** The global properties names fall back to once no local scope has them. */
+  get globalProperties(): GlobalProperties {
+    return this.#globalProperties;
+  }
+
+  /** A nested context whose names, beyond the local scopes around it, come from other global properties. */
+  withGlobalProperties(globalProperties: GlobalProperties): FormulaEvaluationContext {
+    return new FormulaEvaluationContext(globalProperties, this, new Map());
   }
 
   /**

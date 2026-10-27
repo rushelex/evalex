@@ -64,7 +64,8 @@ view.lines[0].tax; // FormulaNumber, value 200
 view.total;        // FormulaNumber, value 1320
 ```
 
-- **Names resolve outward.** A formula reads the fields of its own record first, then the fields of each enclosing object up to the root. Lists hold no names: a record in `lines` reads `taxRate` from the object that holds `lines`, and a list is read by the name of the field that holds it. An inner field hides an outer field of the same name. A field holding a function is not a name.
+- **Names resolve outward.** A formula reads the fields of its own record first, then the fields of each enclosing object up to the root. Lists hold no names: a record in `lines` reads `taxRate` from the object that holds `lines`, and a list is read by the name of the field that holds it. An inner field hides an outer field of the same name, and `parent(taxRate)` reads it from the enclosing object instead, `parent(parent(taxRate))` from the one around that. A field holding a function is not a name. Names the formula itself defines, such as `current` in a callback or a `let` name, stay visible inside `parent`.
+- **Neighbor records.** `previous(expression, default)` and `next(expression, default)` evaluate the expression over the record before or after the formula's record in the list that holds it, so a running total is `previous(total, 0) + amount`. Neighbors follow the order of the array. The first record, the last record and a record outside a list get the default, evaluated over the record itself, and so does a record whose neighbor is not a record. A formula evaluated by name with `scope.evaluate` has no neighbors and no enclosing object.
 - **Formulas read formulas.** A formula that reads another formula cell, by name or through a record or list, gets its value, whatever the order of the cells in the data. A chain of any length computes in time linear in its length, in any order of its cells.
 - **Cycles.** Every cell of a cycle holds a `CIRCULAR_REFERENCE` error pointing at the part of its own formula that reads into the cycle: with `a = b + 1` and `b = 2 * a`, `a` fails with `Circular reference: "b" depends on this formula. [0,1]` and `b` at `a`. Cells outside the cycle compute as usual.
 - **What is walked.** Records are found through data properties only: a getter is read only when a formula reads it. A record reached by several paths has one place, the shallowest one, the first in key order among equally shallow ones. Its formulas are computed once, with the names around that place; every other reference is a link to it.
@@ -355,6 +356,9 @@ A date pattern shows the date in UTC unless a time zone is given by name (`"Euro
 | Routine | Description | Example |
 | --- | --- | --- |
 | `if(condition, then, else)` | Evaluates only the chosen branch | `if(stock > 0, "In stock", "Sold out")` |
+| `parent(expression)` | Evaluates the expression over the fields of the enclosing object, see [Formulas in data](#formulas-in-data) | `parent(taxRate)` |
+| `previous(expression, default)` | Evaluates the expression over the previous record of the list, or the default for the first record | `previous(total, 0) + amount` |
+| `next(expression, default)` | Evaluates the expression over the next record of the list, or the default for the last record | `next(rest, 0) + amount` |
 | `empty(value)` | True for `0`, `""`, `false`, `[]` and `null` | `empty([])` → `true` |
 | `format(value)` | Converts the value to text; a date becomes an ISO 8601 instant in UTC unless the host [formats dates](#text-of-values) | `parseDate("2023-07-10").format()` → `"2023-07-10T00:00:00Z"` |
 | `equal(a, b)` | Compares two values like `==`: lists item by item, dates by instant, values of different types are never equal | `[1, [2]].equal([1, [2]])` → `true` |
