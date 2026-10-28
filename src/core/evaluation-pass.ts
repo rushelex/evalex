@@ -1,7 +1,7 @@
 import type { AST } from '../parser';
 import type { FormulaValue } from './data-types';
 import type { CellPlace, CellReader } from './data-types/converter';
-import type { CellMemo, EvaluatorMemory, Read } from './evaluator-memory';
+import type { CellMemo, ContainerMemo, EvaluatorMemory, Read } from './evaluator-memory';
 import type { FormulaCell, FormulaCellPlace } from './formula-evaluator';
 import type { PassNames, Place } from './record-names';
 import type { ValueFormat } from './value-format';
@@ -40,13 +40,43 @@ const WRITABLE = 4;
 const ACCESSOR = 8;
 const PLAIN_FIELD = ENUMERABLE | CONFIGURABLE | WRITABLE;
 
+/** How many cells of a container are searched in order, which costs a large list of records less than a map each. */
+const FEW_CELLS = 8;
+
+/**
+ * A container of host data in one pass: where it sits, what its fields hold, its formula cells and its copy in the view,
+ * kept together so a pass looks a container up once.
+ */
+interface Site extends Place {
+  parent: Site | undefined;
+  key: string | number | undefined;
+  /** The walk gave it its place; a container reached only through a getter has none. */
+  placed: boolean;
+  /** Its own fields as {@link ownFields} gives them, read once a pass. */
+  fields: unknown[] | undefined;
+  /** The sites holding it through a data property, a repeat for each such property. */
+  holders: Site[] | undefined;
+  /** Its formula cells; a list item is keyed by its index as text, as the view reads it from descriptors. */
+  cells: Cell[] | undefined;
+  /** Its cells by key, once it has more than {@link FEW_CELLS}. */
+  cellsByKey: Map<string, Cell> | undefined;
+  /** What the evaluator kept for it, once {@link EvaluationPass.#memoOf} read it. */
+  memo: ContainerMemo | undefined;
+  memoRead: boolean;
+  /** It holds formula cells, directly or through containers it holds, so the view copies it. */
+  copied: boolean;
+  /** Its copy changes in this pass. */
+  renewed: boolean;
+  view: object | undefined;
+}
+
 /** A formula cell of one pass and where its computation stands. */
 interface Cell {
-  readonly owner: object;
+  readonly site: Site;
   readonly key: string;
   readonly formula: Formula;
-  /** The levels of nesting computing the cell takes, see {@link NESTING_BUDGET}. */
-  readonly nesting: number;
+  /** The levels of nesting computing the cell takes, see {@link NESTING_BUDGET}, once {@link EvaluationPass.#nestingOf} told. */
+  nesting: number | undefined;
   result: FormulaCell | undefined;
   /** Its formula is being evaluated. */
   computing: boolean;
@@ -94,7 +124,7 @@ class CellNotReady extends Error {
  * cause without running the host's getter again.
  */
 export class EvaluationPass {
-  readonly #root: object;
+  readonly #root: Site;
   readonly #format: ValueFormat | undefined;
   readonly #onInputError: ((error: Error) => void) | undefined;
   readonly #memory: EvaluatorMemory;
@@ -102,29 +132,23 @@ export class EvaluationPass {
   readonly #number: number;
   /** The reader every converted value reads its fields through, the same in every pass. */
   readonly #hostReader: CellReader;
-  /** Failures of host data by owner and key, keyed as {@link EvaluationPass.#cells}. */
+  /** Failures of host data by owner and key, keyed as {@link Site.cells}. */
   readonly #failures = new Map<object, Map<string, Error>>();
-  readonly #places = new Map<object, Place>();
-  /** Containers in the order the walk reaches them, the root first, and how many of them it has visited. */
-  readonly #queue: object[];
+  readonly #sites = new Map<object, Site>();
+  /** Sites in the order the walk reaches them, the root first, and how many of them it has visited. */
+  readonly #queue: Site[];
   #walked = 0;
-  readonly #found: { readonly place: CellPlace; readonly formula: Formula }[] = [];
+  readonly #found: Cell[] = [];
   /** How many of the cells found {@link EvaluationPass.advance} has computed. */
   #computed = 0;
-  /** Containers each container is held by, through any of its data properties, to find the containers a view copies. */
-  readonly #holders = new Map<object, object[]>();
-  /** Cells by owner and key; a list item is keyed by its index as text, as the view reads it from descriptors. */
-  readonly #cells = new Map<object, Map<string, Cell>>();
   /** Cells being computed inside one another, the innermost last. */
   readonly #computing: Cell[] = [];
+  /** Cells waiting on the explicit stack, the next to compute last. */
+  readonly #waiting: Cell[] = [];
   /** The nesting of the cells being computed, together. */
   #nesting = 0;
-  /** Copies of the containers that hold formulas, by container. */
-  readonly #views = new Map<object, object>();
-  /** The own fields of each container as {@link ownFields} gives them, read once a pass. */
-  readonly #ownFields = new Map<object, unknown[]>();
   readonly #cell: ((value: unknown, place: FormulaCellPlace) => unknown) | undefined;
-  /** What `cell` gave for each place, keyed as {@link EvaluationPass.#cells}. */
+  /** What `cell` gave for each place, keyed as {@link Site.cells}. */
   readonly #cellValues = new Map<object, Map<string, unknown>>();
 
   constructor({ data, format, onInputError, cell, memory, number, hostReader }: {
@@ -136,15 +160,15 @@ export class EvaluationPass {
     number: number;
     hostReader: CellReader;
   }) {
-    this.#root = data;
-    this.#queue = [data];
+    this.#root = this.#siteOf(data);
+    this.#root.placed = true;
+    this.#queue = [this.#root];
     this.#format = format;
     this.#onInputError = onInputError;
     this.#cell = cell;
     this.#memory = memory;
     this.#number = number;
     this.#hostReader = hostReader;
-    this.#places.set(data, { container: data, parent: undefined, key: undefined });
   }
 
   /**
@@ -167,9 +191,7 @@ export class EvaluationPass {
     }
 
     while (this.#computed < this.#found.length) {
-      const { place, formula } = this.#found[this.#computed];
-
-      this.#resultOf(place, formula);
+      this.#resultOf(this.#found[this.#computed]);
       this.#computed += 1;
 
       if (due()) {
@@ -184,7 +206,7 @@ export class EvaluationPass {
     this.advance(() => false);
     this.#copyContainers(this.#containersToCopy());
 
-    return this.#views.get(this.#root) ?? this.#root;
+    return this.#root.view ?? this.#root.container;
   }
 
   /** Reads a cell for a formula that reads it: a formula cell gives its value, anything else converts as host data. */
@@ -283,14 +305,14 @@ export class EvaluationPass {
   }
 
   #formulaCellValue(place: CellPlace, formula: Formula): FormulaValue {
-    const cell = this.#cellAt(place, formula);
+    const cell = this.#cellAt({ site: this.#siteOf(place.owner), key: String(place.key), formula });
 
     if (!cell.result) {
       if (cell.computing || cell.waiting) {
         throw this.#cycleAt(cell);
       }
 
-      if (this.#nesting + cell.nesting > NESTING_BUDGET) {
+      if (this.#nesting + this.#nestingOf(cell) > NESTING_BUDGET) {
         throw new CellNotReady(cell);
       }
     }
@@ -336,7 +358,7 @@ export class EvaluationPass {
 
   readonly #names: PassNames = {
     readCell: (cell) => this.#hostReader(cell),
-    placeOf: (container) => this.#placeOf(container),
+    placeOf: (container) => this.#siteOf(container),
     parentOf: (place) => {
       this.#note({ kind: 'place', container: place.container, parent: place.parent?.container, key: place.key });
 
@@ -366,20 +388,30 @@ export class EvaluationPass {
   }
 
   /** Visits the fields of a container in the walk by depth, finding the formula cells and the containers it holds. */
-  #walkContainer(container: object): void {
-    const place = this.#places.get(container)!;
+  #walkContainer(site: Site): void {
+    const container = site.container;
     const visit = (key: string | number, held: unknown): void => {
-      const value = this.#shownCell({ owner: container, key }, held);
+      // Without the option a field shows what it holds, which spares a place for each field of large data.
+      const value = this.#cell ? this.#shownCell({ owner: container, key }, held) : held;
 
       if (value instanceof Formula) {
-        this.#found.push({ place: { owner: container, key }, formula: value });
+        this.#found.push(this.#cellAt({ site, key: String(key), formula: value }));
       }
       else if (isContainer(value)) {
-        this.#holdersOf(value).push(container);
+        const inner = this.#siteOf(value);
 
-        if (!this.#places.has(value)) {
-          this.#places.set(value, { container: value, parent: place, key });
-          this.#queue.push(value);
+        if (inner.holders) {
+          inner.holders.push(site);
+        }
+        else {
+          inner.holders = [site];
+        }
+
+        if (!inner.placed) {
+          inner.placed = true;
+          inner.parent = site;
+          inner.key = key;
+          this.#queue.push(inner);
         }
       }
     };
@@ -395,7 +427,7 @@ export class EvaluationPass {
     // The fields read once serve both the walk, which follows enumerable data fields only, and the copy in the view.
     const fields = ownFields(container);
 
-    this.#ownFields.set(container, fields);
+    site.fields = fields;
 
     for (let field = 0; field < fields.length; field += 4) {
       const attributes = fields[field + 1] as number;
@@ -406,59 +438,99 @@ export class EvaluationPass {
     }
   }
 
-  #holdersOf(container: object): object[] {
-    let holders = this.#holders.get(container);
+  /** The site of a container, placed by the walk once it reaches it; until then its formulas read only its own fields. */
+  #siteOf(container: object): Site {
+    let site = this.#sites.get(container);
 
-    if (!holders) {
-      holders = [];
-      this.#holders.set(container, holders);
+    if (!site) {
+      site = {
+        container,
+        parent: undefined,
+        key: undefined,
+        placed: false,
+        fields: undefined,
+        holders: undefined,
+        cells: undefined,
+        cellsByKey: undefined,
+        memo: undefined,
+        memoRead: false,
+        copied: false,
+        renewed: false,
+        view: undefined,
+      };
+      this.#sites.set(container, site);
     }
 
-    return holders;
+    return site;
   }
 
-  #cellAt(place: CellPlace, formula: Formula): Cell {
-    let cells = this.#cells.get(place.owner);
-
-    if (!cells) {
-      cells = new Map();
-      this.#cells.set(place.owner, cells);
+  #memoOf(site: Site): ContainerMemo | undefined {
+    if (!site.memoRead) {
+      site.memo = this.#memory.get(site.container);
+      site.memoRead = true;
     }
 
-    const key = String(place.key);
-    let cell = cells.get(key);
+    return site.memo;
+  }
 
-    if (!cell) {
-      cell = {
-        owner: place.owner,
-        key,
-        formula,
-        nesting: CELL_NESTING + nestingOf(formula),
-        result: undefined,
-        computing: false,
-        waiting: false,
-        cycle: undefined,
-        reads: undefined,
-      };
-      cells.set(key, cell);
+  #keptMemoOf(site: Site): ContainerMemo {
+    let memo = this.#memoOf(site);
+
+    if (!memo) {
+      memo = { cells: undefined, view: undefined };
+      this.#memory.set(site.container, memo);
+      site.memo = memo;
+    }
+
+    return memo;
+  }
+
+  #cellAt({ site, key, formula }: { site: Site; key: string; formula: Formula }): Cell {
+    const found = site.cellsByKey ? site.cellsByKey.get(key) : site.cells?.find((cell) => cell.key === key);
+
+    if (found) {
+      return found;
+    }
+
+    const cell: Cell = {
+      site,
+      key,
+      formula,
+      nesting: undefined,
+      result: undefined,
+      computing: false,
+      waiting: false,
+      cycle: undefined,
+      reads: undefined,
+    };
+
+    site.cells ??= [];
+    site.cells.push(cell);
+
+    if (site.cellsByKey) {
+      site.cellsByKey.set(key, cell);
+    }
+    else if (site.cells.length > FEW_CELLS) {
+      site.cellsByKey = new Map(site.cells.map((each) => [each.key, each]));
     }
 
     return cell;
   }
 
   /** Computes a cell, and every cell it waits for, outside any other cell. */
-  #resultOf(place: CellPlace, formula: Formula): FormulaCell {
-    const target = this.#cellAt(place, formula);
-
+  #resultOf(target: Cell): FormulaCell {
     if (target.result) {
       return target.result;
     }
 
-    const waiting = [target];
+    const waiting = this.#waiting;
+    // The host may read a computed value inside `cell` while a view is made, which computes cells from here again.
+    const outside = waiting.length;
 
+    waiting.push(target);
     target.waiting = true;
 
-    while (waiting.length > 0) {
+    while (waiting.length > outside) {
       const cell = waiting[waiting.length - 1];
 
       try {
@@ -468,6 +540,8 @@ export class EvaluationPass {
       }
       catch (error) {
         if (!(error instanceof CellNotReady)) {
+          waiting.length = outside;
+
           throw error;
         }
 
@@ -484,13 +558,14 @@ export class EvaluationPass {
       return cell.result;
     }
 
+    const memo = this.#memoOf(cell.site)?.cells?.get(cell.key);
+    const nesting = this.#nestingOf(cell, memo);
+
     cell.computing = true;
     this.#computing.push(cell);
-    this.#nesting += cell.nesting;
+    this.#nesting += nesting;
 
     try {
-      const memo = this.#memory.cells.get(cell.owner)?.get(cell.key);
-
       cell.result = memo && this.#holds(cell, memo) ? memo.result : this.#evaluateAndKeep(cell, memo);
 
       return cell.result;
@@ -498,8 +573,15 @@ export class EvaluationPass {
     finally {
       cell.computing = false;
       this.#computing.pop();
-      this.#nesting -= cell.nesting;
+      this.#nesting -= nesting;
     }
+  }
+
+  /** The nesting of a cell, taken from its memo while the formula is the same, since parsing it again costs more. */
+  #nestingOf(cell: Cell, memo = this.#memoOf(cell.site)?.cells?.get(cell.key)): number {
+    cell.nesting ??= memo?.text === cell.formula.text ? memo.nesting : CELL_NESTING + nestingOf(cell.formula);
+
+    return cell.nesting;
   }
 
   /** Tells whether every read of the last computation of a cell gives what it gave then. */
@@ -519,7 +601,7 @@ export class EvaluationPass {
 
   #readHolds(read: Read): boolean {
     if (read.kind === 'place') {
-      const place = this.#placeOf(read.container);
+      const place = this.#siteOf(read.container);
 
       return place.parent?.container === read.parent && place.key === read.key;
     }
@@ -527,7 +609,11 @@ export class EvaluationPass {
     let value: unknown;
 
     try {
-      value = this.#throughCell({ owner: read.owner, key: read.key }, readAgain(read.owner, read.key));
+      value = readAgain(read.owner, read.key);
+
+      if (this.#cell) {
+        value = this.#throughCell({ owner: read.owner, key: read.key }, value);
+      }
     }
     catch {
       // Evaluating the formula reads the failing value again and fails as a read of host data does.
@@ -543,14 +629,14 @@ export class EvaluationPass {
 
   /** The result of a cell an earlier computation read, or `undefined` for a cell in progress, which tells a cycle. */
   #resultToCompare(place: CellPlace, formula: Formula): FormulaCell | undefined {
-    const cell = this.#cellAt(place, formula);
+    const cell = this.#cellAt({ site: this.#siteOf(place.owner), key: String(place.key), formula });
 
     if (!cell.result) {
       if (cell.computing || cell.waiting) {
         return undefined;
       }
 
-      if (this.#nesting + cell.nesting > NESTING_BUDGET) {
+      if (this.#nesting + this.#nestingOf(cell) > NESTING_BUDGET) {
         throw new CellNotReady(cell);
       }
     }
@@ -564,18 +650,15 @@ export class EvaluationPass {
 
     const evaluated = this.#evaluate(cell);
     const result = memo && isSameResult(memo.result, evaluated) ? memo.result : evaluated;
-    let memos = this.#memory.cells.get(cell.owner);
 
     if (cell.reads && !cell.cycle && !isVolatileFormula(cell.formula.text)) {
-      if (!memos) {
-        memos = new Map();
-        this.#memory.cells.set(cell.owner, memos);
-      }
+      const kept = this.#keptMemoOf(cell.site);
 
-      memos.set(cell.key, { text: cell.formula.text, reads: cell.reads, result });
+      kept.cells ??= new Map();
+      kept.cells.set(cell.key, { text: cell.formula.text, nesting: cell.nesting!, reads: cell.reads, result });
     }
     else {
-      memos?.delete(cell.key);
+      this.#memoOf(cell.site)?.cells?.delete(cell.key);
     }
 
     cell.reads = undefined;
@@ -583,12 +666,12 @@ export class EvaluationPass {
     return result;
   }
 
-  #evaluate({ owner, formula }: Cell): FormulaCell {
+  #evaluate({ site, formula }: Cell): FormulaCell {
     try {
       const result = evaluateFormula({
         formula: formula.text,
         ast: parseFormula(formula.text),
-        properties: new RecordNames({ place: this.#placeOf(owner), pass: this.#names }),
+        properties: new RecordNames({ place: site, pass: this.#names }),
         format: this.#format,
       });
 
@@ -607,21 +690,22 @@ export class EvaluationPass {
     }
   }
 
-  #placeOf(container: object): Place {
-    // A container reached only through a getter has no place in the walk: its formulas read only its own fields.
-    return this.#places.get(container) ?? { container, parent: undefined, key: undefined };
-  }
+  /** Sites holding formula cells, and every site that holds one of those, through any number of steps. */
+  #containersToCopy(): Site[] {
+    const copied: Site[] = [];
 
-  /** Containers holding formula cells, and every container that holds one of those, through any number of steps. */
-  #containersToCopy(): Set<object> {
-    const copied = new Set(this.#found.map(({ place }) => place.owner));
-    const queue = [...copied];
+    for (const { site } of this.#found) {
+      if (!site.copied) {
+        site.copied = true;
+        copied.push(site);
+      }
+    }
 
-    for (let index = 0; index < queue.length; index++) {
-      for (const holder of this.#holders.get(queue[index]) ?? []) {
-        if (!copied.has(holder)) {
-          copied.add(holder);
-          queue.push(holder);
+    for (let index = 0; index < copied.length; index++) {
+      for (const holder of copied[index].holders ?? []) {
+        if (!holder.copied) {
+          holder.copied = true;
+          copied.push(holder);
         }
       }
     }
@@ -634,62 +718,63 @@ export class EvaluationPass {
    * the same and whose copied containers all keep theirs; all copies exist before any is filled, so links between them
    * need no recursion.
    */
-  #copyContainers(copied: ReadonlySet<object>): void {
-    const changed: object[] = [];
+  #copyContainers(copied: readonly Site[]): void {
+    const renewed: Site[] = [];
 
-    for (const container of copied) {
-      const memo = this.#memory.views.get(container);
+    for (const site of copied) {
+      const memo = this.#memoOf(site)?.view;
 
-      if (!memo || memo.pass !== this.#number - 1 || !this.#holdsFields(container, memo.fields)) {
-        changed.push(container);
+      if (!memo || memo.pass !== this.#number - 1 || !this.#holdsFields(site, memo.fields)) {
+        site.renewed = true;
+        renewed.push(site);
       }
     }
 
     // A container that holds a changed one changes too, since its copy links to the new copy.
-    const renewed = new Set(changed);
-
-    for (let index = 0; index < changed.length; index++) {
-      for (const holder of this.#holders.get(changed[index]) ?? []) {
-        if (copied.has(holder) && !renewed.has(holder)) {
-          renewed.add(holder);
-          changed.push(holder);
+    for (let index = 0; index < renewed.length; index++) {
+      for (const holder of renewed[index].holders ?? []) {
+        if (holder.copied && !holder.renewed) {
+          holder.renewed = true;
+          renewed.push(holder);
         }
       }
     }
 
-    for (const container of copied) {
-      const memo = this.#memory.views.get(container);
+    for (const site of copied) {
+      const memo = this.#memoOf(site)?.view;
 
-      if (memo && !renewed.has(container)) {
+      if (memo && !site.renewed) {
         memo.pass = this.#number;
-        this.#views.set(container, memo.view);
+        site.view = memo.view;
       }
       else {
+        const container = site.container;
         const view = Array.isArray(container) ? [] : Object.create(Reflect.getPrototypeOf(container)) as object;
 
-        this.#memory.views.set(container, { view, fields: this.#fieldsOf(container), pass: this.#number });
-        this.#views.set(container, view);
+        this.#keptMemoOf(site).view = { view, fields: this.#fieldsOf(site), pass: this.#number };
+        site.view = view;
       }
     }
 
-    for (const container of renewed) {
-      this.#fill(this.#views.get(container)!, this.#memory.views.get(container)!.fields);
+    for (const site of renewed) {
+      this.#fill(site.view!, this.#memoOf(site)!.view!.fields);
     }
   }
 
   /** Tells whether the fields of a container hold what `kept` says they held, see {@link EvaluationPass.#fieldsOf}. */
-  #holdsFields(container: object, kept: readonly unknown[]): boolean {
-    const fields = this.#rawFieldsOf(container);
+  #holdsFields(site: Site, kept: readonly unknown[]): boolean {
+    const fields = this.#rawFieldsOf(site);
 
     if (fields.length !== kept.length) {
       return false;
     }
 
     for (let index = 0; index < fields.length; index += 4) {
-      const key = fields[index] as string;
-      const shown = this.#shownField({ container, key, attributes: fields[index + 1] as number, held: fields[index + 2] });
+      if (fields[index] !== kept[index] || fields[index + 1] !== kept[index + 1] || fields[index + 3] !== kept[index + 3]) {
+        return false;
+      }
 
-      if (key !== kept[index] || fields[index + 1] !== kept[index + 1] || !Object.is(shown, kept[index + 2]) || fields[index + 3] !== kept[index + 3]) {
+      if (!Object.is(this.#shownFieldAt(site, fields, index), kept[index + 2])) {
         return false;
       }
     }
@@ -697,41 +782,47 @@ export class EvaluationPass {
     return true;
   }
 
+  /** What the field at `index` of `fields` shows in the view, see {@link EvaluationPass.#shownField}. */
+  #shownFieldAt(site: Site, fields: readonly unknown[], index: number): unknown {
+    const held = fields[index + 2];
+
+    // Only a formula or the cell option changes what a field shows; the rest of large data takes this way.
+    if (!this.#cell && !(held instanceof Formula)) {
+      return held;
+    }
+
+    return this.#shownField({ site, key: fields[index] as string, attributes: fields[index + 1] as number, held });
+  }
+
   /**
    * The own fields of a container as {@link ownFields} gives them, with what its cell holds in place of a formula: what a
    * view memo compares and a copy is filled with.
    */
-  #fieldsOf(container: object): unknown[] {
-    const fields = [...this.#rawFieldsOf(container)];
+  #fieldsOf(site: Site): unknown[] {
+    const fields = [...this.#rawFieldsOf(site)];
 
     for (let index = 0; index < fields.length; index += 4) {
-      fields[index + 2] = this.#shownField({ container, key: fields[index] as string, attributes: fields[index + 1] as number, held: fields[index + 2] });
+      fields[index + 2] = this.#shownFieldAt(site, fields, index);
     }
 
     return fields;
   }
 
   /** What a field of a container shows in the view: a cell what `cell` gave, a formula cell what it holds. */
-  #shownField({ container, key, attributes, held }: { container: object; key: string; attributes: number; held: unknown }): unknown {
+  #shownField({ site, key, attributes, held }: { site: Site; key: string; attributes: number; held: unknown }): unknown {
     if ((attributes & ACCESSOR) !== 0 || (attributes & ENUMERABLE) === 0) {
       return held;
     }
 
-    const place = { owner: container, key };
-    const value = this.#shownCell(place, held);
+    const value = this.#cell ? this.#shownCell({ owner: site.container, key }, held) : held;
 
-    return value instanceof Formula ? this.#resultOf(place, value) : value;
+    return value instanceof Formula ? this.#resultOf(this.#cellAt({ site, key, formula: value })) : value;
   }
 
-  #rawFieldsOf(container: object): unknown[] {
-    let fields = this.#ownFields.get(container);
+  #rawFieldsOf(site: Site): unknown[] {
+    site.fields ??= ownFields(site.container);
 
-    if (!fields) {
-      fields = ownFields(container);
-      this.#ownFields.set(container, fields);
-    }
-
-    return fields;
+    return site.fields;
   }
 
   /** Fills a copy with the fields {@link EvaluationPass.#fieldsOf} gave, a container linking to its copy. */
@@ -752,7 +843,8 @@ export class EvaluationPass {
         continue;
       }
 
-      const shown = isContainer(value) ? this.#views.get(value) ?? value : value;
+      // Only a container the walk reached has a copy, so any other object is looked up in vain but cheaply.
+      const shown = typeof value === 'object' && value !== null ? this.#sites.get(value)?.view ?? value : value;
 
       // Assigning a `__proto__` key would replace the prototype instead of adding a field.
       if (attributes === PLAIN_FIELD && key !== '__proto__') {
@@ -793,7 +885,7 @@ function ownFields(container: object): unknown[] {
 
   for (const key of Object.getOwnPropertyNames(container)) {
     const descriptor = Object.getOwnPropertyDescriptor(container, key)!;
-    const attributes = Number(descriptor.enumerable) | Number(descriptor.configurable) << 1 | Number(descriptor.writable) << 2;
+    const attributes = (descriptor.enumerable ? ENUMERABLE : 0) | (descriptor.configurable ? CONFIGURABLE : 0) | (descriptor.writable ? WRITABLE : 0);
 
     if ('value' in descriptor) {
       fields.push(key, attributes, descriptor.value, undefined);

@@ -254,3 +254,35 @@ it('Formula Complexity (same formula count)', async ({ bench }) => {
     { warmupIterations: 5, iterations: 50 },
   );
 });
+
+/**
+ * Benchmark: Large data
+ * Measures a pass over 100,000 records with two formulas each, after one edit and with nothing changed:
+ * the walk of all of the data and the check of every cell, which bound what `evaluateAsync` holds the main thread
+ */
+it('Large Data (100,000 records)', async ({ bench }) => {
+  const evaluator = scope.evaluator();
+  const records = Array.from({ length: 100_000 }, (_, index) => ({
+    price: index % 97,
+    quantity: (index % 7) + 1,
+    cost: index % 13,
+    rate: 1.2,
+    total: new Formula('price * quantity'),
+    margin: new Formula('cost * rate'),
+  }));
+  const data = { records };
+  let next = 0;
+
+  evaluator.evaluate(data);
+
+  await bench.compare(
+    bench('one edit, recalculated', () => {
+      records[next++ % records.length].price += 1;
+      evaluator.evaluate(data);
+    }),
+    bench('nothing changed, kept', () => {
+      evaluator.evaluate(data);
+    }),
+    { warmupIterations: 3, iterations: 20 },
+  );
+});

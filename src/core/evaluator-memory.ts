@@ -30,6 +30,8 @@ export type Read = FieldRead | CellRead | PlaceRead;
 /** What a formula cell gave when it was last computed, and every read its formula made, in order. */
 export interface CellMemo {
   readonly text: string;
+  /** The nesting the cell took, see `EvaluationPass`. */
+  readonly nesting: number;
   readonly reads: readonly Read[];
   readonly result: FormulaCell;
 }
@@ -42,14 +44,16 @@ export interface ViewMemo {
   pass: number;
 }
 
+/** What an evaluator keeps for one container: its formula cells by key as text, as the view reads it, and its copy. */
+export interface ContainerMemo {
+  cells: Map<string, CellMemo> | undefined;
+  view: ViewMemo | undefined;
+}
+
 /**
  * What an evaluator keeps between passes, by host object, so a pass computes again only the cells whose reads changed.
  *
  * @remarks
- * Kept in weak maps, it lives as long as the host keeps its data. Cells are keyed by their key as text, as the view
- * reads it from descriptors.
+ * Kept in a weak map, it lives as long as the host keeps its data.
  */
-export interface EvaluatorMemory {
-  readonly cells: WeakMap<object, Map<string, CellMemo>>;
-  readonly views: WeakMap<object, ViewMemo>;
-}
+export type EvaluatorMemory = WeakMap<object, ContainerMemo>;

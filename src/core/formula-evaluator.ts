@@ -63,7 +63,7 @@ export class FormulaEvaluator {
   readonly #format: ValueFormat | undefined;
   readonly #onInputError: ((error: Error) => void) | undefined;
   readonly #cell: ((value: unknown, place: FormulaCellPlace) => unknown) | undefined;
-  readonly #memory: EvaluatorMemory = { cells: new WeakMap(), views: new WeakMap() };
+  readonly #memory: EvaluatorMemory = new WeakMap();
   #passes = 0;
   /** The last pass, which reads the fields of the values it computed for as long as they are read. */
   #pass: EvaluationPass | undefined;
