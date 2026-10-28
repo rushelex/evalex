@@ -1,5 +1,3 @@
-import { Temporal } from 'temporal-polyfill';
-
 import { areEqual } from './are-equal';
 import { FormulaArray } from './array';
 import { FormulaBoolean } from './boolean';

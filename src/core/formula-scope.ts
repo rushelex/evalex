@@ -40,8 +40,16 @@ export interface FormulaScopeOptions {
 export class FormulaScope {
   readonly #format: ValueFormat | undefined;
 
-  /** @throws TypeError when a name list of `format.names` holds a wrong number of names. */
+  /**
+   * @throws ReferenceError when the runtime has no `Temporal`, which dates need; `temporal-polyfill/global` provides it.
+   * @throws TypeError when a name list of `format.names` holds a wrong number of names.
+   */
   constructor(options: FormulaScopeOptions = {}) {
+    // Every date reads the global `Temporal` when it is computed, so a missing one fails here rather than inside a formula.
+    if (typeof globalThis.Temporal !== 'object') {
+      throw new ReferenceError('evalex needs Temporal, which this runtime lacks. Import "temporal-polyfill/global" before creating a FormulaScope.');
+    }
+
     validateValueFormat(options.format);
     this.#format = options.format;
   }

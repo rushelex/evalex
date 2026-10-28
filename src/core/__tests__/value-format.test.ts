@@ -1,7 +1,6 @@
 import type { ValueFormat } from '../value-format';
 
 import { fc, it } from '@fast-check/vitest';
-import { Temporal } from 'temporal-polyfill';
 
 import { evaluate, formulaValueArbitrary } from '../../testing-library';
 import { FormulaArray, FormulaBoolean, FormulaDate, FormulaDateRange, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaString } from '../data-types';

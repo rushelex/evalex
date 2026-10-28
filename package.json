@@ -36,8 +36,25 @@
     "lint:fix": "pnpm lint --fix",
     "prepublishOnly": "pnpm run build"
   },
-  "dependencies": {
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^26.12.1",
+      "onFail": "download"
+    },
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^12.14.0",
+      "onFail": "download"
+    }
+  },
+  "peerDependencies": {
     "temporal-polyfill": "^1.0.6"
+  },
+  "peerDependenciesMeta": {
+    "temporal-polyfill": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@antfu/eslint-config": "^9.5.1",
@@ -63,22 +80,11 @@
     "lefthook": "^2.2.1",
     "playwright": "^1.64.1",
     "taze": "^21.3.0",
+    "temporal-polyfill": "^1.0.6",
     "tsdown": "^0.23.1",
     "type-fest": "^5.10.0",
     "typescript": "^6.0.3",
     "vite-plugin-circular-dependency": "^0.6.0",
     "vitest": "^5.0.5"
-  },
-  "devEngines": {
-    "runtime": {
-      "name": "node",
-      "version": "^26.12.1",
-      "onFail": "download"
-    },
-    "packageManager": {
-      "name": "pnpm",
-      "version": "^12.14.0",
-      "onFail": "download"
-    }
   }
 }

@@ -1,5 +1,3 @@
-import type { Temporal } from 'temporal-polyfill';
-
 interface UnitDurationOptions {
   readonly unit: 'years' | 'quarters' | 'months' | 'weeks' | 'days' | 'hours' | 'minutes' | 'seconds';
   readonly amount: number;

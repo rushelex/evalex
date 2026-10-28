@@ -1,5 +1,3 @@
-import type { Temporal } from 'temporal-polyfill';
-
 import type { FormulaArray } from './array';
 import type { FormulaBoolean } from './boolean';
 import type { FormulaDate } from './date';

@@ -1,7 +1,5 @@
 import type { RoutineExample } from '../routine-example';
 
-import { Temporal } from 'temporal-polyfill';
-
 import { routinesRegistry } from '../registry';
 
 // Examples document the current date as 2025-08-02, so the clock is frozen on that day.

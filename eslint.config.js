@@ -18,6 +18,16 @@ export default antfu(
     },
   },
   {
+    // evalex reads the global `Temporal`: an import would bundle a second implementation whose dates the host's fail `instanceof`
+    files: ['src/**/*.ts'],
+    ignores: ['src/testing-library/polyfill-temporal.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{ group: ['temporal-polyfill', 'temporal-polyfill/*'], message: 'Use the global Temporal.' }],
+      }],
+    },
+  },
+  {
     // @vitest/eslint-plugin still treats the Vitest 5 `bench` fixture as a test function
     files: ['**/*.{bench,benchmark}.ts'],
     rules: {

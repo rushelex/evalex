@@ -1,7 +1,5 @@
 import type { ToStringOptions } from '../FormulaDataType';
 
-import { Temporal } from 'temporal-polyfill';
-
 import { formatWith } from '../../value-format';
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';

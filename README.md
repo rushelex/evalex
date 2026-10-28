@@ -43,6 +43,14 @@ pnpm build
 
 The build lands in `dist/` and exposes a single entry point, `evalex`.
 
+Dates use the runtime's own [`Temporal`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal), which Chrome, Edge and Firefox, Node.js 26, Deno and Bun ship. Where it is missing, as in Safari, install `temporal-polyfill` and import it once before evalex; it uses the native `Temporal` wherever there is one:
+
+```ts
+import 'temporal-polyfill/global';
+```
+
+`new FormulaScope()` throws a `ReferenceError` when there is no `Temporal`. Dates in evalex's types are the global `Temporal` types, which TypeScript 6 brings along with evalex whatever your `lib`; on older TypeScript, also `import 'temporal-polyfill/types/global'`, or dates are typed as `any`.
+
 ## Quick start
 
 ```ts
@@ -180,13 +188,13 @@ Both ship in one package. `core` is re-exported from `evalex`; the parser is use
 
 ## Development
 
-You need a current Node.js and pnpm 12.
+You need Node.js 26 and pnpm 12. `.nvmrc` names the Node.js version for nvm or fnm, and pnpm downloads it on its own when it is missing.
 
 | Command | What it does |
 | --- | --- |
 | `pnpm build` | Bundles the library into `dist/` with tsdown |
 | `pnpm dev` | Rebuilds on change |
-| `pnpm test` | Runs the Vitest suite |
+| `pnpm test` | Runs the Vitest suite, the unit tests both on the native `Temporal` and on `temporal-polyfill` |
 | `pnpm bench` | Builds, then runs benchmarks in Node and in headless Chromium |
 | `pnpm typecheck` | Type-checks without emitting |
 | `pnpm lint` / `pnpm lint:fix` | Lints, or lints and fixes |

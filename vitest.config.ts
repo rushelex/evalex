@@ -47,6 +47,21 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          name: 'polyfill',
+          include: ['**/*.test.ts'],
+          exclude: [
+            '**/node_modules/**',
+            '**/.git/**',
+            '**/*.{browser,bench,benchmark,integration}.test.ts',
+            '**/*.test-d.ts',
+          ],
+          setupFiles: ['./src/testing-library/polyfill-temporal.ts'],
+          benchmark: { exclude: ['**/*'] },
+        },
+      },
+      {
+        extends: true,
+        test: {
           name: 'types',
           include: ['**/*.test-d.ts'],
           typecheck: {

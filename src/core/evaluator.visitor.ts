@@ -5,8 +5,6 @@ import type { FormulaEvaluationContext } from './context';
 import type { RoutineDispatcher } from './routines/dispatcher';
 import type { ValueFormat } from './value-format';
 
-import { Temporal } from 'temporal-polyfill';
-
 import { CellReadFailure } from './cell-read-failure';
 import {
   areEqual,

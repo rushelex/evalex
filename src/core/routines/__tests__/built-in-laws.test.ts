@@ -1,7 +1,6 @@
 import type { FormulaDataType } from '../../data-types';
 
 import { fc, it } from '@fast-check/vitest';
-import { Temporal } from 'temporal-polyfill';
 
 import { evaluate, evaluateOutcome } from '../../../testing-library';
 import { ALL_DATA_TYPES, Kind } from '../../data-types';

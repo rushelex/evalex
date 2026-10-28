@@ -1,7 +1,5 @@
 import type { EvaluateOptions } from '../../testing-library';
 
-import { Temporal } from 'temporal-polyfill';
-
 import { evaluate, loc } from '../../testing-library';
 import { FormulaArray, FormulaNumber, FormulaObject, FormulaString } from '../data-types';
 import { Errors } from '../errors';

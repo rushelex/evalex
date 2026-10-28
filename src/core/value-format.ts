@@ -1,5 +1,3 @@
-import type { Temporal } from 'temporal-polyfill';
-
 /**
  * Words that date patterns of `formatDate` and `format(date, pattern)` put into the text.
  *

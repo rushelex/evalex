@@ -1,5 +1,3 @@
-import { Temporal } from 'temporal-polyfill';
-
 import { FormulaNumber } from '../../data-types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';

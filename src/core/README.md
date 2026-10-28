@@ -207,7 +207,7 @@ scope.evaluate('order.customer().name()', { order }).value;                // 'A
 scope.evaluate('order.lines().map(current.qty()).sum()', { order }).value; // 5
 ```
 
-Dates are backed by [`Temporal`](https://tc39.es/proposal-temporal/docs/) through `temporal-polyfill`.
+Dates are backed by the global [`Temporal`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal): the runtime's own, or `temporal-polyfill/global` where the runtime has none. A `Temporal` value the host passes in is recognized only when it comes from that same global.
 
 ## Built-in routines
 

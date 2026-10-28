@@ -1,7 +1,5 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { Temporal } from 'temporal-polyfill';
-
 import { FormulaDuration } from '../../data-types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';

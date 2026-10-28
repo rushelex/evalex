@@ -1,5 +1,4 @@
 import { fc, it } from '@fast-check/vitest';
-import { Temporal } from 'temporal-polyfill';
 
 import { FormulaDate } from './FormulaDate';
 

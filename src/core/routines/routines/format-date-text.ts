@@ -1,5 +1,3 @@
-import type { Temporal } from 'temporal-polyfill';
-
 import type { DateNames } from '../../value-format';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as const;

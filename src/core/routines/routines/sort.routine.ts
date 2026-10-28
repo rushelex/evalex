@@ -1,8 +1,6 @@
 import type { FormulaDataType } from '../../data-types';
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { Temporal } from 'temporal-polyfill';
-
 import { FormulaArray, FormulaDate, FormulaNumber, FormulaString } from '../../data-types';
 import { Errors } from '../../errors';
 import { arg } from '../arguments';

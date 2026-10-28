@@ -149,4 +149,18 @@ describe(FormulaScope, () => {
       expect(() => new FormulaScope({ format: { names: { months: ['a'] } } })).toThrow(new TypeError('format.names.months must hold 12 names, not 1.'));
     });
   });
+
+  describe('runtime', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('should refuse to be created without Temporal, naming the polyfill to import', () => {
+      vi.stubGlobal('Temporal', undefined);
+
+      expect(() => new FormulaScope()).toThrow(new ReferenceError(
+        'evalex needs Temporal, which this runtime lacks. Import "temporal-polyfill/global" before creating a FormulaScope.',
+      ));
+    });
+  });
 });

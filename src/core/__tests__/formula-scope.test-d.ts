@@ -1,5 +1,3 @@
-import type { Temporal } from 'temporal-polyfill';
-
 import type { FormulaScope } from '../formula-scope';
 
 declare const scope: FormulaScope;

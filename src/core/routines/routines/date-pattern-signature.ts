@@ -1,5 +1,3 @@
-import { Temporal } from 'temporal-polyfill';
-
 import { arg } from '../arguments';
 
 /** The arguments of a date formatted by a pattern, shared by `formatDate` and the date form of `format`. */

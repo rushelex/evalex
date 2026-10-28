@@ -1,7 +1,6 @@
 import type { FormulaDataType } from './FormulaDataType';
 
 import { fc, it } from '@fast-check/vitest';
-import { Temporal } from 'temporal-polyfill';
 
 import { FormulaArray } from './array';
 import { convertValueToFormulaType } from './converter';

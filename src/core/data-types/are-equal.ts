@@ -1,7 +1,5 @@
 import type { FormulaDataType } from './FormulaDataType';
 
-import { Temporal } from 'temporal-polyfill';
-
 import { FormulaArray } from './array';
 import { FormulaDate } from './date';
 import { FormulaDateRange } from './date-range';

@@ -1,5 +1,3 @@
-import { Temporal } from 'temporal-polyfill';
-
 import { FormulaDate, FormulaDuration } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 

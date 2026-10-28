@@ -1,5 +1,4 @@
 import { fc, it } from '@fast-check/vitest';
-import { Temporal } from 'temporal-polyfill';
 
 import { evaluate, evaluateOutcome, formulaValueArbitrary, loc } from '../../testing-library';
 import { FormulaArray, FormulaBoolean, FormulaDate, FormulaDateRange, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString, Kind } from '../data-types';

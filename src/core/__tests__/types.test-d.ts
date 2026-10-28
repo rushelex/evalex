@@ -1,5 +1,3 @@
-import type { Temporal } from 'temporal-polyfill';
-
 import type { ToFormulaDataType } from '../data-types';
 
 import type { FormulaArray } from '../data-types/array';
