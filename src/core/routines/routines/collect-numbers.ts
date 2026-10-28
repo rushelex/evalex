@@ -15,7 +15,7 @@ interface CollectNumbersOptions {
  * @remarks
  * Nested lists are flattened at any depth. An empty result is possible when every argument is an empty list.
  *
- * @throws FormulaError `AllMustBeNumbers` or `AllMustBeFinite`, pointing at `location`.
+ * @throws FormulaError `AllMustBeNumbers`, pointing at `location`.
  */
 export function collectNumbers({ values, location }: CollectNumbersOptions): FormulaNumber[] {
   const items = values.flatMap(flatten);
@@ -28,17 +28,7 @@ export function collectNumbers({ values, location }: CollectNumbersOptions): For
     });
   }
 
-  const numbers = items as FormulaNumber[];
-
-  if (numbers.some((number) => !Number.isFinite(number.value))) {
-    throw Errors.Argument.AllMustBeFinite.create({
-      actual: numbers.map(String).join(', '),
-    }, {
-      location,
-    });
-  }
-
-  return numbers;
+  return items as FormulaNumber[];
 }
 
 function flatten(value: FormulaDataType): FormulaDataType[] {

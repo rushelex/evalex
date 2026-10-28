@@ -1,6 +1,4 @@
-import { evaluate } from '../../../../testing-library';
 import { FormulaNumber } from '../../../data-types';
-import { FormulaError } from '../../../errors';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('sum');
@@ -91,9 +89,3 @@ describe('sum routine', tester.examples([
     },
   },
 ]));
-
-describe('sum of numbers that are not finite', () => {
-  it.each([Number.POSITIVE_INFINITY, Number.NaN])('should reject %d', (number) => {
-    expect(() => evaluate('sum(1, x)', { context: { x: new FormulaNumber(number) } })).toThrow(FormulaError);
-  });
-});

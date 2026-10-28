@@ -193,41 +193,6 @@ export const AllArgumentsMustBeNumbers = createErrorDefinition({
 });
 
 /**
- * Error thrown when all arguments must be finite numbers but one or more are Infinity or NaN.
- *
- * @example
- * ```typescript
- * // Thrown automatically for functions requiring finite numbers
- * sum(1, 2, Infinity) // throws AllNumbersMustBeFinite
- * sum(1, NaN, 3) // throws AllNumbersMustBeFinite
- *
- * // Manual creation
- * throw AllNumbersMustBeFinite.create({
- *   actual: 'number',
- *   argumentName: 'values'
- * }, { location: node.location });
- *
- * // Type checking
- * if (AllNumbersMustBeFinite.is(error)) {
- *   console.log(error.payload.expected); // ['finite numbers']
- *   console.log(error.payload.argumentPosition); // -1
- * }
- * ```
- *
- * @param payload - Object without expected and argumentPosition (automatically set)
- */
-export const AllNumbersMustBeFinite = createErrorDefinition({
-  code: FormulaErrorCode.ARGUMENT_TYPE_MISMATCH,
-  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_TYPE_MISMATCH], 'expected' | 'argumentPosition'>) => ({
-    ...payload,
-    argumentPosition: -1,
-    expected: ['finite numbers'],
-  }),
-  formatMessage: () => 'All arguments must be finite numbers.',
-  messageKey: 'formula_error.all_numbers_must_be_finite',
-});
-
-/**
  * Error thrown when function arguments don't match any of the expected patterns.
  *
  * @example
