@@ -1,12 +1,12 @@
 import { fc, it } from '@fast-check/vitest';
 
 import { evaluate } from '../../../../testing-library';
-import { FormulaDate, FormulaNumber, FormulaString } from '../../../data-types';
+import { FormulaDateTime, FormulaNumber, FormulaString } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('formatDate');
 
-const date = fc.integer({ min: Date.UTC(1, 0, 1), max: Date.UTC(9999, 11, 31) }).map((milliseconds) => FormulaDate.from(milliseconds));
+const date = fc.integer({ min: Date.UTC(1, 0, 1), max: Date.UTC(9999, 11, 31) }).map((milliseconds) => FormulaDateTime.from(milliseconds));
 
 const timezone = fc.constantFrom('UTC', 'Europe/Berlin', 'Asia/Kolkata', 'America/St_Johns', 'Pacific/Kiritimati', '-03:30');
 

@@ -1,8 +1,8 @@
 import type { FormulaDataType } from './FormulaDataType';
 
 import { FormulaArray } from './array';
-import { FormulaDate } from './date';
 import { FormulaDateRange } from './date-range';
+import { FormulaDateTime } from './date-time';
 import { FormulaDuration } from './duration';
 import { FormulaObject } from './object';
 import { FormulaRegExp } from './regexp';
@@ -36,7 +36,7 @@ function compare(a: FormulaDataType, b: FormulaDataType, comparing: Map<FormulaO
     return compareObjects(a, b, comparing);
   }
 
-  if (a instanceof FormulaDate && b instanceof FormulaDate) {
+  if (a instanceof FormulaDateTime && b instanceof FormulaDateTime) {
     return isSameInstant(a.value, b.value);
   }
 

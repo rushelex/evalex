@@ -1,7 +1,7 @@
 import { fc, it } from '@fast-check/vitest';
 
 import { evaluate, formulaValueArbitrary } from '../../../../testing-library';
-import { FormulaDate, FormulaDateRange, Kind } from '../../../data-types';
+import { FormulaDateRange, FormulaDateTime, Kind } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 // Every instant a date can hold, as Unix milliseconds
@@ -17,17 +17,17 @@ const tester = new RoutineTester('dateStart');
 
 describe('dateStart routine', () => {
   it.prop([range])('should give back the start of a range', (value) => {
-    expect(evaluate('dateStart(range)', { context: { range: value } })).toBeFormulaDataType(FormulaDate, value.value.start);
+    expect(evaluate('dateStart(range)', { context: { range: value } })).toBeFormulaDataType(FormulaDateTime, value.value.start);
   });
 
-  it.prop([formulaValueArbitrary(Kind.Date)])('should give back a date as its own start', (date) => {
-    expect(evaluate('date.start()', { context: { date } })).toBeFormulaDataType(FormulaDate, date.value);
+  it.prop([formulaValueArbitrary(Kind.DateTime)])('should give back a date as its own start', (date) => {
+    expect(evaluate('date.start()', { context: { date } })).toBeFormulaDataType(FormulaDateTime, date.value);
   });
 
   describe('examples', tester.examples([
     {
       formula: 'dateRange(parseDate("2022-09-07T10:00Z"), parseDate("2022-09-07T18:30Z")).dateStart()',
-      expected: FormulaDate.from('2022-09-07T10:00Z'),
+      expected: FormulaDateTime.from('2022-09-07T10:00Z'),
     },
   ]));
 });

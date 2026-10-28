@@ -2,7 +2,7 @@ import type { AST } from '../../../parser';
 import type { FormulaArray, FormulaBoolean, FormulaDataType, FormulaDuration, FormulaRegExp, FormulaString } from '../../data-types';
 import type { CallbackExecutor, ChoiceValue } from '../arguments';
 
-import { FormulaDate, FormulaNumber, Kind } from '../../data-types';
+import { FormulaDateTime, FormulaNumber, Kind } from '../../data-types';
 import { arg } from '../arguments';
 import { RoutinesRegistry } from '../registry';
 
@@ -56,11 +56,11 @@ describe('RoutinesRegistry.registerRoutine handler types', () => {
       description: '',
       examples: [],
       arguments: [
-        [arg.date('date'), arg.duration('duration')],
-        [arg.date('date'), arg.number('amount'), arg.choice('unit', ['years', 'days'])],
+        [arg.dateTime('date'), arg.duration('duration')],
+        [arg.dateTime('date'), arg.number('amount'), arg.choice('unit', ['years', 'days'])],
       ],
       handler: ({ subject, args }) => {
-        expectTypeOf(subject).toEqualTypeOf<FormulaDate>();
+        expectTypeOf(subject).toEqualTypeOf<FormulaDateTime>();
         expectTypeOf(args).toEqualTypeOf<[FormulaDuration] | [FormulaNumber, ChoiceValue<'years' | 'days'>]>();
 
         return subject;
@@ -72,7 +72,7 @@ describe('RoutinesRegistry.registerRoutine handler types', () => {
     registry.registerRoutine('between', {
       description: '',
       examples: [],
-      arguments: [arg.date('date'), arg.date('other'), arg.choice('unit', ['years', 'days'])],
+      arguments: [arg.dateTime('date'), arg.dateTime('other'), arg.choice('unit', ['years', 'days'])],
       handler: ({ subject, args: [, unit] }) => {
         expectTypeOf(unit.value).toEqualTypeOf<'years' | 'days'>();
 
@@ -179,12 +179,12 @@ describe('RoutinesRegistry.registerFunction handler types', () => {
 
 describe('RoutinesRegistry.registerMethod handler types', () => {
   it('should type the instance and the arguments from the signature', () => {
-    registry.registerMethod(FormulaDate, 'shift', {
+    registry.registerMethod(FormulaDateTime, 'shift', {
       description: '',
       examples: [],
       arguments: [arg.duration('duration')],
       handler: ({ instance, args }) => {
-        expectTypeOf(instance).toEqualTypeOf<FormulaDate>();
+        expectTypeOf(instance).toEqualTypeOf<FormulaDateTime>();
         expectTypeOf(args).toEqualTypeOf<[FormulaDuration]>();
 
         return instance;

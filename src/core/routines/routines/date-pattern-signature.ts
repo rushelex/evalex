@@ -2,7 +2,7 @@ import { arg } from '../arguments';
 
 /** The arguments of a date formatted by a pattern, shared by `formatDate` and the date form of `format`. */
 export const DATE_PATTERN_SIGNATURE = [
-  arg.date('date'),
+  arg.dateTime('date'),
   arg.string('pattern'),
   arg.string('timezone', {
     optional: true,

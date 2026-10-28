@@ -1,4 +1,4 @@
-import { FormulaDate } from '../../data-types';
+import { FormulaDateTime } from '../../data-types';
 import { routinesRegistry } from '../registry';
 
 routinesRegistry.registerFunction('today', {
@@ -6,7 +6,7 @@ routinesRegistry.registerFunction('today', {
   examples: [
     {
       formula: (name) => name(),
-      result: () => FormulaDate.from(Temporal.ZonedDateTime.from({
+      result: () => FormulaDateTime.from(Temporal.ZonedDateTime.from({
         year: 2025,
         month: 8,
         day: 2,
@@ -16,5 +16,5 @@ routinesRegistry.registerFunction('today', {
   ],
   arguments: [],
   volatile: true,
-  handler: () => FormulaDate.from(Temporal.Now.zonedDateTimeISO('UTC').startOfDay()),
+  handler: () => FormulaDateTime.from(Temporal.Now.zonedDateTimeISO('UTC').startOfDay()),
 });

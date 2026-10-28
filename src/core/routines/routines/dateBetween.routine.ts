@@ -29,6 +29,6 @@ const routineExamples: readonly RoutineExampleOptions[] = [
 routinesRegistry.registerRoutine({ function: 'dateBetween', method: ['between', 'dateBetween'] }, {
   description: 'Returns the difference between two dates in the given unit.',
   examples: routineExamples,
-  arguments: [arg.date('date1'), arg.date('date2'), arg.choice('unit', DURATION_UNITS)],
+  arguments: [arg.dateTime('date1'), arg.dateTime('date2'), arg.choice('unit', DURATION_UNITS)],
   handler: ({ subject, args: [other, unit] }) => new FormulaDuration(subject.value.since(other.value, { largestUnit: SINGULAR_UNITS[unit.value] })),
 });

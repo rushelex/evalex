@@ -1,14 +1,14 @@
 import { fc, it } from '@fast-check/vitest';
 
 import { evaluate } from '../../../../testing-library';
-import { FormulaDate, FormulaNumber } from '../../../data-types';
+import { FormulaDateTime, FormulaNumber } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('timestamp');
 
 describe('timestamp routine', () => {
   it.prop([fc.integer({ min: -8_640_000_000_000_000, max: 8_640_000_000_000_000 })])('should give back the milliseconds a date was made from', (milliseconds) => {
-    expect(evaluate('timestamp(date)', { context: { date: FormulaDate.from(milliseconds) } })).toBeFormulaDataType(FormulaNumber, milliseconds);
+    expect(evaluate('timestamp(date)', { context: { date: FormulaDateTime.from(milliseconds) } })).toBeFormulaDataType(FormulaNumber, milliseconds);
   });
 
   describe('examples', tester.examples([

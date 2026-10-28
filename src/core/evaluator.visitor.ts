@@ -12,8 +12,8 @@ import {
   FormulaArray,
   FormulaBoolean,
   FormulaDataType,
-  FormulaDate,
   FormulaDateRange,
+  FormulaDateTime,
   FormulaNull,
   FormulaNumber,
   FormulaObject,
@@ -211,7 +211,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           || (left instanceof FormulaString && right instanceof FormulaString)) {
           return FormulaBoolean.from(left.value < right.value);
         }
-        if (left instanceof FormulaDate && right instanceof FormulaDate) {
+        if (left instanceof FormulaDateTime && right instanceof FormulaDateTime) {
           return FormulaBoolean.from(Temporal.ZonedDateTime.compare(left.value, right.value) < 0);
         }
 
@@ -225,7 +225,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           || (left instanceof FormulaString && right instanceof FormulaString)) {
           return FormulaBoolean.from(left.value <= right.value);
         }
-        if (left instanceof FormulaDate && right instanceof FormulaDate) {
+        if (left instanceof FormulaDateTime && right instanceof FormulaDateTime) {
           return FormulaBoolean.from(Temporal.ZonedDateTime.compare(left.value, right.value) <= 0);
         }
 
@@ -239,7 +239,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           || (left instanceof FormulaString && right instanceof FormulaString)) {
           return FormulaBoolean.from(left.value > right.value);
         }
-        if (left instanceof FormulaDate && right instanceof FormulaDate) {
+        if (left instanceof FormulaDateTime && right instanceof FormulaDateTime) {
           return FormulaBoolean.from(Temporal.ZonedDateTime.compare(left.value, right.value) > 0);
         }
 
@@ -253,7 +253,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           || (left instanceof FormulaString && right instanceof FormulaString)) {
           return FormulaBoolean.from(left.value >= right.value);
         }
-        if (left instanceof FormulaDate && right instanceof FormulaDate) {
+        if (left instanceof FormulaDateTime && right instanceof FormulaDateTime) {
           return FormulaBoolean.from(Temporal.ZonedDateTime.compare(left.value, right.value) >= 0);
         }
 
@@ -392,7 +392,7 @@ function isMember({ node, item, container }: { node: AST.IBinaryExpressionNode; 
   }
 
   if (container instanceof FormulaDateRange) {
-    const date = searchedFor({ node, item, type: FormulaDate }).value;
+    const date = searchedFor({ node, item, type: FormulaDateTime }).value;
 
     return Temporal.ZonedDateTime.compare(container.value.start, date) <= 0 && Temporal.ZonedDateTime.compare(date, container.value.end) <= 0;
   }

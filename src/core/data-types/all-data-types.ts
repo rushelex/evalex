@@ -5,8 +5,8 @@ import type { Kind } from './kind';
 
 import { FormulaArray } from './array';
 import { FormulaBoolean } from './boolean';
-import { FormulaDate } from './date';
 import { FormulaDateRange } from './date-range';
+import { FormulaDateTime } from './date-time';
 import { FormulaDuration } from './duration';
 import { FormulaNull } from './null';
 import { FormulaNumber } from './number';
@@ -20,7 +20,7 @@ import { FormulaString } from './string';
 export const ALL_DATA_TYPES = [
   FormulaArray,
   FormulaBoolean,
-  FormulaDate,
+  FormulaDateTime,
   FormulaDateRange,
   FormulaDuration,
   FormulaNull,
@@ -39,7 +39,7 @@ export type DataTypeClass = (typeof ALL_DATA_TYPES)[number];
  * @example
  * ```ts
  * function show(result: FormulaValue): string {
- *   return result.kind === 'Date' ? result.value.toPlainDate().toString() : result.toString();
+ *   return result.kind === 'DateTime' ? result.value.toPlainDate().toString() : result.toString();
  * }
  * ```
  */

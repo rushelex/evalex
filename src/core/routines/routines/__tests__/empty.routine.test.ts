@@ -1,4 +1,4 @@
-import { FormulaBoolean, FormulaDate, FormulaObject } from '../../../data-types';
+import { FormulaBoolean, FormulaDateTime, FormulaObject } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('empty');
@@ -23,7 +23,7 @@ describe('empty routine', tester.examples([
   {
     formula: 'd.empty()',
     context: {
-      d: new FormulaDate(
+      d: new FormulaDateTime(
         Temporal.ZonedDateTime.from({
           timeZone: 'UTC',
           year: 2024,

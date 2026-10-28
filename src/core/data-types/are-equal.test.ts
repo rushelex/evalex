@@ -1,8 +1,8 @@
 import { areEqual } from './are-equal';
 import { FormulaArray } from './array';
 import { FormulaBoolean } from './boolean';
-import { FormulaDate } from './date';
 import { FormulaDateRange } from './date-range';
+import { FormulaDateTime } from './date-time';
 import { FormulaDuration } from './duration';
 import { FormulaNull } from './null';
 import { FormulaNumber } from './number';
@@ -11,7 +11,7 @@ import { FormulaRegExp } from './regexp';
 import { FormulaString } from './string';
 
 const list = (...items: number[]): FormulaArray => new FormulaArray(items.map((item) => new FormulaNumber(item)));
-const date = (isoString: string): FormulaDate => FormulaDate.from(isoString);
+const date = (isoString: string): FormulaDateTime => FormulaDateTime.from(isoString);
 const range = (start: string, end: string): FormulaDateRange => FormulaDateRange.from({ start, end });
 const duration = (isoString: string): FormulaDuration => new FormulaDuration(Temporal.Duration.from(isoString));
 

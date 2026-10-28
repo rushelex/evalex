@@ -1,6 +1,6 @@
 import { fc, it } from '@fast-check/vitest';
 
-import { FormulaDate } from './FormulaDate';
+import { FormulaDateTime } from './FormulaDateTime';
 
 // Date and time text without an offset, from a whole day down to milliseconds, with either separator.
 const textWithoutOffset = fc.record({
@@ -16,7 +16,7 @@ const textWithoutOffset = fc.record({
   };
 });
 
-describe('FormulaDate', () => {
+describe('FormulaDateTime', () => {
   describe('on a machine far from UTC', () => {
     beforeAll(() => {
       vi.stubEnv('TZ', 'Pacific/Kiritimati');
@@ -27,18 +27,18 @@ describe('FormulaDate', () => {
     });
 
     it.prop([textWithoutOffset])('should read date text without an offset as UTC', ({ text, inUTC }) => {
-      expect(FormulaDate.from(text).value.equals(FormulaDate.from(inUTC).value)).toBe(true);
+      expect(FormulaDateTime.from(text).value.equals(FormulaDateTime.from(inUTC).value)).toBe(true);
     });
 
     it.each([
       { text: '2024-07', inUTC: '2024-07-01T00:00Z' },
       { text: '2024', inUTC: '2024-01-01T00:00Z' },
     ])('should read the ISO 8601 date $text as its first moment in UTC', ({ text, inUTC }) => {
-      expect(FormulaDate.from(text).value.equals(FormulaDate.from(inUTC).value)).toBe(true);
+      expect(FormulaDateTime.from(text).value.equals(FormulaDateTime.from(inUTC).value)).toBe(true);
     });
 
     it.each(['July 28, 2024', '2024/07/28'])('should reject the date text $0, which is not ISO 8601', (text) => {
-      expect(() => FormulaDate.from(text)).toThrowError(new RangeError(`Cannot create a date from the text "${text}".`));
+      expect(() => FormulaDateTime.from(text)).toThrowError(new RangeError(`Cannot create a date from the text "${text}".`));
     });
   });
 
@@ -46,10 +46,10 @@ describe('FormulaDate', () => {
     describe('From Number', () => {
       it('should initialize from number', () => {
         const date = new Date('2024-07-28T12:34:56Z').getTime();
-        const result = FormulaDate.from(date);
+        const result = FormulaDateTime.from(date);
 
-        expect(result).toBeInstanceOf(FormulaDate);
-        if (result instanceof FormulaDate) {
+        expect(result).toBeInstanceOf(FormulaDateTime);
+        if (result instanceof FormulaDateTime) {
           expect(result.value.equals(Temporal.ZonedDateTime.from({
             timeZone: 'UTC',
             year: 2024,
@@ -66,10 +66,10 @@ describe('FormulaDate', () => {
     describe('From Date', () => {
       it('should initialize from Date instance', () => {
         const date = new Date('2024-07-28T12:34:56Z');
-        const result = FormulaDate.from(date);
+        const result = FormulaDateTime.from(date);
 
-        expect(result).toBeInstanceOf(FormulaDate);
-        if (result instanceof FormulaDate) {
+        expect(result).toBeInstanceOf(FormulaDateTime);
+        if (result instanceof FormulaDateTime) {
           expect(result.value.equals(Temporal.ZonedDateTime.from({
             timeZone: 'UTC',
             year: 2024,
@@ -84,10 +84,10 @@ describe('FormulaDate', () => {
 
       it('should initialize from ISO 8601 string', () => {
         const date = '2024-07-28T12:34:56Z';
-        const result = FormulaDate.from(date);
+        const result = FormulaDateTime.from(date);
 
-        expect(result).toBeInstanceOf(FormulaDate);
-        if (result instanceof FormulaDate) {
+        expect(result).toBeInstanceOf(FormulaDateTime);
+        if (result instanceof FormulaDateTime) {
           expect(result.value.equals(Temporal.ZonedDateTime.from({
             timeZone: 'UTC',
             year: 2024,
@@ -106,7 +106,7 @@ describe('FormulaDate', () => {
         '2024-13-01',
         '2024-00-01',
       ])('should throw error if date string is invalid', (input) => {
-        expect(() => FormulaDate.from(input)).toThrowError();
+        expect(() => FormulaDateTime.from(input)).toThrowError();
       });
     });
 
@@ -118,7 +118,7 @@ describe('FormulaDate', () => {
         { input: 1e20, message: 'Cannot create a date from the timestamp 100000000000000000000.' },
         { input: 'garbage', message: 'Cannot create a date from the text "garbage".' },
       ])('should throw a RangeError naming $input', ({ input, message }) => {
-        expect(() => FormulaDate.from(input)).toThrowError(new RangeError(message));
+        expect(() => FormulaDateTime.from(input)).toThrowError(new RangeError(message));
       });
     });
 
@@ -133,20 +133,20 @@ describe('FormulaDate', () => {
           second: 56,
           timeZone: 'UTC',
         });
-        const result = FormulaDate.from(date);
+        const result = FormulaDateTime.from(date);
 
-        expect(result).toBeInstanceOf(FormulaDate);
-        if (result instanceof FormulaDate) {
+        expect(result).toBeInstanceOf(FormulaDateTime);
+        if (result instanceof FormulaDateTime) {
           expect(result.value.equals(date)).toBe(true);
         }
       });
 
       it('should initialize from RFC 9557 string without TZ', () => {
         const date = '2024-07-28T12:34:56+00:00';
-        const result = FormulaDate.from(date);
+        const result = FormulaDateTime.from(date);
 
-        expect(result).toBeInstanceOf(FormulaDate);
-        if (result instanceof FormulaDate) {
+        expect(result).toBeInstanceOf(FormulaDateTime);
+        if (result instanceof FormulaDateTime) {
           expect(result.value.equals(Temporal.ZonedDateTime.from({
             timeZone: 'UTC',
             year: 2024,
@@ -161,10 +161,10 @@ describe('FormulaDate', () => {
 
       it('should initialize from RFC 9557 string with named TZ', () => {
         const date = '2024-07-28T12:34:56-07:00[America/Los_Angeles]';
-        const result = FormulaDate.from(date);
+        const result = FormulaDateTime.from(date);
 
-        expect(result).toBeInstanceOf(FormulaDate);
-        if (result instanceof FormulaDate) {
+        expect(result).toBeInstanceOf(FormulaDateTime);
+        if (result instanceof FormulaDateTime) {
           expect(result.value.equals(Temporal.ZonedDateTime.from({
             timeZone: 'UTC',
             year: 2024,
@@ -179,10 +179,10 @@ describe('FormulaDate', () => {
 
       it('should initialize from RFC 9557 string with unnamed TZ', () => {
         const date = '2024-07-28T12:34:56+05:00';
-        const result = FormulaDate.from(date);
+        const result = FormulaDateTime.from(date);
 
-        expect(result).toBeInstanceOf(FormulaDate);
-        if (result instanceof FormulaDate) {
+        expect(result).toBeInstanceOf(FormulaDateTime);
+        if (result instanceof FormulaDateTime) {
           expect(result.value.equals(Temporal.ZonedDateTime.from({
             timeZone: 'UTC',
             year: 2024,
@@ -199,11 +199,11 @@ describe('FormulaDate', () => {
 
   describe('toString', () => {
     it('should format the date as an ISO 8601 instant in UTC', () => {
-      expect(FormulaDate.from('2024-07-28T12:34:56+03:00').toString()).toBe('2024-07-28T09:34:56Z');
+      expect(FormulaDateTime.from('2024-07-28T12:34:56+03:00').toString()).toBe('2024-07-28T09:34:56Z');
     });
 
     it('should keep milliseconds when the date has them', () => {
-      expect(FormulaDate.from('2024-07-28T12:34:56.789Z').toString()).toBe('2024-07-28T12:34:56.789Z');
+      expect(FormulaDateTime.from('2024-07-28T12:34:56.789Z').toString()).toBe('2024-07-28T12:34:56.789Z');
     });
   });
 });

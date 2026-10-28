@@ -11,7 +11,7 @@ describe('toNumber routine', () => {
     expect(evaluate('toNumber(format(number)) == number', { context: { number } })).toBeFormulaDataType(FormulaBoolean, true);
   });
 
-  it.prop([formulaValueArbitrary(Kind.Date)])('should give the timestamp of a date', (date) => {
+  it.prop([formulaValueArbitrary(Kind.DateTime)])('should give the timestamp of a date', (date) => {
     const context = { date };
 
     expect(evaluateOutcome('toNumber(date)', { context })).toHaveSameOutcomeAs(evaluateOutcome('timestamp(date)', { context }));

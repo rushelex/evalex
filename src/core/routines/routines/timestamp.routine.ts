@@ -14,6 +14,6 @@ const routineExamples: readonly RoutineExampleOptions[] = [
 routinesRegistry.registerRoutine('timestamp', {
   description: 'Returns the Unix timestamp of the date in milliseconds.',
   examples: routineExamples,
-  arguments: [arg.date('date')],
+  arguments: [arg.dateTime('date')],
   handler: ({ subject }) => new FormulaNumber(subject.value.epochMilliseconds),
 });

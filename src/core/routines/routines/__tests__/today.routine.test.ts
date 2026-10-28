@@ -1,4 +1,4 @@
-import { FormulaDate } from '../../../data-types';
+import { FormulaDateTime } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('today');
@@ -13,7 +13,7 @@ vi.spyOn(Temporal.Now, 'zonedDateTimeISO').mockReturnValue(Temporal.ZonedDateTim
 describe('today routine', tester.examples([
   {
     formula: 'today()',
-    expected: FormulaDate.from('2024-01-31T00:00:00+00:00[UTC]'),
+    expected: FormulaDateTime.from('2024-01-31T00:00:00+00:00[UTC]'),
   },
   {
     formula: 'today(1)',

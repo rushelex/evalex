@@ -1,10 +1,10 @@
-import { FormulaDate } from '../../../data-types';
+import { FormulaDateTime } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('fromTimestamp');
 
-function utc(isoString: string): FormulaDate {
-  return FormulaDate.from(Temporal.ZonedDateTime.from(`${isoString}+00:00[UTC]`));
+function utc(isoString: string): FormulaDateTime {
+  return FormulaDateTime.from(Temporal.ZonedDateTime.from(`${isoString}+00:00[UTC]`));
 }
 
 describe('fromTimestamp routine', tester.examples([

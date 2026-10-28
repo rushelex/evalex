@@ -1,4 +1,4 @@
-import { FormulaDate, FormulaObject, FormulaString } from '../../../data-types';
+import { FormulaDateTime, FormulaObject, FormulaString } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('format');
@@ -35,7 +35,7 @@ describe('format routine', tester.examples([
   {
     formula: 'd.format()',
     context: {
-      d: new FormulaDate(
+      d: new FormulaDateTime(
         Temporal.ZonedDateTime.from({
           timeZone: 'UTC',
           year: 2024,

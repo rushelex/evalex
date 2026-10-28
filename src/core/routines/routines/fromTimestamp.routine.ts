@@ -1,6 +1,6 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaDate } from '../../data-types';
+import { FormulaDateTime } from '../../data-types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -10,7 +10,7 @@ const MAX_TIMESTAMP = 8_640_000_000_000_000;
 const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name('1689024900000'),
-    result: () => FormulaDate.from(Temporal.ZonedDateTime.from({ year: 2023, month: 7, day: 10, hour: 21, minute: 35, timeZone: 'UTC' })),
+    result: () => FormulaDateTime.from(Temporal.ZonedDateTime.from({ year: 2023, month: 7, day: 10, hour: 21, minute: 35, timeZone: 'UTC' })),
   },
 ];
 
@@ -28,7 +28,7 @@ routinesRegistry.registerRoutine('fromTimestamp', {
           }),
     }),
   ],
-  handler: ({ subject }) => FormulaDate.from(
+  handler: ({ subject }) => FormulaDateTime.from(
     Temporal.Instant.fromEpochMilliseconds(Math.floor(subject.value))
       .toZonedDateTimeISO('UTC')
       .round({ smallestUnit: 'minute', roundingMode: 'floor' }),

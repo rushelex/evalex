@@ -10,6 +10,6 @@ routinesRegistry.registerRoutine('day', {
       result: () => new FormulaNumber(1),
     },
   ],
-  arguments: [arg.date('date')],
+  arguments: [arg.dateTime('date')],
   handler: ({ subject }) => new FormulaNumber(subject.value.dayOfWeek),
 });

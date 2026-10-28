@@ -1,4 +1,4 @@
-import { FormulaDate, FormulaDuration } from '../../../data-types';
+import { FormulaDateTime, FormulaDuration } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 describe('"dateBetween" function routine', new RoutineTester('dateBetween').examples({
@@ -38,16 +38,16 @@ describe('"between" method routine', new RoutineTester('between').examples({
   {
     formula: 'start.between(end, "days")',
     context: {
-      start: new FormulaDate(Temporal.ZonedDateTime.from({ year: 2024, month: 7, day: 1, timeZone: 'UTC' })),
-      end: new FormulaDate(Temporal.ZonedDateTime.from({ year: 2024, month: 7, day: 15, timeZone: 'UTC' })),
+      start: new FormulaDateTime(Temporal.ZonedDateTime.from({ year: 2024, month: 7, day: 1, timeZone: 'UTC' })),
+      end: new FormulaDateTime(Temporal.ZonedDateTime.from({ year: 2024, month: 7, day: 15, timeZone: 'UTC' })),
     },
     expected: new FormulaDuration(Temporal.Duration.from('-P14D')),
   },
   {
     formula: 'later.between(earlier, "days")',
     context: {
-      later: new FormulaDate(Temporal.ZonedDateTime.from({ year: 2024, month: 7, day: 15, timeZone: 'UTC' })),
-      earlier: new FormulaDate(Temporal.ZonedDateTime.from({ year: 2024, month: 7, day: 1, timeZone: 'UTC' })),
+      later: new FormulaDateTime(Temporal.ZonedDateTime.from({ year: 2024, month: 7, day: 15, timeZone: 'UTC' })),
+      earlier: new FormulaDateTime(Temporal.ZonedDateTime.from({ year: 2024, month: 7, day: 1, timeZone: 'UTC' })),
     },
     expected: new FormulaDuration(Temporal.Duration.from('P14D')),
   },

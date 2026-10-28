@@ -1,6 +1,6 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaDate, FormulaString } from '../../data-types';
+import { FormulaDateTime, FormulaString } from '../../data-types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { DATE_PATTERN_SIGNATURE } from './date-pattern-signature';
@@ -26,7 +26,7 @@ routinesRegistry.registerRoutine('format', {
   examples: routineExamples,
   arguments: [DATE_PATTERN_SIGNATURE, [arg.any('value')]],
   handler: ({ subject, args: [pattern, timezone], visitor }) => {
-    if (subject instanceof FormulaDate && pattern) {
+    if (subject instanceof FormulaDateTime && pattern) {
       return new FormulaString(formatDateText({
         date: subject.value.withTimeZone(timezone?.value ?? 'UTC'),
         pattern: pattern.value,

@@ -4,8 +4,8 @@ import { fc, it } from '@fast-check/vitest';
 
 import { FormulaArray } from './array';
 import { convertValueToFormulaType } from './converter';
-import { FormulaDate } from './date';
 import { FormulaDateRange } from './date-range';
+import { FormulaDateTime } from './date-time';
 import { FormulaNumber } from './number';
 import { FormulaObject } from './object';
 
@@ -61,8 +61,8 @@ describe(convertValueToFormulaType, () => {
   it.prop([fc.date({ noInvalidDate: true })])('should keep the instant of a date', (date) => {
     const converted = convertValueToFormulaType(date);
 
-    expect(converted).toBeInstanceOf(FormulaDate);
-    expect(converted.value).toEqual(FormulaDate.from(date).value);
+    expect(converted).toBeInstanceOf(FormulaDateTime);
+    expect(converted.value).toEqual(FormulaDateTime.from(date).value);
   });
 
   it('should keep a field named __proto__ as a field', () => {
@@ -148,12 +148,12 @@ describe(convertValueToFormulaType, () => {
     it('should convert an instant to the date at that instant', () => {
       const instant = Temporal.Instant.from('2024-07-28T14:35:00Z');
 
-      expect(convertValueToFormulaType(instant).value).toEqual(FormulaDate.from(new Date('2024-07-28T14:35:00Z')).value);
+      expect(convertValueToFormulaType(instant).value).toEqual(FormulaDateTime.from(new Date('2024-07-28T14:35:00Z')).value);
     });
 
     it('should read a date and a date-time without a time zone in UTC', () => {
-      expect(convertValueToFormulaType(Temporal.PlainDate.from('2024-07-28')).value).toEqual(FormulaDate.from(new Date('2024-07-28T00:00:00Z')).value);
-      expect(convertValueToFormulaType(Temporal.PlainDateTime.from('2024-07-28T14:35')).value).toEqual(FormulaDate.from(new Date('2024-07-28T14:35:00Z')).value);
+      expect(convertValueToFormulaType(Temporal.PlainDate.from('2024-07-28')).value).toEqual(FormulaDateTime.from(new Date('2024-07-28T00:00:00Z')).value);
+      expect(convertValueToFormulaType(Temporal.PlainDateTime.from('2024-07-28T14:35')).value).toEqual(FormulaDateTime.from(new Date('2024-07-28T14:35:00Z')).value);
     });
   });
 

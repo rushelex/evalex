@@ -1,7 +1,7 @@
 import { fc, it } from '@fast-check/vitest';
 
 import { evaluate } from '../../../../testing-library';
-import { FormulaBoolean, FormulaDate, FormulaDateRange } from '../../../data-types';
+import { FormulaBoolean, FormulaDateRange, FormulaDateTime } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('dateRange');
@@ -9,7 +9,7 @@ const tester = new RoutineTester('dateRange');
 // Every instant a date can hold, as Unix milliseconds
 const instant = fc.integer({ min: -8_640_000_000_000_000, max: 8_640_000_000_000_000 });
 
-const orderedDates = fc.tuple(instant, instant).map((milliseconds) => milliseconds.toSorted((a, b) => a - b).map((value) => FormulaDate.from(value)));
+const orderedDates = fc.tuple(instant, instant).map((milliseconds) => milliseconds.toSorted((a, b) => a - b).map((value) => FormulaDateTime.from(value)));
 
 describe('dateRange routine', () => {
   it.prop([orderedDates])('should span from the start date to an end date that is not before it', ([start, end]) => {
@@ -29,7 +29,7 @@ describe('dateRange routine', () => {
   });
 
   it('should not move a date range by a duration', () => {
-    expect(() => evaluate('dateAdd(dateRange(today(), today()), 1, "days")')).toThrow('Expected type Date. [8,35]');
+    expect(() => evaluate('dateAdd(dateRange(today(), today()), 1, "days")')).toThrow('Expected type DateTime. [8,35]');
   });
 
   describe('examples', tester.examples([

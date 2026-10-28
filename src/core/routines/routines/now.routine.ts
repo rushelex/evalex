@@ -1,12 +1,12 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaDate } from '../../data-types';
+import { FormulaDateTime } from '../../data-types';
 import { routinesRegistry } from '../registry';
 
 const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name(),
-    result: () => FormulaDate.from(Temporal.Now.zonedDateTimeISO('UTC')),
+    result: () => FormulaDateTime.from(Temporal.Now.zonedDateTimeISO('UTC')),
   },
 ];
 
@@ -15,5 +15,5 @@ routinesRegistry.registerFunction('now', {
   examples: routineExamples,
   arguments: [],
   volatile: true,
-  handler: () => FormulaDate.from(Temporal.Now.zonedDateTimeISO('UTC')),
+  handler: () => FormulaDateTime.from(Temporal.Now.zonedDateTimeISO('UTC')),
 });

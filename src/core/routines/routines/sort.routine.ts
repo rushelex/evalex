@@ -1,7 +1,7 @@
 import type { FormulaDataType } from '../../data-types';
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaArray, FormulaDate, FormulaNumber, FormulaString } from '../../data-types';
+import { FormulaArray, FormulaDateTime, FormulaNumber, FormulaString } from '../../data-types';
 import { Errors } from '../../errors';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
@@ -53,7 +53,7 @@ function sortOrder(keys: readonly FormulaDataType[]): number[] | undefined {
     return orderBy(keys.map((key) => key.value), compareValues);
   }
 
-  if (keys.every((key): key is FormulaDate => key instanceof FormulaDate)) {
+  if (keys.every((key): key is FormulaDateTime => key instanceof FormulaDateTime)) {
     return orderBy(keys.map((key) => key.value), (a, b) => Temporal.ZonedDateTime.compare(a, b));
   }
 

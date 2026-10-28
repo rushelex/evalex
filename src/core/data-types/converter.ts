@@ -2,8 +2,8 @@ import type { TypedArray } from './types';
 
 import { FormulaArray } from './array';
 import { FormulaBoolean } from './boolean';
-import { FormulaDate } from './date';
 import { FormulaDateRange } from './date-range';
+import { FormulaDateTime } from './date-time';
 import { FormulaDuration } from './duration';
 import { FormulaDataType } from './FormulaDataType';
 import { FormulaNull } from './null';
@@ -173,13 +173,13 @@ function convertObject(value: object, position: Position): FormulaDataType {
   }
 
   if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? reject(position, 'Invalid Date has no formula form') : FormulaDate.from(value);
+    return Number.isNaN(value.getTime()) ? reject(position, 'Invalid Date has no formula form') : FormulaDateTime.from(value);
   }
 
   const date = toZonedDateTime(value);
 
   if (date) {
-    return FormulaDate.from(date);
+    return FormulaDateTime.from(date);
   }
 
   if (value instanceof Temporal.Duration) {
@@ -245,12 +245,12 @@ function toDateRange(value: object, position: Position): FormulaDateRange | unde
 /** The date a value converts to, or `undefined` when it does not convert to a date. */
 function toDate(value: unknown): Temporal.ZonedDateTime | undefined {
   if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? undefined : FormulaDate.from(value).value;
+    return Number.isNaN(value.getTime()) ? undefined : FormulaDateTime.from(value).value;
   }
 
   const date = typeof value === 'object' && value !== null ? toZonedDateTime(value) : undefined;
 
-  return date && FormulaDate.from(date).value;
+  return date && FormulaDateTime.from(date).value;
 }
 
 function convertItems(container: Iterable<unknown> | ArrayLike<unknown>, position: Position): FormulaDataType[] {

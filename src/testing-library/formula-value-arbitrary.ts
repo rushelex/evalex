@@ -5,8 +5,8 @@ import { fc } from '@fast-check/vitest';
 import {
   FormulaArray,
   FormulaBoolean,
-  FormulaDate,
   FormulaDateRange,
+  FormulaDateTime,
   FormulaDuration,
   FormulaNull,
   FormulaNumber,
@@ -56,7 +56,7 @@ const boolean = fc.boolean().map((value) => new FormulaBoolean(value));
 const nullValue = fc.constant(null).map(() => new FormulaNull());
 
 const date = fc.bigInt({ min: -MAX_EPOCH_MILLISECONDS, max: MAX_EPOCH_MILLISECONDS }).map((milliseconds) => {
-  return FormulaDate.from(Temporal.Instant.fromEpochMilliseconds(Number(milliseconds)).toZonedDateTimeISO('UTC'));
+  return FormulaDateTime.from(Temporal.Instant.fromEpochMilliseconds(Number(milliseconds)).toZonedDateTimeISO('UTC'));
 });
 
 const dateRange = fc.tuple(date, date).map(([first, second]) => {
@@ -104,7 +104,7 @@ const BY_KIND: Readonly<Record<Kind, fc.Arbitrary<FormulaDataType>>> = {
   [Kind.Any]: arbitraries.value,
   [Kind.Array]: arbitraries.list,
   [Kind.Boolean]: boolean,
-  [Kind.Date]: date,
+  [Kind.DateTime]: date,
   [Kind.DateRange]: dateRange,
   [Kind.Duration]: duration,
   [Kind.Null]: nullValue,

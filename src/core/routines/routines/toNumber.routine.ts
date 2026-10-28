@@ -1,6 +1,6 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaBoolean, FormulaDate, FormulaNumber, FormulaString } from '../../data-types';
+import { FormulaBoolean, FormulaDateTime, FormulaNumber, FormulaString } from '../../data-types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -34,7 +34,7 @@ routinesRegistry.registerRoutine('toNumber', {
     })],
     [arg.number('number')],
     [arg.boolean('boolean')],
-    [arg.date('date')],
+    [arg.dateTime('date')],
   ],
   handler: ({ subject }) => {
     if (subject instanceof FormulaString) {
@@ -45,7 +45,7 @@ routinesRegistry.registerRoutine('toNumber', {
       return new FormulaNumber(subject.value ? 1 : 0);
     }
 
-    if (subject instanceof FormulaDate) {
+    if (subject instanceof FormulaDateTime) {
       return new FormulaNumber(subject.value.epochMilliseconds);
     }
 

@@ -10,6 +10,6 @@ routinesRegistry.registerRoutine('week', {
       result: () => new FormulaNumber(28),
     },
   ],
-  arguments: [arg.date('date')],
+  arguments: [arg.dateTime('date')],
   handler: ({ subject }) => subject.value.weekOfYear === undefined ? new FormulaNull() : new FormulaNumber(subject.value.weekOfYear),
 });

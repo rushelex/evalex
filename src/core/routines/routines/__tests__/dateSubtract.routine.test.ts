@@ -1,10 +1,10 @@
-import { FormulaDate, FormulaDuration } from '../../../data-types';
+import { FormulaDateTime, FormulaDuration } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const base = Temporal.ZonedDateTime.from('2025-06-01T10:00:00Z[UTC]');
 
 const context = {
-  d: new FormulaDate(Temporal.ZonedDateTime.from({ timeZone: 'UTC', year: 2024, month: 7, day: 28 })),
+  d: new FormulaDateTime(Temporal.ZonedDateTime.from({ timeZone: 'UTC', year: 2024, month: 7, day: 28 })),
   duration: new FormulaDuration(Temporal.Duration.from({ years: 2, months: 5, days: 10, hours: 12, minutes: 30, seconds: 15 })),
 };
 
@@ -14,14 +14,14 @@ describe('"dateSubtract" function routine', new RoutineTester('dateSubtract').ex
   {
     formula: 'dateSubtract(d, 2, "days")',
     context: {
-      d: new FormulaDate(base),
+      d: new FormulaDateTime(base),
     },
-    expected: new FormulaDate(base.subtract({ days: 2 })),
+    expected: new FormulaDateTime(base.subtract({ days: 2 })),
   },
   {
     formula: 'dateSubtract(d, duration)',
     context,
-    expected: new FormulaDate(context.d.value.subtract(context.duration.value)),
+    expected: new FormulaDateTime(context.d.value.subtract(context.duration.value)),
   },
   {
     formula: 'dateSubtract(d, 1, "minute")',
@@ -41,17 +41,17 @@ describe('"subtract" method routine', new RoutineTester('subtract').examples({
   {
     formula: 'd.subtract(w)',
     context: {
-      d: new FormulaDate(base),
+      d: new FormulaDateTime(base),
       w: new FormulaDuration(Temporal.Duration.from({ weeks: 1 })),
     },
-    expected: new FormulaDate(base.subtract({ weeks: 1 })),
+    expected: new FormulaDateTime(base.subtract({ weeks: 1 })),
   },
   {
     formula: 'd.subtract(2, "days")',
     context: {
-      d: new FormulaDate(base),
+      d: new FormulaDateTime(base),
     },
-    expected: new FormulaDate(base.subtract({ days: 2 })),
+    expected: new FormulaDateTime(base.subtract({ days: 2 })),
   },
   {
     formula: 'd.subtract(duration, "hours")',

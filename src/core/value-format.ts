@@ -47,15 +47,15 @@ export interface DateNames {
  * ```ts
  * const dates = new Intl.DateTimeFormat('en-GB', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/London' });
  *
- * const scope = new FormulaScope({ format: { date: (value) => dates.format(value.epochMilliseconds) } });
+ * const scope = new FormulaScope({ format: { dateTime: (value) => dates.format(value.epochMilliseconds) } });
  *
  * scope.evaluate('"Due: " + due', { due: new Date('2024-07-28T14:35Z') });
  * // "Due: 28 July 2024 at 15:35"
  * ```
  */
 export interface ValueFormat {
-  readonly date?: (value: Temporal.ZonedDateTime) => string;
-  /** Without it, a date range is both ends joined by an arrow, each as the `date` formatter gives it. */
+  readonly dateTime?: (value: Temporal.ZonedDateTime) => string;
+  /** Without it, a date range is both ends joined by an arrow, each as the `dateTime` formatter gives it. */
   readonly dateRange?: (value: { readonly start: Temporal.ZonedDateTime; readonly end: Temporal.ZonedDateTime }) => string;
   readonly duration?: (value: Temporal.Duration) => string;
   readonly number?: (value: number) => string;

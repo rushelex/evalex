@@ -7,7 +7,7 @@ import { evaluate, loc } from '../../../testing-library';
 import { routinesRegistry } from '../../routines/registry';
 import { FormulaArray } from '../array';
 import { FormulaBoolean } from '../boolean';
-import { FormulaDate } from '../date';
+import { FormulaDateTime } from '../date-time';
 import { FormulaNull } from '../null';
 import { FormulaNumber } from '../number';
 import { FormulaRegExp } from '../regexp';
@@ -185,7 +185,7 @@ describe('FormulaObject', () => {
       expect(formulaObj).toBeFormulaDataType(FormulaObject, {
         nullValue: new FormulaNull(),
         undefinedValue: new FormulaNull(),
-        date: FormulaDate.from(new Date('2025-01-01')),
+        date: FormulaDateTime.from(new Date('2025-01-01')),
         regex: new FormulaRegExp('test', 'g'),
       });
     });

@@ -1,10 +1,10 @@
-import { FormulaDate, FormulaDuration } from '../../../data-types';
+import { FormulaDateTime, FormulaDuration } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const base = Temporal.ZonedDateTime.from('2025-06-01T10:00:00Z[UTC]');
 
 const context = {
-  d: new FormulaDate(Temporal.ZonedDateTime.from({ timeZone: 'UTC', year: 2024, month: 7, day: 28 })),
+  d: new FormulaDateTime(Temporal.ZonedDateTime.from({ timeZone: 'UTC', year: 2024, month: 7, day: 28 })),
   duration: new FormulaDuration(Temporal.Duration.from({ years: 2, months: 5, days: 10, hours: 12, minutes: 30, seconds: 15 })),
 };
 
@@ -13,7 +13,7 @@ describe('"dateAdd" function routine', new RoutineTester('dateAdd').examples({
 }, [
   {
     formula: 'dateAdd(parseDate("2025-08-23"), 1, "days")',
-    expected: FormulaDate.from(Temporal.ZonedDateTime.from({
+    expected: FormulaDateTime.from(Temporal.ZonedDateTime.from({
       year: 2025,
       month: 8,
       day: 24,
@@ -29,7 +29,7 @@ describe('"dateAdd" function routine', new RoutineTester('dateAdd').examples({
     context: {
       duration: new FormulaDuration(Temporal.Duration.from({ years: 1 })),
     },
-    expected: FormulaDate.from(Temporal.ZonedDateTime.from({
+    expected: FormulaDateTime.from(Temporal.ZonedDateTime.from({
       year: 2026,
       month: 8,
       day: 23,
@@ -56,7 +56,7 @@ describe('"add" method routine', new RoutineTester('add').examples({
 }, [
   {
     formula: 'parseDate("2025-08-23").add(1, "days")',
-    expected: FormulaDate.from(Temporal.ZonedDateTime.from({
+    expected: FormulaDateTime.from(Temporal.ZonedDateTime.from({
       year: 2025,
       month: 8,
       day: 24,
@@ -72,7 +72,7 @@ describe('"add" method routine', new RoutineTester('add').examples({
     context: {
       duration: new FormulaDuration(Temporal.Duration.from({ years: 1 })),
     },
-    expected: FormulaDate.from(Temporal.ZonedDateTime.from({
+    expected: FormulaDateTime.from(Temporal.ZonedDateTime.from({
       year: 2026,
       month: 8,
       day: 23,
@@ -95,17 +95,17 @@ describe('"add" method routine', new RoutineTester('add').examples({
   {
     formula: 'd.add(w)',
     context: {
-      d: new FormulaDate(base),
+      d: new FormulaDateTime(base),
       w: new FormulaDuration(Temporal.Duration.from({ weeks: 1 })),
     },
-    expected: new FormulaDate(base.add({ weeks: 1 })),
+    expected: new FormulaDateTime(base.add({ weeks: 1 })),
   },
   {
     formula: 'd.add(2, "days")',
     context: {
-      d: new FormulaDate(base),
+      d: new FormulaDateTime(base),
     },
-    expected: new FormulaDate(base.add({ days: 2 })),
+    expected: new FormulaDateTime(base.add({ days: 2 })),
   },
   {
     formula: 'd.add(duration, "hours")',

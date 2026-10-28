@@ -10,6 +10,6 @@ routinesRegistry.registerRoutine('month', {
       result: () => new FormulaNumber(7),
     },
   ],
-  arguments: [arg.date('date')],
+  arguments: [arg.dateTime('date')],
   handler: ({ subject }) => new FormulaNumber(subject.value.month),
 });

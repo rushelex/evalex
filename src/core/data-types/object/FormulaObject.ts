@@ -74,7 +74,7 @@ export class FormulaObject<T extends Record<string, FormulaDataType> = Record<st
    * //     city: FormulaString("New York"),
    * //     tags: FormulaArray([FormulaString("developer"), FormulaString("typescript")])
    * //   }),
-   * //   createdAt: FormulaDate(2024-01-01)
+   * //   createdAt: FormulaDateTime(2024-01-01)
    * // }
    *
    * // Use with constructor

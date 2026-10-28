@@ -1,7 +1,7 @@
 import { fc, it } from '@fast-check/vitest';
 
 import { evaluate, evaluateOutcome, formulaValueArbitrary, loc } from '../../testing-library';
-import { FormulaArray, FormulaBoolean, FormulaDate, FormulaDateRange, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString, Kind } from '../data-types';
+import { FormulaArray, FormulaBoolean, FormulaDateRange, FormulaDateTime, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString, Kind } from '../data-types';
 import { exactValue } from '../data-types/number/exact-value';
 import { Errors, FormulaError } from '../errors';
 
@@ -71,7 +71,7 @@ const valuePair = fc.oneof(
 );
 
 // Pairs of one kind that the ordering operators compare.
-const orderedPair = fc.constantFrom(Kind.Number, Kind.String, Kind.Date).chain((kind) => fc.oneof(
+const orderedPair = fc.constantFrom(Kind.Number, Kind.String, Kind.DateTime).chain((kind) => fc.oneof(
   fc.tuple(formulaValueArbitrary(kind), formulaValueArbitrary(kind)),
   formulaValueArbitrary(kind).map((value) => [value, value] as const),
 ));
@@ -216,7 +216,7 @@ describe('Operations', () => {
       { kind: 'null', value: FormulaNull.instance(), text: 'x' },
       { kind: 'a list', value: FormulaArray.from([1, 'a', [2]]), text: 'x1, a, 2' },
       { kind: 'an object', value: FormulaObject.from({ a: 1 }), text: 'x{ a: 1 }' },
-      { kind: 'a date', value: FormulaDate.from('2024-07-28T14:35:00Z'), text: 'x2024-07-28T14:35:00Z' },
+      { kind: 'a date', value: FormulaDateTime.from('2024-07-28T14:35:00Z'), text: 'x2024-07-28T14:35:00Z' },
       { kind: 'a duration', value: FormulaDuration.from(Temporal.Duration.from('P1DT2H')), text: 'xP1DT2H' },
       { kind: 'a regular expression', value: FormulaRegExp.from(/a+/g), text: 'x/a+/g' },
     ])('should join text with $kind as the text format() gives', ({ value, text }) => {
@@ -446,7 +446,7 @@ describe('Operations', () => {
     });
 
     describe('Date comparison', () => {
-      const earlierDate = new FormulaDate(
+      const earlierDate = new FormulaDateTime(
         Temporal.ZonedDateTime.from({
           year: 2024,
           month: 1,
@@ -458,7 +458,7 @@ describe('Operations', () => {
         }),
       );
 
-      const laterDate = new FormulaDate(
+      const laterDate = new FormulaDateTime(
         Temporal.ZonedDateTime.from({
           year: 2024,
           month: 6,
@@ -470,7 +470,7 @@ describe('Operations', () => {
         }),
       );
 
-      const sameDate = new FormulaDate(
+      const sameDate = new FormulaDateTime(
         Temporal.ZonedDateTime.from({
           year: 2024,
           month: 1,
@@ -607,7 +607,7 @@ describe('Operations', () => {
       { date: '2026-10-07T00:00:00.001Z', expected: false },
       { date: '2026-09-30T23:59:59.999Z', expected: false },
     ])('should find a date in a range from its start to its end, both included: $date', ({ date, expected }) => {
-      expect(evaluate('day in week', { context: { day: FormulaDate.from(date), week } })).toBeFormulaDataType(FormulaBoolean, expected);
+      expect(evaluate('day in week', { context: { day: FormulaDateTime.from(date), week } })).toBeFormulaDataType(FormulaBoolean, expected);
     });
 
     it('should find the one date of a range that starts and ends at it', () => {
@@ -624,7 +624,7 @@ describe('Operations', () => {
     it.each([
       { input: '1 in 5', actual: Kind.Number, location: loc(5, 6) },
       { input: '1 not in true', actual: Kind.Boolean, location: loc(9, 13) },
-      { input: '1 in parseDate("2026-10-07")', actual: Kind.Date, location: loc(5, 28) },
+      { input: '1 in parseDate("2026-10-07")', actual: Kind.DateTime, location: loc(5, 28) },
     ])('should fail at the right operand when nothing can be searched in it: $input', ({ input, actual, location }) => {
       expect(() => evaluate(input)).toThrow(Errors.Argument.TypeMismatch.create(
         { expected: [Kind.Array, Kind.String, Kind.Object, Kind.DateRange], actual, argumentPosition: 2 },
@@ -636,7 +636,7 @@ describe('Operations', () => {
       { input: '5 in "abc"', expected: Kind.String, actual: Kind.Number, location: loc(0, 1) },
       { input: '(1 + 1) not in "abc"', expected: Kind.String, actual: Kind.Number, location: loc(1, 6) },
       { input: '5 in object', expected: Kind.String, actual: Kind.Number, location: loc(0, 1) },
-      { input: '"2026-10-01" in week', expected: Kind.Date, actual: Kind.String, location: loc(0, 12) },
+      { input: '"2026-10-01" in week', expected: Kind.DateTime, actual: Kind.String, location: loc(0, 12) },
     ])('should fail at the left operand when it cannot be searched for in the right one: $input', ({ input, expected, actual, location }) => {
       const object = FormulaObject.from({ 5: true });
 

@@ -1,6 +1,6 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaDate, FormulaDuration } from '../../data-types';
+import { FormulaDateTime, FormulaDuration } from '../../data-types';
 import { Errors } from '../../errors';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
@@ -10,19 +10,19 @@ import { unitDuration } from './unit-duration';
 const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name('parseDate("2023-08-30")', '1', '"days"'),
-    result: () => FormulaDate.from(Temporal.ZonedDateTime.from({ year: 2023, month: 8, day: 31, timeZone: 'UTC' })),
+    result: () => FormulaDateTime.from(Temporal.ZonedDateTime.from({ year: 2023, month: 8, day: 31, timeZone: 'UTC' })),
   },
   {
     formula: (name) => name('parseDate("2023-08-30")', '2', '"months"'),
-    result: () => FormulaDate.from(Temporal.ZonedDateTime.from({ year: 2023, month: 10, day: 30, timeZone: 'UTC' })),
+    result: () => FormulaDateTime.from(Temporal.ZonedDateTime.from({ year: 2023, month: 10, day: 30, timeZone: 'UTC' })),
   },
   {
     formula: (name) => name('parseDate("2023-08-30")', '1', '"quarters"'),
-    result: () => FormulaDate.from(Temporal.ZonedDateTime.from({ year: 2023, month: 11, day: 30, timeZone: 'UTC' })),
+    result: () => FormulaDateTime.from(Temporal.ZonedDateTime.from({ year: 2023, month: 11, day: 30, timeZone: 'UTC' })),
   },
   {
     formula: (name) => name('parseDate("2023-08-30")', '3', '"years"'),
-    result: () => FormulaDate.from(Temporal.ZonedDateTime.from({ year: 2026, month: 8, day: 30, timeZone: 'UTC' })),
+    result: () => FormulaDateTime.from(Temporal.ZonedDateTime.from({ year: 2026, month: 8, day: 30, timeZone: 'UTC' })),
   },
 ];
 
@@ -32,9 +32,9 @@ routinesRegistry.registerRoutine({ function: 'dateAdd', method: ['add', 'dateAdd
   description: 'Adds a duration or a number of units to the date.',
   examples: routineExamples,
   arguments: [
-    [arg.date('date'), arg.duration('duration')],
+    [arg.dateTime('date'), arg.duration('duration')],
     [
-      arg.date('date'),
+      arg.dateTime('date'),
       arg.number('number', {
         validation: expectInteger,
       }),
@@ -45,7 +45,7 @@ routinesRegistry.registerRoutine({ function: 'dateAdd', method: ['add', 'dateAdd
     const duration: Temporal.DurationLike = amount instanceof FormulaDuration ? amount.value : unitDuration({ unit: unit!.value, amount: amount.value });
 
     try {
-      return FormulaDate.from(subject.value.add(duration));
+      return FormulaDateTime.from(subject.value.add(duration));
     }
     catch (error) {
       // With whole amounts, Temporal fails only when the duration or the resulting date leaves its range.

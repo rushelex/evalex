@@ -1,4 +1,4 @@
-import { FormulaDate, FormulaDuration } from '../../data-types';
+import { FormulaDateTime, FormulaDuration } from '../../data-types';
 import { Errors } from '../../errors';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
@@ -14,18 +14,18 @@ routinesRegistry.registerRoutine({ function: 'dateSubtract', method: ['subtract'
       formula: (name) => name('parseDate("2023-07-10T17:35Z")', '1', '"years"'),
       result: () => {
         const date = Temporal.ZonedDateTime.from({ year: 2023, month: 7, day: 10, hour: 17, minute: 35, timeZone: 'UTC' });
-        return new FormulaDate(date.subtract({ years: 1 }));
+        return new FormulaDateTime(date.subtract({ years: 1 }));
       },
     },
     {
       formula: (name) => name('parseDate("2023-07-10T17:35Z")', '2', '"quarters"'),
-      result: () => FormulaDate.from(Temporal.ZonedDateTime.from({ year: 2023, month: 1, day: 10, hour: 17, minute: 35, timeZone: 'UTC' })),
+      result: () => FormulaDateTime.from(Temporal.ZonedDateTime.from({ year: 2023, month: 1, day: 10, hour: 17, minute: 35, timeZone: 'UTC' })),
     },
   ],
   arguments: [
-    [arg.date('date'), arg.duration('duration')],
+    [arg.dateTime('date'), arg.duration('duration')],
     [
-      arg.date('date'),
+      arg.dateTime('date'),
       arg.number('number', {
         validation: expectInteger,
       }),
@@ -36,7 +36,7 @@ routinesRegistry.registerRoutine({ function: 'dateSubtract', method: ['subtract'
     const duration: Temporal.DurationLike = amount instanceof FormulaDuration ? amount.value : unitDuration({ unit: unit!.value, amount: amount.value });
 
     try {
-      return FormulaDate.from(subject.value.subtract(duration));
+      return FormulaDateTime.from(subject.value.subtract(duration));
     }
     catch (error) {
       // With whole amounts, Temporal fails only when the duration or the resulting date leaves its range.

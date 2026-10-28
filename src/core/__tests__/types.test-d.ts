@@ -3,7 +3,7 @@ import type { ToFormulaDataType } from '../data-types';
 import type { FormulaArray } from '../data-types/array';
 
 import type { FormulaBoolean } from '../data-types/boolean';
-import type { FormulaDate } from '../data-types/date';
+import type { FormulaDateTime } from '../data-types/date-time';
 import type { FormulaDuration } from '../data-types/duration';
 import type { FormulaNull } from '../data-types/null';
 import type { FormulaNumber } from '../data-types/number';
@@ -20,8 +20,8 @@ describe('ToFormulaDataType', () => {
     expectTypeOf<ToFormulaDataType<number>>().toEqualTypeOf<FormulaNumber>();
     expectTypeOf<ToFormulaDataType<boolean>>().toEqualTypeOf<FormulaBoolean>();
 
-    expectTypeOf<ToFormulaDataType<Date>>().toEqualTypeOf<FormulaDate>();
-    expectTypeOf<ToFormulaDataType<Temporal.ZonedDateTime>>().toEqualTypeOf<FormulaDate>();
+    expectTypeOf<ToFormulaDataType<Date>>().toEqualTypeOf<FormulaDateTime>();
+    expectTypeOf<ToFormulaDataType<Temporal.ZonedDateTime>>().toEqualTypeOf<FormulaDateTime>();
 
     expectTypeOf<ToFormulaDataType<Temporal.Duration>>().toEqualTypeOf<FormulaDuration>();
     expectTypeOf<ToFormulaDataType<RegExp>>().toEqualTypeOf<FormulaRegExp>();
@@ -40,9 +40,9 @@ describe('ToFormulaDataType', () => {
 
     expectTypeOf<ToFormulaDataType<bigint>>().toEqualTypeOf<FormulaNumber>();
 
-    expectTypeOf<ToFormulaDataType<Temporal.Instant>>().toEqualTypeOf<FormulaDate>();
-    expectTypeOf<ToFormulaDataType<Temporal.PlainDateTime>>().toEqualTypeOf<FormulaDate>();
-    expectTypeOf<ToFormulaDataType<Temporal.PlainDate>>().toEqualTypeOf<FormulaDate>();
+    expectTypeOf<ToFormulaDataType<Temporal.Instant>>().toEqualTypeOf<FormulaDateTime>();
+    expectTypeOf<ToFormulaDataType<Temporal.PlainDateTime>>().toEqualTypeOf<FormulaDateTime>();
+    expectTypeOf<ToFormulaDataType<Temporal.PlainDate>>().toEqualTypeOf<FormulaDateTime>();
   });
 
   it('should map plain objects and wrap nested objects', () => {

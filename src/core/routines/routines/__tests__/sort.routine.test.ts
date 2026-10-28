@@ -3,13 +3,13 @@ import type { FormulaDataType } from '../../../data-types';
 import { fc, it } from '@fast-check/vitest';
 
 import { evaluate, evaluateOutcome, formulaValueArbitrary } from '../../../../testing-library';
-import { FormulaArray, FormulaBoolean, FormulaDate, Kind } from '../../../data-types';
+import { FormulaArray, FormulaBoolean, FormulaDateTime, Kind } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('sort');
 
 // Lists of the kinds `<` compares, which sort without a key.
-const comparableList = fc.constantFrom(Kind.Number, Kind.String, Kind.Date)
+const comparableList = fc.constantFrom(Kind.Number, Kind.String, Kind.DateTime)
   .chain((kind) => fc.array(formulaValueArbitrary(kind), { maxLength: 6 }))
   .map((items) => new FormulaArray(items));
 
@@ -45,8 +45,8 @@ describe('sort routine', () => {
     },
     {
       formula: 'dates.sort()',
-      context: { dates: new FormulaArray([FormulaDate.from('2024-07-28'), FormulaDate.from('2023-01-01')]) },
-      expected: new FormulaArray([FormulaDate.from('2023-01-01'), FormulaDate.from('2024-07-28')]),
+      context: { dates: new FormulaArray([FormulaDateTime.from('2024-07-28'), FormulaDateTime.from('2023-01-01')]) },
+      expected: new FormulaArray([FormulaDateTime.from('2023-01-01'), FormulaDateTime.from('2024-07-28')]),
     },
     {
       formula: 'values.sort(current % 2)',

@@ -1,13 +1,13 @@
 import { fc, it } from '@fast-check/vitest';
 
-import { FormulaDate } from '../date';
+import { FormulaDateTime } from '../date-time';
 import { FormulaDateRange } from './FormulaDateRange';
 
 // Every instant a date can hold, as Unix milliseconds
 const instant = fc.integer({ min: -8_640_000_000_000_000, max: 8_640_000_000_000_000 });
 
 const orderedDates = fc.tuple(instant, instant)
-  .map((milliseconds) => milliseconds.toSorted((a, b) => a - b).map((value) => FormulaDate.from(value).value));
+  .map((milliseconds) => milliseconds.toSorted((a, b) => a - b).map((value) => FormulaDateTime.from(value).value));
 
 describe(FormulaDateRange, () => {
   it.prop([orderedDates])('should keep both ends of a range whose end is not before its start', ([start, end]) => {

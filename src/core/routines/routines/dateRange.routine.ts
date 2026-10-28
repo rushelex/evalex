@@ -23,7 +23,7 @@ const routineExamples: readonly RoutineExampleOptions[] = [
 routinesRegistry.registerRoutine({ function: 'dateRange', method: ['range', 'dateRange'] }, {
   description: 'Returns the date range from the start date to the end date.',
   examples: routineExamples,
-  arguments: [arg.date('start'), arg.date('end')],
+  arguments: [arg.dateTime('start'), arg.dateTime('end')],
   handler: ({ subject, args: [end], locations }) => {
     if (Temporal.ZonedDateTime.compare(subject.value, end.value) > 0) {
       throw Errors.Argument.Validation.create({

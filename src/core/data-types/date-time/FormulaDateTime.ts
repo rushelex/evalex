@@ -15,11 +15,11 @@ const TEXT_PARSERS: readonly ((text: string) => Temporal.ZonedDateTime)[] = [
 ];
 
 /** A date a formula computes: `value` holds its instant as a `Temporal.ZonedDateTime` in UTC. */
-export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime, typeof Kind.Date> {
-  static readonly kind = Kind.Date;
+export class FormulaDateTime extends FormulaDataType<Temporal.ZonedDateTime, typeof Kind.DateTime> {
+  static readonly kind = Kind.DateTime;
 
   constructor(value: Temporal.ZonedDateTime) {
-    super(Kind.Date, value, 'Date');
+    super(Kind.DateTime, value, 'Date and time');
   }
 
   isEmpty(): boolean {
@@ -28,7 +28,7 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime, typeof 
 
   /** Formats the date as an ISO 8601 instant in UTC, so the text never depends on the host locale, unless the host formats dates itself. */
   toString(options?: ToStringOptions): string {
-    return formatWith({ formatter: options?.format?.date, value: this.value, kind: 'date' }) ?? this.value.toInstant().toString();
+    return formatWith({ formatter: options?.format?.dateTime, value: this.value, kind: 'date and time' }) ?? this.value.toInstant().toString();
   }
 
   /**
@@ -36,7 +36,7 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime, typeof 
    *
    * @throws {RangeError} When the value holds no date: unreadable text, an invalid `Date` or a timestamp out of range.
    */
-  static from(date: string | number | Date | Temporal.ZonedDateTime): FormulaDate {
+  static from(date: string | number | Date | Temporal.ZonedDateTime): FormulaDateTime {
     if (typeof date === 'number') {
       const jsDate = new Date(date);
 
@@ -44,7 +44,7 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime, typeof 
         throw new RangeError(`Cannot create a date from the timestamp ${date}.`);
       }
 
-      return FormulaDate.#fromJSDate(jsDate);
+      return FormulaDateTime.#fromJSDate(jsDate);
     }
 
     if (date instanceof Date) {
@@ -52,16 +52,16 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime, typeof 
         throw new RangeError('Cannot create a date from an invalid Date.');
       }
 
-      return FormulaDate.#fromJSDate(date);
+      return FormulaDateTime.#fromJSDate(date);
     }
 
     if (date instanceof Temporal.ZonedDateTime) {
-      return FormulaDate.#fromZonedDateTime(date);
+      return FormulaDateTime.#fromZonedDateTime(date);
     }
 
     for (const parse of TEXT_PARSERS) {
       try {
-        return FormulaDate.#fromZonedDateTime(parse(date));
+        return FormulaDateTime.#fromZonedDateTime(parse(date));
       }
       catch { /* ignore and try next parser */ }
     }
@@ -77,7 +77,7 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime, typeof 
   }
 
   static #fromJSDate(date: Date) {
-    return new FormulaDate(
+    return new FormulaDateTime(
       Temporal.ZonedDateTime.from({
         year: date.getUTCFullYear(),
         month: date.getUTCMonth() + 1,
@@ -92,6 +92,6 @@ export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime, typeof 
   }
 
   static #fromZonedDateTime(value: Temporal.ZonedDateTime) {
-    return new FormulaDate(value.withTimeZone('UTC'));
+    return new FormulaDateTime(value.withTimeZone('UTC'));
   }
 }

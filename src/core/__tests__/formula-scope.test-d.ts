@@ -41,7 +41,7 @@ describe('FormulaScope values', () => {
   it('should narrow the result by its kind', () => {
     const result = scope.evaluate('due', { due: new Date() });
 
-    if (result.kind === 'Date') {
+    if (result.kind === 'DateTime') {
       expectTypeOf(result.value).toEqualTypeOf<Temporal.ZonedDateTime>();
     }
 

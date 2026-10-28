@@ -1,17 +1,17 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaDate } from '../../data-types';
+import { FormulaDateTime } from '../../data-types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
 const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name('"2023-07-10"'),
-    result: () => FormulaDate.from('2023-07-10'),
+    result: () => FormulaDateTime.from('2023-07-10'),
   },
   {
     formula: (name) => name('"2023-07-10T17:35Z"'),
-    result: () => FormulaDate.from('2023-07-10T17:35Z'),
+    result: () => FormulaDateTime.from('2023-07-10T17:35Z'),
   },
 ];
 
@@ -22,7 +22,7 @@ routinesRegistry.registerRoutine('parseDate', {
     arg.string('date', {
       validation: (value) => {
         try {
-          FormulaDate.from(value.value);
+          FormulaDateTime.from(value.value);
         }
         catch {
           return { message: 'Expected valid date string.', expected: ['valid date string'], actual: value.value };
@@ -30,5 +30,5 @@ routinesRegistry.registerRoutine('parseDate', {
       },
     }),
   ],
-  handler: ({ subject }) => FormulaDate.from(subject.value),
+  handler: ({ subject }) => FormulaDateTime.from(subject.value),
 });
