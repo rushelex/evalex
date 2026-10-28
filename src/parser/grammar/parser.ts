@@ -602,16 +602,18 @@ class Parser {
       this.#restore(saved);
       return { type: 'MemberCall', property: prop, args: [], end: prop.location.end };
     }
-    return { type: 'MemberCall', property: prop, ...this.#parseCallArguments() };
+    const args = this.#parseCallArguments();
+    return { type: 'MemberCall', property: prop, args, end: this.#mark() };
   }
 
   /** Parses `(args)` and returns a suffix descriptor. */
   #parseDirectCallSuffix(): Suffix {
-    return { type: 'DirectCall', ...this.#parseCallArguments() };
+    const args = this.#parseCallArguments();
+    return { type: 'DirectCall', args, end: this.#mark() };
   }
 
-  /** Parses the parenthesized arguments of a call. */
-  #parseCallArguments(): { args: AstNode[]; end: Pos } {
+  /** Parses the parenthesized arguments of a call, up to and with its `)`. */
+  #parseCallArguments(): AstNode[] {
     const lpStart = this.#mark();
     this.#consumePunctuation();
     const lpEnd = this.#mark();
@@ -620,7 +622,7 @@ class Parser {
     if (this.#peek() === ')') {
       this.#consumePunctuation();
     }
-    return { args, end: this.#mark() };
+    return args;
   }
 
   /** Reduces a list of collected suffixes into a chain of AST nodes, each spanning from the head to its own end. */
@@ -970,7 +972,7 @@ class Parser {
       this.#report(this.#error('EMPTY_PARENTHESES', {}, this.#loc(lp)));
       return this.#placeholder(lp);
     }
-    const expr = this.#recoverable(() => this.#withNoIn(false, () => this.#parseExpr(0)));
+    const expr = this.#recoverable(this.#parseListItem);
     this.#skipWhitespace();
     if (this.#peek() !== ')') {
       const m = this.#mark();
@@ -982,6 +984,10 @@ class Parser {
     }
     return expr;
   }
+
+  // An expression inside brackets, where `in` is the operator again; one bound function, not a closure per item
+  readonly #parseListItem = (): AstNode => this.#withNoIn(false, this.#parseFullExpr);
+  readonly #parseFullExpr = (): AstNode => this.#parseExpr(0);
 
   /** Parses an array literal `[el1, el2, ...]`. */
   #parseArray(): ArrayExpressionNode {
@@ -1013,7 +1019,7 @@ class Parser {
     let expectArgument = this.#peek() !== ')' && this.#peek() !== ']' && !this.#isEnd();
     while (true) {
       if (expectArgument) {
-        args.push(this.#recoverable(() => this.#withNoIn(false, () => this.#parseExpr(0))));
+        args.push(this.#recoverable(this.#parseListItem));
       }
       this.#skipWhitespace();
       if (this.#peek() !== ',') {
