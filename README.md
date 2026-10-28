@@ -148,6 +148,20 @@ catch (error) {
 
 Use `location` to underline the offending part of the formula in your editor UI.
 
+## Highlighting formulas
+
+`evalex/language` gives a formula editor what it needs from the formula text. `tokenize` splits the text into tokens with their kinds, read the way the formula is evaluated:
+
+```ts
+import { tokenize } from 'evalex/language';
+
+tokenize('round(price, 2) + x.total()').map(({ kind }) => kind);
+// ['function', 'punctuation', 'name', 'punctuation', 'number', 'punctuation',
+//  'operator', 'name', 'punctuation', 'method', 'punctuation', 'punctuation']
+```
+
+It never throws, so it can run on every keystroke: text that does not parse yet ends with one `invalid` token from the syntax error to the end. Each token has the same `location` as errors do.
+
 ## Formulas in data
 
 When formulas read each other — a spreadsheet, a table with computed columns, a form with derived fields — put them right into your data with `new Formula(text)`. An evaluator gives back the same data with every formula replaced by its result:
@@ -177,14 +191,16 @@ A formula reads the fields of its own record and of the records around it, cells
 flowchart LR
   A["Formula text"] --> P["parser<br/><sub>text → AST</sub>"]
   P --> C["core<br/><sub>AST and data → typed values</sub>"]
+  P --> L["language<br/><sub>text → tokens for editors</sub>"]
 ```
 
 | Module | What it does | Docs |
 | --- | --- | --- |
 | [`src/parser`](./src/parser) | Hand-written Pratt parser that turns formula text into an AST with source locations | [README](./src/parser/README.md) |
 | [`src/core`](./src/core) | Evaluates formulas: data types, built-in routines, errors, and the formula cells of host data | [README](./src/core/README.md) |
+| [`src/language`](./src/language) | Reads formula text for editors: tokens with their kinds | [Highlighting formulas](#highlighting-formulas) |
 
-Both ship in one package. `core` is re-exported from `evalex`; the parser is used internally.
+All ship in one package. `core` is re-exported from `evalex`, `language` from `evalex/language`; the parser is used internally.
 
 ## Development
 

@@ -15,6 +15,7 @@
   },
   "exports": {
     ".": "./dist/index.js",
+    "./language": "./dist/language.js",
     "./package.json": "./package.json"
   },
   "files": [

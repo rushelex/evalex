@@ -1,6 +1,7 @@
 /* eslint-disable jsdoc/no-multi-asterisks */
 import type { AstNode, ILetDeclaration, Location } from '../ast';
 import type { FormulaLocation } from '../ast/location';
+import type { FormulaToken, FormulaTokenKind } from '../ast/token';
 
 import {
   ArrayExpressionNode,
@@ -44,6 +45,12 @@ interface State {
   readonly pos: number;
   readonly line: number;
   readonly column: number;
+}
+
+/** A token whose kind can still change: a name turns out to be a function once a `(` follows it. */
+interface ScannedToken {
+  kind: FormulaTokenKind;
+  readonly location: Location;
 }
 
 /**
@@ -180,9 +187,12 @@ class Parser {
   readonly #letScopes: LetScope[] = [];
   // Levels of nesting around the current position, bounded by MAX_NESTING
   #depth = 0;
+  // Tokens read so far, kept only when the caller asks for them
+  readonly #tokens: ScannedToken[] | undefined;
 
-  constructor(input: string) {
+  constructor(input: string, { collectTokens = false }: { collectTokens?: boolean } = {}) {
     this.#input = input;
+    this.#tokens = collectTokens ? [] : undefined;
   }
 
   // ── Entry point ─────────────────────────────────────────────────────────
@@ -205,6 +215,45 @@ class Parser {
       this.#fail(`Expected end of input but "${ch}" found.`, this.#loc(s));
     }
     return expr;
+  }
+
+  /**
+   * Reads the input as `run` does and returns its tokens. After a syntax error they end with one `invalid` token from
+   * the first text no token before the error covers to the end of the input, unless only whitespace is left.
+   */
+  tokens(): FormulaToken[] {
+    const tokens = this.#tokens ?? [];
+
+    try {
+      this.run();
+
+      return tokens;
+    }
+    catch (error) {
+      if (!(error instanceof SyntaxError)) {
+        throw error;
+      }
+
+      // Drops the tokens the error explains, such as the operator of `a + @b`, read before parsing backtracked
+      const kept = tokens.filter((token) => token.location.end.offset <= error.location.start.offset);
+      // An error may point inside a token it stopped, such as the flags of a regular expression.
+      const { offset, line, column } = kept.at(-1)?.location.end ?? { offset: 0, line: 1, column: 1 };
+
+      this.#restore({ pos: offset, line, column });
+      this.#skipWhitespace();
+
+      if (this.#isEnd()) {
+        return kept;
+      }
+
+      const start = this.#mark();
+
+      while (!this.#isEnd()) {
+        this.#advance();
+      }
+
+      return [...kept, { kind: 'invalid', location: this.#loc(start) }];
+    }
   }
 
   // ── Core Pratt loop ─────────────────────────────────────────────────────
@@ -244,7 +293,7 @@ class Parser {
 
       // Ternary operator `? :` has the lowest binding power (bp=1)
       if (this.#peek() === '?' && minBp < 1) {
-        this.#advance();
+        this.#consumePunctuation();
         this.#skipWhitespace();
         const consequent = this.#withNoIn(false, () => this.#parseExpr(0));
         this.#skipWhitespace();
@@ -252,7 +301,7 @@ class Parser {
           const m = this.#mark();
           this.#fail('Expected ":".', this.#loc(m));
         }
-        this.#advance();
+        this.#consumePunctuation();
         this.#skipWhitespace();
         const alternate = this.#parseExpr(0);
         left = new ConditionalExpressionNode(
@@ -309,17 +358,19 @@ class Parser {
     const s = this.#mark();
     if (this.#peek() === '-') {
       this.#advance();
+      this.#emit('operator', s);
       this.#skipWhitespace();
       const arg = this.#parseExpr(PREFIX_BP);
       return new UnaryExpressionNode('-', arg, true, this.#loc(s));
     }
     if (this.#peek() === '!') {
       this.#advance();
+      this.#emit('operator', s);
       this.#skipWhitespace();
       const arg = this.#parseExpr(PREFIX_BP);
       return new UnaryExpressionNode('!', arg, true, this.#loc(s));
     }
-    if (this.#consumeKeyword('not')) {
+    if (this.#consumeKeyword('not', 'operator')) {
       this.#skipWhitespace();
       const arg = this.#parseExpr(PREFIX_BP);
       return new UnaryExpressionNode('not', arg, true, this.#loc(s));
@@ -348,7 +399,7 @@ class Parser {
     const scope: LetScope = { names: new Map(), current: 0, references: [] };
     const declarations: ILetDeclaration[] = [];
 
-    this.#consumeKeyword('let');
+    this.#consumeKeyword('let', 'keyword');
     this.#letScopes.push(scope);
 
     try {
@@ -363,16 +414,18 @@ class Parser {
           this.#fail(`Expected "=" after "${name.name}".`, this.#loc(m));
         }
 
+        const equals = this.#mark();
         this.#advance();
+        this.#emit('operator', equals);
         this.#skipWhitespace();
 
         const value = this.#withNoIn(true, () => this.#parseExpr(0));
 
         declarations.push({ name, value, location: this.#loc(name.location.start) });
         this.#skipWhitespace();
-      } while (this.#consumeChar(','));
+      } while (this.#consumePunctuationChar(','));
 
-      if (!this.#consumeKeyword('in')) {
+      if (!this.#consumeKeyword('in', 'keyword')) {
         const m = this.#mark();
         this.#fail('Expected "," or "in".', this.#loc(m));
       }
@@ -415,6 +468,7 @@ class Parser {
 
     scope.current = scope.names.size;
     scope.names.set(word, scope.current);
+    this.#emit('name', s);
 
     return new IdentifierNode(word, location);
   }
@@ -495,6 +549,10 @@ class Parser {
         continue;
       }
       if (this.#peek() === '(') {
+        // Marked before the arguments, so a call still being typed shows its name as a function
+        if (head instanceof IdentifierNode && suffixes.length === 0) {
+          this.#markFunction(head);
+        }
         suffixes.push(this.#parseDirectCallSuffix());
         this.#nest(suffixLocation);
         continue;
@@ -515,9 +573,10 @@ class Parser {
   /** Parses `.method(args)` and returns a suffix descriptor. */
   #parseMemberCallSuffix(): Suffix {
     const dotStart = this.#mark();
-    this.#advance();
+    this.#consumePunctuation();
     this.#skipWhitespace();
     const prop = this.#parseIdentifier();
+    this.#emit('method', prop.location.start);
     this.#skipWhitespace();
     if (this.#peek() !== '(') {
       this.#fail(
@@ -526,7 +585,7 @@ class Parser {
       );
     }
     const lpStart = this.#mark();
-    this.#advance();
+    this.#consumePunctuation();
     const lpEnd = this.#mark();
     this.#skipWhitespace();
     const args = this.#parseArguments();
@@ -534,14 +593,14 @@ class Parser {
     if (this.#peek() !== ')') {
       this.#throwUnclosedParen(lpStart, lpEnd, args);
     }
-    this.#advance();
+    this.#consumePunctuation();
     return { type: 'MemberCall', property: prop, args, end: this.#mark() };
   }
 
   /** Parses `(args)` and returns a suffix descriptor. */
   #parseDirectCallSuffix(): Suffix {
     const lpStart = this.#mark();
-    this.#advance();
+    this.#consumePunctuation();
     const lpEnd = this.#mark();
     this.#skipWhitespace();
     const args = this.#parseArguments();
@@ -549,7 +608,7 @@ class Parser {
     if (this.#peek() !== ')') {
       this.#throwUnclosedParen(lpStart, lpEnd, args);
     }
-    this.#advance();
+    this.#consumePunctuation();
     return { type: 'DirectCall', args, end: this.#mark() };
   }
 
@@ -646,6 +705,7 @@ class Parser {
       }
     }
     const raw = this.#input.slice(start, this.#pos);
+    this.#emit('number', s);
     return new LiteralNode(Number.parseFloat(raw), raw, this.#loc(s));
   }
 
@@ -674,6 +734,7 @@ class Parser {
       this.#fail('Unterminated string.', this.#loc(s));
     }
     this.#advance();
+    this.#emit('string', s);
     return new LiteralNode(value, this.#input.slice(s.offset, this.#pos), this.#loc(s));
   }
 
@@ -829,6 +890,7 @@ class Parser {
     if (regexp instanceof Error) {
       this.#fail(regexp.message, this.#loc(s));
     }
+    this.#emit('regexp', s);
     return new LiteralNode(regexp, `/${pattern}/${flags}`, this.#loc(s));
   }
 
@@ -843,12 +905,16 @@ class Parser {
     const location = this.#loc(s);
     switch (word) {
       case 'null':
+        this.#emit('null', s);
         return new LiteralNode(null, 'null', location);
       case 'undefined':
+        this.#emit('null', s);
         return new LiteralNode(undefined as never, 'undefined', location);
       case 'true':
+        this.#emit('boolean', s);
         return new LiteralNode(true, 'true', location);
       case 'false':
+        this.#emit('boolean', s);
         return new LiteralNode(false, 'false', location);
       case 'or':
       case 'and':
@@ -857,6 +923,7 @@ class Parser {
         this.#fail(`Unexpected keyword "${word}".`, location);
       // falls through — never reached, fail() throws
       default:
+        this.#emit('name', s);
         return new IdentifierNode(word, location);
     }
   }
@@ -877,7 +944,7 @@ class Parser {
   /** Parses a parenthesized group `(expr)` and returns the inner expression. */
   #parseGrouped(): AstNode {
     const lp = this.#mark();
-    this.#advance();
+    this.#consumePunctuation();
     this.#skipWhitespace();
     if (this.#peek() === ')') {
       this.#advance();
@@ -889,14 +956,14 @@ class Parser {
       const m = this.#mark();
       this.#fail('Expected ")".', this.#loc(m));
     }
-    this.#advance();
+    this.#consumePunctuation();
     return expr;
   }
 
   /** Parses an array literal `[el1, el2, ...]`. */
   #parseArray(): ArrayExpressionNode {
     const s = this.#mark();
-    this.#advance();
+    this.#consumePunctuation();
     this.#skipWhitespace();
     const elements = this.#parseArguments();
     this.#skipWhitespace();
@@ -904,7 +971,7 @@ class Parser {
       const m = this.#mark();
       this.#fail('Expected "]".', this.#loc(m));
     }
-    this.#advance();
+    this.#consumePunctuation();
     return new ArrayExpressionNode(elements, this.#loc(s));
   }
 
@@ -925,7 +992,7 @@ class Parser {
         break;
       }
       const commaStart = this.#mark();
-      this.#advance();
+      this.#consumePunctuation();
       const commaEnd = this.#mark();
       this.#skipWhitespace();
       if (this.#peek() === ')' || this.#peek() === ']' || this.#peek() === ',' || this.#isEnd()) {
@@ -1032,15 +1099,19 @@ class Parser {
   /** Advances the scanner past the given operator's characters. */
   #consumeOp(op: OpInfo): void {
     if (op.text === 'not in') {
-      this.#consumeKeyword('not');
+      this.#consumeKeyword('not', 'operator');
       this.#skipWhitespace();
-      this.#consumeKeyword('in');
+      this.#consumeKeyword('in', 'operator');
       return;
     }
+
+    const start = this.#mark();
 
     for (let i = 0; i < op.text.length; i++) {
       this.#advance();
     }
+
+    this.#emit('operator', start);
   }
 
   // ── Scanner primitives ──────────────────────────────────────────────────
@@ -1060,6 +1131,27 @@ class Parser {
     this.#pos = state.pos;
     this.#line = state.line;
     this.#column = state.column;
+  }
+
+  /** Consumes one character of punctuation, such as a bracket or a comma. */
+  #consumePunctuation(): void {
+    const start = this.#mark();
+    this.#advance();
+    this.#emit('punctuation', start);
+  }
+
+  /** Records a token of `kind` from `start` to the current position, when the caller collects tokens. */
+  #emit(kind: FormulaTokenKind, start: Pos): void {
+    this.#tokens?.push({ kind, location: this.#loc(start) });
+  }
+
+  /** Records the name that `node` reads as a function, now that a `(` follows it. */
+  #markFunction(node: IdentifierNode): void {
+    const token = this.#tokens?.findLast((candidate) => candidate.location.start.offset === node.location.start.offset);
+
+    if (token) {
+      token.kind = 'function';
+    }
   }
 
   /** Returns the current character without consuming it (empty string at end). */
@@ -1156,13 +1248,17 @@ class Parser {
       && !this.#isIdChar(this.#input[this.#pos + kw.length] ?? '');
   }
 
-  /** Consumes the keyword if it matches at the current position. Returns `true` on success. */
-  #consumeKeyword(kw: string): boolean {
+  /** Consumes the keyword if it matches at the current position, as a token of `kind` when given. Returns `true` on success. */
+  #consumeKeyword(kw: string, kind?: FormulaTokenKind): boolean {
     if (!this.#isKeywordAhead(kw)) {
       return false;
     }
+    const start = this.#mark();
     for (let i = 0; i < kw.length; i++) {
       this.#advance();
+    }
+    if (kind) {
+      this.#emit(kind, start);
     }
     return true;
   }
@@ -1184,12 +1280,12 @@ class Parser {
     return next !== '' && next !== 'or' && next !== 'and' && next !== 'in';
   }
 
-  /** Consumes the character if it is next. Returns `true` on success. */
-  #consumeChar(c: string): boolean {
+  /** Consumes the punctuation character if it is next. Returns `true` on success. */
+  #consumePunctuationChar(c: string): boolean {
     if (this.#peek() !== c) {
       return false;
     }
-    this.#advance();
+    this.#consumePunctuation();
     return true;
   }
 
@@ -1253,4 +1349,14 @@ class Parser {
  */
 export function parse(input: string): AstNode {
   return new Parser(input).run();
+}
+
+/**
+ * Splits a formula string into the tokens the parser reads, with their kinds.
+ *
+ * @param input The formula string to split.
+ * @returns Tokens in the order of the text; after a syntax error, the rest of the text as one `invalid` token.
+ */
+export function tokenize(input: string): FormulaToken[] {
+  return new Parser(input, { collectTokens: true }).tokens();
 }

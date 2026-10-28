@@ -10,7 +10,7 @@
 
 ---
 
-The parser is an internal module: `evalex` does not export it, and [`core`](../core/README.md) calls it through `FormulaScope` and the evaluator.
+The parser is an internal module: `evalex` does not export it, [`core`](../core/README.md) calls it through `FormulaScope` and the evaluator, and `evalex/language` reads its [tokens](#tokens).
 
 It is a hand-written, scannerless [Pratt parser](https://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/) in a single file, [`grammar/parser.ts`](./grammar/parser.ts). Characters are read directly, without a separate tokenizer, and operator precedence is a table of numbers rather than a chain of grammar rules.
 
@@ -135,10 +135,17 @@ Invalid input throws the parser's `SyntaxError`, a subclass of the built-in one.
 
 A formula nests at most 256 levels, so parsing and evaluating it never overflows the stack. Each parenthesis, list, call, prefix operator and ternary branch around a part counts a level, and so does each operator of a chain like `a + b + c` or each call of `a.b().c()`.
 
+## Tokens
+
+`tokenize(text)` from [`grammar/parser.ts`](./grammar/parser.ts) parses the text and returns the tokens the parse read, each with a kind from [`ast/token.ts`](./ast/token.ts) and a location. There is no separate scanner: the parse position decides the kind, so the `/` of `a / /b/` is an operator and then a regular expression, and `let` is a keyword only where it starts a declaration.
+
+- A token is recorded once it is fully read. A name becomes a `function` when a `(` follows it, before the arguments are read, so a call still being typed shows its name as a function.
+- After a syntax error, the tokens that end before the error stay, and the rest of the text from the first character they leave uncovered is one `invalid` token. An error inside a token, such as bad regular expression flags, makes that whole token invalid.
+
 ## Extending the grammar
 
 - **New binary operator** — add a branch to `#peekOp` with its binding powers: equal `lbp` and `rbp` for left associativity, `rbp = lbp - 1` for right. Then handle the operator in `core`'s evaluator.
-- **New literal or atom** — add a branch to `#parseAtom` keyed on its first character, and add that character to `#isExprStart` so binary operators know an operand can follow.
+- **New literal or atom** — add a branch to `#parseAtom` keyed on its first character, and add that character to `#isExprStart` so binary operators know an operand can follow. Emit its token once it is read.
 - **New node type** — add the interface to `ast.types.ts`, the class to `nodes.ts`, and a method to `IVisitor`; the compiler then lists every visitor that must handle it.
 
 Tests live in [`parse.test.ts`](./parse.test.ts) and assert the full AST, locations included.

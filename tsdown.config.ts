@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-  entry: 'src/index.ts',
+  entry: { index: 'src/index.ts', language: 'src/language/index.ts' },
   platform: 'browser',
   exports: true,
   minify: true,

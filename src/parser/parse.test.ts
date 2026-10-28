@@ -2,53 +2,11 @@ import type { AstNode, Location } from './ast';
 
 import { fc, it } from '@fast-check/vitest';
 
+import { formulaTextArbitrary, spacedFormulaArbitrary } from '../testing-library/formula-text-arbitrary';
 import { SyntaxError } from './grammar/parser';
 import { parse } from './parse';
 
-// `fc.letrec` types `tie` only for a type with an index signature.
-interface FormulaArbitraries extends Record<string, readonly string[]> {
-  readonly expression: readonly string[];
-}
-
-// Identifiers that start with a keyword check where a keyword ends.
-const IDENTIFIERS = ['a', 'price', '_x1', 'notes', 'android', 'orange', 'inner', 'trueValue', 'nullable'];
-
-const ATOMS = ['1', '0.5', '.5', '1e3', '2.5E-3', '"text"', '\'it\\\'s\'', 'true', 'false', 'null', 'undefined', '/a+/gi', '/[/]/', ...IDENTIFIERS];
-
-const BINARY_OPERATORS = ['or', '||', 'and', '&&', '==', '!=', '<', '<=', '>', '>=', 'in', 'not in', '+', '-', '*', '/', '%', '^'];
-
-const PREFIX_OPERATORS = ['-', '!', 'not'];
-
-const WHITESPACE = [' ', '  ', '\n', '\t', '\r\n'];
-
-// Names a `let` declares; none of them is in IDENTIFIERS, so a generated value never reads a name too early.
-const DECLARED_NAMES = ['x', 'total'];
-
-const PUNCTUATION = ['(', ')', '[', ']', ',', '.', '?', ':', '"', '\'', '\\', '/', '=', '!', '&', '|', '<', '>', '\n', ' '];
-
-// Token lists of well-formed formulas; every compound operand is parenthesized, so the tree follows the token order.
-const { expression: formulaTokens } = fc.letrec<FormulaArbitraries>((tie) => ({
-  expression: fc.oneof(
-    { depthSize: 'small', withCrossShrink: true },
-    fc.constantFrom(...ATOMS).map((atom) => [atom]),
-    fc.tuple(fc.constantFrom(...PREFIX_OPERATORS), tie('expression')).map(([operator, operand]) => [operator, ...group(operand)]),
-    fc.tuple(tie('expression'), fc.constantFrom(...BINARY_OPERATORS), tie('expression')).map(([left, operator, right]) => [...group(left), operator, ...group(right)]),
-    fc.tuple(tie('expression'), tie('expression'), tie('expression')).map(([test, consequent, alternate]) => [...group(test), '?', ...group(consequent), ':', ...group(alternate)]),
-    fc.tuple(fc.constantFrom(...IDENTIFIERS), fc.array(tie('expression'), { maxLength: 3 })).map(([name, args]) => [name, '(', ...commaSeparated(args), ')']),
-    fc.tuple(tie('expression'), fc.constantFrom(...IDENTIFIERS), fc.array(tie('expression'), { maxLength: 3 })).map(([object, name, args]) => [...group(object), '.', name, '(', ...commaSeparated(args), ')']),
-    fc.array(tie('expression'), { maxLength: 3 }).map((elements) => ['[', ...commaSeparated(elements), ']']),
-    fc.tuple(fc.constantFrom(...DECLARED_NAMES), tie('expression'), tie('expression')).map(([name, value, body]) => ['let', name, '=', ...group(value), 'in', ...group(body)]),
-  ),
-}));
-
-const spacedFormula = formulaTokens.chain((tokens) => fc.array(fc.constantFrom(...WHITESPACE), { minLength: tokens.length, maxLength: tokens.length })
-  .map((gaps) => ({ tokens, formula: tokens.map((token, index) => `${gaps[index]}${token}`).join('') })));
-
-const anyText = fc.oneof(
-  fc.string({ unit: 'binary' }),
-  fc.array(fc.constantFrom(...ATOMS, ...BINARY_OPERATORS, ...PREFIX_OPERATORS, ...PUNCTUATION, 'let ', 'const ', ' in '), { maxLength: 12 }).map((tokens) => tokens.join('')),
-  spacedFormula.map(({ formula }) => formula),
-);
+const spacedFormula = spacedFormulaArbitrary.map(({ tokens, formula }) => ({ tokens: tokens.map(({ text }) => text), formula }));
 
 const numberText = fc.oneof(
   fc.double({ min: 0, noNaN: true }).map(String).filter((text) => text !== 'Infinity'),
@@ -63,7 +21,7 @@ const numberText = fc.oneof(
 );
 
 describe(parse, () => {
-  it.prop([anyText])('should return a tree or throw a syntax error pointing inside the text for any text', (formula) => {
+  it.prop([formulaTextArbitrary])('should return a tree or throw a syntax error pointing inside the text for any text', (formula) => {
     try {
       const tree = parse(formula);
 
@@ -1344,12 +1302,4 @@ function withoutPositions(value: unknown): unknown {
   }
 
   return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'location' && key !== 'raw').map(([key, item]) => [key, withoutPositions(item)]));
-}
-
-function group(tokens: readonly string[]): string[] {
-  return tokens.length === 1 ? [...tokens] : ['(', ...tokens, ')'];
-}
-
-function commaSeparated(groups: readonly (readonly string[])[]): string[] {
-  return groups.flatMap((tokens, index) => (index === 0 ? [...tokens] : [',', ...tokens]));
 }

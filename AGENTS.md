@@ -25,7 +25,7 @@ A feature that fails one of them stays out of the core even when hosts need it. 
 
 ## Public API
 
-- The package root export is the only public surface. Adding, renaming or removing an export is an API decision: propose it, don't just do it.
+- The public surface is the package root and `evalex/language`, the entry point for formula editors. Adding, renaming or removing an export or an entry point is an API decision: propose it, don't just do it.
 - The library runs in browsers. No Node.js built-ins in `src/`, outside tests and benchmarks.
 - No new runtime dependencies without the owner's approval. Development dependencies need approval too.
 
