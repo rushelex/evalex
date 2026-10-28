@@ -1,4 +1,4 @@
-import type { AST } from '../../parser';
+import type { FormulaLocation } from '../../parser';
 
 import { InvalidRegExpPattern } from './definitions';
 import { FormulaError } from './formula-error';
@@ -28,7 +28,7 @@ export function formatTypes(types: unknown | readonly unknown[]): string {
  */
 export function getRegExpFallbackError(
   error: unknown,
-  location: AST.Location,
+  location: FormulaLocation,
   pattern: string,
 ): FormulaError {
   if (error instanceof FormulaError) {

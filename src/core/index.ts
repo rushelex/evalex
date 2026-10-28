@@ -1,5 +1,6 @@
 import './bootstrap';
 
+export type { FormulaLocation } from '../parser';
 export type { SyntaxError } from '../parser/grammar/parser';
 
 export type { FormulaValue, HostValue } from './data-types';
@@ -18,6 +19,7 @@ export {
   Kind,
 } from './data-types';
 export { Errors, FormulaError, FormulaErrorCode } from './errors';
+export type { FormulaErrorPayloads } from './errors/error-payloads';
 export { Formula } from './formula';
 export type { FormulaCell, FormulaCellPlace, FormulaEvaluator, FormulaEvaluatorOptions, FormulaView } from './formula-evaluator';
 export type { FormulaScopeOptions } from './formula-scope';

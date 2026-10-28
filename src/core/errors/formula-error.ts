@@ -1,10 +1,10 @@
-import type { AST } from '../../parser';
+import type { FormulaLocation } from '../../parser';
 
 import type { FormulaErrorCode } from './error-codes';
 import type { FormulaErrorPayloads } from './error-payloads';
 
 export interface FormulaErrorOptions {
-  location?: AST.Location;
+  location?: FormulaLocation;
   messageKey?: string;
   messageParams?: Record<string, unknown>;
   cause?: Error;
@@ -13,7 +13,7 @@ export interface FormulaErrorOptions {
 export class FormulaError<C extends FormulaErrorCode = FormulaErrorCode> extends Error {
   readonly code: C;
   readonly payload: FormulaErrorPayloads[C];
-  readonly location?: AST.Location;
+  readonly location?: FormulaLocation;
   readonly messageKey?: string;
   readonly messageParams?: Record<string, unknown>;
 

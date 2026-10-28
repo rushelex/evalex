@@ -1,4 +1,4 @@
-import type { AST } from '../../parser';
+import type { FormulaLocation } from '../../parser';
 
 import type { FormulaErrorCode } from './error-codes';
 import type { FormulaErrorPayloads } from './error-payloads';
@@ -16,7 +16,7 @@ export interface ErrorDefinitionConfig<
 }
 
 interface CreateOptions {
-  location?: AST.Location;
+  location?: FormulaLocation;
   cause?: Error;
 }
 
@@ -101,11 +101,11 @@ function parseArgs<TArgs extends unknown[]>(args: unknown[]): {
         };
       }
 
-      // If location is at top level (has start/end directly), it's AST.Location
+      // If location is at top level (has start/end directly), it's FormulaLocation
       if (maybeOptions.start !== undefined && maybeOptions.end !== undefined) {
         return {
           payloadArgs: args.slice(0, -1) as TArgs,
-          options: { location: maybeOptions as unknown as AST.Location },
+          options: { location: maybeOptions as unknown as FormulaLocation },
         };
       }
     }

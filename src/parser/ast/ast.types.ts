@@ -1,4 +1,5 @@
 import type { IVisitor } from './ast.visitor';
+import type { FormulaLocation as Location } from './location';
 
 export interface IVisitable {
   accept: <T>(visitor: IVisitor<T>) => T;
@@ -15,10 +16,7 @@ export type AstNode
     | IArrayExpressionNode
     | ILetExpressionNode;
 
-export interface Location {
-  start: { offset: number; line: number; column: number };
-  end: { offset: number; line: number; column: number };
-}
+export type { Location };
 
 export interface ILiteralNode extends IVisitable {
   type: 'Literal';

@@ -1,4 +1,4 @@
-import type { AST } from '../../parser';
+import type { FormulaLocation } from '../../parser';
 
 import type { FormulaErrorCode } from './error-codes';
 
@@ -23,7 +23,7 @@ export interface ArgumentCountMismatchPayload {
 export interface PatternError {
   readonly patternIndex: number;
   readonly message: string;
-  readonly location?: AST.Location;
+  readonly location?: FormulaLocation;
 }
 
 export interface PatternMismatchPayload {

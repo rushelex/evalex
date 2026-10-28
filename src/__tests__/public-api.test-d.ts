@@ -22,6 +22,12 @@ describe('public API', () => {
     expectTypeOf<API.SyntaxError['location']['start']['offset']>().toEqualTypeOf<number>();
   });
 
+  it('should name the location of every error and the payload of each code', () => {
+    expectTypeOf<API.SyntaxError['location']>().toEqualTypeOf<API.FormulaLocation>();
+    expectTypeOf<API.FormulaError['location']>().toEqualTypeOf<API.FormulaLocation | undefined>();
+    expectTypeOf<API.FormulaError<'REFERENCE_ERROR'>['payload']>().toEqualTypeOf<API.FormulaErrorPayloads['REFERENCE_ERROR']>();
+  });
+
   it('should type the evaluator, its options and the view it gives back', () => {
     expectTypeOf<API.FormulaScope['evaluator']>().parameters.toEqualTypeOf<[options?: API.FormulaEvaluatorOptions]>();
     expectTypeOf<API.FormulaScope['evaluator']>().returns.toEqualTypeOf<API.FormulaEvaluator>();

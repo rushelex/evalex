@@ -351,8 +351,8 @@ Parse errors throw `SyntaxError`, a subclass of the built-in one. A formula that
 | Property | Contents |
 | --- | --- |
 | `code` | One of the codes below, as text. `FormulaErrorCode` holds them all: `FormulaErrorCode.REFERENCE_ERROR` is `'REFERENCE_ERROR'` |
-| `payload` | Structured details, e.g. `{ actual: 'String', expected: ['Array', 'Number'], argumentPosition: 1 }` |
-| `location` | `{ start, end }`, each with `offset`, `line` and `column` |
+| `payload` | Structured details, e.g. `{ actual: 'String', expected: ['Array', 'Number'], argumentPosition: 1 }`; `FormulaErrorPayloads` types it by code |
+| `location` | A `FormulaLocation`: `{ start, end }`, each with `offset`, `line` and `column`; a `SyntaxError` has one too |
 | `message` | Human-readable text ending with `[start,end]` offsets |
 
 | Code | Raised when |

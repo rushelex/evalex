@@ -1,5 +1,6 @@
 /* eslint-disable jsdoc/no-multi-asterisks */
 import type { AstNode, ILetDeclaration, Location } from '../ast';
+import type { FormulaLocation } from '../ast/location';
 
 import {
   ArrayExpressionNode,
@@ -19,9 +20,9 @@ import {
  * Syntax error thrown by the parser when the input does not conform to the grammar.
  */
 export class SyntaxError extends globalThis.SyntaxError {
-  readonly location: Location;
+  readonly location: FormulaLocation;
 
-  constructor(message: string, location: Location) {
+  constructor(message: string, location: FormulaLocation) {
     super(message);
     this.name = 'SyntaxError';
     this.location = location;
