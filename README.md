@@ -174,6 +174,8 @@ diagnose('round(price,, 2) + max(1 2)').map(({ code, message }) => [code, messag
 
 The first diagnostic is always the error evaluating the formula throws. Each one carries the `code`, `payload` and `location` of that `SyntaxError`, so a host translates both the same way.
 
+`scope.routines()` lists the functions and methods formulas can call, with their descriptions and argument lists, for completion and signature help; see the [core README](./src/core/README.md#built-in-routines).
+
 ## Formulas in data
 
 When formulas read each other — a spreadsheet, a table with computed columns, a form with derived fields — put them right into your data with `new Formula(text)`. An evaluator gives back the same data with every formula replaced by its result:

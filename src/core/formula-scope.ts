@@ -1,6 +1,7 @@
 import type { FormulaValue } from './data-types';
 import type { HostValue } from './data-types/types';
 import type { FormulaEvaluatorOptions } from './formula-evaluator';
+import type { FormulaRoutine } from './formula-routine';
 import type { ValueFormat } from './value-format';
 
 import { isFormulaValue } from './data-types';
@@ -8,6 +9,8 @@ import { evaluateFormula } from './evaluate-formula';
 import { FormulaEvaluator } from './formula-evaluator';
 import { HostValues } from './host-values';
 import { parseFormula } from './parse-formula';
+import { routinesRegistry } from './routines/registry';
+import { routineCatalog } from './routines/routine-catalog';
 import { DEFAULT_TIME_ZONE, isTimeZone } from './time-zone';
 import { validateValueFormat } from './value-format';
 
@@ -114,5 +117,22 @@ export class FormulaScope {
     }
 
     return result;
+  }
+
+  /**
+   * Lists the functions and methods formulas evaluated through the scope can call, for completion and signature help.
+   *
+   * @returns A new list on every call, sorted by name, a function before the methods of its name.
+   *
+   * @example
+   * ```ts
+   * const round = scope.routines().find(({ name, form }) => name === 'round' && form === 'function');
+   *
+   * round?.signatures[0]?.parameters.map(({ name, optional }) => (optional ? `[${name}]` : name)).join(', ');
+   * // 'number, [places]'
+   * ```
+   */
+  routines(): FormulaRoutine[] {
+    return routineCatalog(routinesRegistry);
   }
 }

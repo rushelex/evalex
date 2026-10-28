@@ -36,6 +36,14 @@ describe('public API', () => {
     expectTypeOf<API.FormulaError<'REFERENCE_ERROR'>['payload']>().toEqualTypeOf<API.FormulaErrorPayloads['REFERENCE_ERROR']>();
   });
 
+  it('should type the routines of a scope with their argument lists', () => {
+    expectTypeOf<API.FormulaScope['routines']>().returns.toEqualTypeOf<API.FormulaRoutine[]>();
+    expectTypeOf<API.FormulaRoutine['form']>().toEqualTypeOf<'function' | 'method'>();
+    expectTypeOf<API.FormulaRoutine['signatures'][number]>().toEqualTypeOf<API.FormulaRoutineSignature>();
+    expectTypeOf<API.FormulaRoutineSignature['parameters'][number]>().toEqualTypeOf<API.FormulaRoutineParameter>();
+    expectTypeOf<API.FormulaRoutineParameter['kinds'][number]>().toEqualTypeOf<API.Kind>();
+  });
+
   it('should type the evaluator, its options and the view it gives back', () => {
     expectTypeOf<API.FormulaScope['evaluator']>().parameters.toEqualTypeOf<[options?: API.FormulaEvaluatorOptions]>();
     expectTypeOf<API.FormulaScope['evaluator']>().returns.toEqualTypeOf<API.FormulaEvaluator>();

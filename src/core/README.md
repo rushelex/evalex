@@ -226,6 +226,15 @@ Routines come in two forms: **functions** called by name, like `sum(1, 2)`, and 
 
 Inside `filter` and `map`, the second argument is evaluated once per item with two extra variables: `current` holds the item and `index` its zero-based position.
 
+`scope.routines()` lists the same routines as data for an editor's completion and signature help: the name, the form, the description and the argument lists, each argument with its name, kinds and whether it is optional or repeatable. A routine with both forms is listed once as a function and once as a method, and a method lists the kinds of values it is called on. A method name that means different things on different kinds, such as `add` of numbers and of dates, is listed once for each meaning, and each argument list of a method names the kinds it is accepted on: `"a".add(b)` takes text, `5.add(b)` a number.
+
+```ts
+const round = scope.routines().find(({ name, form }) => name === 'round' && form === 'function');
+
+round.signatures[0].parameters.map(({ name, optional }) => (optional ? `[${name}]` : name)).join(', ');
+// 'number, [places]'
+```
+
 ### Text
 
 | Method | Description | Example |

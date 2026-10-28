@@ -1,10 +1,11 @@
 import { fc, it } from '@fast-check/vitest';
 
 import { formulaValueArbitrary, loc } from '../../testing-library';
-import { FormulaBoolean, FormulaDate, FormulaDateRange, FormulaDateTime, FormulaDuration, FormulaNumber, FormulaString, Kind } from '../data-types';
+import { ALL_DATA_TYPES, FormulaBoolean, FormulaDate, FormulaDateRange, FormulaDateTime, FormulaDuration, FormulaNumber, FormulaString, Kind } from '../data-types';
 import { Errors } from '../errors';
 import { Formula } from '../formula';
 import { FormulaScope } from '../formula-scope';
+import { routinesRegistry } from '../routines/registry';
 
 describe(FormulaScope, () => {
   describe('evaluate', () => {
@@ -221,6 +222,50 @@ describe(FormulaScope, () => {
       expect(() => new FormulaScope({ timeZone: 'Mars/Base' })).toThrow(new RangeError(
         'timeZone "Mars/Base" is neither a time zone name such as "Europe/Berlin" nor an offset such as "+05:00".',
       ));
+    });
+  });
+
+  describe('routines', () => {
+    it('should list every function a formula can call', () => {
+      const names = new FormulaScope().routines().filter(({ form }) => form === 'function').map(({ name }) => name);
+
+      expect(names.toSorted()).toEqual([...routinesRegistry.getFunctions().keys()].toSorted());
+    });
+
+    it('should list every method a value of each kind can call, with that kind', () => {
+      const routines = new FormulaScope().routines();
+
+      for (const ctor of ALL_DATA_TYPES) {
+        const names = routines.filter(({ form, kinds }) => form === 'method' && kinds.includes(ctor.kind)).map(({ name }) => name);
+
+        expect(names.toSorted(), ctor.kind).toEqual([...routinesRegistry.getMethods(ctor).keys()].toSorted());
+      }
+    });
+
+    it('should give each argument list of a method only kinds its method is called on', () => {
+      for (const { name, kinds, signatures } of new FormulaScope().routines()) {
+        for (const signature of signatures) {
+          expect(signature.kinds.filter((kind) => !kinds.includes(kind)), name).toEqual([]);
+        }
+      }
+    });
+
+    it('should list round with the arguments signature help shows', () => {
+      const round = new FormulaScope().routines().find(({ name, form }) => name === 'round' && form === 'function');
+
+      expect(round?.signatures[0]?.parameters.map(({ name, optional }) => (optional ? `[${name}]` : name)).join(', ')).toBe('number, [places]');
+    });
+
+    it('should list add of numbers and add of dates as two methods', () => {
+      const adds = new FormulaScope().routines().filter(({ name, form }) => name === 'add' && form === 'method');
+
+      expect(adds.map(({ kinds }) => kinds)).toEqual([['Date', 'DateTime'], ['Number', 'String']]);
+    });
+
+    it('should give a new list on every call', () => {
+      const scope = new FormulaScope();
+
+      expect(scope.routines()).not.toBe(scope.routines());
     });
   });
 
