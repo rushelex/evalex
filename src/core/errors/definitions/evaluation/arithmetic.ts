@@ -64,6 +64,51 @@ export const ModuloByZero = createErrorDefinition({
 });
 
 /**
+ * Error thrown when a number a formula computes is too large in magnitude to hold.
+ *
+ * @example
+ * ```typescript
+ * evaluate('10 ^ 400') // throws NumberOutOfRange
+ *
+ * if (NumberOutOfRange.is(error)) {
+ *   console.log(error.payload.value); // 'Infinity', or '-Infinity' for a negative number
+ *   console.log(error.payload.max); // Number.MAX_VALUE
+ * }
+ * ```
+ *
+ * @param value - `'Infinity'` or `'-Infinity'`, the side of the range the number left
+ */
+export const NumberOutOfRange = createErrorDefinition({
+  code: FormulaErrorCode.RANGE_ERROR,
+  createPayload: (payload: Pick<FormulaErrorPayloads[typeof FormulaErrorCode.RANGE_ERROR], 'value'>) => ({
+    ...payload,
+    min: -Number.MAX_VALUE,
+    max: Number.MAX_VALUE,
+  }),
+  formatMessage: () => 'Number is out of the supported range.',
+  messageKey: 'formula_error.number_out_of_range',
+});
+
+/**
+ * Error thrown when a computation has no real number as its result, such as a fractional power of a negative number.
+ *
+ * @example
+ * ```typescript
+ * evaluate('(-8) ^ (1 / 3)') // throws NotARealNumber
+ *
+ * if (NotARealNumber.is(error)) {
+ *   console.log(error.payload.value); // 'NaN'
+ * }
+ * ```
+ */
+export const NotARealNumber = createErrorDefinition({
+  code: FormulaErrorCode.RANGE_ERROR,
+  createPayload: () => ({ value: 'NaN' }),
+  formatMessage: () => 'Result is not a real number.',
+  messageKey: 'formula_error.not_a_real_number',
+});
+
+/**
  * Error thrown when date arithmetic produces a date outside the supported range.
  *
  * @example

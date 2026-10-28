@@ -29,6 +29,8 @@ const samples: readonly DefinitionSample[] = [
   { name: 'Arithmetic.DivisionByZero', definition: Errors.Arithmetic.DivisionByZero, error: Errors.Arithmetic.DivisionByZero.create({ dividend: 1 }) },
   { name: 'Arithmetic.DateOutOfRange', definition: Errors.Arithmetic.DateOutOfRange, error: Errors.Arithmetic.DateOutOfRange.create({ value: '2024-01-01T00:00:00Z' }) },
   { name: 'Arithmetic.ModuloByZero', definition: Errors.Arithmetic.ModuloByZero, error: Errors.Arithmetic.ModuloByZero.create({ dividend: 1 }) },
+  { name: 'Arithmetic.NumberOutOfRange', definition: Errors.Arithmetic.NumberOutOfRange, error: Errors.Arithmetic.NumberOutOfRange.create({ value: 'Infinity' }) },
+  { name: 'Arithmetic.NotARealNumber', definition: Errors.Arithmetic.NotARealNumber, error: Errors.Arithmetic.NotARealNumber.create() },
   { name: 'Evaluation.ComparisonTypeMismatch', definition: Errors.Evaluation.ComparisonTypeMismatch, error: Errors.Evaluation.ComparisonTypeMismatch.create({ expression: '1 < "a"' }) },
   { name: 'Evaluation.NonNumericMath', definition: Errors.Evaluation.NonNumericMath, error: Errors.Evaluation.NonNumericMath.create({ expression: '1 * "a"' }) },
   { name: 'Evaluation.UnaryMinusNonNumeric', definition: Errors.Evaluation.UnaryMinusNonNumeric, error: Errors.Evaluation.UnaryMinusNonNumeric.create({ expression: '-"a"' }) },

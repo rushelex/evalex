@@ -40,6 +40,8 @@ export const Errors = {
   Arithmetic: {
     DivisionByZero: Defs.DivisionByZero,
     ModuloByZero: Defs.ModuloByZero,
+    NumberOutOfRange: Defs.NumberOutOfRange,
+    NotARealNumber: Defs.NotARealNumber,
     DateOutOfRange: Defs.DateOutOfRange,
   },
 

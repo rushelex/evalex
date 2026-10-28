@@ -1,10 +1,8 @@
-import type { FormulaDataType } from '../data-types';
-
 import { fc, it } from '@fast-check/vitest';
 import { Temporal } from 'temporal-polyfill';
 
 import { evaluate, evaluateOutcome, formulaValueArbitrary, loc } from '../../testing-library';
-import { areEqual, FormulaArray, FormulaBoolean, FormulaDate, FormulaDateRange, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString, Kind } from '../data-types';
+import { FormulaArray, FormulaBoolean, FormulaDate, FormulaDateRange, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString, Kind } from '../data-types';
 import { exactValue } from '../data-types/number/exact-value';
 import { Errors, FormulaError } from '../errors';
 
@@ -23,13 +21,38 @@ const nonZeroDecimal = fc
   .tuple(fc.oneof(fc.integer({ min: -999, max: -1 }), fc.integer({ min: 1, max: 999 })), fc.integer({ min: 0, max: 2 }))
   .map(([units, scale]) => Number(`${units}e-${scale}`));
 
+// Finite numbers with the ends of the range common, where results overflow.
+const largeNumber = fc.oneof(
+  fc.double({ noNaN: true, noDefaultInfinity: true }),
+  fc.constantFrom(Number.MAX_VALUE, -Number.MAX_VALUE, 1e308, -1e308, 1e200, -1e-300),
+);
+
+// Formulas over two numbers `a` and `b` that compute a number.
+const NUMERIC_FORMULAS = [
+  'a + b',
+  'a - b',
+  'a * b',
+  'a / b',
+  'a % b',
+  'a ^ b',
+  '-a',
+  'pow(a, b)',
+  'exp(a)',
+  'sqrt(a)',
+  'cbrt(a)',
+  'ln(a)',
+  'sum(a, b)',
+  'mean(a, b)',
+  'median([a, b, b])',
+  'toNumber(format(a) + "e300")',
+] as const;
+
 const anyValue = formulaValueArbitrary();
 
 // Values of different kinds that look alike, where comparisons between kinds tend to slip.
 const LOOKALIKES = [
   new FormulaNumber(0),
   new FormulaNumber(1),
-  new FormulaNumber(Number.NaN),
   new FormulaString(''),
   new FormulaString('0'),
   FormulaBoolean.from(false),
@@ -98,8 +121,8 @@ describe('Operations', () => {
     expect(evaluateOutcome('a != b', { context })).toHaveSameOutcomeAs(evaluateOutcome('not (a == b)', { context }));
   });
 
-  it.prop([anyValue])('should find any value equal to itself unless it holds NaN', (a) => {
-    expect(evaluate('a == a', { context: { a } })).toBeFormulaDataType(FormulaBoolean, !holdsNaN(a));
+  it.prop([anyValue])('should find any value equal to itself', (a) => {
+    expect(evaluate('a == a', { context: { a } })).toBeFormulaDataType(FormulaBoolean, true);
   });
 
   it.prop([orderedPair])('should order two numbers, texts or dates the same way from both sides', ([a, b]) => {
@@ -109,7 +132,7 @@ describe('Operations', () => {
     expect(evaluateOutcome('b >= a', { context })).toHaveSameOutcomeAs(evaluateOutcome('a <= b', { context }));
   });
 
-  it.prop([orderedPair.filter(([a, b]) => !holdsNaN(a) && !holdsNaN(b))])('should find exactly one of <, == and > true for two numbers, texts or dates', ([a, b]) => {
+  it.prop([orderedPair])('should find exactly one of <, == and > true for two numbers, texts or dates', ([a, b]) => {
     const context = { a, b };
     const relations = ['a < b', 'a == b', 'a > b'].filter((formula) => evaluate(formula, { context }).value === true);
 
@@ -255,14 +278,14 @@ describe('Operations', () => {
   });
 
   describe('Decimal numbers', () => {
-    it.prop([decimal, nonZeroDecimal])('should give the same full number from an operator and its routine in both forms', (a, b) => {
+    it.prop([decimal, nonZeroDecimal])('should give the same full number or error from an operator and its routine in both forms', (a, b) => {
       const context = { a: new FormulaNumber(a), b: new FormulaNumber(b) };
 
       for (const [operator, routine] of ARITHMETIC_ROUTINES) {
-        const expected = fullNumber(evaluate(`a ${operator} b`, { context }));
+        const expected = fullNumber(evaluateOutcome(`a ${operator} b`, { context }));
 
-        expect(fullNumber(evaluate(`${routine}(a, b)`, { context }))).toBe(expected);
-        expect(fullNumber(evaluate(`a.${routine}(b)`, { context }))).toBe(expected);
+        expect(fullNumber(evaluateOutcome(`${routine}(a, b)`, { context }))).toBe(expected);
+        expect(fullNumber(evaluateOutcome(`a.${routine}(b)`, { context }))).toBe(expected);
       }
     });
 
@@ -291,6 +314,38 @@ describe('Operations', () => {
 
     it('should find 0.1 + 0.2 equal to 0.3', () => {
       expect(evaluate('0.1 + 0.2 == 0.3')).toBeFormulaDataType(FormulaBoolean, true);
+    });
+  });
+
+  describe('Numbers out of range', () => {
+    it.prop([fc.constantFrom(...NUMERIC_FORMULAS), largeNumber, largeNumber])('should give a finite number or a formula error with a location for numbers near the ends of the range', (formula, a, b) => {
+      const outcome = evaluateOutcome(formula, { context: { a: new FormulaNumber(a), b: new FormulaNumber(b) } });
+
+      if ('error' in outcome) {
+        expect(outcome.error.location).toBeDefined();
+      }
+      else {
+        expect(outcome.value).toBeInstanceOf(FormulaNumber);
+        expect(Number.isFinite(outcome.value.value)).toBe(true);
+      }
+    });
+
+    it.each([
+      { formula: '10 ^ 400', value: 'Infinity', location: loc(0, 8) },
+      { formula: '1e308 * 10', value: 'Infinity', location: loc(0, 10) },
+      { formula: '-1e308 * 10', value: '-Infinity', location: loc(0, 11) },
+      { formula: '1e400', value: 'Infinity', location: loc(0, 5) },
+      { formula: '-(10 ^ 400)', value: 'Infinity', location: loc(2, 10) },
+      { formula: 'exp(1000)', value: 'Infinity', location: loc(0, 9) },
+      { formula: '[1e308, 1e308].sum()', value: 'Infinity', location: loc(0, 20) },
+      { formula: 'toNumber("1e400")', value: 'Infinity', location: loc(0, 17) },
+      { formula: 'format(10 ^ 400)', value: 'Infinity', location: loc(7, 15) },
+    ])('should fail $formula at the part whose number does not fit', ({ formula, value, location }) => {
+      expect(() => evaluate(formula)).toThrow(Errors.Arithmetic.NumberOutOfRange.create({ value }, { location }));
+    });
+
+    it('should fail a fractional power of a negative number, which has no real result', () => {
+      expect(() => evaluate('(-8) ^ (1 / 3)')).toThrow(Errors.Arithmetic.NotARealNumber.create({ location: loc(0, 13) }));
     });
   });
 
@@ -497,16 +552,10 @@ describe('Operations', () => {
       expect(evaluateOutcome('a not in b', { context: { a, b } })).toHaveSameOutcomeAs(evaluateOutcome('not (a in b)', { context: { a, b } }));
     });
 
-    it.prop([formulaValueArbitrary(Kind.Array)])('should find in a list every item that equals itself', (list) => {
-      for (const item of (list as FormulaArray).value.filter((value) => areEqual(value, value))) {
+    it.prop([formulaValueArbitrary(Kind.Array)])('should find in a list every item of it', (list) => {
+      for (const item of (list as FormulaArray).value) {
         expect(evaluate('item in list', { context: { item, list } })).toBeFormulaDataType(FormulaBoolean, true);
       }
-    });
-
-    it('should not find NaN in a list, as NaN equals nothing', () => {
-      const nan = new FormulaNumber(Number.NaN);
-
-      expect(evaluate('nan in list', { context: { nan, list: new FormulaArray([nan]) } })).toBeFormulaDataType(FormulaBoolean, false);
     });
 
     it.prop([fc.string(), fc.string(), fc.string()])('should find any part of a text in it', (before, part, after) => {
@@ -651,9 +700,8 @@ describe('Operations', () => {
       { formula: 'not record', expected: true },
       { formula: '[] or false', expected: false },
       { formula: '[1] and true', expected: true },
-      { formula: 'not nan', expected: false },
     ])('should read an empty value as false in logical operators: $formula', ({ formula, expected }) => {
-      const context = { record: new FormulaObject({}), nan: new FormulaNumber(Number.NaN) };
+      const context = { record: new FormulaObject({}) };
 
       expect(evaluate(formula, { context })).toBeFormulaDataType(FormulaBoolean, expected);
     });
@@ -710,24 +758,11 @@ describe('Operations', () => {
   });
 });
 
-/** Whether the value is NaN or a list or object holding NaN at any depth, which no equality accepts. */
-function holdsNaN(value: FormulaDataType): boolean {
-  if (value instanceof FormulaNumber) {
-    return Number.isNaN(value.value);
+/** The full double a number result holds behind its 15-digit value, or the message key of the error it failed with. */
+function fullNumber(outcome: ReturnType<typeof evaluateOutcome>): number | string | undefined {
+  if ('error' in outcome) {
+    return outcome.error.messageKey;
   }
 
-  if (value instanceof FormulaArray) {
-    return value.value.some(holdsNaN);
-  }
-
-  if (value instanceof FormulaObject) {
-    return Object.values(value.value).some(holdsNaN);
-  }
-
-  return false;
-}
-
-/** The full double a number result holds behind its 15-digit value. */
-function fullNumber(value: FormulaDataType): number | undefined {
-  return value instanceof FormulaNumber ? value[exactValue] : undefined;
+  return outcome.value instanceof FormulaNumber ? outcome.value[exactValue] : undefined;
 }

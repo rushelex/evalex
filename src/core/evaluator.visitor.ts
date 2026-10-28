@@ -82,6 +82,13 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
       throw error;
     }
 
+    // Every operator and routine computes in doubles, so one check here keeps non-finite numbers out of every result.
+    if (result instanceof FormulaNumber && !Number.isFinite(result.value)) {
+      throw Number.isNaN(result.value)
+        ? Errors.Arithmetic.NotARealNumber.create({ location: node.location })
+        : Errors.Arithmetic.NumberOutOfRange.create({ value: String(result.value) }, { location: node.location });
+    }
+
     const origin = this.#origin;
 
     // A new value is checked first: most nodes produce one, so the node type is rarely read.

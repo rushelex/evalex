@@ -38,6 +38,8 @@ const valuesWithoutFormulaForm: ReadonlyArray<readonly [label: string, make: () 
   ['a data view', () => new DataView(new ArrayBuffer(2)), 'DataView has no formula form'],
   ['a time without a date', () => Temporal.PlainTime.from('10:00'), 'Temporal.PlainTime has no formula form'],
   ['NaN', () => Number.NaN, 'NaN has no formula form'],
+  ['infinity', () => Number.POSITIVE_INFINITY, 'Infinity has no formula form'],
+  ['negative infinity', () => Number.NEGATIVE_INFINITY, '-Infinity has no formula form'],
   ['a date that holds no instant', () => new Date(Number.NaN), 'Invalid Date has no formula form'],
   ['a bigint beyond the safe integers', () => 2n ** 60n, 'bigint 1152921504606846976 is outside the safe integer range'],
 ];
@@ -132,11 +134,11 @@ describe(convertValueToFormulaType, () => {
       expect(toPlain(convertValueToFormulaType(new Set(items)))).toEqual(toPlain(convertValueToFormulaType([...new Set(items)])));
     });
 
-    it.prop([fc.oneof(fc.uint8Array(), fc.int32Array(), fc.float64Array({ noNaN: true }))])('should convert a typed array like a list of its numbers', (items) => {
+    it.prop([fc.oneof(fc.uint8Array(), fc.int32Array(), fc.float64Array({ noNaN: true, noDefaultInfinity: true }))])('should convert a typed array like a list of its numbers', (items) => {
       expect(toPlain(convertValueToFormulaType(items))).toEqual(toPlain(convertValueToFormulaType(Array.from(items))));
     });
 
-    it.prop([fc.oneof(fc.string(), fc.double({ noNaN: true }), fc.boolean())])('should convert a boxed value like the value it holds', (value) => {
+    it.prop([fc.oneof(fc.string(), fc.double({ noNaN: true, noDefaultInfinity: true }), fc.boolean())])('should convert a boxed value like the value it holds', (value) => {
       expect(toPlain(convertValueToFormulaType(new Object(value)))).toEqual(toPlain(convertValueToFormulaType(value)));
     });
 

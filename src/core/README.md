@@ -191,7 +191,7 @@ A list of the wrong length throws a `TypeError` before the formula runs.
 | `Temporal.PlainDate`, `Temporal.PlainDateTime` | a date read in UTC |
 | A formula value, such as a `FormulaNumber` | itself |
 
-Every other value is rejected with a `TypeError` that names where it sits: `Cannot convert order.lines[2] to a formula value: Map has no formula form.` That covers a function in place of a value, such as an item of a list, symbols, `NaN`, a `Date` that holds no instant, a larger `bigint`, built-in objects such as `Map`, `Promise`, `Error` or `Temporal.PlainTime`, a date range that ends before it starts, a list that contains itself, and lists and objects nested more than 1000 deep. A field is rejected when it is read, so `order.qty()` works even when `order.tags` holds a `Map`. A field getter runs only when its field is read, and an error it throws reaches the caller unchanged.
+Every other value is rejected with a `TypeError` that names where it sits: `Cannot convert order.lines[2] to a formula value: Map has no formula form.` That covers a function in place of a value, such as an item of a list, symbols, `NaN`, `Infinity` and `-Infinity`, a `Date` that holds no instant, a larger `bigint`, built-in objects such as `Map`, `Promise`, `Error` or `Temporal.PlainTime`, a date range that ends before it starts, a list that contains itself, and lists and objects nested more than 1000 deep. A field is rejected when it is read, so `order.qty()` works even when `order.tags` holds a `Map`. A field getter runs only when its field is read, and an error it throws reaches the caller unchanged.
 
 Records may link to each other both ways, such as a project that lists its tasks and tasks that point back at the project: one host object converts to one formula object, and a formula follows the links as far as it reads them. The text of an object writes a link back to an object it is already inside as `{…}`: `{ title: "Design", project: { name: "Apollo", tasks: [{…}] } }`. Two such objects are equal when nothing reachable from them differs.
 
@@ -258,6 +258,8 @@ All of them except `pi` and `e` also work as methods: `5.add(10)`, `[1, 2, 3].su
 
 Numbers behave as the decimals they are written as: `0.1 + 0.2` → `0.3`, `0.3 / 0.1` → `3`, `4.35 * 100` → `435`. A number reads at 15 significant digits, in `.value` and in text, so `1 / 3` → `0.333333333333333`; integers up to 2^53 read in full. The next operation still gets the whole number, also when the `FormulaNumber` is passed into another formula: `1 / 3 * 3` → `1`.
 
+Every number a formula computes is finite. A result too large to hold, such as `10 ^ 400`, `exp(1000)` or `toNumber("1e400")`, fails with `Errors.Arithmetic.NumberOutOfRange`; a result that is no real number, such as `(-8) ^ (1 / 3)`, fails with `Errors.Arithmetic.NotARealNumber`. Both point at the operator, call or literal that produced the number.
+
 ### Lists
 
 | Routine | Description | Example |
@@ -279,7 +281,7 @@ Numbers behave as the decimals they are written as: `0.1 + 0.2` → `0.3`, `0.3 
 | `findIndex(list, condition)` | Index of that item, `-1` if none | `["a", "b"].findIndex(current == "b")` → `1` |
 | `some(list, condition)` `every(list, condition)` | Whether the condition is true for any item, or for every item; they stop at the first item that settles the answer | `[1, 2, 3].every(current > 0)` → `true` |
 | `count(list, condition?)` | Number of items for which the condition is true; without a condition, the length | `[1, 2, 3].count(current > 1)` → `2` |
-| `sort(list, key?)` | Items in ascending order of `<`, or of the key computed for each item; all must be numbers, all texts or all dates. Equal items keep their order, `NaN` goes last, texts compare by character code (`"B"` before `"a"`) | `["ccc", "a", "bb"].sort(length(current))` → `["a", "bb", "ccc"]` |
+| `sort(list, key?)` | Items in ascending order of `<`, or of the key computed for each item; all must be numbers, all texts or all dates. Equal items keep their order, texts compare by character code (`"B"` before `"a"`) | `["ccc", "a", "bb"].sort(length(current))` → `["a", "bb", "ccc"]` |
 
 ### Dates and durations
 
@@ -333,7 +335,7 @@ A date pattern shows the date in UTC unless a time zone is given by name (`"Euro
 | `unequal(a, b)` | The opposite of `equal`, like `!=` | `unequal(1, 2)` → `true` |
 | `toNumber(value)` | Text read as a number, `1` or `0` for a boolean, the timestamp of a date; text that holds no number, blank text included, is an error | `"2".toNumber()` → `2` |
 
-Conditions read a value the same way everywhere — in `if`, in `? :` and in `and`, `or` and `not`: an empty value counts as false and any other value as true. So `not []` is `true`, and `NaN` counts as true, because it is not `0`.
+Conditions read a value the same way everywhere — in `if`, in `? :` and in `and`, `or` and `not`: an empty value counts as false and any other value as true. So `not []` is `true`.
 
 `value in container` tells whether the value is in the container, and `not in` is its opposite. What the value must be depends on the container; anything else is an `ARGUMENT_TYPE_MISMATCH` at the operand at fault:
 
@@ -363,7 +365,7 @@ Parse errors throw `SyntaxError`, a subclass of the built-in one. A formula that
 | `PATTERN_MISMATCH` | The arguments fit none of the routine's accepted signatures |
 | `ARITHMETIC_ERROR` | Division or remainder by zero |
 | `EVALUATE_ERROR` | An operator gets operands it cannot combine, or text is not a valid regular expression |
-| `RANGE_ERROR` | An unsupported operator or an out-of-range value |
+| `RANGE_ERROR` | An unsupported operator, a number too large to hold or that is no real number, or a date outside the supported dates |
 | `CIRCULAR_REFERENCE` | A formula cell reads a cell that depends on it, see [Formulas in data](#formulas-in-data) |
 | `INPUT_ERROR` | A formula cell reads a failed cell or host data that cannot be read; the failure is its `cause`, see [Formulas in data](#formulas-in-data) |
 | `EXECUTION_TIMEOUT` | `evaluateAsync` runs longer than its `timeoutMs`; the promise rejects with it, see [Formulas in data](#formulas-in-data) |

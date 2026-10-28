@@ -12,8 +12,4 @@ describe('pow routine', tester.examples([
     formula: '(9).pow(0.5)',
     expected: new FormulaNumber(3),
   },
-  {
-    formula: '(-8).pow(1 / 3)',
-    expected: new FormulaNumber(Number.NaN),
-  },
 ]));

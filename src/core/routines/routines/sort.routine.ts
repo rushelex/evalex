@@ -48,8 +48,7 @@ routinesRegistry.registerRoutine('sort', {
 /** Positions of the keys in the order of `<`, keeping equal keys in place; `undefined` when `<` cannot compare them all. */
 function sortOrder(keys: readonly FormulaDataType[]): number[] | undefined {
   if (keys.every((key): key is FormulaNumber => key instanceof FormulaNumber)) {
-    // `NaN` is neither less nor greater than any number, so it goes last to keep the order total.
-    return orderBy(keys.map((key) => key.value), (a, b) => Number(Number.isNaN(a)) - Number(Number.isNaN(b)) || compareValues(a, b));
+    return orderBy(keys.map((key) => key.value), compareValues);
   }
 
   if (keys.every((key): key is FormulaString => key instanceof FormulaString)) {

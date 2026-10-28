@@ -7,7 +7,7 @@ import { RoutineTester } from '../../test-helpers/routine-tester';
 const tester = new RoutineTester('toNumber');
 
 describe('toNumber routine', () => {
-  it.prop([formulaValueArbitrary(Kind.Number).filter((number) => !Number.isNaN(number.value))])('should read a number back from its text', (number) => {
+  it.prop([formulaValueArbitrary(Kind.Number)])('should read a number back from its text', (number) => {
     expect(evaluate('toNumber(format(number)) == number', { context: { number } })).toBeFormulaDataType(FormulaBoolean, true);
   });
 

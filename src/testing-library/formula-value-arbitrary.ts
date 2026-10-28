@@ -35,9 +35,6 @@ const PATTERNS = ['', '.', '\\d+', '[a-z]*', '^a|b$', '(x)(y)?', '\\p{L}+', '(']
 
 // Numbers where arithmetic, rounding and conversions to dates and text tend to break.
 const EDGE_NUMBERS = [
-  Number.NaN,
-  Number.POSITIVE_INFINITY,
-  Number.NEGATIVE_INFINITY,
   -0,
   0.5,
   -0.5,
@@ -51,7 +48,7 @@ const EDGE_NUMBERS = [
   8_640_000_000_000_001,
 ];
 
-const number = fc.oneof(fc.double(), fc.integer(), fc.constantFrom(...EDGE_NUMBERS)).map((value) => new FormulaNumber(value));
+const number = fc.oneof(fc.double({ noNaN: true, noDefaultInfinity: true }), fc.integer(), fc.constantFrom(...EDGE_NUMBERS)).map((value) => new FormulaNumber(value));
 
 const text = fc.oneof(fc.string(), fc.string({ unit: 'grapheme' }), fc.string({ unit: 'binary' })).map((value) => new FormulaString(value));
 
@@ -119,8 +116,8 @@ const BY_KIND: Readonly<Record<Kind, fc.Arbitrary<FormulaDataType>>> = {
 };
 
 /**
- * Generates values a host can pass into a formula, including the edges of each type such as `NaN`, lone surrogates,
- * the first and last representable instant and an invalid regular expression.
+ * Generates values a host can pass into a formula, including the edges of each type such as the largest number, lone
+ * surrogates, the first and last representable instant and an invalid regular expression.
  *
  * @param kind - the data type to generate; values of every type, with nested lists and objects, when omitted
  */

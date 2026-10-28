@@ -63,7 +63,7 @@ export interface CellPlace {
  * A field of an object converts the first time it is read, so a field nobody reads never fails, a host getter runs only
  * when its field is read, and objects that link back to each other convert into objects that do the same.
  *
- * @throws TypeError naming the path to the first value without a formula form: a function in place of a value, a symbol, `NaN`, a `Date`
+ * @throws TypeError naming the path to the first value without a formula form: a function in place of a value, a symbol, `NaN`, `±Infinity`, a `Date`
  * that holds no instant, a `bigint` beyond the safe integers, a built-in object such as `Map` or `Promise`, a date range
  * that ends before it starts, a list that contains itself, or nesting deeper than 1000 lists and objects. Inside an
  * object, it is thrown when the field is read, and so is an error a field getter throws, unchanged.
@@ -153,7 +153,7 @@ function convert(value: unknown, position: Position): FormulaDataType {
       return FormulaString.from(value);
 
     case 'number':
-      return Number.isNaN(value) ? reject(position, 'NaN has no formula form') : FormulaNumber.from(value);
+      return Number.isFinite(value) ? FormulaNumber.from(value) : reject(position, `${value} has no formula form`);
 
     case 'boolean':
       return FormulaBoolean.from(value);
