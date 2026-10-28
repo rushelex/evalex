@@ -57,7 +57,7 @@ A dot after a number ends the number, as in JavaScript, unless a name follows it
 
 - Each value sees the names declared before it, and the body sees them all. Reading a name in its own value or an earlier one is an error: `let a = b, b = 1 in a`. This holds even when an outer name or a host variable has the same name, as with `let` in JavaScript.
 - A name cannot be declared twice in one `let`, and keywords, `let` and `const` are not names. An inner `let` may reuse an outer name and hides it until its body ends.
-- A bare `in` inside a value or the body ends that part, so membership there goes in parentheses: `let found = (key in obj) in found`. Inside brackets, call arguments and the middle of `? :` it is the operator again. A bare `in` right after a body that no outer `let` can take is an error with this hint.
+- A bare `in` inside a value or the body ends that part, so membership there goes in parentheses: `let found = (key in obj) in found`. Inside brackets, call arguments and the middle of `? :` it is the operator again. A bare `in` right after a body that no outer `let` can take is an error with this hint. `not in` cannot end a part, so it needs no parentheses: `let missing = key not in obj in missing`.
 - `let` followed by a name starts a declaration. Otherwise it is an ordinary identifier, so `let + 1`, `let or x` and `let(x)` read a variable or function called `let`. `const` followed by a name is reserved and is an error.
 
 ### Regular expression literals
@@ -75,7 +75,7 @@ From lowest to highest. The number is the binding power in [`#peekOp`](./grammar
 | 1 | `? :` | Right |
 | 3 | `or`, `\|\|` | Left |
 | 5 | `and`, `&&` | Left |
-| 7 | `==` `!=` `<` `<=` `>` `>=` `in` | Left |
+| 7 | `==` `!=` `<` `<=` `>` `>=` `in` `not in` | Left |
 | 9 | `+` `-` | Left |
 | 11 | `*` `/` `%` | Left |
 | 14 | `^` | Right: `2 ^ 3 ^ 2` is `2 ^ 9` |
@@ -83,8 +83,7 @@ From lowest to highest. The number is the binding power in [`#peekOp`](./grammar
 
 Prefix operators bind tighter than `^`, so `-2 ^ 2` is `(-2) ^ 2 = 4`. Method calls bind tighter than everything: `-items.sum()` negates the result of the call.
 
-> [!NOTE]
-> `in` is parsed but `core` does not evaluate it yet; using it fails with `RANGE_ERROR`.
+`not in` is one operator, whatever whitespace stands between its words: `x not in y`. Before an operand `not` stays a prefix, so `not x in y` is `(not x) in y`.
 
 ## AST
 

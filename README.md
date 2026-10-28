@@ -109,6 +109,7 @@ Operators, from lowest to highest precedence:
 | `or`, `\|\|` | Logical OR |
 | `and`, `&&` | Logical AND |
 | `==` `!=` `<` `<=` `>` `>=` | Comparison |
+| `in` `not in` | Membership: an item of a list, a part of a text, a field of an object, a date of a date range |
 | `+` `-` | Addition, subtraction, text concatenation when either side is text |
 | `*` `/` `%` | Multiplication, division, remainder |
 | `^` | Power, right-associative |

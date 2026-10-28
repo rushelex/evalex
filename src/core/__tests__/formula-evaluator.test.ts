@@ -3,7 +3,7 @@ import type { FormulaCell, FormulaCellPlace, FormulaView } from '../formula-eval
 import { fc, it } from '@fast-check/vitest';
 
 import { SyntaxError } from '../../parser/grammar/parser';
-import { FormulaDataType, FormulaNumber, FormulaString } from '../data-types';
+import { FormulaBoolean, FormulaDataType, FormulaNumber, FormulaString } from '../data-types';
 import { Errors, FormulaError } from '../errors';
 import { Formula } from '../formula';
 import { FormulaScope } from '../formula-scope';
@@ -556,6 +556,17 @@ describe('FormulaEvaluator', () => {
       record.rate = 3;
 
       expect(evaluator.evaluate(data).rows[0]?.cost).toBeFormulaDataType(FormulaNumber, 30);
+    });
+
+    it('should compute again a formula that asks for a field added to a record in place', () => {
+      const evaluator = scope.evaluator();
+      const record: Record<string, unknown> = { a: 1 };
+      const data = { record, has: new Formula('"b" in record') };
+
+      evaluator.evaluate(data);
+      record.b = 2;
+
+      expect(evaluator.evaluate(data).has).toBeFormulaDataType(FormulaBoolean, true);
     });
 
     it('should compute again a formula that reads a date changed in place', () => {

@@ -4,11 +4,11 @@ import { fc, it } from '@fast-check/vitest';
 import { Temporal } from 'temporal-polyfill';
 
 import { evaluate, evaluateOutcome, formulaValueArbitrary, loc } from '../../testing-library';
-import { FormulaArray, FormulaBoolean, FormulaDate, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString, Kind } from '../data-types';
+import { areEqual, FormulaArray, FormulaBoolean, FormulaDate, FormulaDateRange, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString, Kind } from '../data-types';
 import { exactValue } from '../data-types/number/exact-value';
 import { Errors, FormulaError } from '../errors';
 
-const BINARY_OPERATORS = ['+', '-', '*', '/', '%', '^', '==', '!=', '<', '<=', '>', '>=', 'and', '&&', 'or', '||'] as const;
+const BINARY_OPERATORS = ['+', '-', '*', '/', '%', '^', '==', '!=', '<', '<=', '>', '>=', 'in', 'not in', 'and', '&&', 'or', '||'] as const;
 
 const UNARY_OPERATORS = ['-', '!', 'not'] as const;
 
@@ -487,6 +487,115 @@ describe('Operations', () => {
           { location: loc(0, 6) },
         ));
       });
+    });
+  });
+
+  describe('Binary - Membership', () => {
+    const week = FormulaDateRange.from({ start: '2026-10-01', end: '2026-10-07' });
+
+    it.prop([valuePair])('should make "not in" the opposite of "in", failing with the same error', ([a, b]) => {
+      expect(evaluateOutcome('a not in b', { context: { a, b } })).toHaveSameOutcomeAs(evaluateOutcome('not (a in b)', { context: { a, b } }));
+    });
+
+    it.prop([formulaValueArbitrary(Kind.Array)])('should find in a list every item that equals itself', (list) => {
+      for (const item of (list as FormulaArray).value.filter((value) => areEqual(value, value))) {
+        expect(evaluate('item in list', { context: { item, list } })).toBeFormulaDataType(FormulaBoolean, true);
+      }
+    });
+
+    it('should not find NaN in a list, as NaN equals nothing', () => {
+      const nan = new FormulaNumber(Number.NaN);
+
+      expect(evaluate('nan in list', { context: { nan, list: new FormulaArray([nan]) } })).toBeFormulaDataType(FormulaBoolean, false);
+    });
+
+    it.prop([fc.string(), fc.string(), fc.string()])('should find any part of a text in it', (before, part, after) => {
+      const context = { part: new FormulaString(part), text: new FormulaString(before + part + after) };
+
+      expect(evaluate('part in text', { context })).toBeFormulaDataType(FormulaBoolean, true);
+    });
+
+    it.prop([formulaValueArbitrary(Kind.Object), fc.string()])('should find a name in an object exactly when the object has that field', (object, name) => {
+      const expected = Object.hasOwn((object as FormulaObject).value, name);
+
+      expect(evaluate('name in object', { context: { name: new FormulaString(name), object } })).toBeFormulaDataType(FormulaBoolean, expected);
+    });
+
+    it.each([
+      { input: '2 in [1, 2, 3]', expected: true },
+      { input: '4 in [1, 2, 3]', expected: false },
+      { input: '[1, 2] in [[1, 2]]', expected: true },
+      { input: '"1" in [1]', expected: false },
+      { input: 'null in [null]', expected: true },
+      { input: '1 in []', expected: false },
+    ])('should compare a value with the items of a list by content: $input', ({ input, expected }) => {
+      expect(evaluate(input)).toBeFormulaDataType(FormulaBoolean, expected);
+    });
+
+    it.each([
+      { input: '"wor" in "Hello world"', expected: true },
+      { input: '"World" in "Hello world"', expected: false },
+      { input: '"." in "v12"', expected: false },
+      { input: '"" in ""', expected: true },
+    ])('should search a text for plain text, case and pattern characters included: $input', ({ input, expected }) => {
+      expect(evaluate(input)).toBeFormulaDataType(FormulaBoolean, expected);
+    });
+
+    it.each([
+      { name: 'empty', expected: true },
+      { name: 'price', expected: true },
+      { name: 'toString', expected: false },
+      { name: 'Price', expected: false },
+    ])('should find only the own fields of an object, an empty one included: "$name"', ({ name, expected }) => {
+      const object = FormulaObject.from({ empty: null, price: 10 });
+
+      expect(evaluate('name in object', { context: { name: new FormulaString(name), object } })).toBeFormulaDataType(FormulaBoolean, expected);
+    });
+
+    it.each([
+      { date: '2026-10-01T00:00:00Z', expected: true },
+      { date: '2026-10-04T13:42:00Z', expected: true },
+      { date: '2026-10-07T00:00:00Z', expected: true },
+      { date: '2026-10-07T00:00:00.001Z', expected: false },
+      { date: '2026-09-30T23:59:59.999Z', expected: false },
+    ])('should find a date in a range from its start to its end, both included: $date', ({ date, expected }) => {
+      expect(evaluate('day in week', { context: { day: FormulaDate.from(date), week } })).toBeFormulaDataType(FormulaBoolean, expected);
+    });
+
+    it('should find the one date of a range that starts and ends at it', () => {
+      expect(evaluate('parseDate("2026-10-07") in dateRange(parseDate("2026-10-07"), parseDate("2026-10-07"))')).toBeFormulaDataType(FormulaBoolean, true);
+    });
+
+    it.each([
+      { input: '4 not in [1, 2, 3]', expected: true },
+      { input: '"b" not in "abc"', expected: false },
+    ])('should negate membership with "not in": $input', ({ input, expected }) => {
+      expect(evaluate(input)).toBeFormulaDataType(FormulaBoolean, expected);
+    });
+
+    it.each([
+      { input: '1 in 5', actual: Kind.Number, location: loc(5, 6) },
+      { input: '1 not in true', actual: Kind.Boolean, location: loc(9, 13) },
+      { input: '1 in parseDate("2026-10-07")', actual: Kind.Date, location: loc(5, 28) },
+    ])('should fail at the right operand when nothing can be searched in it: $input', ({ input, actual, location }) => {
+      expect(() => evaluate(input)).toThrow(Errors.Argument.TypeMismatch.create(
+        { expected: [Kind.Array, Kind.String, Kind.Object, Kind.DateRange], actual, argumentPosition: 2 },
+        { location },
+      ));
+    });
+
+    it.each([
+      { input: '5 in "abc"', expected: Kind.String, actual: Kind.Number, location: loc(0, 1) },
+      { input: '(1 + 1) not in "abc"', expected: Kind.String, actual: Kind.Number, location: loc(1, 6) },
+      { input: '5 in object', expected: Kind.String, actual: Kind.Number, location: loc(0, 1) },
+      { input: '"2026-10-01" in week', expected: Kind.Date, actual: Kind.String, location: loc(0, 12) },
+    ])('should fail at the left operand when it cannot be searched for in the right one: $input', ({ input, expected, actual, location }) => {
+      const object = FormulaObject.from({ 5: true });
+
+      expect(() => evaluate(input, { context: { object, week } })).toThrow(Errors.Argument.TypeMismatch.create(
+        { expected: [expected], actual, argumentPosition: 1 },
+        { location },
+      ));
     });
   });
 

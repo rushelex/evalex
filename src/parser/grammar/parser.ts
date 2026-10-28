@@ -1006,11 +1006,38 @@ class Parser {
     if (!this.#noIn && this.#isKeywordAhead('in')) {
       return { text: 'in', lbp: 7, rbp: 7 };
     }
+    // `not` cannot end a `let` part, so `not in` stays the operator where a bare `in` does not
+    if (this.#isNotInAhead()) {
+      return { text: 'not in', lbp: 7, rbp: 7 };
+    }
     return null;
+  }
+
+  /** Checks for `not` and `in` with any whitespace between them. */
+  #isNotInAhead(): boolean {
+    if (!this.#isKeywordAhead('not')) {
+      return false;
+    }
+
+    const saved = this.#save();
+    this.#consumeKeyword('not');
+    this.#skipWhitespace();
+
+    const found = this.#isKeywordAhead('in');
+    this.#restore(saved);
+
+    return found;
   }
 
   /** Advances the scanner past the given operator's characters. */
   #consumeOp(op: OpInfo): void {
+    if (op.text === 'not in') {
+      this.#consumeKeyword('not');
+      this.#skipWhitespace();
+      this.#consumeKeyword('in');
+      return;
+    }
+
     for (let i = 0; i < op.text.length; i++) {
       this.#advance();
     }

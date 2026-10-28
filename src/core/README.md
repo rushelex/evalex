@@ -334,6 +334,15 @@ A date pattern shows the date in UTC unless a time zone is given by name (`"Euro
 
 Conditions read a value the same way everywhere — in `if`, in `? :` and in `and`, `or` and `not`: an empty value counts as false and any other value as true. So `not []` is `true`, and `NaN` counts as true, because it is not `0`.
 
+`value in container` tells whether the value is in the container, and `not in` is its opposite. What the value must be depends on the container; anything else is an `ARGUMENT_TYPE_MISMATCH` at the operand at fault:
+
+| Container | True when | Example |
+| --- | --- | --- |
+| List | Some item equals the value, as in `==` | `2 in [1, 2, 3]` → `true` |
+| Text | The text holds the value, which is text, as plain text: case and pattern characters count | `"." in "v12"` → `false` |
+| Object | The object has an own field named by the value, which is text, even an empty one | `"price" in item` |
+| Date range | The value is a date from the start to the end, both included | `due in dateRange(start, end)` |
+
 ## Errors
 
 Parse errors throw `SyntaxError`, a subclass of the built-in one. A formula that nests or chains more than 256 levels, such as a sum of 257 terms, is one of them, so a long formula never overflows the stack. See the [parser README](../parser/README.md#syntax-errors) for what counts a level. Evaluation errors throw `FormulaError`:

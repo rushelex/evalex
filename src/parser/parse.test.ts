@@ -15,7 +15,7 @@ const IDENTIFIERS = ['a', 'price', '_x1', 'notes', 'android', 'orange', 'inner',
 
 const ATOMS = ['1', '0.5', '.5', '1e3', '2.5E-3', '"text"', '\'it\\\'s\'', 'true', 'false', 'null', 'undefined', '/a+/gi', '/[/]/', ...IDENTIFIERS];
 
-const BINARY_OPERATORS = ['or', '||', 'and', '&&', '==', '!=', '<', '<=', '>', '>=', 'in', '+', '-', '*', '/', '%', '^'];
+const BINARY_OPERATORS = ['or', '||', 'and', '&&', '==', '!=', '<', '<=', '>', '>=', 'in', 'not in', '+', '-', '*', '/', '%', '^'];
 
 const PREFIX_OPERATORS = ['-', '!', 'not'];
 
@@ -771,6 +771,38 @@ describe(parse, () => {
         location: createLocation(0, 6),
       });
     });
+
+    it('should parse "x not in y" as a "not in" expression', () => {
+      const ast = parse('x not in y');
+      expect(ast).toEqual({
+        type: 'BinaryExpression',
+        operator: 'not in',
+        left: { type: 'Identifier', name: 'x', location: createLocation(0, 1) },
+        right: { type: 'Identifier', name: 'y', location: createLocation(9, 10) },
+        location: createLocation(0, 10),
+      });
+    });
+
+    it('should read "not in" across any whitespace between its words', () => {
+      expect(withoutPositions(parse('x not \n\t in y'))).toEqual({
+        type: 'BinaryExpression',
+        operator: 'not in',
+        left: { type: 'Identifier', name: 'x' },
+        right: { type: 'Identifier', name: 'y' },
+      });
+    });
+
+    it('should give "not in" the precedence of "in"', () => {
+      expect(withoutPositions(parse('a + b not in c and d'))).toEqual(withoutPositions(parse('((a + b) not in c) and d')));
+    });
+
+    it('should keep "not" before an operand a prefix: "not x in y" negates x', () => {
+      expect(withoutPositions(parse('not x in y'))).toEqual(withoutPositions(parse('(not x) in y')));
+    });
+
+    it('should not read "not" before a name that starts with "in" as "not in"', () => {
+      expect(() => parse('x not inside')).toThrow('Expected end of input but "n" found. [2,3]');
+    });
   });
 
   describe('Number literal extensions', () => {
@@ -1045,6 +1077,14 @@ describe(parse, () => {
       { formula: 'let a = c ? k in o : 1 in a', part: 'the middle of "? :"' },
     ])('should read "in" in $part inside a value as the operator', ({ formula }) => {
       expect(JSON.stringify(withoutPositions(parse(formula)))).toContain('"operator":"in"');
+    });
+
+    it('should read "not in" inside a value and the body as the operator, since it cannot end a part', () => {
+      expect(withoutPositions(parse('let a = k not in o in a not in b'))).toEqual({
+        type: 'LetExpression',
+        declarations: [{ name: { type: 'Identifier', name: 'a' }, value: withoutPositions(parse('k not in o')) }],
+        body: withoutPositions(parse('a not in b')),
+      });
     });
 
     it.each([

@@ -1,3 +1,5 @@
+import type { Class } from 'type-fest';
+
 import type { AST } from '../parser';
 import type { FormulaEvaluationContext } from './context';
 import type { RoutineDispatcher } from './routines/dispatcher';
@@ -13,10 +15,13 @@ import {
   FormulaBoolean,
   FormulaDataType,
   FormulaDate,
+  FormulaDateRange,
   FormulaNull,
   FormulaNumber,
+  FormulaObject,
   FormulaRegExp,
   FormulaString,
+  Kind,
 } from './data-types';
 import { Errors } from './errors';
 import { routineDispatcher } from './routines/dispatcher';
@@ -252,6 +257,12 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
           { location: node.location },
         );
       }
+      case 'in': {
+        return FormulaBoolean.from(isMember({ node, item: left, container: right }));
+      }
+      case 'not in': {
+        return FormulaBoolean.from(!isMember({ node, item: left, container: right }));
+      }
       case 'and':
       case '&&': {
         return FormulaBoolean.from(!left.isEmpty() && !right.isEmpty());
@@ -353,6 +364,50 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
 
     return visitor.evaluateNode(node.body);
   }
+}
+
+/**
+ * Tells whether the left operand of `in` is in the right one: an equal item of a list, a part of a text, the name of
+ * an own field of an object, or a date of a date range, its start and end included.
+ *
+ * @throws An argument type mismatch at the right operand when nothing can be searched in it, or at the left one when it
+ * cannot be searched for there.
+ */
+function isMember({ node, item, container }: { node: AST.IBinaryExpressionNode; item: FormulaDataType; container: FormulaDataType }): boolean {
+  if (FormulaArray.isOfType(container)) {
+    return container.value.some((element) => areEqual(element, item));
+  }
+
+  if (container instanceof FormulaString) {
+    return container.value.includes(searchedFor({ node, item, type: FormulaString }).value);
+  }
+
+  if (container instanceof FormulaObject) {
+    return Object.hasOwn(container.value, searchedFor({ node, item, type: FormulaString }).value);
+  }
+
+  if (container instanceof FormulaDateRange) {
+    const date = searchedFor({ node, item, type: FormulaDate }).value;
+
+    return Temporal.ZonedDateTime.compare(container.value.start, date) <= 0 && Temporal.ZonedDateTime.compare(date, container.value.end) <= 0;
+  }
+
+  throw Errors.Argument.TypeMismatch.create(
+    { expected: [Kind.Array, Kind.String, Kind.Object, Kind.DateRange], actual: container.kind, argumentPosition: 2 },
+    { location: node.right.location },
+  );
+}
+
+/** Returns the left operand of `in` when it is of the type its right operand is searched for. */
+function searchedFor<T extends FormulaDataType>({ node, item, type }: { node: AST.IBinaryExpressionNode; item: FormulaDataType; type: Class<T> & { readonly kind: Kind } }): T {
+  if (item instanceof type) {
+    return item;
+  }
+
+  throw Errors.Argument.TypeMismatch.create(
+    { expected: [type.kind], actual: item.kind, argumentPosition: 1 },
+    { location: node.left.location },
+  );
 }
 
 function checkNumericOperands(
