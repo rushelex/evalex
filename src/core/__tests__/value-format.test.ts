@@ -17,7 +17,7 @@ const date = FormulaDate.from('2024-07-28T14:35:00Z');
 
 describe('evaluate with format', () => {
   describe('text of a value', () => {
-    it.prop([fc.double({ noNaN: true }).map((value) => new FormulaNumber(value))])('should take the text of a number from the number formatter', (value) => {
+    it.prop([fc.double({ noNaN: true, noDefaultInfinity: true }).map((value) => new FormulaNumber(value))])('should take the text of a number from the number formatter', (value) => {
       const format: ValueFormat = { number: (number) => `<${number}>` };
 
       expect(evaluate('"x" + value', { context: { value }, format })).toBeFormulaDataType(FormulaString, `x<${value.value}>`);

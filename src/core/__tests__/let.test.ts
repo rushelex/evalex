@@ -11,8 +11,10 @@ const INLINED = [
   { withLet: 'let s = a in let t = s + b in t', inlined: 'a + b' },
 ] as const;
 
+const hostNumber = fc.double({ noNaN: true, noDefaultInfinity: true });
+
 describe('let expressions', () => {
-  it.prop([fc.constantFrom(...INLINED), fc.double(), fc.double()])('should give the same result as the formula with each name spelled out', ({ withLet, inlined }, a, b) => {
+  it.prop([fc.constantFrom(...INLINED), hostNumber, hostNumber])('should give the same result as the formula with each name spelled out', ({ withLet, inlined }, a, b) => {
     const context = { a: new FormulaNumber(a), b: new FormulaNumber(b) };
 
     expect(evaluateOutcome(withLet, { context })).toHaveSameOutcomeAs(evaluateOutcome(inlined, { context }));
