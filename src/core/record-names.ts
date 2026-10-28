@@ -27,6 +27,8 @@ export interface PassNames {
    * formula read it; `held` is `ABSENT` for a field that does not exist, which is never a cell.
    */
   readonly readField: (owner: object, key: string | number, held: unknown) => unknown;
+  /** The zone of the scope, which a date and time without a zone of its own is read in. */
+  readonly timeZone: string;
 }
 
 /**
@@ -109,7 +111,7 @@ export class RecordNames implements GlobalProperties {
       return readCell({
         place: { owner: record, key: name },
         read: (): unknown => Reflect.get(record, name),
-        convert: (value) => convertNamedValue({ name, value, readCell }),
+        convert: (value) => convertNamedValue({ name, value, readCell, timeZone: this.#pass.timeZone }),
       });
     }
 

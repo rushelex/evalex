@@ -13,10 +13,13 @@ import { convertNamedValue } from './data-types/converter';
  */
 export class HostValues implements GlobalProperties {
   readonly #values: object;
+  /** The zone a date and time without one is read in. */
+  readonly #timeZone: string;
   readonly #converted = new Map<string, FormulaDataType | undefined>();
 
-  constructor(values: object) {
+  constructor({ values, timeZone }: { values: object; timeZone: string }) {
     this.#values = values;
+    this.#timeZone = timeZone;
   }
 
   has(name: string): boolean {
@@ -43,6 +46,6 @@ export class HostValues implements GlobalProperties {
 
     const value: unknown = Reflect.get(this.#values, name);
 
-    return typeof value === 'function' ? undefined : convertNamedValue({ name, value });
+    return typeof value === 'function' ? undefined : convertNamedValue({ name, value, timeZone: this.#timeZone });
   }
 }

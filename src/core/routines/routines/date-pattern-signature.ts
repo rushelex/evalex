@@ -1,3 +1,4 @@
+import { isTimeZone } from '../../time-zone';
 import { arg } from '../arguments';
 
 /** The arguments of a date formatted by a pattern, shared by `formatDate` and the date form of `format`. */
@@ -15,13 +16,3 @@ export const DATE_PATTERN_SIGNATURE = [
         }),
   }),
 ] as const;
-
-function isTimeZone(name: string): boolean {
-  try {
-    Temporal.Instant.fromEpochMilliseconds(0).toZonedDateTimeISO(name);
-    return true;
-  }
-  catch {
-    return false;
-  }
-}

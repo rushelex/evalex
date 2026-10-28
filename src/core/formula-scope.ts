@@ -8,12 +8,24 @@ import { evaluateFormula } from './evaluate-formula';
 import { FormulaEvaluator } from './formula-evaluator';
 import { HostValues } from './host-values';
 import { parseFormula } from './parse-formula';
+import { DEFAULT_TIME_ZONE, isTimeZone } from './time-zone';
 import { validateValueFormat } from './value-format';
 
 /** Settings a host gives a `FormulaScope` once, for every formula it and its evaluators compute. */
 export interface FormulaScopeOptions {
   /** How values look where a formula turns them into text: `+` with text, `join`, `format()`. */
   readonly format?: ValueFormat;
+  /**
+   * The time zone formulas read dates in: a time zone name such as `Europe/Berlin` or an offset such as `+05:00`.
+   *
+   * @remarks
+   * It decides the day `today()` gives, the fields `hour()`, `month()` and the like read, the fields `formatDate` shows
+   * without a zone of its own, where days and months start in date arithmetic, and the instant of a date and time written
+   * without an offset. Dates still leave the formula in UTC.
+   *
+   * @default 'UTC'
+   */
+  readonly timeZone?: string;
 }
 
 /**
@@ -39,10 +51,12 @@ export interface FormulaScopeOptions {
  */
 export class FormulaScope {
   readonly #format: ValueFormat | undefined;
+  readonly #timeZone: string;
 
   /**
    * @throws ReferenceError when the runtime has no `Temporal`, which dates need; `temporal-polyfill/global` provides it.
    * @throws TypeError when a name list of `format.names` holds a wrong number of names.
+   * @throws RangeError when `timeZone` is neither a time zone name nor an offset.
    */
   constructor(options: FormulaScopeOptions = {}) {
     // Every date reads the global `Temporal` when it is computed, so a missing one fails here rather than inside a formula.
@@ -51,7 +65,13 @@ export class FormulaScope {
     }
 
     validateValueFormat(options.format);
+
+    if (options.timeZone !== undefined && !isTimeZone(options.timeZone)) {
+      throw new RangeError(`timeZone "${options.timeZone}" is neither a time zone name such as "Europe/Berlin" nor an offset such as "+05:00".`);
+    }
+
     this.#format = options.format;
+    this.#timeZone = options.timeZone ?? DEFAULT_TIME_ZONE;
   }
 
   /**
@@ -66,7 +86,7 @@ export class FormulaScope {
    * ```
    */
   evaluator(options: FormulaEvaluatorOptions = {}): FormulaEvaluator {
-    return new FormulaEvaluator({ ...options, format: this.#format });
+    return new FormulaEvaluator({ ...options, format: this.#format, timeZone: this.#timeZone });
   }
 
   /**
@@ -84,8 +104,9 @@ export class FormulaScope {
     const result = evaluateFormula({
       formula,
       ast: parseFormula(formula),
-      properties: new HostValues(values ?? {}),
+      properties: new HostValues({ values: values ?? {}, timeZone: this.#timeZone }),
       format: this.#format,
+      timeZone: this.#timeZone,
     });
 
     if (!isFormulaValue(result)) {

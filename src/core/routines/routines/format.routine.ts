@@ -28,7 +28,7 @@ routinesRegistry.registerRoutine('format', {
   handler: ({ subject, args: [pattern, timezone], visitor }) => {
     if (subject instanceof FormulaDateTime && pattern) {
       return new FormulaString(formatDateText({
-        date: subject.value.withTimeZone(timezone?.value ?? 'UTC'),
+        date: subject.value.withTimeZone(timezone?.value ?? visitor.timeZone),
         pattern: pattern.value,
         names: visitor.format?.names,
       }));

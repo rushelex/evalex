@@ -23,10 +23,13 @@ import {
 } from './data-types';
 import { Errors } from './errors';
 import { routineDispatcher } from './routines/dispatcher';
+import { DEFAULT_TIME_ZONE } from './time-zone';
 
 interface EvaluationHooks {
   /** The host's formatters for values the formula turns into text. */
   format?: ValueFormat;
+  /** The time zone the formula reads dates in. */
+  timeZone?: string;
 }
 
 /** The latest result of one evaluation and the part of the formula it came from, shared by its nested visitors. */
@@ -102,6 +105,11 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
   /** The host's formatters, for every place the formula turns a value into text. */
   get format(): ValueFormat | undefined {
     return this.#hooks?.format;
+  }
+
+  /** The time zone of the scope, for reading the fields of a date and for calendar arithmetic. */
+  get timeZone(): string {
+    return this.#hooks?.timeZone ?? DEFAULT_TIME_ZONE;
   }
 
   /** The part of the formula the latest result came from, so an error about that value can point at it. */

@@ -1,5 +1,7 @@
 import type { TypedArray } from './types';
 
+import { DEFAULT_TIME_ZONE } from '../time-zone';
+
 import { FormulaArray } from './array';
 import { FormulaBoolean } from './boolean';
 import { FormulaDateRange } from './date-range';
@@ -26,6 +28,8 @@ interface Position {
   /** Objects converted from the same host data, so a link back to one of them closes a loop instead of growing the tree. */
   readonly objects: WeakMap<object, FormulaObject>;
   readonly readCell: CellReader | undefined;
+  /** The zone a date and time without one is read in. */
+  readonly timeZone: string;
 }
 
 /**
@@ -53,7 +57,8 @@ export interface CellPlace {
  *
  * @remarks
  * A value with an obvious formula form converts to it: a `Set` or a typed array becomes a list, a boxed primitive its
- * primitive, a `bigint` within the safe integers a number, a `Temporal` instant, date or date-time a date read in UTC.
+ * primitive, a `bigint` within the safe integers a number, a `Temporal` instant a date, and a `Temporal` date or
+ * date-time a date read in the time zone of the scope, UTC outside one.
  * An object of exactly two fields, `start` and `end`, both dates, becomes a date range. Any other plain object or class
  * instance becomes an object of its own enumerable fields; fields holding functions are left out, like methods.
  * A formula value is kept as it is.
@@ -75,13 +80,15 @@ export function convertValueToFormulaType(value: unknown): FormulaDataType {
  *
  * @remarks
  * `readCell` reads the fields and items inside the value in place of the converter, such as fields that hold formulas.
+ * `timeZone` is the zone of the scope, which a date and time without a zone of its own is read in.
  */
-export function convertNamedValue({ name, value, readCell }: {
+export function convertNamedValue({ name, value, readCell, timeZone }: {
   name: string;
   value: unknown;
   readCell?: CellReader;
+  timeZone: string;
 }): FormulaDataType {
-  return convert(value, { ...rootPosition(), path: name, readCell });
+  return convert(value, { ...rootPosition(), path: name, readCell, timeZone });
 }
 
 /**
@@ -115,7 +122,7 @@ export function hostShape(value: unknown): unknown {
 
   const keys = fieldKeys(value);
   const range = keys.length === 2 && keys.includes('start') && keys.includes('end')
-    ? [toDate(Reflect.get(value, 'start'))?.epochNanoseconds, toDate(Reflect.get(value, 'end'))?.epochNanoseconds]
+    ? [toDate(Reflect.get(value, 'start'), DEFAULT_TIME_ZONE)?.epochNanoseconds, toDate(Reflect.get(value, 'end'), DEFAULT_TIME_ZONE)?.epochNanoseconds]
     : [];
 
   return [...keys, ...range].join('\0');
@@ -132,7 +139,7 @@ export function convertObjectFields(object: object): Record<string, FormulaDataT
 }
 
 function rootPosition(): Position {
-  return { path: '', nesting: 0, ancestors: new WeakSet(), objects: new WeakMap(), readCell: undefined };
+  return { path: '', nesting: 0, ancestors: new WeakSet(), objects: new WeakMap(), readCell: undefined, timeZone: DEFAULT_TIME_ZONE };
 }
 
 function convert(value: unknown, position: Position): FormulaDataType {
@@ -176,7 +183,7 @@ function convertObject(value: object, position: Position): FormulaDataType {
     return Number.isNaN(value.getTime()) ? reject(position, 'Invalid Date has no formula form') : FormulaDateTime.from(value);
   }
 
-  const date = toZonedDateTime(value);
+  const date = toZonedDateTime(value, position.timeZone);
 
   if (date) {
     return FormulaDateTime.from(date);
@@ -227,8 +234,8 @@ function toDateRange(value: object, position: Position): FormulaDateRange | unde
 
   const start: unknown = Reflect.get(value, 'start');
   const end: unknown = Reflect.get(value, 'end');
-  const startDate = toDate(start);
-  const endDate = toDate(end);
+  const startDate = toDate(start, position.timeZone);
+  const endDate = toDate(end, position.timeZone);
 
   if (!startDate || !endDate) {
     return undefined;
@@ -243,12 +250,12 @@ function toDateRange(value: object, position: Position): FormulaDateRange | unde
 }
 
 /** The date a value converts to, or `undefined` when it does not convert to a date. */
-function toDate(value: unknown): Temporal.ZonedDateTime | undefined {
+function toDate(value: unknown, timeZone: string): Temporal.ZonedDateTime | undefined {
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? undefined : FormulaDateTime.from(value).value;
   }
 
-  const date = typeof value === 'object' && value !== null ? toZonedDateTime(value) : undefined;
+  const date = typeof value === 'object' && value !== null ? toZonedDateTime(value, timeZone) : undefined;
 
   return date && FormulaDateTime.from(date).value;
 }
@@ -330,7 +337,7 @@ function within<T>(container: object, position: Position, read: (inner: Position
   }
 }
 
-function toZonedDateTime(value: object): Temporal.ZonedDateTime | undefined {
+function toZonedDateTime(value: object, timeZone: string): Temporal.ZonedDateTime | undefined {
   if (value instanceof Temporal.ZonedDateTime) {
     return value;
   }
@@ -340,7 +347,7 @@ function toZonedDateTime(value: object): Temporal.ZonedDateTime | undefined {
   }
 
   if (value instanceof Temporal.PlainDateTime || value instanceof Temporal.PlainDate) {
-    return value.toZonedDateTime('UTC');
+    return value.toZonedDateTime(timeZone);
   }
 
   return undefined;

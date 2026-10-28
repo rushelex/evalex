@@ -11,5 +11,5 @@ routinesRegistry.registerRoutine('minute', {
     },
   ],
   arguments: [arg.dateTime('date')],
-  handler: ({ subject }) => new FormulaNumber(subject.value.minute),
+  handler: ({ subject, visitor }) => new FormulaNumber(subject.value.withTimeZone(visitor.timeZone).minute),
 });

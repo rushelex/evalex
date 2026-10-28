@@ -16,5 +16,5 @@ routinesRegistry.registerFunction('today', {
   ],
   arguments: [],
   volatile: true,
-  handler: () => FormulaDateTime.from(Temporal.Now.zonedDateTimeISO('UTC').startOfDay()),
+  handler: ({ visitor }) => FormulaDateTime.from(Temporal.Now.zonedDateTimeISO(visitor.timeZone).startOfDay()),
 });

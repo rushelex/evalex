@@ -11,5 +11,9 @@ routinesRegistry.registerRoutine('week', {
     },
   ],
   arguments: [arg.dateTime('date')],
-  handler: ({ subject }) => subject.value.weekOfYear === undefined ? new FormulaNull() : new FormulaNumber(subject.value.weekOfYear),
+  handler: ({ subject, visitor }) => {
+    const { weekOfYear } = subject.value.withTimeZone(visitor.timeZone);
+
+    return weekOfYear === undefined ? new FormulaNull() : new FormulaNumber(weekOfYear);
+  },
 });

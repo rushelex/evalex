@@ -30,5 +30,5 @@ routinesRegistry.registerRoutine('parseDate', {
       },
     }),
   ],
-  handler: ({ subject }) => FormulaDateTime.from(subject.value),
+  handler: ({ subject, visitor }) => FormulaDateTime.from(subject.value, { timeZone: visitor.timeZone }),
 });

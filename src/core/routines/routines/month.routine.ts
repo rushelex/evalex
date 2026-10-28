@@ -11,5 +11,5 @@ routinesRegistry.registerRoutine('month', {
     },
   ],
   arguments: [arg.dateTime('date')],
-  handler: ({ subject }) => new FormulaNumber(subject.value.month),
+  handler: ({ subject, visitor }) => new FormulaNumber(subject.value.withTimeZone(visitor.timeZone).month),
 });

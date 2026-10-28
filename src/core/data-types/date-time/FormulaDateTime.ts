@@ -1,5 +1,6 @@
 import type { ToStringOptions } from '../FormulaDataType';
 
+import { DEFAULT_TIME_ZONE } from '../../time-zone';
 import { formatWith } from '../../value-format';
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
@@ -7,11 +8,11 @@ import { Kind } from '../kind';
 const YEAR = /^[+-]?\d{4,6}$/;
 
 // ISO 8601 and RFC 9557 forms, from the most specific; `Date` parsing is left out because it reads text without an offset in the host time zone
-const TEXT_PARSERS: readonly ((text: string) => Temporal.ZonedDateTime)[] = [
+const TEXT_PARSERS: readonly ((text: string, timeZone: string) => Temporal.ZonedDateTime)[] = [
   (text) => Temporal.ZonedDateTime.from(text),
   (text) => Temporal.Instant.from(text).toZonedDateTimeISO('UTC'),
-  (text) => Temporal.PlainDateTime.from(text).toZonedDateTime('UTC'),
-  (text) => Temporal.PlainYearMonth.from(YEAR.test(text) ? `${text}-01` : text).toPlainDate({ day: 1 }).toZonedDateTime('UTC'),
+  (text, timeZone) => Temporal.PlainDateTime.from(text).toZonedDateTime(timeZone),
+  (text, timeZone) => Temporal.PlainYearMonth.from(YEAR.test(text) ? `${text}-01` : text).toPlainDate({ day: 1 }).toZonedDateTime(timeZone),
 ];
 
 /** A date a formula computes: `value` holds its instant as a `Temporal.ZonedDateTime` in UTC. */
@@ -34,9 +35,14 @@ export class FormulaDateTime extends FormulaDataType<Temporal.ZonedDateTime, typ
   /**
    * Creates a date from text, a timestamp in milliseconds, a `Date` or a `Temporal.ZonedDateTime`.
    *
+   * @param date - The value to read.
+   * @param options - How to read the value.
+   * @param options.timeZone - The zone text without an offset is read in, UTC when left out.
    * @throws {RangeError} When the value holds no date: unreadable text, an invalid `Date` or a timestamp out of range.
    */
-  static from(date: string | number | Date | Temporal.ZonedDateTime): FormulaDateTime {
+  static from(date: string | number | Date | Temporal.ZonedDateTime, options: { readonly timeZone?: string } = {}): FormulaDateTime {
+    const { timeZone = DEFAULT_TIME_ZONE } = options;
+
     if (typeof date === 'number') {
       const jsDate = new Date(date);
 
@@ -61,7 +67,7 @@ export class FormulaDateTime extends FormulaDataType<Temporal.ZonedDateTime, typ
 
     for (const parse of TEXT_PARSERS) {
       try {
-        return FormulaDateTime.#fromZonedDateTime(parse(date));
+        return FormulaDateTime.#fromZonedDateTime(parse(date, timeZone));
       }
       catch { /* ignore and try next parser */ }
     }

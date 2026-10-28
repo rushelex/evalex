@@ -40,7 +40,15 @@ scope.evaluate('"Total: " + total', { total }).value; // 'Total: 1000.00'
 - **Results back in.** A result passed back as a value is read as it is, so `third * 3` with `third` from `1 / 3` gives `1`.
 - **Showing a result is up to the host.** `format` decides how values read only where a formula itself turns them into text, see [Text of values](#text-of-values). A host that passes the formatters it draws its cells with gets the same text in `"Total: " + price` as in the `price` cell. `toString()` gives machine text, not text for readers.
 
-`format` is checked when the scope is created: a name list of the wrong length throws a `TypeError` there. Parses are cached per formula text among the 1,000 most recently used texts, so evaluating the same text again does not parse it again, and texts no longer in use do not stay in memory.
+`timeZone` is the zone formulas read dates in, by name (`"Europe/Moscow"`) or as an offset (`"+03:00"`), UTC when left out. evalex never reads the zone of the machine it runs on, so a host that wants its readers' zone passes it here. The zone decides the day `today()` gives, the parts `hour()`, `date()` and the like read, the zone a [date pattern](#dates-and-durations) shows without a zone of its own, where days and months start when `dateAdd`, `dateSubtract` and `dateBetween` count them, and the instant of a date and time without an offset, written in a formula or passed as a `Temporal.PlainDateTime`. Dates still come out of a formula in UTC.
+
+```ts
+const scope = new FormulaScope({ timeZone: 'Europe/Moscow' });
+
+scope.evaluate('hour(due)', { due: new Date('2024-07-28T22:30Z') }).value; // 1
+```
+
+`format` and `timeZone` are checked when the scope is created: a name list of the wrong length throws a `TypeError` there, and a zone that is neither a name nor an offset a `RangeError`. Parses are cached per formula text among the 1,000 most recently used texts, so evaluating the same text again does not parse it again, and texts no longer in use do not stay in memory.
 
 ## Formulas in data
 
@@ -188,7 +196,7 @@ A list of the wrong length throws a `TypeError` before the formula runs.
 | `new Number(5)`, `new String('a')`, `new Boolean(true)` | the value it holds |
 | A `bigint` from `-(2^53 - 1)` to `2^53 - 1` | a number |
 | `Date`, `Temporal.ZonedDateTime`, `Temporal.Instant` | a date at that instant |
-| `Temporal.PlainDate`, `Temporal.PlainDateTime` | a date read in UTC |
+| `Temporal.PlainDate`, `Temporal.PlainDateTime` | a date read in the [zone of the scope](#formulascope) |
 | A formula value, such as a `FormulaNumber` | itself |
 
 Every other value is rejected with a `TypeError` that names where it sits: `Cannot convert order.lines[2] to a formula value: Map has no formula form.` That covers a function in place of a value, such as an item of a list, symbols, `NaN`, `Infinity` and `-Infinity`, a `Date` that holds no instant, a larger `bigint`, built-in objects such as `Map`, `Promise`, `Error` or `Temporal.PlainTime`, a date range that ends before it starts, a list that contains itself, and lists and objects nested more than 1000 deep. A field is rejected when it is read, so `order.qty()` works even when `order.tags` holds a `Map`. A field getter runs only when its field is read, and an error it throws reaches the caller unchanged.
@@ -287,8 +295,8 @@ Every number a formula computes is finite. A result too large to hold, such as `
 
 | Routine | Description | Example |
 | --- | --- | --- |
-| `now()` / `today()` | Current date and time, or today at midnight | `today().add(1, "days")` |
-| `parseDate(text)` | Parses an ISO 8601 date; text without an offset or time zone is read in UTC | `parseDate("2023-07-10T17:35Z")` |
+| `now()` / `today()` | Current date and time, or the start of today in the zone of the scope | `today().add(1, "days")` |
+| `parseDate(text)` | Parses an ISO 8601 date; text without an offset or time zone is read in the zone of the scope | `parseDate("2023-07-10T17:35Z")` |
 | `fromTimestamp(ms)` | Date in UTC from a Unix timestamp in milliseconds, without seconds | `fromTimestamp(1689024900000)` |
 | `timestamp(date)` | Unix timestamp of the date in milliseconds | `parseDate("2023-07-10T21:35Z").timestamp()` → `1689024900000` |
 | `dateAdd(date, amount, unit)` | Adds a whole number of units, or a duration | `parseDate("2023-08-30").add(2, "months")` |
@@ -297,7 +305,7 @@ Every number a formula computes is finite. A result too large to hold, such as `
 | `formatDate(date, pattern, timezone?)` | Date as text built from a pattern; also `date.format(pattern, timezone?)` | `parseDate("2023-08-30T14:05Z").format("MMMM D, YYYY h:mm A")` → `"August 30, 2023 2:05 PM"` |
 | `dateRange(start, end)` | Date range; an end before the start is an error | `parseDate("2022-09-07").range(parseDate("2023-09-07"))` |
 | `dateStart(range)` / `dateEnd(range)` | Start or end of a date range; a date is its own start and end | `dateRange(a, b).end()` → `b` |
-| `year()` `month()` `week()` `date()` `day()` `hour()` `minute()` | Date parts: `month` is 1–12, `week` is the ISO week, `day` is 1 (Monday) to 7 (Sunday) | `parseDate("2023-07-10").month()` → `7` |
+| `year()` `month()` `week()` `date()` `day()` `hour()` `minute()` | Date parts in the zone of the scope: `month` is 1–12, `week` is the ISO week, `day` is 1 (Monday) to 7 (Sunday) | `parseDate("2023-07-10").month()` → `7` |
 | `years(duration)` … `milliseconds(duration)` | Reads one unit of a duration | `dateBetween(a, b, "years").months()` |
 
 Date ranges are equal when both ends are; they cannot be ordered with `<` or `>`, and date arithmetic takes a single date, such as `dateStart(range)`.
@@ -306,7 +314,9 @@ Date ranges are equal when both ends are; they cannot be ordered with `<` or `>`
 
 `add`, `subtract`, `between`, `range`, `start` and `end` are the method forms of the date functions; the function names work as methods too, as in `now().dateAdd(1, "days")`. Units are `"years"`, `"months"`, `"weeks"`, `"days"`, `"hours"`, `"minutes"` and, except for `between`, `"quarters"` (three months) and `"seconds"`.
 
-A date pattern shows the date in UTC unless a time zone is given by name (`"Europe/Berlin"`) or as an offset (`"+05:00"`). Names are in English on every machine, unless the host gives its own in [`format.names`](#text-of-values). Text in brackets is kept as is, and so is any letter that is not a token:
+`dateAdd`, `dateSubtract` and `dateBetween` count days and longer units by the calendar of the zone of the scope: a day added across a daylight saving change keeps the time of day.
+
+A date pattern shows the date in the zone of the scope unless a time zone is given by name (`"Europe/Berlin"`) or as an offset (`"+05:00"`). Names are in English on every machine, unless the host gives its own in [`format.names`](#text-of-values). Text in brackets is kept as is, and so is any letter that is not a token:
 
 | Part | Tokens | For 2023-08-03 14:05:09.007 UTC |
 | --- | --- | --- |

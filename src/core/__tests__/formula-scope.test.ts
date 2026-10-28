@@ -1,8 +1,9 @@
-import { it } from '@fast-check/vitest';
+import { fc, it } from '@fast-check/vitest';
 
 import { formulaValueArbitrary, loc } from '../../testing-library';
-import { FormulaBoolean, FormulaDateRange, FormulaNumber, FormulaString } from '../data-types';
+import { FormulaBoolean, FormulaDateRange, FormulaDateTime, FormulaDuration, FormulaNumber, FormulaString, Kind } from '../data-types';
 import { Errors } from '../errors';
+import { Formula } from '../formula';
 import { FormulaScope } from '../formula-scope';
 
 describe(FormulaScope, () => {
@@ -147,6 +148,79 @@ describe(FormulaScope, () => {
   describe('format', () => {
     it('should reject a name list of the wrong length when the scope is created', () => {
       expect(() => new FormulaScope({ format: { names: { months: ['a'] } } })).toThrow(new TypeError('format.names.months must hold 12 names, not 1.'));
+    });
+  });
+
+  describe('timeZone', () => {
+    const ZONES = ['UTC', 'Europe/Moscow', 'America/New_York', 'Asia/Kolkata', 'Pacific/Chatham', '+05:45', '-09:30'];
+    const zoneArbitrary = fc.constantFrom(...ZONES);
+    const instantArbitrary = fc.date({ min: new Date('1900-01-01T00:00Z'), max: new Date('2200-01-01T00:00Z'), noInvalidDate: true });
+    const utc = (instant: string): Temporal.ZonedDateTime => Temporal.Instant.from(instant).toZonedDateTimeISO('UTC');
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it.prop([instantArbitrary, zoneArbitrary])('should read the fields of a date in the zone of the scope', (instant, timeZone) => {
+      const fields = new FormulaScope({ timeZone }).evaluate('[year(at), month(at), date(at), day(at), week(at), hour(at), minute(at)]', { at: instant });
+      const local = Temporal.Instant.fromEpochMilliseconds(instant.getTime()).toZonedDateTimeISO(timeZone);
+
+      expect(fields.toString()).toBe([local.year, local.month, local.day, local.dayOfWeek, local.weekOfYear, local.hour, local.minute].join(', '));
+    });
+
+    it.prop([instantArbitrary, zoneArbitrary])('should format a date in the zone of the scope as formatDate does when given that zone', (instant, timeZone) => {
+      const pattern = 'YYYY-MM-DD HH:mm dddd Z';
+
+      expect(new FormulaScope({ timeZone }).evaluate(`formatDate(at, "${pattern}")`, { at: instant }).value)
+        .toBe(new FormulaScope().evaluate(`formatDate(at, "${pattern}", "${timeZone}")`, { at: instant }).value);
+    });
+
+    it.prop([instantArbitrary, zoneArbitrary])('should give back dates in UTC whatever the zone of the scope', (instant, timeZone) => {
+      const result = new FormulaScope({ timeZone }).evaluate('at.add(1, "days")', { at: instant });
+
+      expect(result.kind === Kind.DateTime && result.value.timeZoneId).toBe('UTC');
+    });
+
+    it('should give today the start of the current day in the zone of the scope', () => {
+      vi.spyOn(Temporal.Now, 'zonedDateTimeISO').mockImplementation((timeZone) => Temporal.Instant.from('2026-10-07T22:30Z').toZonedDateTimeISO(timeZone ?? 'UTC'));
+
+      expect(new FormulaScope({ timeZone: 'Europe/Moscow' }).evaluate('today()')).toBeFormulaDataType(FormulaDateTime, utc('2026-10-07T21:00Z'));
+    });
+
+    it('should read a date and time written without an offset in the zone of the scope', () => {
+      expect(new FormulaScope({ timeZone: 'Europe/Moscow' }).evaluate('parseDate("2026-10-07T10:00")')).toBeFormulaDataType(FormulaDateTime, utc('2026-10-07T07:00Z'));
+    });
+
+    it('should read a host date and time without a zone in the zone of the scope', () => {
+      const scope = new FormulaScope({ timeZone: 'Europe/Moscow' });
+      const at = Temporal.PlainDateTime.from('2026-10-07T10:00');
+
+      expect(scope.evaluate('at', { at })).toBeFormulaDataType(FormulaDateTime, utc('2026-10-07T07:00Z'));
+      expect(scope.evaluator().evaluate({ at, copy: new Formula('at') }).copy).toBeFormulaDataType(FormulaDateTime, utc('2026-10-07T07:00Z'));
+    });
+
+    it('should keep the time of day when a day added crosses a daylight saving change', () => {
+      const scope = new FormulaScope({ timeZone: 'Europe/Berlin' });
+
+      expect(scope.evaluate('parseDate("2026-03-28T12:00+01:00").add(1, "days")')).toBeFormulaDataType(FormulaDateTime, utc('2026-03-29T10:00Z'));
+      expect(scope.evaluate('parseDate("2026-03-29T12:00+02:00").subtract(1, "days")')).toBeFormulaDataType(FormulaDateTime, utc('2026-03-28T11:00Z'));
+    });
+
+    it('should count the days between two dates by the calendar of the zone of the scope', () => {
+      const days = new FormulaScope({ timeZone: 'Europe/Berlin' }).evaluate('parseDate("2026-03-29T12:00+02:00").between(parseDate("2026-03-28T12:00+01:00"), "days")');
+
+      expect(days).toBeFormulaDataType(FormulaDuration, Temporal.Duration.from({ days: 1 }));
+    });
+
+    it('should keep the zone given to formatDate over the zone of the scope', () => {
+      expect(new FormulaScope({ timeZone: 'Europe/Moscow' }).evaluate('formatDate(parseDate("2026-10-07T22:30Z"), "D HH:mm", "UTC")'))
+        .toBeFormulaDataType(FormulaString, '7 22:30');
+    });
+
+    it('should reject a time zone it does not know when the scope is created', () => {
+      expect(() => new FormulaScope({ timeZone: 'Mars/Base' })).toThrow(new RangeError(
+        'timeZone "Mars/Base" is neither a time zone name such as "Europe/Berlin" nor an offset such as "+05:00".',
+      ));
     });
   });
 

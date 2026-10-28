@@ -152,10 +152,12 @@ export class EvaluationPass {
   readonly #cell: ((value: unknown, place: FormulaCellPlace) => unknown) | undefined;
   /** What `cell` gave for each place, keyed as {@link Site.cells}. */
   readonly #cellValues = new Map<object, Map<string, unknown>>();
+  readonly #names: PassNames;
 
-  constructor({ data, format, onInputError, cell, memory, number, hostReader }: {
+  constructor({ data, format, timeZone, onInputError, cell, memory, number, hostReader }: {
     data: object;
     format: ValueFormat | undefined;
+    timeZone: string;
     onInputError: ((error: Error) => void) | undefined;
     cell: ((value: unknown, place: FormulaCellPlace) => unknown) | undefined;
     memory: EvaluatorMemory;
@@ -171,6 +173,23 @@ export class EvaluationPass {
     this.#memory = memory;
     this.#number = number;
     this.#hostReader = hostReader;
+    this.#names = {
+      readCell: (cell) => this.#hostReader(cell),
+      placeOf: (container) => this.#siteOf(container),
+      parentOf: (place) => {
+        this.#note({ kind: 'place', container: place.container, parent: place.parent?.container, key: place.key });
+
+        return place.parent;
+      },
+      readField: (owner, key, held) => {
+        const value = this.#throughCell({ owner, key }, held);
+
+        this.#note({ kind: 'field', owner, key, value, shape: hostShape(value) });
+
+        return value;
+      },
+      timeZone,
+    };
   }
 
   /**
@@ -357,23 +376,6 @@ export class EvaluationPass {
       reader.reads = undefined;
     }
   }
-
-  readonly #names: PassNames = {
-    readCell: (cell) => this.#hostReader(cell),
-    placeOf: (container) => this.#siteOf(container),
-    parentOf: (place) => {
-      this.#note({ kind: 'place', container: place.container, parent: place.parent?.container, key: place.key });
-
-      return place.parent;
-    },
-    readField: (owner, key, held) => {
-      const value = this.#throughCell({ owner, key }, held);
-
-      this.#note({ kind: 'field', owner, key, value, shape: hostShape(value) });
-
-      return value;
-    },
-  };
 
   /** What a field shows outside formulas, in the walk and in the view: what `cell` gave, or what it holds if `cell` failed. */
   #shownCell(place: CellPlace, held: unknown): unknown {
@@ -703,6 +705,7 @@ export class EvaluationPass {
         ast: this.#astOf(cell) ?? parseFormula(formula.text),
         properties: new RecordNames({ place: site, pass: this.#names }),
         format: this.#format,
+        timeZone: this.#names.timeZone,
       });
 
       if (!isFormulaValue(result)) {

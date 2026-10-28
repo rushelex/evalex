@@ -32,11 +32,12 @@ routinesRegistry.registerRoutine({ function: 'dateSubtract', method: ['subtract'
       arg.choice('unit', DURATION_UNITS),
     ],
   ],
-  handler: ({ subject, args: [amount, unit], locations }) => {
+  handler: ({ subject, args: [amount, unit], locations, visitor }) => {
     const duration: Temporal.DurationLike = amount instanceof FormulaDuration ? amount.value : unitDuration({ unit: unit!.value, amount: amount.value });
 
     try {
-      return FormulaDateTime.from(subject.value.subtract(duration));
+      // Days and months follow the calendar of the scope's zone, as in `dateAdd`.
+      return FormulaDateTime.from(subject.value.withTimeZone(visitor.timeZone).subtract(duration));
     }
     catch (error) {
       // With whole amounts, Temporal fails only when the duration or the resulting date leaves its range.

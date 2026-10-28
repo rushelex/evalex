@@ -62,6 +62,7 @@ const SLICE_MS = 8;
  */
 export class FormulaEvaluator {
   readonly #format: ValueFormat | undefined;
+  readonly #timeZone: string;
   readonly #onInputError: ((error: Error) => void) | undefined;
   readonly #cell: ((value: unknown, place: FormulaCellPlace) => unknown) | undefined;
   readonly #memory: EvaluatorMemory = new WeakMap();
@@ -71,9 +72,10 @@ export class FormulaEvaluator {
   /** Aborts the call of `evaluateAsync` still computing, if any. */
   #pending: AbortController | undefined;
 
-  /** Takes `format` validated by the scope that creates the evaluator. */
-  constructor({ format, onInputError, cell }: FormulaEvaluatorOptions & { format: ValueFormat | undefined }) {
+  /** Takes `format` and `timeZone` validated by the scope that creates the evaluator. */
+  constructor({ format, timeZone, onInputError, cell }: FormulaEvaluatorOptions & { format: ValueFormat | undefined; timeZone: string }) {
     this.#format = format;
+    this.#timeZone = timeZone;
     this.#onInputError = onInputError;
     this.#cell = cell;
   }
@@ -120,6 +122,7 @@ export class FormulaEvaluator {
     const slices = new EvaluationPass({
       data,
       format: this.#format,
+      timeZone: this.#timeZone,
       onInputError: undefined,
       cell: this.#cell,
       memory: this.#memory,
@@ -183,6 +186,7 @@ export class FormulaEvaluator {
     this.#pass = new EvaluationPass({
       data,
       format: this.#format,
+      timeZone: this.#timeZone,
       onInputError: this.#onInputError,
       cell: this.#cell,
       memory: this.#memory,

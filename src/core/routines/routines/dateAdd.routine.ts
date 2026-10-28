@@ -41,11 +41,12 @@ routinesRegistry.registerRoutine({ function: 'dateAdd', method: ['add', 'dateAdd
       arg.choice('unit', DURATION_UNITS),
     ],
   ],
-  handler: ({ subject, args: [amount, unit], locations }) => {
+  handler: ({ subject, args: [amount, unit], locations, visitor }) => {
     const duration: Temporal.DurationLike = amount instanceof FormulaDuration ? amount.value : unitDuration({ unit: unit!.value, amount: amount.value });
 
     try {
-      return FormulaDateTime.from(subject.value.add(duration));
+      // Days and months follow the calendar of the scope's zone, so a day across a daylight saving change keeps the time of day.
+      return FormulaDateTime.from(subject.value.withTimeZone(visitor.timeZone).add(duration));
     }
     catch (error) {
       // With whole amounts, Temporal fails only when the duration or the resulting date leaves its range.

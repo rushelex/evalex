@@ -38,7 +38,7 @@ routinesRegistry.registerRoutine('formatDate', {
   examples: routineExamples,
   arguments: DATE_PATTERN_SIGNATURE,
   handler: ({ subject, args: [pattern, timezone], visitor }) => new FormulaString(formatDateText({
-    date: subject.value.withTimeZone(timezone?.value ?? 'UTC'),
+    date: subject.value.withTimeZone(timezone?.value ?? visitor.timeZone),
     pattern: pattern.value,
     names: visitor.format?.names,
   })),

@@ -30,5 +30,7 @@ routinesRegistry.registerRoutine({ function: 'dateBetween', method: ['between', 
   description: 'Returns the difference between two dates in the given unit.',
   examples: routineExamples,
   arguments: [arg.dateTime('date1'), arg.dateTime('date2'), arg.choice('unit', DURATION_UNITS)],
-  handler: ({ subject, args: [other, unit] }) => new FormulaDuration(subject.value.since(other.value, { largestUnit: SINGULAR_UNITS[unit.value] })),
+  handler: ({ subject, args: [other, unit], visitor }) => new FormulaDuration(
+    subject.value.withTimeZone(visitor.timeZone).since(other.value.withTimeZone(visitor.timeZone), { largestUnit: SINGULAR_UNITS[unit.value] }),
+  ),
 });
