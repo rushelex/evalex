@@ -1,9 +1,10 @@
+import type { DateRangeBounds } from '../data-types/date-range';
 import type { ValueFormat } from '../value-format';
 
 import { fc, it } from '@fast-check/vitest';
 
 import { evaluate, formulaValueArbitrary } from '../../testing-library';
-import { FormulaArray, FormulaBoolean, FormulaDateRange, FormulaDateTime, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaString } from '../data-types';
+import { FormulaArray, FormulaBoolean, FormulaDate, FormulaDateRange, FormulaDateTime, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaString } from '../data-types';
 import { Errors } from '../errors';
 
 const RUSSIAN_MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
@@ -29,8 +30,9 @@ describe('evaluate with format', () => {
     });
 
     it.each([
-      { kind: 'a date', value: date, format: { dateTime: (value: Temporal.ZonedDateTime) => `day ${value.day}` }, text: 'xday 28' },
-      { kind: 'a date range', value: FormulaDateRange.from({ start: '2024-07-28', end: '2024-08-01' }), format: { dateRange: ({ start, end }: { start: Temporal.ZonedDateTime; end: Temporal.ZonedDateTime }) => `${start.day}–${end.day}` }, text: 'x28–1' },
+      { kind: 'a date', value: FormulaDate.from('2024-07-28'), format: { date: (value: Temporal.PlainDate) => `on ${value.day}` }, text: 'xon 28' },
+      { kind: 'a date and time', value: date, format: { dateTime: (value: Temporal.ZonedDateTime) => `day ${value.day}` }, text: 'xday 28' },
+      { kind: 'a date range', value: FormulaDateRange.from({ start: '2024-07-28', end: '2024-08-01' }), format: { dateRange: ({ start, end }: DateRangeBounds) => `${start.day}–${end.day}` }, text: 'x28–1' },
       { kind: 'a duration', value: FormulaDuration.from(Temporal.Duration.from({ hours: 3 })), format: { duration: (value: Temporal.Duration) => `${value.hours} h` }, text: 'x3 h' },
       { kind: 'a number', value: new FormulaNumber(1234.5), format: { number: (value: number) => value.toFixed(2) }, text: 'x1234.50' },
       { kind: 'a boolean', value: FormulaBoolean.from(true), format: { boolean: (value: boolean) => (value ? 'yes' : 'no') }, text: 'xyes' },
@@ -51,10 +53,11 @@ describe('evaluate with format', () => {
       expect(evaluate('"" + value', { context: { value: FormulaDateTime.from('2024-07-28T14:35+03:00') }, format })).toBeFormulaDataType(FormulaString, 'UTC 11');
     });
 
-    it('should build a date range from the date formatter when the range has none', () => {
-      const format: ValueFormat = { dateTime: (value) => `${value.month}/${value.day}` };
-
-      expect(evaluate('"" + value', { context: { value: FormulaDateRange.from({ start: '2024-07-28', end: '2024-08-01' }) }, format })).toBeFormulaDataType(FormulaString, '7/28 → 8/1');
+    it.each([
+      { ends: 'dates', format: { date: (value: Temporal.PlainDate) => `${value.month}/${value.day}` }, start: '2024-07-28', end: '2024-08-01' },
+      { ends: 'dates and times', format: { dateTime: (value: Temporal.ZonedDateTime) => `${value.month}/${value.day}` }, start: '2024-07-28T12:00Z', end: '2024-08-01T12:00Z' },
+    ])('should build a range of $ends from the formatter of its ends when the range has none', ({ format, start, end }) => {
+      expect(evaluate('"" + value', { context: { value: FormulaDateRange.from({ start, end }) }, format })).toBeFormulaDataType(FormulaString, '7/28 → 8/1');
     });
 
     it.each([

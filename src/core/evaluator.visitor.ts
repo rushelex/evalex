@@ -12,6 +12,7 @@ import {
   FormulaArray,
   FormulaBoolean,
   FormulaDataType,
+  FormulaDate,
   FormulaDateRange,
   FormulaDateTime,
   FormulaNull,
@@ -215,66 +216,22 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
         return FormulaBoolean.from(!areEqual(left, right));
       }
       case '<': {
-        if ((left instanceof FormulaNumber && right instanceof FormulaNumber)
-          || (left instanceof FormulaString && right instanceof FormulaString)) {
-          return FormulaBoolean.from(left.value < right.value);
-        }
-        if (left instanceof FormulaDateTime && right instanceof FormulaDateTime) {
-          return FormulaBoolean.from(Temporal.ZonedDateTime.compare(left.value, right.value) < 0);
-        }
-
-        throw Errors.Evaluation.ComparisonTypeMismatch.create(
-          { expression: this.formula },
-          { location: node.location },
-        );
+        return FormulaBoolean.from(order({ left, right, node, formula: this.formula }) < 0);
       }
       case '<=': {
-        if ((left instanceof FormulaNumber && right instanceof FormulaNumber)
-          || (left instanceof FormulaString && right instanceof FormulaString)) {
-          return FormulaBoolean.from(left.value <= right.value);
-        }
-        if (left instanceof FormulaDateTime && right instanceof FormulaDateTime) {
-          return FormulaBoolean.from(Temporal.ZonedDateTime.compare(left.value, right.value) <= 0);
-        }
-
-        throw Errors.Evaluation.ComparisonTypeMismatch.create(
-          { expression: this.formula },
-          { location: node.location },
-        );
+        return FormulaBoolean.from(order({ left, right, node, formula: this.formula }) <= 0);
       }
       case '>': {
-        if ((left instanceof FormulaNumber && right instanceof FormulaNumber)
-          || (left instanceof FormulaString && right instanceof FormulaString)) {
-          return FormulaBoolean.from(left.value > right.value);
-        }
-        if (left instanceof FormulaDateTime && right instanceof FormulaDateTime) {
-          return FormulaBoolean.from(Temporal.ZonedDateTime.compare(left.value, right.value) > 0);
-        }
-
-        throw Errors.Evaluation.ComparisonTypeMismatch.create(
-          { expression: this.formula },
-          { location: node.location },
-        );
+        return FormulaBoolean.from(order({ left, right, node, formula: this.formula }) > 0);
       }
       case '>=': {
-        if ((left instanceof FormulaNumber && right instanceof FormulaNumber)
-          || (left instanceof FormulaString && right instanceof FormulaString)) {
-          return FormulaBoolean.from(left.value >= right.value);
-        }
-        if (left instanceof FormulaDateTime && right instanceof FormulaDateTime) {
-          return FormulaBoolean.from(Temporal.ZonedDateTime.compare(left.value, right.value) >= 0);
-        }
-
-        throw Errors.Evaluation.ComparisonTypeMismatch.create(
-          { expression: this.formula },
-          { location: node.location },
-        );
+        return FormulaBoolean.from(order({ left, right, node, formula: this.formula }) >= 0);
       }
       case 'in': {
-        return FormulaBoolean.from(isMember({ node, item: left, container: right }));
+        return FormulaBoolean.from(isMember({ node, item: left, container: right, formula: this.formula }));
       }
       case 'not in': {
-        return FormulaBoolean.from(!isMember({ node, item: left, container: right }));
+        return FormulaBoolean.from(!isMember({ node, item: left, container: right, formula: this.formula }));
       }
       case 'and':
       case '&&': {
@@ -381,12 +338,13 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
 
 /**
  * Tells whether the left operand of `in` is in the right one: an equal item of a list, a part of a text, the name of
- * an own field of an object, or a date of a date range, its start and end included.
+ * an own field of an object, or a date of a range of dates, or a date and time of a range of dates and times, its start
+ * and end included.
  *
  * @throws An argument type mismatch at the right operand when nothing can be searched in it, or at the left one when it
- * cannot be searched for there.
+ * cannot be searched for there; `DateWithDateTime` at the left one for a date in a range of dates and times, or the reverse.
  */
-function isMember({ node, item, container }: { node: AST.IBinaryExpressionNode; item: FormulaDataType; container: FormulaDataType }): boolean {
+function isMember({ node, item, container, formula }: { node: AST.IBinaryExpressionNode; item: FormulaDataType; container: FormulaDataType; formula: string }): boolean {
   if (FormulaArray.isOfType(container)) {
     return container.value.some((element) => areEqual(element, item));
   }
@@ -400,9 +358,15 @@ function isMember({ node, item, container }: { node: AST.IBinaryExpressionNode; 
   }
 
   if (container instanceof FormulaDateRange) {
-    const date = searchedFor({ node, item, type: FormulaDateTime }).value;
+    const { start, end } = container;
 
-    return Temporal.ZonedDateTime.compare(container.value.start, date) <= 0 && Temporal.ZonedDateTime.compare(date, container.value.end) <= 0;
+    if (isDateWithDateTime(item, start)) {
+      throw Errors.Evaluation.DateWithDateTime.create({ expression: formula }, { location: node.left.location });
+    }
+
+    const date = start instanceof FormulaDate ? searchedFor({ node, item, type: FormulaDate }) : searchedFor({ node, item, type: FormulaDateTime });
+
+    return order({ left: start, right: date, node, formula }) <= 0 && order({ left: date, right: end, node, formula }) <= 0;
   }
 
   throw Errors.Argument.TypeMismatch.create(
@@ -421,6 +385,40 @@ function searchedFor<T extends FormulaDataType>({ node, item, type }: { node: AS
     { expected: [type.kind], actual: item.kind, argumentPosition: 1 },
     { location: node.left.location },
   );
+}
+
+/**
+ * Orders the operands of `<`, `<=`, `>` and `>=`: negative when the left one comes first, zero when neither does.
+ *
+ * @throws `DateWithDateTime` for a date and a date and time, which only a time zone could order, and
+ * `ComparisonTypeMismatch` for any other pair that is not two numbers, two texts, two dates or two dates and times.
+ */
+function order({ left, right, node, formula }: { left: FormulaDataType; right: FormulaDataType; node: AST.IBinaryExpressionNode; formula: string }): number {
+  if ((left instanceof FormulaNumber && right instanceof FormulaNumber) || (left instanceof FormulaString && right instanceof FormulaString)) {
+    if (left.value === right.value) {
+      return 0;
+    }
+
+    return left.value < right.value ? -1 : 1;
+  }
+
+  if (left instanceof FormulaDate && right instanceof FormulaDate) {
+    return Temporal.PlainDate.compare(left.value, right.value);
+  }
+
+  if (left instanceof FormulaDateTime && right instanceof FormulaDateTime) {
+    return Temporal.ZonedDateTime.compare(left.value, right.value);
+  }
+
+  if (isDateWithDateTime(left, right)) {
+    throw Errors.Evaluation.DateWithDateTime.create({ expression: formula }, { location: node.location });
+  }
+
+  throw Errors.Evaluation.ComparisonTypeMismatch.create({ expression: formula }, { location: node.location });
+}
+
+function isDateWithDateTime(a: FormulaDataType, b: FormulaDataType): boolean {
+  return (a instanceof FormulaDate && b instanceof FormulaDateTime) || (a instanceof FormulaDateTime && b instanceof FormulaDate);
 }
 
 function checkNumericOperands(

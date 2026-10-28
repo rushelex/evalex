@@ -35,8 +35,34 @@ export const ComparisonTypeMismatch = createErrorDefinition({
     reason: 'Types must match for comparison',
     ...payload,
   }),
-  formatMessage: () => 'Types must match for comparison (Number, String, or Date).',
+  formatMessage: () => 'Types must match for comparison (Number, String, Date, or DateTime).',
   messageKey: 'formula_error.comparison_type_mismatch',
+});
+
+/**
+ * Error thrown when a date without a time meets a date and time where they would have to be compared, which needs a
+ * time zone the formula has not named.
+ *
+ * @example
+ * ```typescript
+ * evaluate('due < now()')        // throws DateWithDateTime
+ * evaluate('due < now().toDate()') // OK - two dates
+ *
+ * if (DateWithDateTime.is(error)) {
+ *   console.log(error.payload.reason); // 'A date and a date and time do not compare'
+ * }
+ * ```
+ *
+ * @param expression - The formula that caused the error
+ */
+export const DateWithDateTime = createErrorDefinition({
+  code: FormulaErrorCode.EVALUATE_ERROR,
+  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.EVALUATE_ERROR], 'reason'>) => ({
+    reason: 'A date and a date and time do not compare',
+    ...payload,
+  }),
+  formatMessage: () => 'A date and a date and time do not compare. Convert one of them: dateTime.toDate() or date.toDateTime().',
+  messageKey: 'formula_error.date_with_date_time',
 });
 
 /**

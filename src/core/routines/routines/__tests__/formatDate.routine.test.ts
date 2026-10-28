@@ -137,15 +137,15 @@ describe('formatDate routine', () => {
       expected: new FormulaString('Due Wednesday'),
     },
     {
-      formula: 'parseDate("2023-08-30").formatDate("YYYY", "")',
+      formula: 'parseDate("2023-08-30T00:00Z").formatDate("YYYY", "")',
       expected: {
         function: {
           message: 'Expected a time zone name such as "Europe/Berlin" or an offset such as "+05:00".',
-          location: [44, 46],
+          location: [51, 53],
         },
         method: {
           message: 'Expected a time zone name such as "Europe/Berlin" or an offset such as "+05:00".',
-          location: [43, 45],
+          location: [50, 52],
         },
       },
     },

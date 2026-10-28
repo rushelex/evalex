@@ -34,6 +34,12 @@ export class ValidationErrorCollector {
    * @returns The most relevant validation error
    */
   collectBestError(args: ProcessedArguments, globalLocation: AST.Location): FormulaError {
+    const subjectError = this.#subjectTypeError(args);
+
+    if (subjectError) {
+      return subjectError;
+    }
+
     const patterns = this.#reportedPatterns(args);
     const patternErrors = patterns.map((pattern) => this.#getPatternValidationError(args, pattern, globalLocation));
 
@@ -134,13 +140,37 @@ export class ValidationErrorCollector {
       return this.#definitions.alternatives;
     }
 
-    const accepting = this.#definitions.alternatives.filter((pattern) => {
-      const argDef = this.#definitions.getArgumentForPattern(0, pattern);
-
-      return argDef !== undefined && !(argDef instanceof CallbackArgument) && this.#isTypeMatch(subject.dataType.kind, argDef.types);
-    });
+    const accepting = this.#definitions.alternatives.filter((pattern) => this.#subjectTypes(pattern).some((kind) => this.#isTypeMatch(subject.dataType.kind, [kind])));
 
     return accepting.length > 0 ? accepting : this.#definitions.alternatives;
+  }
+
+  // A subject no signature takes is the fault of the call, so it names every type the signatures take, not those of one
+  #subjectTypeError(args: ProcessedArguments): FormulaError | undefined {
+    const [subject] = args;
+    const patterns = this.#definitions.alternatives;
+
+    if (!this.#subjectFirst || patterns.length < 2 || !(subject instanceof ProcessedArgument)) {
+      return undefined;
+    }
+
+    const types = [...new Set(patterns.flatMap((pattern) => this.#subjectTypes(pattern)))];
+
+    if (types.length === 0 || this.#isTypeMatch(subject.dataType.kind, types)) {
+      return undefined;
+    }
+
+    return this.#errorFactory.createTypeError(subject, { types }, 1);
+  }
+
+  #subjectTypes(pattern: ArgumentsPattern): Kind[] {
+    const argDef = this.#definitions.getArgumentForPattern(0, pattern);
+
+    if (argDef === undefined || argDef instanceof CallbackArgument) {
+      return [];
+    }
+
+    return Array.isArray(argDef.types) ? argDef.types : [argDef.types];
   }
 
   /**

@@ -1,4 +1,4 @@
-import { FormulaDateTime, FormulaDuration } from '../../../data-types';
+import { FormulaDate, FormulaDateTime, FormulaDuration } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const base = Temporal.ZonedDateTime.from('2025-06-01T10:00:00Z[UTC]');
@@ -13,38 +13,20 @@ describe('"dateAdd" function routine', new RoutineTester('dateAdd').examples({
 }, [
   {
     formula: 'dateAdd(parseDate("2025-08-23"), 1, "days")',
-    expected: FormulaDateTime.from(Temporal.ZonedDateTime.from({
-      year: 2025,
-      month: 8,
-      day: 24,
-      hour: 0,
-      minute: 0,
-      second: 0,
-      millisecond: 0,
-      timeZone: 'UTC',
-    })),
+    expected: FormulaDate.from('2025-08-24'),
   },
   {
     formula: 'dateAdd(parseDate("2025-08-23"), duration)',
     context: {
       duration: new FormulaDuration(Temporal.Duration.from({ years: 1 })),
     },
-    expected: FormulaDateTime.from(Temporal.ZonedDateTime.from({
-      year: 2026,
-      month: 8,
-      day: 23,
-      hour: 0,
-      minute: 0,
-      second: 0,
-      millisecond: 0,
-      timeZone: 'UTC',
-    })),
+    expected: FormulaDate.from('2026-08-23'),
   },
   {
     formula: 'dateAdd(parseDate("2025-08-23"), 1, "hour")',
     expected: {
       function: {
-        message: 'Expected "years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds".',
+        message: 'Expected "years", "quarters", "months", "weeks", "days".',
         location: [36, 42],
       },
     },
@@ -56,38 +38,30 @@ describe('"add" method routine', new RoutineTester('add').examples({
 }, [
   {
     formula: 'parseDate("2025-08-23").add(1, "days")',
-    expected: FormulaDateTime.from(Temporal.ZonedDateTime.from({
-      year: 2025,
-      month: 8,
-      day: 24,
-      hour: 0,
-      minute: 0,
-      second: 0,
-      millisecond: 0,
-      timeZone: 'UTC',
-    })),
+    expected: FormulaDate.from('2025-08-24'),
   },
   {
     formula: 'parseDate("2025-08-23").add(duration)',
     context: {
       duration: new FormulaDuration(Temporal.Duration.from({ years: 1 })),
     },
-    expected: FormulaDateTime.from(Temporal.ZonedDateTime.from({
-      year: 2026,
-      month: 8,
-      day: 23,
-      hour: 0,
-      minute: 0,
-      second: 0,
-      millisecond: 0,
-      timeZone: 'UTC',
-    })),
+    expected: FormulaDate.from('2026-08-23'),
+  },
+  {
+    formula: 'parseDate("2025-08-23").add(duration)',
+    context,
+    expected: {
+      method: {
+        message: 'Expected a duration of whole days for a date without a time.',
+        location: [28, 36],
+      },
+    },
   },
   {
     formula: 'parseDate("2025-08-23").add(1, "hour")',
     expected: {
       method: {
-        message: 'Expected "years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds".',
+        message: 'Expected "years", "quarters", "months", "weeks", "days".',
         location: [31, 37],
       },
     },

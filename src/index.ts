@@ -5,6 +5,7 @@ export type {
   FormulaCell,
   FormulaCellPlace,
   FormulaDataType,
+  FormulaDate,
   FormulaDateRange,
   FormulaDateTime,
   FormulaDuration,

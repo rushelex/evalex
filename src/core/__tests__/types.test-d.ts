@@ -3,6 +3,7 @@ import type { ToFormulaDataType } from '../data-types';
 import type { FormulaArray } from '../data-types/array';
 
 import type { FormulaBoolean } from '../data-types/boolean';
+import type { FormulaDate } from '../data-types/date';
 import type { FormulaDateTime } from '../data-types/date-time';
 import type { FormulaDuration } from '../data-types/duration';
 import type { FormulaNull } from '../data-types/null';
@@ -42,7 +43,7 @@ describe('ToFormulaDataType', () => {
 
     expectTypeOf<ToFormulaDataType<Temporal.Instant>>().toEqualTypeOf<FormulaDateTime>();
     expectTypeOf<ToFormulaDataType<Temporal.PlainDateTime>>().toEqualTypeOf<FormulaDateTime>();
-    expectTypeOf<ToFormulaDataType<Temporal.PlainDate>>().toEqualTypeOf<FormulaDateTime>();
+    expectTypeOf<ToFormulaDataType<Temporal.PlainDate>>().toEqualTypeOf<FormulaDate>();
   });
 
   it('should map plain objects and wrap nested objects', () => {

@@ -31,6 +31,7 @@ const samples: readonly DefinitionSample[] = [
   { name: 'Arithmetic.NumberOutOfRange', definition: Errors.Arithmetic.NumberOutOfRange, error: Errors.Arithmetic.NumberOutOfRange.create({ value: 'Infinity' }) },
   { name: 'Arithmetic.NotARealNumber', definition: Errors.Arithmetic.NotARealNumber, error: Errors.Arithmetic.NotARealNumber.create() },
   { name: 'Evaluation.ComparisonTypeMismatch', definition: Errors.Evaluation.ComparisonTypeMismatch, error: Errors.Evaluation.ComparisonTypeMismatch.create({ expression: '1 < "a"' }) },
+  { name: 'Evaluation.DateWithDateTime', definition: Errors.Evaluation.DateWithDateTime, error: Errors.Evaluation.DateWithDateTime.create({ expression: 'due < now()' }) },
   { name: 'Evaluation.NonNumericMath', definition: Errors.Evaluation.NonNumericMath, error: Errors.Evaluation.NonNumericMath.create({ expression: '1 * "a"' }) },
   { name: 'Evaluation.UnaryMinusNonNumeric', definition: Errors.Evaluation.UnaryMinusNonNumeric, error: Errors.Evaluation.UnaryMinusNonNumeric.create({ expression: '-"a"' }) },
   { name: 'Evaluation.InvalidRegExp', definition: Errors.Evaluation.InvalidRegExp, error: Errors.Evaluation.InvalidRegExp.create({ expression: '(', reason: 'Unterminated group' }) },

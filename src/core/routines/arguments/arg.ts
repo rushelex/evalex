@@ -63,6 +63,7 @@ export const arg = {
   any: valueOf(Kind.Any),
   array: valueOf(Kind.Array),
   boolean: valueOf(Kind.Boolean),
+  date: valueOf(Kind.Date),
   dateTime: valueOf(Kind.DateTime),
   dateRange: valueOf(Kind.DateRange),
   duration: valueOf(Kind.Duration),

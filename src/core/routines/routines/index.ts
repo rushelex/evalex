@@ -75,6 +75,8 @@ import './subtract.routine';
 import './sum.routine';
 import './test.routine';
 import './timestamp.routine';
+import './toDate.routine';
+import './toDateTime.routine';
 import './today.routine';
 import './toNumber.routine';
 import './trim.routine';

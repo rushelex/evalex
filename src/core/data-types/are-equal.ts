@@ -1,6 +1,7 @@
 import type { FormulaDataType } from './FormulaDataType';
 
 import { FormulaArray } from './array';
+import { FormulaDate } from './date';
 import { FormulaDateRange } from './date-range';
 import { FormulaDateTime } from './date-time';
 import { FormulaDuration } from './duration';
@@ -13,7 +14,8 @@ const DURATION_FIELDS = ['years', 'months', 'weeks', 'days', 'hours', 'minutes',
  * Compares two formula values by content, the equality behind `==`, `!=`, `equal` and the list routines.
  *
  * @remarks
- * Lists are equal item by item in order, objects key by key in any order, dates when they mark the same instant, date ranges when both ends do,
+ * Lists are equal item by item in order, objects key by key in any order, dates when they are the same day, dates and
+ * times when they mark the same instant, date ranges when both ends are equal,
  * durations when every field matches (`P1D` differs from `PT24H`), regular expressions by pattern and flags.
  * Values of different types are never equal, and `NaN` is not equal to itself. Objects that link back to themselves are
  * equal when nothing reachable from them differs.
@@ -36,12 +38,16 @@ function compare(a: FormulaDataType, b: FormulaDataType, comparing: Map<FormulaO
     return compareObjects(a, b, comparing);
   }
 
+  if (a instanceof FormulaDate && b instanceof FormulaDate) {
+    return a.value.equals(b.value);
+  }
+
   if (a instanceof FormulaDateTime && b instanceof FormulaDateTime) {
     return isSameInstant(a.value, b.value);
   }
 
   if (a instanceof FormulaDateRange && b instanceof FormulaDateRange) {
-    return isSameInstant(a.value.start, b.value.start) && isSameInstant(a.value.end, b.value.end);
+    return compare(a.start, b.start, comparing) && compare(a.end, b.end, comparing);
   }
 
   if (a instanceof FormulaDuration && b instanceof FormulaDuration) {

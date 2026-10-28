@@ -1,9 +1,9 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaString } from '../../data-types';
+import { FormulaDate, FormulaString } from '../../data-types';
 import { Errors } from '../../errors';
 import { routinesRegistry } from '../registry';
-import { DATE_PATTERN_SIGNATURE } from './date-pattern-signature';
+import { DATE_PATTERN_SIGNATURE, DATE_TIME_PATTERN_SIGNATURE } from './date-pattern-signature';
 import { formatDateText } from './format-date-text';
 
 const routineExamples: readonly RoutineExampleOptions[] = [
@@ -24,11 +24,19 @@ const routineExamples: readonly RoutineExampleOptions[] = [
     result: () => new FormulaString('August 2023'),
   },
   {
-    formula: (name) => name('parseDate("2023-08-30")', '"YYYY"', '"Mars/Base"'),
+    formula: (name) => name('parseDate("2023-08-30T14:05Z")', '"YYYY"', '"Mars/Base"'),
     error: {
       type: Errors.Argument.Validation,
       message: 'Expected a time zone name such as "Europe/Berlin" or an offset such as "+05:00".',
-      location: { function: [44, 55], method: [43, 54] },
+      location: { function: [51, 62], method: [50, 61] },
+    },
+  },
+  {
+    formula: (name) => name('parseDate("2023-08-30")', '"D MMMM, HH:mm"'),
+    error: {
+      type: Errors.Argument.Validation,
+      message: 'Expected a pattern without a time for a date without a time; found HH, mm.',
+      location: { function: [36, 51], method: [35, 50] },
     },
   },
 ];
@@ -36,9 +44,9 @@ const routineExamples: readonly RoutineExampleOptions[] = [
 routinesRegistry.registerRoutine('formatDate', {
   description: 'Returns the date as text built from a pattern such as "MMMM D".',
   examples: routineExamples,
-  arguments: DATE_PATTERN_SIGNATURE,
+  arguments: [DATE_PATTERN_SIGNATURE, DATE_TIME_PATTERN_SIGNATURE],
   handler: ({ subject, args: [pattern, timezone], visitor }) => new FormulaString(formatDateText({
-    date: subject.value.withTimeZone(timezone?.value ?? visitor.timeZone),
+    date: subject instanceof FormulaDate ? subject.value : subject.value.withTimeZone(timezone?.value ?? visitor.timeZone),
     pattern: pattern.value,
     names: visitor.format?.names,
   })),

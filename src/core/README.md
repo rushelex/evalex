@@ -40,7 +40,7 @@ scope.evaluate('"Total: " + total', { total }).value; // 'Total: 1000.00'
 - **Results back in.** A result passed back as a value is read as it is, so `third * 3` with `third` from `1 / 3` gives `1`.
 - **Showing a result is up to the host.** `format` decides how values read only where a formula itself turns them into text, see [Text of values](#text-of-values). A host that passes the formatters it draws its cells with gets the same text in `"Total: " + price` as in the `price` cell. `toString()` gives machine text, not text for readers.
 
-`timeZone` is the zone formulas read dates in, by name (`"Europe/Moscow"`) or as an offset (`"+03:00"`), UTC when left out. evalex never reads the zone of the machine it runs on, so a host that wants its readers' zone passes it here. The zone decides the day `today()` gives, the parts `hour()`, `date()` and the like read, the zone a [date pattern](#dates-and-durations) shows without a zone of its own, where days and months start when `dateAdd`, `dateSubtract` and `dateBetween` count them, and the instant of a date and time without an offset, written in a formula or passed as a `Temporal.PlainDateTime`. Dates still come out of a formula in UTC.
+`timeZone` is the zone formulas read dates in, by name (`"Europe/Moscow"`) or as an offset (`"+03:00"`), UTC when left out. evalex never reads the zone of the machine it runs on, so a host that wants its readers' zone passes it here. The zone decides the day `today()` gives, the day `toDate()` reads from a date and time and the instant `toDateTime()` gives a day, the parts `hour()`, `date()` and the like read, the zone a [date pattern](#dates-and-durations) shows without a zone of its own, where days and months start when `dateAdd`, `dateSubtract` and `dateBetween` count them, and the instant of a date and time without an offset, written in a formula or passed as a `Temporal.PlainDateTime`. Dates and times still come out of a formula in UTC.
 
 ```ts
 const scope = new FormulaScope({ timeZone: 'Europe/Moscow' });
@@ -129,8 +129,9 @@ Every value inside a formula is an instance of a `FormulaDataType` subclass. The
 | `Number` | `FormulaNumber` | `number` |
 | `String` | `FormulaString` | `string` |
 | `Boolean` | `FormulaBoolean` | `boolean` |
+| `Date` | `FormulaDate` | `Temporal.PlainDate` |
 | `DateTime` | `FormulaDateTime` | `Temporal.ZonedDateTime` |
-| `DateRange` | `FormulaDateRange` | `{ start, end }` of `Temporal.ZonedDateTime` |
+| `DateRange` | `FormulaDateRange` | `{ start, end }`, both `Temporal.PlainDate` or both `Temporal.ZonedDateTime` |
 | `Duration` | `FormulaDuration` | `Temporal.Duration` |
 | `Array` | `FormulaArray` | `readonly FormulaDataType[]` |
 | `Object` | `FormulaObject` | `Readonly<Record<string, FormulaDataType>>` |
@@ -156,8 +157,9 @@ scope.evaluate('"Due: " + due', { due: new Date('2024-07-28T14:35Z') }).value;
 
 | Formatter | Gets | Text without it |
 | --- | --- | --- |
+| `date` | `Temporal.PlainDate` | ISO 8601 date: `2024-07-28` |
 | `dateTime` | `Temporal.ZonedDateTime` in UTC | ISO 8601 instant in UTC: `2024-07-28T14:35:00Z` |
-| `dateRange` | `{ start, end }` | Both ends as `dateTime` gives them, joined by ` → ` |
+| `dateRange` | `{ start, end }` | Both ends as `date` or `dateTime` gives them, joined by ` → ` |
 | `duration` | `Temporal.Duration` | ISO 8601 duration: `P1DT2H` |
 | `number` | `number` | `1234.5` |
 | `boolean` | `boolean` | `true` / `false` |
@@ -191,15 +193,16 @@ A list of the wrong length throws a `TypeError` before the formula runs.
 | --- | --- |
 | `null`, `undefined`, a hole in a list | `null` |
 | A list, a `Set`, a typed array | a list |
-| An object of exactly two fields, `start` and `end`, both dates of the forms below | a date range |
+| An object of exactly two fields, `start` and `end`, both dates without a time or both dates and times of the forms below | a date range |
 | Any other plain object, object without a prototype or class instance | an object of its own enumerable fields; getters on the prototype, symbol keys and fields holding functions are left out, like methods |
 | `new Number(5)`, `new String('a')`, `new Boolean(true)` | the value it holds |
 | A `bigint` from `-(2^53 - 1)` to `2^53 - 1` | a number |
-| `Date`, `Temporal.ZonedDateTime`, `Temporal.Instant` | a date at that instant |
-| `Temporal.PlainDate`, `Temporal.PlainDateTime` | a date read in the [zone of the scope](#formulascope) |
+| `Date`, `Temporal.ZonedDateTime`, `Temporal.Instant` | a date and time at that instant |
+| `Temporal.PlainDateTime` | a date and time read in the [zone of the scope](#formulascope) |
+| `Temporal.PlainDate` | a date without a time |
 | A formula value, such as a `FormulaNumber` | itself |
 
-Every other value is rejected with a `TypeError` that names where it sits: `Cannot convert order.lines[2] to a formula value: Map has no formula form.` That covers a function in place of a value, such as an item of a list, symbols, `NaN`, `Infinity` and `-Infinity`, a `Date` that holds no instant, a larger `bigint`, built-in objects such as `Map`, `Promise`, `Error` or `Temporal.PlainTime`, a date range that ends before it starts, a list that contains itself, and lists and objects nested more than 1000 deep. A field is rejected when it is read, so `order.qty()` works even when `order.tags` holds a `Map`. A field getter runs only when its field is read, and an error it throws reaches the caller unchanged.
+Every other value is rejected with a `TypeError` that names where it sits: `Cannot convert order.lines[2] to a formula value: Map has no formula form.` That covers a function in place of a value, such as an item of a list, symbols, `NaN`, `Infinity` and `-Infinity`, a `Date` that holds no instant, a larger `bigint`, built-in objects such as `Map`, `Promise`, `Error` or `Temporal.PlainTime`, a date range that ends before it starts or has a date without a time at one end and a date and time at the other, a list that contains itself, and lists and objects nested more than 1000 deep. A field is rejected when it is read, so `order.qty()` works even when `order.tags` holds a `Map`. A field getter runs only when its field is read, and an error it throws reaches the caller unchanged.
 
 Records may link to each other both ways, such as a project that lists its tasks and tasks that point back at the project: one host object converts to one formula object, and a formula follows the links as far as it reads them. The text of an object writes a link back to an object it is already inside as `{…}`: `{ title: "Design", project: { name: "Apollo", tasks: [{…}] } }`. Two such objects are equal when nothing reachable from them differs.
 
@@ -289,34 +292,41 @@ Every number a formula computes is finite. A result too large to hold, such as `
 | `findIndex(list, condition)` | Index of that item, `-1` if none | `["a", "b"].findIndex(current == "b")` → `1` |
 | `some(list, condition)` `every(list, condition)` | Whether the condition is true for any item, or for every item; they stop at the first item that settles the answer | `[1, 2, 3].every(current > 0)` → `true` |
 | `count(list, condition?)` | Number of items for which the condition is true; without a condition, the length | `[1, 2, 3].count(current > 1)` → `2` |
-| `sort(list, key?)` | Items in ascending order of `<`, or of the key computed for each item; all must be numbers, all texts or all dates. Equal items keep their order, texts compare by character code (`"B"` before `"a"`) | `["ccc", "a", "bb"].sort(length(current))` → `["a", "bb", "ccc"]` |
+| `sort(list, key?)` | Items in ascending order of `<`, or of the key computed for each item; all must be numbers, all texts, all dates or all dates and times. Equal items keep their order, texts compare by character code (`"B"` before `"a"`) | `["ccc", "a", "bb"].sort(length(current))` → `["a", "bb", "ccc"]` |
 
 ### Dates and durations
 
+A date is a day of the calendar without a time, such as a birthday or a due day: it is the same day in every zone. A date and time is an instant, such as when an order was placed, and its day depends on the zone it is read in. Text without a time, `today()` and a host `Temporal.PlainDate` give dates; text with a time, `now()` and the other host dates give dates and times.
+
 | Routine | Description | Example |
 | --- | --- | --- |
-| `now()` / `today()` | Current date and time, or the start of today in the zone of the scope | `today().add(1, "days")` |
-| `parseDate(text)` | Parses an ISO 8601 date; text without an offset or time zone is read in the zone of the scope | `parseDate("2023-07-10T17:35Z")` |
-| `fromTimestamp(ms)` | Date in UTC from a Unix timestamp in milliseconds, without seconds | `fromTimestamp(1689024900000)` |
-| `timestamp(date)` | Unix timestamp of the date in milliseconds | `parseDate("2023-07-10T21:35Z").timestamp()` → `1689024900000` |
+| `now()` / `today()` | Current date and time, or the current date in the zone of the scope | `today().add(1, "days")` |
+| `parseDate(text)` | Parses ISO 8601 text: without a time it gives a date, with a time a date and time, read in the zone of the scope when the text has no offset or time zone | `parseDate("2023-07-10T17:35Z")` |
+| `toDate(dateTime, timezone?)` | The date a date and time falls on in the zone of the scope, or in the zone given | `now().toDate()` |
+| `toDateTime(date, time?, timezone?)` | The start of a date, or a time such as `"13:30"` on it, in the zone of the scope, or in the zone given | `due.toDateTime("18:00")` |
+| `fromTimestamp(ms)` | Date and time in UTC from a Unix timestamp in milliseconds, without seconds | `fromTimestamp(1689024900000)` |
+| `timestamp(dateTime)` | Unix timestamp of the date and time in milliseconds | `parseDate("2023-07-10T21:35Z").timestamp()` → `1689024900000` |
 | `dateAdd(date, amount, unit)` | Adds a whole number of units, or a duration | `parseDate("2023-08-30").add(2, "months")` |
 | `dateSubtract(date, amount, unit)` | Subtracts a whole number of units, or a duration | `parseDate("2023-07-10").subtract(1, "years")` |
-| `dateBetween(a, b, unit)` | Difference between two dates as a duration | `dateBetween(end, start, "days").days()` |
+| `dateBetween(a, b, unit)` | Difference between two dates, or two dates and times, as a duration | `dateBetween(end, start, "days").days()` |
 | `formatDate(date, pattern, timezone?)` | Date as text built from a pattern; also `date.format(pattern, timezone?)` | `parseDate("2023-08-30T14:05Z").format("MMMM D, YYYY h:mm A")` → `"August 30, 2023 2:05 PM"` |
-| `dateRange(start, end)` | Date range; an end before the start is an error | `parseDate("2022-09-07").range(parseDate("2023-09-07"))` |
+| `dateRange(start, end)` | Date range of two dates, or of two dates and times; an end before the start is an error | `parseDate("2022-09-07").range(parseDate("2023-09-07"))` |
 | `dateStart(range)` / `dateEnd(range)` | Start or end of a date range; a date is its own start and end | `dateRange(a, b).end()` → `b` |
-| `year()` `month()` `week()` `date()` `day()` `hour()` `minute()` | Date parts in the zone of the scope: `month` is 1–12, `week` is the ISO week, `day` is 1 (Monday) to 7 (Sunday) | `parseDate("2023-07-10").month()` → `7` |
+| `year()` `month()` `week()` `date()` `day()` | Date parts, of a date and time in the zone of the scope: `month` is 1–12, `week` is the ISO week, `day` is 1 (Monday) to 7 (Sunday) | `parseDate("2023-07-10").month()` → `7` |
+| `hour()` `minute()` | Time parts of a date and time in the zone of the scope | `parseDate("2023-07-10T17:35Z").hour()` → `17` |
 | `years(duration)` … `milliseconds(duration)` | Reads one unit of a duration | `dateBetween(a, b, "years").months()` |
+
+A date and a date and time do not mix. `<`, `<=`, `>`, `>=`, `in` and `sort` fail on the two with `Errors.Evaluation.DateWithDateTime`, a routine that takes two dates fails at the second one, and `==` never finds them equal. A formula converts one of them first: `due < now().toDate()` or `due.toDateTime("18:00") < now()`.
 
 Date ranges are equal when both ends are; they cannot be ordered with `<` or `>`, and date arithmetic takes a single date, such as `dateStart(range)`.
 
-`dateAdd` and `dateSubtract` fail with `Errors.Arithmetic.DateOutOfRange` when the result falls outside the supported dates, about 270,000 years either side of 1970.
+`dateAdd`, `dateSubtract` and `toDateTime` fail with `Errors.Arithmetic.DateOutOfRange` when the result falls outside the supported dates, about 270,000 years either side of 1970.
 
-`add`, `subtract`, `between`, `range`, `start` and `end` are the method forms of the date functions; the function names work as methods too, as in `now().dateAdd(1, "days")`. Units are `"years"`, `"months"`, `"weeks"`, `"days"`, `"hours"`, `"minutes"` and, except for `between`, `"quarters"` (three months) and `"seconds"`.
+`add`, `subtract`, `between`, `range`, `start` and `end` are the method forms of the date functions; the function names work as methods too, as in `now().dateAdd(1, "days")`. Units are `"years"`, `"months"`, `"weeks"`, `"days"` and, except for `between`, `"quarters"` (three months). A date and time also takes `"hours"`, `"minutes"` and, except for `between`, `"seconds"`, and a duration added to a date holds whole days and longer units only.
 
-`dateAdd`, `dateSubtract` and `dateBetween` count days and longer units by the calendar of the zone of the scope: a day added across a daylight saving change keeps the time of day.
+`dateAdd`, `dateSubtract` and `dateBetween` count days and longer units of a date and time by the calendar of the zone of the scope: a day added across a daylight saving change keeps the time of day.
 
-A date pattern shows the date in the zone of the scope unless a time zone is given by name (`"Europe/Berlin"`) or as an offset (`"+05:00"`). Names are in English on every machine, unless the host gives its own in [`format.names`](#text-of-values). Text in brackets is kept as is, and so is any letter that is not a token:
+A date pattern shows a date and time in the zone of the scope unless a time zone is given by name (`"Europe/Berlin"`) or as an offset (`"+05:00"`). A pattern for a date takes no time zone and no tokens of the time, from the hour to the offset and the timestamp. Names are in English on every machine, unless the host gives its own in [`format.names`](#text-of-values). Text in brackets is kept as is, and so is any letter that is not a token:
 
 | Part | Tokens | For 2023-08-03 14:05:09.007 UTC |
 | --- | --- | --- |
@@ -340,8 +350,8 @@ A date pattern shows the date in the zone of the scope unless a time zone is giv
 | `previous(expression, default)` | Evaluates the expression over the previous record of the list, or the default for the first record | `previous(total, 0) + amount` |
 | `next(expression, default)` | Evaluates the expression over the next record of the list, or the default for the last record | `next(rest, 0) + amount` |
 | `empty(value)` | True for `0`, `""`, `false`, `[]` and `null` | `empty([])` → `true` |
-| `format(value)` | Converts the value to text; a date becomes an ISO 8601 instant in UTC unless the host [formats dates](#text-of-values) | `parseDate("2023-07-10").format()` → `"2023-07-10T00:00:00Z"` |
-| `equal(a, b)` | Compares two values like `==`: lists item by item, dates by instant, values of different types are never equal | `[1, [2]].equal([1, [2]])` → `true` |
+| `format(value)` | Converts the value to text; a date becomes an ISO 8601 date, and a date and time an ISO 8601 instant in UTC, unless the host [formats dates](#text-of-values) | `parseDate("2023-07-10T17:35Z").format()` → `"2023-07-10T17:35:00Z"` |
+| `equal(a, b)` | Compares two values like `==`: lists item by item, dates by day, dates and times by instant, values of different types are never equal | `[1, [2]].equal([1, [2]])` → `true` |
 | `unequal(a, b)` | The opposite of `equal`, like `!=` | `unequal(1, 2)` → `true` |
 | `toNumber(value)` | Text read as a number, `1` or `0` for a boolean, the timestamp of a date; text that holds no number, blank text included, is an error | `"2".toNumber()` → `2` |
 
@@ -354,7 +364,7 @@ Conditions read a value the same way everywhere — in `if`, in `? :` and in `an
 | List | Some item equals the value, as in `==` | `2 in [1, 2, 3]` → `true` |
 | Text | The text holds the value, which is text, as plain text: case and pattern characters count | `"." in "v12"` → `false` |
 | Object | The object has an own field named by the value, which is text, even an empty one | `"price" in item` |
-| Date range | The value is a date from the start to the end, both included | `due in dateRange(start, end)` |
+| Date range | The value, of the kind of the ends, is from the start to the end, both included; a range of dates holds its last day whole | `due in dateRange(start, end)` |
 
 ## Errors
 
@@ -374,7 +384,7 @@ Parse errors throw `SyntaxError`, a subclass of the built-in one. A formula that
 | `ARGUMENT_COUNT_MISMATCH` | Too few or too many arguments |
 | `PATTERN_MISMATCH` | The arguments fit none of the routine's accepted signatures |
 | `ARITHMETIC_ERROR` | Division or remainder by zero |
-| `EVALUATE_ERROR` | An operator gets operands it cannot combine, or text is not a valid regular expression |
+| `EVALUATE_ERROR` | An operator gets operands it cannot combine, such as a date and a date and time, or text is not a valid regular expression |
 | `RANGE_ERROR` | An unsupported operator, a number too large to hold or that is no real number, or a date outside the supported dates |
 | `CIRCULAR_REFERENCE` | A formula cell reads a cell that depends on it, see [Formulas in data](#formulas-in-data) |
 | `INPUT_ERROR` | A formula cell reads a failed cell or host data that cannot be read; the failure is its `cause`, see [Formulas in data](#formulas-in-data) |

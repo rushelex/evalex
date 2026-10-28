@@ -61,9 +61,12 @@ const TOKEN_PATTERN = new RegExp(
   'g',
 );
 
+// Tokens that show a time, a time zone or an instant, which a date without a time does not have
+const TIME_TOKENS: ReadonlySet<string> = new Set(['HH', 'H', 'hh', 'h', 'mm', 'm', 'ss', 's', 'SSS', 'A', 'a', 'ZZ', 'Z', 'X', 'x']);
+
 interface FormatDateTextOptions {
-  /** The date in the time zone whose fields the text shows. */
-  readonly date: Temporal.ZonedDateTime;
+  /** A date without a time, or a date and time in the time zone whose fields the text shows. */
+  readonly date: Temporal.PlainDate | Temporal.ZonedDateTime;
   readonly pattern: string;
   /** The host's words; a token whose words are left out uses English. */
   readonly names?: DateNames;
@@ -89,7 +92,16 @@ export function formatDateText({ date, pattern, names = {} }: FormatDateTextOpti
     ordinal: names.ordinal ?? ENGLISH.ordinal,
   };
 
-  return pattern.replaceAll(TOKEN_PATTERN, (token: string, literal: string | undefined) => literal ?? TOKENS[token](date, words));
+  // Only the date tokens read a date without a time, so any time of day serves; its patterns are checked by `timeTokensIn`.
+  const fields = date instanceof Temporal.PlainDate ? date.toZonedDateTime('UTC') : date;
+
+  return pattern.replaceAll(TOKEN_PATTERN, (token: string, literal: string | undefined) => literal ?? TOKENS[token](fields, words));
+}
+
+/** The tokens of a pattern that show a time, a time zone or an instant, outside text in brackets. */
+export function timeTokensIn(pattern: string): string[] {
+  return Array.from(pattern.matchAll(TOKEN_PATTERN), ([token, literal]) => (literal === undefined && TIME_TOKENS.has(token) ? token : undefined))
+    .filter((token) => token !== undefined);
 }
 
 function pad(value: number, length: number): string {

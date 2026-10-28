@@ -1,4 +1,4 @@
-import { FormulaDateTime } from '../../../data-types';
+import { FormulaDate, FormulaDateTime } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
 const tester = new RoutineTester('parseDate');
@@ -6,12 +6,7 @@ const tester = new RoutineTester('parseDate');
 describe('parseDate routine', tester.examples([
   {
     formula: 'parseDate("2024-07-28")',
-    expected: new FormulaDateTime(Temporal.ZonedDateTime.from({
-      timeZone: 'UTC',
-      year: 2024,
-      month: 7,
-      day: 28,
-    })),
+    expected: FormulaDate.from('2024-07-28'),
   },
   {
     formula: 'parseDate("2024-07-28T17:35Z")',

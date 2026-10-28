@@ -1,7 +1,7 @@
 import { fc, it } from '@fast-check/vitest';
 
 import { evaluate, evaluateOutcome, formulaValueArbitrary, loc } from '../../testing-library';
-import { FormulaArray, FormulaBoolean, FormulaDateRange, FormulaDateTime, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString, Kind } from '../data-types';
+import { FormulaArray, FormulaBoolean, FormulaDate, FormulaDateRange, FormulaDateTime, FormulaDuration, FormulaNull, FormulaNumber, FormulaObject, FormulaRegExp, FormulaString, Kind } from '../data-types';
 import { exactValue } from '../data-types/number/exact-value';
 import { Errors, FormulaError } from '../errors';
 
@@ -71,7 +71,7 @@ const valuePair = fc.oneof(
 );
 
 // Pairs of one kind that the ordering operators compare.
-const orderedPair = fc.constantFrom(Kind.Number, Kind.String, Kind.DateTime).chain((kind) => fc.oneof(
+const orderedPair = fc.constantFrom(Kind.Number, Kind.String, Kind.Date, Kind.DateTime).chain((kind) => fc.oneof(
   fc.tuple(formulaValueArbitrary(kind), formulaValueArbitrary(kind)),
   formulaValueArbitrary(kind).map((value) => [value, value] as const),
 ));
@@ -406,7 +406,8 @@ describe('Operations', () => {
       { input: '[1, [2, "a"]] == [1, [2, "a"]]', expected: true },
       { input: '[1, 2] == [2, 1]', expected: false },
       { input: '[1, 2] != [1, 2]', expected: false },
-      { input: 'parseDate("2024-01-01") == parseDate("2024-01-01T00:00Z")', expected: true },
+      { input: 'parseDate("2024-01-01T03:00+03:00") == parseDate("2024-01-01T00:00Z")', expected: true },
+      { input: 'parseDate("2024-01-01") == parseDate("2024-01-01T00:00Z")', expected: false },
       { input: 'parseDate("2024-01-01") != parseDate("2024-01-02")', expected: true },
       { input: '/a/g == /a/g', expected: true },
       { input: '/a/g == /a/i', expected: false },
@@ -526,6 +527,32 @@ describe('Operations', () => {
         expect(result3).toBeFormulaDataType(FormulaBoolean, true);
       });
 
+      const day = fc.integer({ min: -100_000_000, max: 100_000_000 }).map((days) => new FormulaDate(Temporal.PlainDate.from('1970-01-01').add({ days })));
+
+      it.prop([day, day])('should order dates without a time by the calendar', (a, b) => {
+        expect(evaluate('a < b', { context: { a, b } })).toBeFormulaDataType(FormulaBoolean, Temporal.PlainDate.compare(a.value, b.value) < 0);
+      });
+
+      it.prop([fc.constantFrom('<', '<=', '>', '>='), formulaValueArbitrary(Kind.Date), formulaValueArbitrary(Kind.DateTime), fc.boolean()])(
+        'should fail at the operator to order a date without a time and a date and time',
+        (operator, date, dateTime, dateFirst) => {
+          const formula = dateFirst ? `a ${operator} b` : `b ${operator} a`;
+
+          expect(() => evaluate(formula, { context: { a: date, b: dateTime } })).toThrow(Errors.Evaluation.DateWithDateTime.create(
+            { expression: formula },
+            { location: loc(0, formula.length) },
+          ));
+        },
+      );
+
+      it.prop([formulaValueArbitrary(Kind.Date), formulaValueArbitrary(Kind.DateTime)])('should never find a date without a time equal to a date and time', (date, dateTime) => {
+        expect(evaluate('a == b', { context: { a: date, b: dateTime } })).toBeFormulaDataType(FormulaBoolean, false);
+      });
+
+      it('should find a date without a time on the day of a date and time once it is converted', () => {
+        expect(evaluate('parseDate("2024-01-15") == parseDate("2024-01-15T22:30Z").toDate()')).toBeFormulaDataType(FormulaBoolean, true);
+      });
+
       it('should throw error when comparing date with non-date', () => {
         expect(() => {
           evaluate('d1 < 5', { context: { d1: earlierDate } });
@@ -545,7 +572,7 @@ describe('Operations', () => {
   });
 
   describe('Binary - Membership', () => {
-    const week = FormulaDateRange.from({ start: '2026-10-01', end: '2026-10-07' });
+    const week = FormulaDateRange.from({ start: '2026-10-01T00:00Z', end: '2026-10-07T00:00Z' });
 
     it.prop([valuePair])('should make "not in" the opposite of "in", failing with the same error', ([a, b]) => {
       expect(evaluateOutcome('a not in b', { context: { a, b } })).toHaveSameOutcomeAs(evaluateOutcome('not (a in b)', { context: { a, b } }));
@@ -610,6 +637,25 @@ describe('Operations', () => {
       expect(evaluate('day in week', { context: { day: FormulaDateTime.from(date), week } })).toBeFormulaDataType(FormulaBoolean, expected);
     });
 
+    it.each([
+      { date: '2026-10-01', expected: true },
+      { date: '2026-10-04', expected: true },
+      { date: '2026-10-07', expected: true },
+      { date: '2026-10-08', expected: false },
+      { date: '2026-09-30', expected: false },
+    ])('should find a date without a time in a range of dates from its first day to its last, both whole: $date', ({ date, expected }) => {
+      const days = FormulaDateRange.from({ start: '2026-10-01', end: '2026-10-07' });
+
+      expect(evaluate('day in days', { context: { day: FormulaDate.from(date), days } })).toBeFormulaDataType(FormulaBoolean, expected);
+    });
+
+    it.each([
+      { input: 'parseDate("2026-10-07T13:42Z") in dateRange(parseDate("2026-10-01"), parseDate("2026-10-07"))', location: loc(0, 30) },
+      { input: 'parseDate("2026-10-07") not in dateRange(parseDate("2026-10-01T00:00Z"), parseDate("2026-10-07T00:00Z"))', location: loc(0, 23) },
+    ])('should fail at the left operand to search a range for a date of the other kind: $input', ({ input, location }) => {
+      expect(() => evaluate(input)).toThrow(Errors.Evaluation.DateWithDateTime.create({ expression: input }, { location }));
+    });
+
     it('should find the one date of a range that starts and ends at it', () => {
       expect(evaluate('parseDate("2026-10-07") in dateRange(parseDate("2026-10-07"), parseDate("2026-10-07"))')).toBeFormulaDataType(FormulaBoolean, true);
     });
@@ -624,7 +670,7 @@ describe('Operations', () => {
     it.each([
       { input: '1 in 5', actual: Kind.Number, location: loc(5, 6) },
       { input: '1 not in true', actual: Kind.Boolean, location: loc(9, 13) },
-      { input: '1 in parseDate("2026-10-07")', actual: Kind.DateTime, location: loc(5, 28) },
+      { input: '1 in parseDate("2026-10-07")', actual: Kind.Date, location: loc(5, 28) },
     ])('should fail at the right operand when nothing can be searched in it: $input', ({ input, actual, location }) => {
       expect(() => evaluate(input)).toThrow(Errors.Argument.TypeMismatch.create(
         { expected: [Kind.Array, Kind.String, Kind.Object, Kind.DateRange], actual, argumentPosition: 2 },

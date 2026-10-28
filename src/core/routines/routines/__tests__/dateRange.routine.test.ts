@@ -29,7 +29,7 @@ describe('dateRange routine', () => {
   });
 
   it('should not move a date range by a duration', () => {
-    expect(() => evaluate('dateAdd(dateRange(today(), today()), 1, "days")')).toThrow('Expected type DateTime. [8,35]');
+    expect(() => evaluate('dateAdd(dateRange(today(), today()), 1, "days")')).toThrow('Expected type Date | DateTime. [8,35]');
   });
 
   describe('examples', tester.examples([

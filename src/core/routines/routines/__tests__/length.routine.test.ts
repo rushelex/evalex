@@ -40,8 +40,8 @@ describe('length routine', tester.examples([
     formula: '0.length()',
     expected: {
       function: {
-        message: 'Arguments don\'t match. Pattern 1: Expected type String.; Pattern 2: Expected type Array.',
-        location: [0, 9],
+        message: 'Expected type String | Array.',
+        location: [7, 8],
       },
       method: {
         message: 'Method "length" is not defined.',
@@ -53,8 +53,8 @@ describe('length routine', tester.examples([
     formula: '123.length()',
     expected: {
       function: {
-        message: 'Arguments don\'t match. Pattern 1: Expected type String.; Pattern 2: Expected type Array.',
-        location: [0, 11],
+        message: 'Expected type String | Array.',
+        location: [7, 10],
       },
       method: {
         message: 'Method "length" is not defined.',

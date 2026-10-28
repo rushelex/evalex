@@ -77,7 +77,7 @@ export class ValidationErrorFactory {
    */
   createTypeError(
     arg: ProcessedArgument,
-    argDef: Argument,
+    argDef: Pick<Argument, 'types'>,
     position: number,
   ): FormulaError {
     return Errors.Argument.TypeMismatch.create({

@@ -1,56 +1,51 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaDateTime, FormulaDuration } from '../../data-types';
+import { FormulaDate, FormulaDateTime } from '../../data-types';
 import { Errors } from '../../errors';
-import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
-import { expectInteger } from './expect-integer';
-import { unitDuration } from './unit-duration';
+import { DATE_SHIFT_SIGNATURES, shiftDate } from './date-shift';
 
 const routineExamples: readonly RoutineExampleOptions[] = [
   {
     formula: (name) => name('parseDate("2023-08-30")', '1', '"days"'),
-    result: () => FormulaDateTime.from(Temporal.ZonedDateTime.from({ year: 2023, month: 8, day: 31, timeZone: 'UTC' })),
+    result: () => FormulaDate.from('2023-08-31'),
   },
   {
     formula: (name) => name('parseDate("2023-08-30")', '2', '"months"'),
-    result: () => FormulaDateTime.from(Temporal.ZonedDateTime.from({ year: 2023, month: 10, day: 30, timeZone: 'UTC' })),
+    result: () => FormulaDate.from('2023-10-30'),
   },
   {
     formula: (name) => name('parseDate("2023-08-30")', '1', '"quarters"'),
-    result: () => FormulaDateTime.from(Temporal.ZonedDateTime.from({ year: 2023, month: 11, day: 30, timeZone: 'UTC' })),
+    result: () => FormulaDate.from('2023-11-30'),
   },
   {
     formula: (name) => name('parseDate("2023-08-30")', '3', '"years"'),
-    result: () => FormulaDateTime.from(Temporal.ZonedDateTime.from({ year: 2026, month: 8, day: 30, timeZone: 'UTC' })),
+    result: () => FormulaDate.from('2026-08-30'),
+  },
+  {
+    formula: (name) => name('parseDate("2023-08-30T22:15Z")', '3', '"hours"'),
+    result: () => FormulaDateTime.from('2023-08-31T01:15Z'),
+  },
+  {
+    formula: (name) => name('parseDate("2023-08-30")', '3', '"hours"'),
+    error: {
+      type: Errors.Argument.Validation,
+      message: 'Expected "years", "quarters", "months", "weeks", "days".',
+      location: { function: [36, 43], method: [31, 38] },
+    },
   },
 ];
-
-const DURATION_UNITS = ['years', 'quarters', 'months', 'weeks', 'days', 'hours', 'minutes', 'seconds'] as const;
 
 routinesRegistry.registerRoutine({ function: 'dateAdd', method: ['add', 'dateAdd'] }, {
   description: 'Adds a duration or a number of units to the date.',
   examples: routineExamples,
-  arguments: [
-    [arg.dateTime('date'), arg.duration('duration')],
-    [
-      arg.dateTime('date'),
-      arg.number('number', {
-        validation: expectInteger,
-      }),
-      arg.choice('unit', DURATION_UNITS),
-    ],
-  ],
-  handler: ({ subject, args: [amount, unit], locations, visitor }) => {
-    const duration: Temporal.DurationLike = amount instanceof FormulaDuration ? amount.value : unitDuration({ unit: unit!.value, amount: amount.value });
-
-    try {
-      // Days and months follow the calendar of the scope's zone, so a day across a daylight saving change keeps the time of day.
-      return FormulaDateTime.from(subject.value.withTimeZone(visitor.timeZone).add(duration));
-    }
-    catch (error) {
-      // With whole amounts, Temporal fails only when the duration or the resulting date leaves its range.
-      throw Errors.Arithmetic.DateOutOfRange.create({ value: subject.toString() }, { location: locations[0], cause: error instanceof Error ? error : undefined });
-    }
-  },
+  arguments: DATE_SHIFT_SIGNATURES,
+  handler: ({ subject, args: [amount, unit], locations, visitor }) => shiftDate({
+    date: subject,
+    amount,
+    unit,
+    sign: 1,
+    timeZone: visitor.timeZone,
+    location: locations[0],
+  }),
 });

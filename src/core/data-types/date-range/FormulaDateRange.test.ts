@@ -1,6 +1,7 @@
 import { fc, it } from '@fast-check/vitest';
 
 import { FormulaDateTime } from '../date-time';
+import { Kind } from '../kind';
 import { FormulaDateRange } from './FormulaDateRange';
 
 // Every instant a date can hold, as Unix milliseconds
@@ -13,7 +14,7 @@ describe(FormulaDateRange, () => {
   it.prop([orderedDates])('should keep both ends of a range whose end is not before its start', ([start, end]) => {
     const range = FormulaDateRange.from({ start, end });
 
-    expect([range.value.start.epochMilliseconds, range.value.end.epochMilliseconds]).toEqual([start.epochMilliseconds, end.epochMilliseconds]);
+    expect([range.start.toString(), range.end.toString()]).toEqual([start.toInstant().toString(), end.toInstant().toString()]);
   });
 
   it.prop([orderedDates.filter(([start, end]) => !start.equals(end))])('should reject an end before the start', ([start, end]) => {
@@ -27,11 +28,27 @@ describe(FormulaDateRange, () => {
   it('should hold both ends in UTC', () => {
     const range = FormulaDateRange.from({ start: '2024-07-28T15:00+03:00', end: '2024-07-29T15:00+03:00[Europe/Moscow]' });
 
-    expect([range.value.start.timeZoneId, range.value.end.timeZoneId]).toEqual(['UTC', 'UTC']);
+    expect([range.start, range.end].map((end) => end.kind === Kind.DateTime && end.value.timeZoneId)).toEqual(['UTC', 'UTC']);
   });
 
   it('should write both ends as ISO 8601 instants joined by an arrow', () => {
-    expect(FormulaDateRange.from({ start: '2022-09-07', end: '2023-09-07T12:30Z' }).toString()).toBe('2022-09-07T00:00:00Z → 2023-09-07T12:30:00Z');
+    expect(FormulaDateRange.from({ start: '2022-09-07T00:00Z', end: '2023-09-07T12:30Z' }).toString()).toBe('2022-09-07T00:00:00Z → 2023-09-07T12:30:00Z');
+  });
+
+  it('should read text without a time at both ends as a range of dates, written as ISO 8601 dates', () => {
+    const range = FormulaDateRange.from({ start: '2022-09-07', end: Temporal.PlainDate.from('2023-09-07') });
+
+    expect([range.start.kind, range.end.kind, range.toString()]).toEqual([Kind.Date, Kind.Date, '2022-09-07 → 2023-09-07']);
+  });
+
+  it('should reject a date without a time at one end and a date and time at the other', () => {
+    expect(() => FormulaDateRange.from({ start: '2022-09-07', end: '2023-09-07T12:30Z' }))
+      .toThrow('Cannot create a date range from a date and a date and time; both ends must be of one kind.');
+  });
+
+  it('should reject a range of dates that ends before it starts', () => {
+    expect(() => FormulaDateRange.from({ start: '2023-09-08', end: '2023-09-07' }))
+      .toThrow('Cannot create a date range that ends on 2023-09-07, before its start on 2023-09-08.');
   });
 
   it('should reject an end that holds no date', () => {

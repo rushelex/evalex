@@ -4,6 +4,7 @@ import { DEFAULT_TIME_ZONE } from '../time-zone';
 
 import { FormulaArray } from './array';
 import { FormulaBoolean } from './boolean';
+import { FormulaDate } from './date';
 import { FormulaDateRange } from './date-range';
 import { FormulaDateTime } from './date-time';
 import { FormulaDuration } from './duration';
@@ -57,18 +58,18 @@ export interface CellPlace {
  *
  * @remarks
  * A value with an obvious formula form converts to it: a `Set` or a typed array becomes a list, a boxed primitive its
- * primitive, a `bigint` within the safe integers a number, a `Temporal` instant a date, and a `Temporal` date or
- * date-time a date read in the time zone of the scope, UTC outside one.
- * An object of exactly two fields, `start` and `end`, both dates, becomes a date range. Any other plain object or class
- * instance becomes an object of its own enumerable fields; fields holding functions are left out, like methods.
- * A formula value is kept as it is.
+ * primitive, a `bigint` within the safe integers a number, a `Temporal.PlainDate` a date without a time, a `Temporal`
+ * instant a date and time, and a `Temporal.PlainDateTime` a date and time read in the time zone of the scope, UTC
+ * outside one. An object of exactly two fields, `start` and `end`, both dates or both dates and times, becomes a date
+ * range. Any other plain object or class instance becomes an object of its own enumerable fields; fields holding
+ * functions are left out, like methods. A formula value is kept as it is.
  *
  * A field of an object converts the first time it is read, so a field nobody reads never fails, a host getter runs only
  * when its field is read, and objects that link back to each other convert into objects that do the same.
  *
  * @throws TypeError naming the path to the first value without a formula form: a function in place of a value, a symbol, `NaN`, `±Infinity`, a `Date`
  * that holds no instant, a `bigint` beyond the safe integers, a built-in object such as `Map` or `Promise`, a date range
- * that ends before it starts, a list that contains itself, or nesting deeper than 1000 lists and objects. Inside an
+ * that ends before it starts or has a date at one end and a date and time at the other, a list that contains itself, or nesting deeper than 1000 lists and objects. Inside an
  * object, it is thrown when the field is read, and so is an error a field getter throws, unchanged.
  */
 export function convertValueToFormulaType(value: unknown): FormulaDataType {
@@ -122,7 +123,7 @@ export function hostShape(value: unknown): unknown {
 
   const keys = fieldKeys(value);
   const range = keys.length === 2 && keys.includes('start') && keys.includes('end')
-    ? [toDate(Reflect.get(value, 'start'), DEFAULT_TIME_ZONE)?.epochNanoseconds, toDate(Reflect.get(value, 'end'), DEFAULT_TIME_ZONE)?.epochNanoseconds]
+    ? [toRangeEnd(Reflect.get(value, 'start'), DEFAULT_TIME_ZONE)?.toString(), toRangeEnd(Reflect.get(value, 'end'), DEFAULT_TIME_ZONE)?.toString()]
     : [];
 
   return [...keys, ...range].join('\0');
@@ -183,6 +184,10 @@ function convertObject(value: object, position: Position): FormulaDataType {
     return Number.isNaN(value.getTime()) ? reject(position, 'Invalid Date has no formula form') : FormulaDateTime.from(value);
   }
 
+  if (value instanceof Temporal.PlainDate) {
+    return FormulaDate.from(value);
+  }
+
   const date = toZonedDateTime(value, position.timeZone);
 
   if (date) {
@@ -234,23 +239,35 @@ function toDateRange(value: object, position: Position): FormulaDateRange | unde
 
   const start: unknown = Reflect.get(value, 'start');
   const end: unknown = Reflect.get(value, 'end');
-  const startDate = toDate(start, position.timeZone);
-  const endDate = toDate(end, position.timeZone);
+  const startDate = toRangeEnd(start, position.timeZone);
+  const endDate = toRangeEnd(end, position.timeZone);
 
   if (!startDate || !endDate) {
     return undefined;
   }
 
-  // The shape alone makes a range, so an end before the start is an error rather than a reason to keep an object.
-  if (Temporal.ZonedDateTime.compare(startDate, endDate) > 0) {
-    return reject(position, 'the date range ends before it starts');
+  // The shape alone makes a range, so ends of two kinds or an end before the start are errors rather than reasons to keep an object.
+  if (startDate instanceof Temporal.PlainDate && endDate instanceof Temporal.PlainDate) {
+    return Temporal.PlainDate.compare(startDate, endDate) > 0
+      ? reject(position, 'the date range ends before it starts')
+      : new FormulaDateRange({ start: startDate, end: endDate });
   }
 
-  return new FormulaDateRange({ start: startDate, end: endDate });
+  if (startDate instanceof Temporal.ZonedDateTime && endDate instanceof Temporal.ZonedDateTime) {
+    return Temporal.ZonedDateTime.compare(startDate, endDate) > 0
+      ? reject(position, 'the date range ends before it starts')
+      : new FormulaDateRange({ start: startDate, end: endDate });
+  }
+
+  return reject(position, 'the date range has a date without a time at one end and a date and time at the other');
 }
 
-/** The date a value converts to, or `undefined` when it does not convert to a date. */
-function toDate(value: unknown, timeZone: string): Temporal.ZonedDateTime | undefined {
+/** The day or the date and time a value converts to, or `undefined` when it converts to neither. */
+function toRangeEnd(value: unknown, timeZone: string): Temporal.PlainDate | Temporal.ZonedDateTime | undefined {
+  if (value instanceof Temporal.PlainDate) {
+    return value;
+  }
+
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? undefined : FormulaDateTime.from(value).value;
   }
@@ -346,7 +363,7 @@ function toZonedDateTime(value: object, timeZone: string): Temporal.ZonedDateTim
     return value.toZonedDateTimeISO('UTC');
   }
 
-  if (value instanceof Temporal.PlainDateTime || value instanceof Temporal.PlainDate) {
+  if (value instanceof Temporal.PlainDateTime) {
     return value.toZonedDateTime(timeZone);
   }
 

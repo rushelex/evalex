@@ -4,6 +4,7 @@ import { fc, it } from '@fast-check/vitest';
 
 import { FormulaArray } from './array';
 import { convertValueToFormulaType } from './converter';
+import { FormulaDate } from './date';
 import { FormulaDateRange } from './date-range';
 import { FormulaDateTime } from './date-time';
 import { FormulaNumber } from './number';
@@ -151,8 +152,11 @@ describe(convertValueToFormulaType, () => {
       expect(convertValueToFormulaType(instant).value).toEqual(FormulaDateTime.from(new Date('2024-07-28T14:35:00Z')).value);
     });
 
-    it('should read a date and a date-time without a time zone in UTC', () => {
-      expect(convertValueToFormulaType(Temporal.PlainDate.from('2024-07-28')).value).toEqual(FormulaDateTime.from(new Date('2024-07-28T00:00:00Z')).value);
+    it('should keep a date without a time as a date', () => {
+      expect(convertValueToFormulaType(Temporal.PlainDate.from('2024-07-28'))).toBeFormulaDataType(FormulaDate, Temporal.PlainDate.from('2024-07-28'));
+    });
+
+    it('should read a date-time without a time zone in UTC', () => {
       expect(convertValueToFormulaType(Temporal.PlainDateTime.from('2024-07-28T14:35')).value).toEqual(FormulaDateTime.from(new Date('2024-07-28T14:35:00Z')).value);
     });
   });
@@ -171,9 +175,14 @@ describe(convertValueToFormulaType, () => {
       ['Temporal.ZonedDateTime', (text: string) => Temporal.ZonedDateTime.from(`${text}T03:00:00+03:00[Europe/Moscow]`)],
       ['Temporal.Instant', (text: string) => Temporal.Instant.from(`${text}T00:00:00Z`)],
       ['Temporal.PlainDateTime', (text: string) => Temporal.PlainDateTime.from(`${text}T00:00`)],
-      ['Temporal.PlainDate', (text: string) => Temporal.PlainDate.from(text)],
     ])('should read the ends given as %s', (_label, make) => {
       const converted = convertValueToFormulaType({ start: make('2024-07-01'), end: make('2024-07-28') });
+
+      expect(converted.value).toEqual(FormulaDateRange.from({ start: '2024-07-01T00:00Z', end: '2024-07-28T00:00Z' }).value);
+    });
+
+    it('should read the ends given as Temporal.PlainDate as a range of dates', () => {
+      const converted = convertValueToFormulaType({ start: Temporal.PlainDate.from('2024-07-01'), end: Temporal.PlainDate.from('2024-07-28') });
 
       expect(converted.value).toEqual(FormulaDateRange.from({ start: '2024-07-01', end: '2024-07-28' }).value);
     });
@@ -185,9 +194,14 @@ describe(convertValueToFormulaType, () => {
     });
 
     it('should read ends of different date forms', () => {
-      const converted = convertValueToFormulaType({ start: new Date('2024-07-01T00:00:00Z'), end: Temporal.PlainDate.from('2024-07-28') });
+      const converted = convertValueToFormulaType({ start: new Date('2024-07-01T00:00:00Z'), end: Temporal.Instant.from('2024-07-28T00:00Z') });
 
       expect(converted).toBeInstanceOf(FormulaDateRange);
+    });
+
+    it('should throw a TypeError for a date without a time at one end and a date and time at the other', () => {
+      expect(() => convertValueToFormulaType({ start: new Date('2024-07-01T00:00:00Z'), end: Temporal.PlainDate.from('2024-07-28') }))
+        .toThrow(new TypeError('Cannot convert the value to a formula value: the date range has a date without a time at one end and a date and time at the other.'));
     });
 
     it.each([

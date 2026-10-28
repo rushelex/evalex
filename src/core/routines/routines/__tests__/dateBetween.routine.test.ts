@@ -12,7 +12,7 @@ describe('"dateBetween" function routine', new RoutineTester('dateBetween').exam
     formula: 'dateBetween(parseDate("2025-08-23"), parseDate("2023-08-23"), "hour")',
     expected: {
       function: {
-        message: 'Expected "years", "months", "weeks", "days", "hours", "minutes".',
+        message: 'Expected "years", "months", "weeks", "days".',
         location: [62, 68],
       },
     },
@@ -30,7 +30,7 @@ describe('"between" method routine', new RoutineTester('between').examples({
     formula: 'parseDate("2025-08-23").between(parseDate("2023-08-23"), "hour")',
     expected: {
       method: {
-        message: 'Expected "years", "months", "weeks", "days", "hours", "minutes".',
+        message: 'Expected "years", "months", "weeks", "days".',
         location: [57, 63],
       },
     },

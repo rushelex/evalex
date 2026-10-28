@@ -47,6 +47,7 @@ export const Errors = {
   /** Formula evaluation errors */
   Evaluation: {
     ComparisonTypeMismatch: Defs.ComparisonTypeMismatch,
+    DateWithDateTime: Defs.DateWithDateTime,
     NonNumericMath: Defs.NonNumericMathOperation,
     UnaryMinusNonNumeric: Defs.UnaryMinusNonNumeric,
     InvalidRegExp: Defs.InvalidRegExpPattern,

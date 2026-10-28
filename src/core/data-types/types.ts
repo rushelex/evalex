@@ -1,5 +1,6 @@
 import type { FormulaArray } from './array';
 import type { FormulaBoolean } from './boolean';
+import type { FormulaDate } from './date';
 import type { FormulaDateRange } from './date-range';
 import type { FormulaDateTime } from './date-time';
 import type { FormulaDuration } from './duration';
@@ -86,7 +87,8 @@ export type ToFormulaDataType<T, ShouldWrapObject extends boolean = false>
   : T extends string ? FormulaString
   : T extends number | bigint ? FormulaNumber
   : T extends boolean ? FormulaBoolean
-  : T extends Date | Temporal.ZonedDateTime | Temporal.Instant | Temporal.PlainDateTime | Temporal.PlainDate ? FormulaDateTime
+  : T extends Temporal.PlainDate ? FormulaDate
+  : T extends Date | Temporal.ZonedDateTime | Temporal.Instant | Temporal.PlainDateTime ? FormulaDateTime
   : T extends Temporal.Duration ? FormulaDuration
   : T extends RegExp ? FormulaRegExp
   : T extends Array<infer I> | ReadonlyArray<infer I> | ReadonlySet<infer I> ? FormulaArray<ToFormulaDataType<I, true>>
@@ -101,6 +103,7 @@ export type FormulaDataTypeByKind<T extends Kind>
   : T extends typeof Kind.Boolean ? FormulaBoolean
   : T extends typeof Kind.Number ? FormulaNumber
   : T extends typeof Kind.String ? FormulaString
+  : T extends typeof Kind.Date ? FormulaDate
   : T extends typeof Kind.DateTime ? FormulaDateTime
   : T extends typeof Kind.Duration ? FormulaDuration
   : T extends typeof Kind.DateRange ? FormulaDateRange

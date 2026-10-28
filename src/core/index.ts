@@ -8,6 +8,7 @@ export {
   FormulaArray,
   FormulaBoolean,
   FormulaDataType,
+  FormulaDate,
   FormulaDateRange,
   FormulaDateTime,
   FormulaDuration,

@@ -5,6 +5,7 @@ import { fc } from '@fast-check/vitest';
 import {
   FormulaArray,
   FormulaBoolean,
+  FormulaDate,
   FormulaDateRange,
   FormulaDateTime,
   FormulaDuration,
@@ -23,8 +24,13 @@ interface FormulaValueArbitraries extends Record<string, FormulaDataType> {
   readonly object: FormulaObject;
 }
 
-// The range of instants a date can hold.
+// The range of instants a date and time can hold.
 const MAX_EPOCH_MILLISECONDS = 8_640_000_000_000_000n;
+
+// The same range in days, which every date can hold.
+const MAX_EPOCH_DAYS = 100_000_000;
+
+const EPOCH = Temporal.PlainDate.from('1970-01-01');
 
 // Calendar units of a duration are capped by Temporal at 2^32 - 1; time units by the total of 2^53 seconds.
 const MAX_CALENDAR_UNITS = 2 ** 32 - 1;
@@ -55,15 +61,24 @@ const boolean = fc.boolean().map((value) => new FormulaBoolean(value));
 
 const nullValue = fc.constant(null).map(() => new FormulaNull());
 
-const date = fc.bigInt({ min: -MAX_EPOCH_MILLISECONDS, max: MAX_EPOCH_MILLISECONDS }).map((milliseconds) => {
+const date = fc.integer({ min: -MAX_EPOCH_DAYS, max: MAX_EPOCH_DAYS }).map((days) => new FormulaDate(EPOCH.add({ days })));
+
+const dateTime = fc.bigInt({ min: -MAX_EPOCH_MILLISECONDS, max: MAX_EPOCH_MILLISECONDS }).map((milliseconds) => {
   return FormulaDateTime.from(Temporal.Instant.fromEpochMilliseconds(Number(milliseconds)).toZonedDateTimeISO('UTC'));
 });
 
-const dateRange = fc.tuple(date, date).map(([first, second]) => {
-  const [start, end] = Temporal.ZonedDateTime.compare(first.value, second.value) <= 0 ? [first, second] : [second, first];
+const dateRange = fc.oneof(
+  fc.tuple(date, date).map(([first, second]) => {
+    const [start, end] = Temporal.PlainDate.compare(first.value, second.value) <= 0 ? [first, second] : [second, first];
 
-  return new FormulaDateRange({ start: start.value, end: end.value });
-});
+    return new FormulaDateRange({ start: start.value, end: end.value });
+  }),
+  fc.tuple(dateTime, dateTime).map(([first, second]) => {
+    const [start, end] = Temporal.ZonedDateTime.compare(first.value, second.value) <= 0 ? [first, second] : [second, first];
+
+    return new FormulaDateRange({ start: start.value, end: end.value });
+  }),
+);
 
 const duration = fc.tuple(
   fc.constantFrom(1, -1),
@@ -90,6 +105,7 @@ const arbitraries = fc.letrec<FormulaValueArbitraries>((tie) => ({
     boolean,
     nullValue,
     date,
+    dateTime,
     dateRange,
     duration,
     regexp,
@@ -104,7 +120,8 @@ const BY_KIND: Readonly<Record<Kind, fc.Arbitrary<FormulaDataType>>> = {
   [Kind.Any]: arbitraries.value,
   [Kind.Array]: arbitraries.list,
   [Kind.Boolean]: boolean,
-  [Kind.DateTime]: date,
+  [Kind.Date]: date,
+  [Kind.DateTime]: dateTime,
   [Kind.DateRange]: dateRange,
   [Kind.Duration]: duration,
   [Kind.Null]: nullValue,

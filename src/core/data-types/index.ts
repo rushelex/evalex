@@ -3,6 +3,7 @@ export { ALL_DATA_TYPES, isFormulaValue } from './all-data-types';
 export { areEqual } from './are-equal';
 export { FormulaArray } from './array';
 export { FormulaBoolean } from './boolean';
+export { FormulaDate } from './date';
 export { FormulaDateRange } from './date-range';
 export { FormulaDateTime } from './date-time';
 export { FormulaDuration } from './duration';

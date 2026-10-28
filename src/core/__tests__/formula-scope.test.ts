@@ -1,7 +1,7 @@
 import { fc, it } from '@fast-check/vitest';
 
 import { formulaValueArbitrary, loc } from '../../testing-library';
-import { FormulaBoolean, FormulaDateRange, FormulaDateTime, FormulaDuration, FormulaNumber, FormulaString, Kind } from '../data-types';
+import { FormulaBoolean, FormulaDate, FormulaDateRange, FormulaDateTime, FormulaDuration, FormulaNumber, FormulaString, Kind } from '../data-types';
 import { Errors } from '../errors';
 import { Formula } from '../formula';
 import { FormulaScope } from '../formula-scope';
@@ -181,10 +181,10 @@ describe(FormulaScope, () => {
       expect(result.kind === Kind.DateTime && result.value.timeZoneId).toBe('UTC');
     });
 
-    it('should give today the start of the current day in the zone of the scope', () => {
+    it('should give today the current day in the zone of the scope', () => {
       vi.spyOn(Temporal.Now, 'zonedDateTimeISO').mockImplementation((timeZone) => Temporal.Instant.from('2026-10-07T22:30Z').toZonedDateTimeISO(timeZone ?? 'UTC'));
 
-      expect(new FormulaScope({ timeZone: 'Europe/Moscow' }).evaluate('today()')).toBeFormulaDataType(FormulaDateTime, utc('2026-10-07T21:00Z'));
+      expect(new FormulaScope({ timeZone: 'Europe/Moscow' }).evaluate('today()')).toBeFormulaDataType(FormulaDate, Temporal.PlainDate.from('2026-10-08'));
     });
 
     it('should read a date and time written without an offset in the zone of the scope', () => {

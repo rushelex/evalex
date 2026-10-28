@@ -9,7 +9,7 @@ import { RoutineTester } from '../../test-helpers/routine-tester';
 const tester = new RoutineTester('sort');
 
 // Lists of the kinds `<` compares, which sort without a key.
-const comparableList = fc.constantFrom(Kind.Number, Kind.String, Kind.DateTime)
+const comparableList = fc.constantFrom(Kind.Number, Kind.String, Kind.Date, Kind.DateTime)
   .chain((kind) => fc.array(formulaValueArbitrary(kind), { maxLength: 6 }))
   .map((items) => new FormulaArray(items));
 
@@ -64,11 +64,11 @@ describe('sort routine', () => {
       formula: '[true, false].sort()',
       expected: {
         function: {
-          message: 'Types must match for comparison (Number, String, or Date).',
+          message: 'Types must match for comparison (Number, String, Date, or DateTime).',
           location: [0, 19],
         },
         method: {
-          message: 'Types must match for comparison (Number, String, or Date).',
+          message: 'Types must match for comparison (Number, String, Date, or DateTime).',
           location: [14, 18],
         },
       },
@@ -77,12 +77,25 @@ describe('sort routine', () => {
       formula: '[1, 2].sort(if(current > 1, "a", 0))',
       expected: {
         function: {
-          message: 'Types must match for comparison (Number, String, or Date).',
+          message: 'Types must match for comparison (Number, String, Date, or DateTime).',
           location: [13, 36],
         },
         method: {
-          message: 'Types must match for comparison (Number, String, or Date).',
+          message: 'Types must match for comparison (Number, String, Date, or DateTime).',
           location: [12, 35],
+        },
+      },
+    },
+    {
+      formula: '[parseDate("2024-07-28"), parseDate("2024-07-28T12:00Z")].sort()',
+      expected: {
+        function: {
+          message: 'A date and a date and time do not compare. Convert one of them: dateTime.toDate() or date.toDateTime().',
+          location: [0, 63],
+        },
+        method: {
+          message: 'A date and a date and time do not compare. Convert one of them: dateTime.toDate() or date.toDateTime().',
+          location: [58, 62],
         },
       },
     },

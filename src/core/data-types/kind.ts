@@ -21,6 +21,7 @@ export const Kind = {
   Number: 'Number',
   Object: 'Object',
   String: 'String',
+  Date: 'Date',
   DateTime: 'DateTime',
   Duration: 'Duration',
   DateRange: 'DateRange',

@@ -1,3 +1,5 @@
+import type { DateRangeBounds } from './data-types/date-range';
+
 /**
  * Words that date patterns of `formatDate` and `format(date, pattern)` put into the text.
  *
@@ -54,9 +56,10 @@ export interface DateNames {
  * ```
  */
 export interface ValueFormat {
+  readonly date?: (value: Temporal.PlainDate) => string;
   readonly dateTime?: (value: Temporal.ZonedDateTime) => string;
-  /** Without it, a date range is both ends joined by an arrow, each as the `dateTime` formatter gives it. */
-  readonly dateRange?: (value: { readonly start: Temporal.ZonedDateTime; readonly end: Temporal.ZonedDateTime }) => string;
+  /** Without it, a date range is both ends joined by an arrow, each as the `date` or `dateTime` formatter gives it. */
+  readonly dateRange?: (value: DateRangeBounds) => string;
   readonly duration?: (value: Temporal.Duration) => string;
   readonly number?: (value: number) => string;
   readonly boolean?: (value: boolean) => string;

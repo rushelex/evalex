@@ -1,7 +1,7 @@
 import type { FormulaDataType } from '../../data-types';
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaArray, FormulaDateTime, FormulaNumber, FormulaString } from '../../data-types';
+import { FormulaArray, FormulaDate, FormulaDateTime, FormulaNumber, FormulaString } from '../../data-types';
 import { Errors } from '../../errors';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
@@ -19,7 +19,7 @@ const routineExamples: readonly RoutineExampleOptions[] = [
     formula: (name) => name('[1, "a"]'),
     error: {
       type: Errors.Evaluation.ComparisonTypeMismatch,
-      message: 'Types must match for comparison (Number, String, or Date).',
+      message: 'Types must match for comparison (Number, String, Date, or DateTime).',
       location: { function: [0, 14], method: [9, 13] },
     },
   },
@@ -36,7 +36,13 @@ routinesRegistry.registerRoutine('sort', {
     const order = sortOrder(keys);
 
     if (order === undefined) {
-      throw Errors.Evaluation.ComparisonTypeMismatch.create({ expression: visitor.formula }, { location: key === undefined ? location : locations[0] });
+      const errorLocation = key === undefined ? location : locations[0];
+
+      if (keys.some((current) => current instanceof FormulaDate) && keys.some((current) => current instanceof FormulaDateTime)) {
+        throw Errors.Evaluation.DateWithDateTime.create({ expression: visitor.formula }, { location: errorLocation });
+      }
+
+      throw Errors.Evaluation.ComparisonTypeMismatch.create({ expression: visitor.formula }, { location: errorLocation });
     }
 
     return new FormulaArray(order.map((index) => subject.value[index]));
@@ -51,6 +57,10 @@ function sortOrder(keys: readonly FormulaDataType[]): number[] | undefined {
 
   if (keys.every((key): key is FormulaString => key instanceof FormulaString)) {
     return orderBy(keys.map((key) => key.value), compareValues);
+  }
+
+  if (keys.every((key): key is FormulaDate => key instanceof FormulaDate)) {
+    return orderBy(keys.map((key) => key.value), (a, b) => Temporal.PlainDate.compare(a, b));
   }
 
   if (keys.every((key): key is FormulaDateTime => key instanceof FormulaDateTime)) {
