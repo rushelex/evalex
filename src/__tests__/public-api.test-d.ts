@@ -22,6 +22,14 @@ describe('public API', () => {
     expectTypeOf<API.SyntaxError['location']['start']['offset']>().toEqualTypeOf<number>();
   });
 
+  it('should type syntax error codes as plain text, each with its payload', () => {
+    expectTypeOf<'UNEXPECTED_CHARACTER'>().toExtend<API.SyntaxErrorCode>();
+    expectTypeOf<typeof API.SyntaxErrorCode.UNEXPECTED_CHARACTER>().toEqualTypeOf<'UNEXPECTED_CHARACTER'>();
+    expectTypeOf<API.SyntaxError['code']>().toEqualTypeOf<API.SyntaxErrorCode>();
+    expectTypeOf<API.SyntaxError<'UNEXPECTED_CHARACTER'>['payload']>().toEqualTypeOf<API.SyntaxErrorPayloads['UNEXPECTED_CHARACTER']>();
+    expectTypeOf<API.SyntaxErrorPayloads['UNEXPECTED_CHARACTER']>().toEqualTypeOf<{ readonly character: string }>();
+  });
+
   it('should name the location of every error and the payload of each code', () => {
     expectTypeOf<API.SyntaxError['location']>().toEqualTypeOf<API.FormulaLocation>();
     expectTypeOf<API.FormulaError['location']>().toEqualTypeOf<API.FormulaLocation | undefined>();

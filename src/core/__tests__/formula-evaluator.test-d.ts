@@ -1,4 +1,4 @@
-import type { SyntaxError } from '../../parser/grammar/parser';
+import type { SyntaxError } from '../../parser/grammar/syntax-error';
 import type { FormulaValue } from '../data-types';
 import type { FormulaError } from '../errors';
 import type { Formula } from '../formula';

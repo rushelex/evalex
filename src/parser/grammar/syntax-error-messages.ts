@@ -1,0 +1,35 @@
+import type { SyntaxErrorCode } from './syntax-error-code';
+import type { SyntaxErrorPayloads } from './syntax-error-payloads';
+
+/** The English message of each syntax error code, filled in from its payload. */
+export const SYNTAX_ERROR_MESSAGES: { readonly [C in SyntaxErrorCode]: (payload: SyntaxErrorPayloads[C]) => string } = {
+  EXPECTED_END_OF_INPUT: ({ found }) => `Expected end of input but "${found}" found.`,
+  MISSING_TOKEN: ({ expected }) => `Expected ${expected.map((token) => `"${token}"`).join(' or ')}.`,
+  UNCLOSED_PARENTHESIS: () => 'Expected token ")".',
+  MISSING_EQUALS: ({ name }) => `Expected "=" after "${name}".`,
+  RESERVED_CONST: () => '"const" is reserved; declare names with "let".',
+  EXPECTED_VARIABLE_NAME: () => 'Expected a variable name.',
+  RESERVED_VARIABLE_NAME: ({ name }) => `"${name}" cannot be a variable name.`,
+  DUPLICATE_VARIABLE: ({ name }) => `Variable "${name}" is already declared in this "let".`,
+  VARIABLE_USED_BEFORE_DECLARATION: ({ name }) => `Variable "${name}" is used before its declaration.`,
+  BARE_IN_AFTER_LET: () => 'Put "in" inside a "let" body in parentheses: "(a in b)".',
+  UNCALLED_METHOD: ({ name }) => `Expected function '${name}()' to be called.`,
+  EXPECTED_EXPRESSION: () => 'Expected expression.',
+  UNEXPECTED_CHARACTER: ({ character }) => `Unexpected character "${character}".`,
+  UNEXPECTED_KEYWORD: ({ keyword }) => `Unexpected keyword "${keyword}".`,
+  EXPECTED_METHOD_NAME: () => 'Expected identifier.',
+  KEYWORD_AS_METHOD_NAME: ({ keyword }) => `Expected identifier but found keyword "${keyword}".`,
+  EMPTY_PARENTHESES: () => 'Empty parentheses "()" are not a valid expression.',
+  LEADING_COMMA: () => 'Arguments cannot start with a comma.',
+  MISSING_ARGUMENT: () => 'Unexpected comma or missing argument in function call.',
+  UNTERMINATED_STRING: () => 'Unterminated string.',
+  INVALID_HEX_ESCAPE: () => 'Invalid hexadecimal escape sequence.',
+  INVALID_UNICODE_ESCAPE: () => 'Invalid Unicode escape sequence.',
+  ZERO_ESCAPE_BEFORE_DIGIT: () => 'Escape sequence \\0 is not allowed before a digit; write \\\\0 for a backslash followed by 0.',
+  DIGIT_ESCAPE: ({ digit }) => `Escape sequence \\${digit} is not allowed; write \\\\${digit} for a backslash followed by ${digit}.`,
+  UNTERMINATED_REGEXP: () => 'Unterminated regular expression.',
+  EMPTY_REGEXP: () => 'Empty regular expression.',
+  INVALID_REGEXP_FLAGS: ({ flags }) => `Invalid regular expression flags "${flags}".`,
+  INVALID_REGEXP: ({ reason }) => (reason.endsWith('.') ? reason : `${reason}.`),
+  TOO_DEEP: ({ limit }) => `Nested or chained more than ${limit} levels deep.`,
+};

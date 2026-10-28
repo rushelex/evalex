@@ -129,7 +129,7 @@ The full catalog of built-in functions, methods and data types lives in the [cor
 
 ## Handling errors
 
-Parse errors throw `SyntaxError`. Everything that fails during evaluation throws `FormulaError` with a machine-readable `code`:
+Parse errors throw `SyntaxError` with a machine-readable `code` from `SyntaxErrorCode`, such as `'UNEXPECTED_CHARACTER'`, and the `payload` its message fills in. Everything that fails during evaluation throws `FormulaError` with a machine-readable `code`:
 
 ```ts
 import { FormulaError, FormulaScope } from 'evalex';

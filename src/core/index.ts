@@ -1,7 +1,9 @@
 import './bootstrap';
 
 export type { FormulaLocation } from '../parser';
-export type { SyntaxError } from '../parser/grammar/parser';
+export type { SyntaxError } from '../parser/grammar/syntax-error';
+export { SyntaxErrorCode } from '../parser/grammar/syntax-error-code';
+export type { SyntaxErrorPayloads } from '../parser/grammar/syntax-error-payloads';
 
 export type { FormulaValue, HostValue } from './data-types';
 export {

@@ -120,18 +120,22 @@ class IdentifierCounter implements AST.IVisitor<number> {
 
 ## Syntax errors
 
-Invalid input throws the parser's `SyntaxError`, a subclass of the built-in one. Its `location` holds the span to highlight, and the message ends with the same span as `[start,end]` offsets:
+Invalid input throws the parser's `SyntaxError`, a subclass of the built-in one. Its `location` holds the span to highlight, and the message ends with the same span as `[start,end]` offsets. `code` names the error and `payload` holds what its message fills in, so a host can translate the message by code. Each code has one message; the codes, their payloads and messages live in [`grammar/syntax-error-code.ts`](./grammar/syntax-error-code.ts), [`grammar/syntax-error-payloads.ts`](./grammar/syntax-error-payloads.ts) and [`grammar/syntax-error-messages.ts`](./grammar/syntax-error-messages.ts).
 
-| Input | Message |
-| --- | --- |
-| `1 +* 2` | `Expected end of input but "+" found. [2,3]` |
-| `user.name` | `Expected function 'name()' to be called. [4,9]` |
-| `"x".test(/[/)` | `Unterminated regular expression. [9,13]` |
-| `/a/gg` | `Invalid regular expression flags "gg". [3,5]` |
-| `"\u12"` | `Invalid Unicode escape sequence. [1,5]` |
-| `"\xZ1"` | `Invalid hexadecimal escape sequence. [1,3]` |
-| `"(a)\1"` | `Escape sequence \1 is not allowed; write \\1 for a backslash followed by 1. [4,6]` |
-| 256 nested `(` around `1` | `Nested or chained more than 256 levels deep. [256,257]` |
+| Input | Code and payload | Message |
+| --- | --- | --- |
+| `1 +* 2` | `EXPECTED_END_OF_INPUT`, `{ found: '+' }` | `Expected end of input but "+" found. [2,3]` |
+| `user.name` | `UNCALLED_METHOD`, `{ name: 'name' }` | `Expected function 'name()' to be called. [4,9]` |
+| `"x".test(/[/)` | `UNTERMINATED_REGEXP` | `Unterminated regular expression. [9,13]` |
+| `/a/gg` | `INVALID_REGEXP_FLAGS`, `{ flags: 'gg' }` | `Invalid regular expression flags "gg". [3,5]` |
+| `"\u12"` | `INVALID_UNICODE_ESCAPE` | `Invalid Unicode escape sequence. [1,5]` |
+| `"\xZ1"` | `INVALID_HEX_ESCAPE` | `Invalid hexadecimal escape sequence. [1,3]` |
+| `"(a)\1"` | `DIGIT_ESCAPE`, `{ digit: '1' }` | `Escape sequence \1 is not allowed; write \\1 for a backslash followed by 1. [4,6]` |
+| 256 nested `(` around `1` | `TOO_DEEP`, `{ limit: 256 }` | `Nested or chained more than 256 levels deep. [256,257]` |
+
+`INVALID_REGEXP` is the one code whose message comes from the JavaScript engine: its `reason` differs between engines and stays English.
+
+To add a syntax error, add its code, its payload and its message, and a formula that raises it to [`grammar/syntax-error.test.ts`](./grammar/syntax-error.test.ts).
 
 A formula nests at most 256 levels, so parsing and evaluating it never overflows the stack. Each parenthesis, list, call, prefix operator and ternary branch around a part counts a level, and so does each operator of a chain like `a + b + c` or each call of `a.b().c()`.
 

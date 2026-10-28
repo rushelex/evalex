@@ -2,7 +2,7 @@ import type { FormulaCell, FormulaCellPlace, FormulaView } from '../formula-eval
 
 import { fc, it } from '@fast-check/vitest';
 
-import { SyntaxError } from '../../parser/grammar/parser';
+import { SyntaxError } from '../../parser/grammar/syntax-error';
 import { FormulaBoolean, FormulaDataType, FormulaNumber, FormulaString } from '../data-types';
 import { Errors, FormulaError } from '../errors';
 import { Formula } from '../formula';

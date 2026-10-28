@@ -3,8 +3,9 @@ import type { AstNode, Location } from './ast';
 import { fc, it } from '@fast-check/vitest';
 
 import { formulaTextArbitrary, spacedFormulaArbitrary } from '../testing-library/formula-text-arbitrary';
-import { SyntaxError } from './grammar/parser';
-import { parse } from './parse';
+import { syntaxErrorOf } from '../testing-library/syntax-error-of';
+import { parse } from './grammar/parser';
+import { SyntaxError } from './grammar/syntax-error';
 
 const spacedFormula = spacedFormulaArbitrary.map(({ tokens, formula }) => ({ tokens: tokens.map(({ text }) => text), formula }));
 
@@ -55,8 +56,8 @@ describe(parse, () => {
     expect(node).toHaveProperty('location', location);
   });
 
-  it('should carry only the name and the location as own fields of a syntax error', () => {
-    expect(Object.keys(syntaxErrorOf('1 +')).sort()).toEqual(['location', 'name']);
+  it('should carry only the name, the code, the payload and the location as own fields of a syntax error', () => {
+    expect(Object.keys(syntaxErrorOf('1 +')).sort()).toEqual(['code', 'location', 'name', 'payload']);
   });
 
   it.prop([spacedFormula])('should parse a well-formed formula to the same tree whatever whitespace separates its tokens', ({ tokens, formula }) => {
@@ -1192,21 +1193,6 @@ describe(parse, () => {
     });
   });
 });
-
-function syntaxErrorOf(formula: string): SyntaxError {
-  try {
-    parse(formula);
-  }
-  catch (error) {
-    if (error instanceof SyntaxError) {
-      return error;
-    }
-
-    throw error;
-  }
-
-  throw new Error(`Expected "${formula}" to fail to parse.`);
-}
 
 function createLocation(start: number, end: number): Location {
   return {

@@ -6,7 +6,7 @@ import type { FormulaCell, FormulaCellPlace } from './formula-evaluator';
 import type { PassNames, Place } from './record-names';
 import type { ValueFormat } from './value-format';
 
-import { SyntaxError } from '../parser/grammar/parser';
+import { SyntaxError } from '../parser/grammar/syntax-error';
 import { CellReadFailure } from './cell-read-failure';
 import { areEqual, isFormulaValue, Kind } from './data-types';
 import { hostShape } from './data-types/converter';

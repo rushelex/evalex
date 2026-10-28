@@ -9,6 +9,7 @@ describe('public API', () => {
       'FormulaErrorCode',
       'FormulaScope',
       'Kind',
+      'SyntaxErrorCode',
     ]);
   });
 });

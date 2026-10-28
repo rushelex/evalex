@@ -7,3 +7,4 @@
 - Where formula syntax overlaps with JavaScript (numbers, strings, escapes, regular expressions), it behaves exactly like JavaScript. Users bring JavaScript intuition.
 - Every node and every error carries an exact source location. An error points at the smallest span that explains it, so editors can underline it.
 - Tests assert the whole AST, locations included, and every error message with its location.
+- Every syntax error has a code whose one message is filled in from the payload, so hosts can translate it. A new kind of error gets a new code, not a new message under an existing one.

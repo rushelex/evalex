@@ -23,6 +23,7 @@ export type {
   FormulaView,
   HostValue,
   SyntaxError,
+  SyntaxErrorPayloads,
   ValueFormat,
 } from './core';
-export { Errors, Formula, FormulaError, FormulaErrorCode, FormulaScope, Kind } from './core';
+export { Errors, Formula, FormulaError, FormulaErrorCode, FormulaScope, Kind, SyntaxErrorCode } from './core';

@@ -3,7 +3,7 @@ import type { FormulaToken } from './index';
 import { it } from '@fast-check/vitest';
 
 import { parse } from '../parser';
-import { SyntaxError } from '../parser/grammar/parser';
+import { SyntaxError } from '../parser/grammar/syntax-error';
 import { formulaTextArbitrary, spacedFormulaArbitrary } from '../testing-library/formula-text-arbitrary';
 import { tokenize } from './index';
 

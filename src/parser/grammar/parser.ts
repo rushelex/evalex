@@ -1,7 +1,8 @@
 /* eslint-disable jsdoc/no-multi-asterisks */
 import type { AstNode, ILetDeclaration, Location } from '../ast';
-import type { FormulaLocation } from '../ast/location';
 import type { FormulaToken, FormulaTokenKind } from '../ast/token';
+import type { SyntaxErrorCode } from './syntax-error-code';
+import type { SyntaxErrorPayloads } from './syntax-error-payloads';
 
 import {
   ArrayExpressionNode,
@@ -14,22 +15,7 @@ import {
   MemberExpressionNode,
   UnaryExpressionNode,
 } from './nodes';
-
-// ── SyntaxError ──────────────────────────────────────────
-
-/**
- * Thrown, or held in a formula cell, when formula text cannot be read as a formula; `location` points at the smallest
- * part that explains why.
- */
-export class SyntaxError extends globalThis.SyntaxError {
-  readonly location: FormulaLocation;
-
-  constructor(message: string, location: FormulaLocation) {
-    super(message);
-    this.name = 'SyntaxError';
-    this.location = location;
-  }
-}
+import { SyntaxError } from './syntax-error';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -212,7 +198,7 @@ class Parser {
     if (!this.#isEnd()) {
       const s = this.#mark();
       const ch = this.#advance();
-      this.#fail(`Expected end of input but "${ch}" found.`, this.#loc(s));
+      this.#fail('EXPECTED_END_OF_INPUT', { found: ch }, this.#loc(s));
     }
     return expr;
   }
@@ -299,7 +285,7 @@ class Parser {
         this.#skipWhitespace();
         if (this.#peek() !== ':') {
           const m = this.#mark();
-          this.#fail('Expected ":".', this.#loc(m));
+          this.#fail('MISSING_TOKEN', { expected: [':'] }, this.#loc(m));
         }
         this.#consumePunctuation();
         this.#skipWhitespace();
@@ -377,7 +363,7 @@ class Parser {
     }
     if (this.#isDeclarationAhead('const')) {
       this.#consumeKeyword('const');
-      this.#fail('"const" is reserved; declare names with "let".', this.#loc(s));
+      this.#fail('RESERVED_CONST', {}, this.#loc(s));
     }
     if (this.#isDeclarationAhead('let')) {
       return this.#parseLet();
@@ -411,7 +397,7 @@ class Parser {
 
         if (this.#peek() !== '=' || this.#peekAt(1) === '=') {
           const m = this.#mark();
-          this.#fail(`Expected "=" after "${name.name}".`, this.#loc(m));
+          this.#fail('MISSING_EQUALS', { name: name.name }, this.#loc(m));
         }
 
         const equals = this.#mark();
@@ -427,7 +413,7 @@ class Parser {
 
       if (!this.#consumeKeyword('in', 'keyword')) {
         const m = this.#mark();
-        this.#fail('Expected "," or "in".', this.#loc(m));
+        this.#fail('MISSING_TOKEN', { expected: [',', 'in'] }, this.#loc(m));
       }
 
       this.#rejectForwardReferences(scope);
@@ -452,18 +438,18 @@ class Parser {
     const s = this.#mark();
 
     if (!this.#isIdStart(this.#peek())) {
-      this.#fail('Expected a variable name.', this.#loc(s));
+      this.#fail('EXPECTED_VARIABLE_NAME', {}, this.#loc(s));
     }
 
     const word = this.#readWord();
     const location = this.#loc(s);
 
     if (KEYWORDS.has(word) || word === 'let' || word === 'const') {
-      this.#fail(`"${word}" cannot be a variable name.`, location);
+      this.#fail('RESERVED_VARIABLE_NAME', { name: word }, location);
     }
 
     if (scope.names.has(word)) {
-      this.#fail(`Variable "${word}" is already declared in this "let".`, location);
+      this.#fail('DUPLICATE_VARIABLE', { name: word }, location);
     }
 
     scope.current = scope.names.size;
@@ -483,7 +469,7 @@ class Parser {
       }
 
       if (declaration !== undefined) {
-        this.#fail(`Variable "${node.name}" is used before its declaration.`, node.location);
+        this.#fail('VARIABLE_USED_BEFORE_DECLARATION', { name: node.name }, node.location);
       }
 
       scope.references.push({ name: node.name, location: node.location });
@@ -495,7 +481,7 @@ class Parser {
     const early = scope.references.find(({ name }) => scope.names.has(name));
 
     if (early) {
-      this.#fail(`Variable "${early.name}" is used before its declaration.`, early.location);
+      this.#fail('VARIABLE_USED_BEFORE_DECLARATION', { name: early.name }, early.location);
     }
   }
 
@@ -507,7 +493,7 @@ class Parser {
     if (this.#isKeywordAhead('in')) {
       const s = this.#mark();
       this.#consumeKeyword('in');
-      this.#fail('Put "in" inside a "let" body in parentheses: "(a in b)".', this.#loc(s));
+      this.#fail('BARE_IN_AFTER_LET', {}, this.#loc(s));
     }
 
     this.#restore(saved);
@@ -579,10 +565,7 @@ class Parser {
     this.#emit('method', prop.location.start);
     this.#skipWhitespace();
     if (this.#peek() !== '(') {
-      this.#fail(
-        `Expected function '${prop.name}()' to be called.`,
-        this.#loc(dotStart, prop.location.end),
-      );
+      this.#fail('UNCALLED_METHOD', { name: prop.name }, this.#loc(dotStart, prop.location.end));
     }
     const lpStart = this.#mark();
     this.#consumePunctuation();
@@ -653,10 +636,10 @@ class Parser {
     }
     const s = this.#mark();
     if (this.#isEnd()) {
-      this.#fail('Expected expression.', this.#loc(s));
+      this.#fail('EXPECTED_EXPRESSION', {}, this.#loc(s));
     }
     const bad = this.#advance();
-    this.#fail(`Unexpected character "${bad}".`, this.#loc(s));
+    this.#fail('UNEXPECTED_CHARACTER', { character: bad }, this.#loc(s));
   }
 
   /** Parses a numeric literal: integer, decimal, or scientific notation. */
@@ -731,7 +714,7 @@ class Parser {
       }
     }
     if (this.#isEnd()) {
-      this.#fail('Unterminated string.', this.#loc(s));
+      this.#fail('UNTERMINATED_STRING', {}, this.#loc(s));
     }
     this.#advance();
     this.#emit('string', s);
@@ -766,14 +749,14 @@ class Parser {
         const hex = this.#readHexDigits(2);
 
         if (hex === undefined) {
-          this.#fail('Invalid hexadecimal escape sequence.', this.#loc(start));
+          this.#fail('INVALID_HEX_ESCAPE', {}, this.#loc(start));
         }
 
         return String.fromCharCode(Number.parseInt(hex, 16));
       }
       case '0':
         if (this.#isDigit(this.#peek())) {
-          this.#fail('Escape sequence \\0 is not allowed before a digit; write \\\\0 for a backslash followed by 0.', this.#loc(start));
+          this.#fail('ZERO_ESCAPE_BEFORE_DIGIT', {}, this.#loc(start));
         }
         return '\0';
       // JavaScript rejects octal escapes and `\8`, `\9`; reading them as digits would silently turn a backreference like `\1` into a literal digit
@@ -786,7 +769,7 @@ class Parser {
       case '7':
       case '8':
       case '9':
-        return this.#fail(`Escape sequence \\${c} is not allowed; write \\\\${c} for a backslash followed by ${c}.`, this.#loc(start));
+        return this.#fail('DIGIT_ESCAPE', { digit: c }, this.#loc(start));
       // A backslash before a line break continues the text on the next line
       case '\r':
         if (this.#peek() === '\n') {
@@ -808,7 +791,7 @@ class Parser {
       const hex = this.#readHexDigits(4);
 
       if (hex === undefined) {
-        this.#fail('Invalid Unicode escape sequence.', this.#loc(start));
+        this.#fail('INVALID_UNICODE_ESCAPE', {}, this.#loc(start));
       }
 
       return String.fromCharCode(Number.parseInt(hex, 16));
@@ -831,7 +814,7 @@ class Parser {
     const codePoint = Number.parseInt(hex, 16);
 
     if (!closed || hex === '' || codePoint > 0x10FFFF) {
-      this.#fail('Invalid Unicode escape sequence.', this.#loc(start));
+      this.#fail('INVALID_UNICODE_ESCAPE', {}, this.#loc(start));
     }
 
     return String.fromCodePoint(codePoint);
@@ -862,7 +845,7 @@ class Parser {
     let inClass = false;
     while (this.#peek() !== '/' || inClass) {
       if (this.#isEnd() || this.#isLineBreak(this.#peek())) {
-        this.#fail('Unterminated regular expression.', this.#loc(s));
+        this.#fail('UNTERMINATED_REGEXP', {}, this.#loc(s));
       }
       const c = this.#advance();
       if (c === '\\' && !this.#isEnd() && !this.#isLineBreak(this.#peek())) {
@@ -878,17 +861,17 @@ class Parser {
     const pattern = this.#input.slice(patternStart, this.#pos);
     this.#advance();
     if (pattern === '') {
-      this.#fail('Empty regular expression.', this.#loc(s));
+      this.#fail('EMPTY_REGEXP', {}, this.#loc(s));
     }
     const flagsStart = this.#mark();
     const flags = this.#readWord();
     // Flags are checked against an empty pattern first so the error points at the flags, not the pattern
     if (this.#createRegExp('', flags) instanceof Error) {
-      this.#fail(`Invalid regular expression flags "${flags}".`, this.#loc(flagsStart));
+      this.#fail('INVALID_REGEXP_FLAGS', { flags }, this.#loc(flagsStart));
     }
     const regexp = this.#createRegExp(pattern, flags);
     if (regexp instanceof Error) {
-      this.#fail(regexp.message, this.#loc(s));
+      this.#fail('INVALID_REGEXP', { reason: regexp.message }, this.#loc(s));
     }
     this.#emit('regexp', s);
     return new LiteralNode(regexp, `/${pattern}/${flags}`, this.#loc(s));
@@ -920,7 +903,7 @@ class Parser {
       case 'and':
       case 'not':
       case 'in':
-        this.#fail(`Unexpected keyword "${word}".`, location);
+        this.#fail('UNEXPECTED_KEYWORD', { keyword: word }, location);
       // falls through — never reached, fail() throws
       default:
         this.#emit('name', s);
@@ -932,11 +915,11 @@ class Parser {
   #parseIdentifier(): IdentifierNode {
     const s = this.#mark();
     if (!this.#isIdStart(this.#peek())) {
-      this.#fail('Expected identifier.', this.#loc(s));
+      this.#fail('EXPECTED_METHOD_NAME', {}, this.#loc(s));
     }
     const word = this.#readWord();
     if (KEYWORDS.has(word)) {
-      this.#fail(`Expected identifier but found keyword "${word}".`, this.#loc(s));
+      this.#fail('KEYWORD_AS_METHOD_NAME', { keyword: word }, this.#loc(s));
     }
     return new IdentifierNode(word, this.#loc(s));
   }
@@ -948,13 +931,13 @@ class Parser {
     this.#skipWhitespace();
     if (this.#peek() === ')') {
       this.#advance();
-      this.#fail('Empty parentheses "()" are not a valid expression.', this.#loc(lp));
+      this.#fail('EMPTY_PARENTHESES', {}, this.#loc(lp));
     }
     const expr = this.#withNoIn(false, () => this.#parseExpr(0));
     this.#skipWhitespace();
     if (this.#peek() !== ')') {
       const m = this.#mark();
-      this.#fail('Expected ")".', this.#loc(m));
+      this.#fail('MISSING_TOKEN', { expected: [')'] }, this.#loc(m));
     }
     this.#consumePunctuation();
     return expr;
@@ -969,7 +952,7 @@ class Parser {
     this.#skipWhitespace();
     if (this.#peek() !== ']') {
       const m = this.#mark();
-      this.#fail('Expected "]".', this.#loc(m));
+      this.#fail('MISSING_TOKEN', { expected: [']'] }, this.#loc(m));
     }
     this.#consumePunctuation();
     return new ArrayExpressionNode(elements, this.#loc(s));
@@ -980,7 +963,7 @@ class Parser {
     if (this.#peek() === ',') {
       const s = this.#mark();
       this.#advance();
-      this.#fail('Arguments cannot start with a comma.', this.#loc(s));
+      this.#fail('LEADING_COMMA', {}, this.#loc(s));
     }
     if (this.#peek() === ')' || this.#peek() === ']' || this.#isEnd()) {
       return [];
@@ -996,10 +979,7 @@ class Parser {
       const commaEnd = this.#mark();
       this.#skipWhitespace();
       if (this.#peek() === ')' || this.#peek() === ']' || this.#peek() === ',' || this.#isEnd()) {
-        this.#fail(
-          'Unexpected comma or missing argument in function call.',
-          { start: commaStart, end: commaEnd },
-        );
+        this.#fail('MISSING_ARGUMENT', {}, { start: commaStart, end: commaEnd });
       }
       args.push(this.#withNoIn(false, () => this.#parseExpr(0)));
     }
@@ -1301,15 +1281,15 @@ class Parser {
   // ── Error helpers ───────────────────────────────────────────────────────
 
   /** Throws a SyntaxError at the given location. Always returns `never`. */
-  #fail(message: string, location: Location): never {
-    throw new SyntaxError(message, location);
+  #fail<C extends SyntaxErrorCode>(code: C, payload: SyntaxErrorPayloads[C], location: Location): never {
+    throw new SyntaxError(code, payload, location);
   }
 
   /** Enters one more level of nesting; the parser leaves it when the enclosing `#parseExpr` returns. */
   #nest(location: Location): void {
     this.#depth++;
     if (this.#depth > MAX_NESTING) {
-      this.#fail(`Nested or chained more than ${MAX_NESTING} levels deep.`, location);
+      this.#fail('TOO_DEEP', { limit: MAX_NESTING }, location);
     }
   }
 
@@ -1334,7 +1314,7 @@ class Parser {
   #throwUnclosedParen(lpStart: Pos, lpEnd: Pos, args: AstNode[]): never {
     const lastArg = args.at(-1);
     const end = lastArg ? lastArg.location.end : lpEnd;
-    this.#fail('Expected token ")".', { start: lpStart, end });
+    this.#fail('UNCLOSED_PARENTHESIS', {}, { start: lpStart, end });
   }
 }
 
