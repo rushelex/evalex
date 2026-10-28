@@ -77,6 +77,8 @@ interface Cell {
   readonly formula: Formula;
   /** The levels of nesting computing the cell takes, see {@link NESTING_BUDGET}, once {@link EvaluationPass.#nestingOf} told. */
   nesting: number | undefined;
+  /** The parse of its formula, once {@link EvaluationPass.#astOf} parsed it. */
+  ast: AST.AstNode | undefined;
   result: FormulaCell | undefined;
   /** Its formula is being evaluated. */
   computing: boolean;
@@ -497,6 +499,7 @@ export class EvaluationPass {
       key,
       formula,
       nesting: undefined,
+      ast: undefined,
       result: undefined,
       computing: false,
       waiting: false,
@@ -579,9 +582,33 @@ export class EvaluationPass {
 
   /** The nesting of a cell, taken from its memo while the formula is the same, since parsing it again costs more. */
   #nestingOf(cell: Cell, memo = this.#memoOf(cell.site)?.cells?.get(cell.key)): number {
-    cell.nesting ??= memo?.text === cell.formula.text ? memo.nesting : CELL_NESTING + nestingOf(cell.formula);
+    if (cell.nesting !== undefined) {
+      return cell.nesting;
+    }
+
+    if (memo?.text === cell.formula.text) {
+      cell.nesting = memo.nesting;
+    }
+    else {
+      const ast = this.#astOf(cell);
+
+      // A formula that does not parse evaluates nothing, so it nests no deeper than reading it.
+      cell.nesting = CELL_NESTING + (ast ? nestingOf(ast) : 0);
+    }
 
     return cell.nesting;
+  }
+
+  /** The parse of the formula of a cell, kept by the cell so its evaluation does not look it up again; none on a syntax error. */
+  #astOf(cell: Cell): AST.AstNode | undefined {
+    try {
+      cell.ast ??= parseFormula(cell.formula.text);
+    }
+    catch {
+      return undefined;
+    }
+
+    return cell.ast;
   }
 
   /** Tells whether every read of the last computation of a cell gives what it gave then. */
@@ -666,11 +693,14 @@ export class EvaluationPass {
     return result;
   }
 
-  #evaluate({ site, formula }: Cell): FormulaCell {
+  #evaluate(cell: Cell): FormulaCell {
+    const { site, formula } = cell;
+
     try {
       const result = evaluateFormula({
         formula: formula.text,
-        ast: parseFormula(formula.text),
+        // A syntax error is thrown again here, so the cell holds it.
+        ast: this.#astOf(cell) ?? parseFormula(formula.text),
         properties: new RecordNames({ place: site, pass: this.#names }),
         format: this.#format,
       });
@@ -827,6 +857,10 @@ export class EvaluationPass {
 
   /** Fills a copy with the fields {@link EvaluationPass.#fieldsOf} gave, a container linking to its copy. */
   #fill(view: object, fields: readonly unknown[]): void {
+    // An assignment is several times faster than `Reflect.set`, but throws where it gives up silently, on a read-only
+    // field of the prototype: only a class prototype can have one, so other copies take the faster way.
+    const assignable = Array.isArray(view) || Reflect.getPrototypeOf(view) === Object.prototype;
+
     for (let index = 0; index < fields.length; index += 4) {
       const key = fields[index] as string;
       const attributes = fields[index + 1] as number;
@@ -847,7 +881,10 @@ export class EvaluationPass {
       const shown = typeof value === 'object' && value !== null ? this.#sites.get(value)?.view ?? value : value;
 
       // Assigning a `__proto__` key would replace the prototype instead of adding a field.
-      if (attributes === PLAIN_FIELD && key !== '__proto__') {
+      if (attributes === PLAIN_FIELD && key !== '__proto__' && assignable) {
+        (view as Record<string, unknown>)[key] = shown;
+      }
+      else if (attributes === PLAIN_FIELD && key !== '__proto__') {
         Reflect.set(view, key, shown);
       }
       else {
@@ -899,17 +936,8 @@ function ownFields(container: object): unknown[] {
   return fields;
 }
 
-/** How deep the parts of a formula nest, or none for a formula that does not parse and so evaluates nothing. */
-function nestingOf(formula: Formula): number {
-  let ast: AST.AstNode;
-
-  try {
-    ast = parseFormula(formula.text);
-  }
-  catch {
-    return 0;
-  }
-
+/** How deep the parts of a parsed formula nest. */
+function nestingOf(ast: AST.AstNode): number {
   let nesting = nestings.get(ast);
 
   if (nesting === undefined) {

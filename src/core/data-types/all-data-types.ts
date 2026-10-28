@@ -36,7 +36,10 @@ export type DataTypeClass = (typeof ALL_DATA_TYPES)[number];
 /** A value a formula computes, of one of the data types, told apart by its `kind`. */
 export type FormulaValue = InstanceType<DataTypeClass>;
 
+const DATA_TYPE_CLASSES: ReadonlySet<unknown> = new Set(ALL_DATA_TYPES);
+
 /** Tells whether a value is of one of the data types, so its `kind` names its class. */
 export function isFormulaValue(value: FormulaDataType): value is FormulaValue {
-  return ALL_DATA_TYPES.some((dataType) => value instanceof dataType);
+  // Every computed value is checked, and nearly all are instances of the classes themselves rather than of subclasses.
+  return DATA_TYPE_CLASSES.has(value.constructor) || ALL_DATA_TYPES.some((dataType) => value instanceof dataType);
 }
