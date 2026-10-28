@@ -15,7 +15,7 @@ const routineExamples: readonly RoutineExampleOptions[] = [
     error: {
       type: Errors.Arithmetic.NotARealNumber,
       message: 'Result is not a real number.',
-      location: { function: [0, 14], method: [1, 15] },
+      location: { function: [0, 14], method: [0, 15] },
     },
   },
 ];

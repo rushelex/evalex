@@ -79,6 +79,24 @@ describe(parse, () => {
     }
   });
 
+  it.prop([spacedFormula])('should give every node a location whose text parses to the same node', ({ formula }) => {
+    expect(nodeTextProblems(formula, parse(formula))).toEqual([]);
+  });
+
+  it.each([
+    { formula: '1 * (2 + 3)', path: [], location: createLocation(0, 11) },
+    { formula: '(a).f()', path: [], location: createLocation(0, 7) },
+    { formula: '(a).f()', path: ['callee'], location: createLocation(0, 5) },
+    { formula: '(1 + 2).f().g()', path: ['callee', 'object'], location: createLocation(0, 11) },
+    { formula: 'a ? 1 : (2)', path: [], location: createLocation(0, 11) },
+    { formula: 'let x = (1) in (x)', path: [], location: createLocation(0, 18) },
+    { formula: 'let x = (1) in (x)', path: ['declarations', 0], location: createLocation(4, 11) },
+  ])('should span the parentheses around an operand: $path of $formula', ({ formula, path, location }) => {
+    const node = path.reduce<unknown>((value, key) => (value as Record<PropertyKey, unknown>)[key], parse(formula));
+
+    expect(node).toHaveProperty('location', location);
+  });
+
   it('should carry only the name and the location as own fields of a syntax error', () => {
     expect(Object.keys(syntaxErrorOf('1 +')).sort()).toEqual(['location', 'name']);
   });
@@ -1266,6 +1284,24 @@ function spanProblems(formula: string, node: AstNode, parent?: Location): string
   const own = [...locationProblems(formula, location), ...(outside ? [`${node.type} at [${location.start.offset},${location.end.offset}] is outside its parent`] : [])];
 
   return [...own, ...childrenOf(node).flatMap((child) => spanProblems(formula, child, location))];
+}
+
+/** Nodes whose text does not parse to them; a member is checked through its object and property, as it is no formula on its own. */
+function nodeTextProblems(formula: string, node: AstNode): string[] {
+  const { start, end } = node.location;
+  const text = formula.slice(start.offset, end.offset);
+  const own = node.type === 'MemberExpression' || isSameTree(text, node) ? [] : [`${node.type} at [${start.offset},${end.offset}] reads "${text}"`];
+
+  return [...own, ...childrenOf(node).flatMap((child) => nodeTextProblems(formula, child))];
+}
+
+function isSameTree(text: string, node: AstNode): boolean {
+  try {
+    return JSON.stringify(withoutPositions(parse(text))) === JSON.stringify(withoutPositions(node));
+  }
+  catch {
+    return false;
+  }
 }
 
 function childrenOf(node: AstNode): AstNode[] {

@@ -345,7 +345,7 @@ describe('Operations', () => {
     });
 
     it('should fail a fractional power of a negative number, which has no real result', () => {
-      expect(() => evaluate('(-8) ^ (1 / 3)')).toThrow(Errors.Arithmetic.NotARealNumber.create({ location: loc(0, 13) }));
+      expect(() => evaluate('(-8) ^ (1 / 3)')).toThrow(Errors.Arithmetic.NotARealNumber.create({ location: loc(0, 14) }));
     });
   });
 

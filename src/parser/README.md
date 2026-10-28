@@ -101,7 +101,7 @@ Every node carries `type` and `location`, and implements `accept(visitor)`. Type
 | `ArrayExpression` | `elements` |
 | `LetExpression` | `declarations: { name: Identifier, value, location }[]`, `body` |
 
-`location` holds `start` and `end`, each with a zero-based `offset` and one-based `line` and `column`. In a method chain such as `a.b().c()`, every node spans from the start of `a` to its own end: the call `a.b()` ends at its closing parenthesis, the member `a.b` at `b`.
+`location` holds `start` and `end`, each with a zero-based `offset` and one-based `line` and `column`. In a method chain such as `a.b().c()`, every node spans from the start of `a` to its own end: the call `a.b()` ends at its closing parenthesis, the member `a.b` at `b`. Parentheses make no node of their own: `(1 + 2)` is the sum at the offsets of `1 + 2`, while a node built around it covers them, so `(1 + 2) * 3` spans the whole text and `(a).f()` starts at the opening parenthesis.
 
 ### Visitors
 

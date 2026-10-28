@@ -227,17 +227,15 @@ class Parser {
    * @param minBp Minimum binding power — only operators with `lbp > minBp` are consumed.
    */
   #parseExpr(minBp: number): AstNode {
-    // Remember the start position BEFORE parsing the left side.
-    // This is crucial for parenthesized expressions like `(1+2)*3`:
-    // parseGrouped() returns the inner expression with location [1,4],
-    // but the binary `*` node needs location [0,9] covering the parens.
+    // Nodes built here span from this start to the current position, not between their operands: parseGrouped()
+    // returns `(1+2)` as the inner expression at [1,4], while `(1+2)*3` and `(1+2).f()` cover the parentheses.
     const ruleStart = this.#mark();
     const outerDepth = this.#depth;
     this.#nest(this.#nextCharLoc());
 
     // Step 1: parse prefix operator or atom (the "nud" phase)
     let left = this.#nud();
-    left = this.#parseSuffixes(left);
+    left = this.#parseSuffixes(left, ruleStart);
 
     // Step 2: consume infix operators while they bind tighter than minBp
     while (true) {
@@ -261,7 +259,7 @@ class Parser {
           left,
           consequent,
           alternate,
-          this.#loc(ruleStart, alternate.location.end),
+          this.#loc(ruleStart),
         );
         continue;
       }
@@ -286,9 +284,9 @@ class Parser {
           op.text,
           left,
           right,
-          this.#loc(ruleStart, right.location.end),
+          this.#loc(ruleStart),
         );
-        left = this.#parseSuffixes(left);
+        left = this.#parseSuffixes(left, ruleStart);
         continue;
       }
 
@@ -370,7 +368,7 @@ class Parser {
 
         const value = this.#withNoIn(true, () => this.#parseExpr(0));
 
-        declarations.push({ name, value, location: this.#loc(name.location.start, value.location.end) });
+        declarations.push({ name, value, location: this.#loc(name.location.start) });
         this.#skipWhitespace();
       } while (this.#consumeChar(','));
 
@@ -389,7 +387,7 @@ class Parser {
         this.#rejectBareIn();
       }
 
-      return new LetExpressionNode(declarations, body, this.#loc(start, body.location.end));
+      return new LetExpressionNode(declarations, body, this.#loc(start));
     }
     finally {
       this.#letScopes.pop();
@@ -480,11 +478,11 @@ class Parser {
    * Collects `.method(args)` and `(args)` suffixes after an expression,
    * then reduces them into a chain of CallExpression/MemberExpression nodes.
    *
-   * Every node of a chain like `obj.a().b()` spans from the head's start to its
-   * own end, so an error about `obj.a()` underlines `obj.a()`, not the whole chain.
+   * Every node of a chain like `obj.a().b()` spans from `start`, where the head's
+   * text begins, to its own end, so an error about `obj.a()` underlines `obj.a()`,
+   * not the whole chain.
    */
-  #parseSuffixes(head: AstNode): AstNode {
-    const start = head.location.start;
+  #parseSuffixes(head: AstNode, start: Pos): AstNode {
     const suffixes: Suffix[] = [];
     while (true) {
       const saved = this.#save();
