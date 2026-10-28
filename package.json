@@ -48,7 +48,7 @@
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@total-typescript/ts-reset": "^0.6.1",
-    "@types/node": "^24.19.2",
+    "@types/node": "^26.6.4",
     "@vitest/browser": "^5.0.5",
     "@vitest/browser-playwright": "^5.0.5",
     "@vitest/coverage-v8": "^5.0.5",
@@ -70,6 +70,11 @@
     "vitest": "^5.0.5"
   },
   "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^26.12.1",
+      "onFail": "download"
+    },
     "packageManager": {
       "name": "pnpm",
       "version": "^12.14.0",
