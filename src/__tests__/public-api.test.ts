@@ -5,22 +5,10 @@ describe('public API', () => {
     expect(Object.keys(API).sort()).toEqual([
       'Errors',
       'Formula',
-      'FormulaArray',
-      'FormulaBoolean',
-      'FormulaDataType',
-      'FormulaDate',
-      'FormulaDateRange',
-      'FormulaDuration',
       'FormulaError',
       'FormulaErrorCode',
-      'FormulaNull',
-      'FormulaNumber',
-      'FormulaObject',
-      'FormulaRegExp',
       'FormulaScope',
-      'FormulaString',
       'Kind',
-      'initializeFormulaCore',
     ]);
   });
 });

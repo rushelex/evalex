@@ -1,7 +1,7 @@
 /* eslint-disable test/prefer-lowercase-title */
 import type { FormulaEvaluator } from 'evalex';
 
-import { Formula, FormulaNumber, FormulaScope } from 'evalex';
+import { Formula, FormulaScope } from 'evalex';
 import { HyperFormula } from 'hyperformula';
 import { it } from 'vitest';
 
@@ -15,16 +15,16 @@ const scope = new FormulaScope();
  * Test 1: Raw formula evaluation (no evaluator overhead)
  */
 it('Profile: Raw scope.evaluate()', async ({ bench }) => {
-  // Local binding skips the module runner's export getter in the measured loop
-  const NumberCtor = FormulaNumber;
-  let next = 30;
+  // Results computed ahead, so the loop measures reading a result passed back, not computing it
+  const results = Array.from({ length: 1000 }, (_, index) => scope.evaluate(String(index)));
+  let next = 0;
 
   await bench.compare(
     bench('scope.evaluate() with a plain number', () => {
       scope.evaluate('A1 * 2', { A1: 20 });
     }),
-    bench('scope.evaluate() with a new formula value', () => {
-      scope.evaluate('A1 * 2', { A1: new NumberCtor(++next) });
+    bench('scope.evaluate() with a result passed back', () => {
+      scope.evaluate('A1 * 2', { A1: results[++next % results.length] });
     }),
     { warmupIterations: 100, iterations: 1000 },
   );

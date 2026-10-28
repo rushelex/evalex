@@ -15,9 +15,11 @@ export interface InitializeFormulaOptions {
 }
 
 /**
- * Initializes formula core: registers built-in routines and applies plugins.
- * - If you rely on side-effect import of `core/index.ts`, you may not need to call this.
- * - Use this explicit initializer in apps to have predictable bootstrap and plugin registration.
+ * Applies plugins to the shared routine registry and closes it to further registration.
+ *
+ * @remarks
+ * Importing this module already registers the built-in routines. The plugin API is not public until the first real
+ * plugin shapes it (#41 step 6), so only the test setup calls this.
  */
 export function initializeFormulaCore(options?: InitializeFormulaOptions): { registry: RoutinesRegistry } {
   const { plugins = [], finalize = true } = options ?? {};

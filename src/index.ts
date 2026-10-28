@@ -1,1 +1,25 @@
-export * from './core';
+export type {
+  DateNames,
+  FormulaArray,
+  FormulaBoolean,
+  FormulaCell,
+  FormulaCellPlace,
+  FormulaDataType,
+  FormulaDate,
+  FormulaDateRange,
+  FormulaDuration,
+  FormulaEvaluator,
+  FormulaEvaluatorOptions,
+  FormulaNull,
+  FormulaNumber,
+  FormulaObject,
+  FormulaRegExp,
+  FormulaScopeOptions,
+  FormulaString,
+  FormulaValue,
+  FormulaView,
+  HostValue,
+  SyntaxError,
+  ValueFormat,
+} from './core';
+export { Errors, Formula, FormulaError, FormulaErrorCode, FormulaScope, Kind } from './core';

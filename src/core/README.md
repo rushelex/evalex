@@ -15,7 +15,8 @@
 Everything below is imported from the package root:
 
 ```ts
-import { Formula, FormulaNumber, FormulaScope } from 'evalex';
+import { Errors, Formula, FormulaError, FormulaScope } from 'evalex';
+import type { FormulaNumber, FormulaValue } from 'evalex';
 ```
 
 ## FormulaScope
@@ -113,20 +114,20 @@ Each value is computed once, in order, even if the body does not read it; inside
 
 ## Data types
 
-Every value inside a formula is an instance of a `FormulaDataType` subclass. Host values convert to them as the table further down shows, a formula value passed in is read as it is, and a result holds its JavaScript value in `.value`.
+Every value inside a formula is an instance of a `FormulaDataType` subclass. The host passes plain values, which convert as the table further down shows; a result holds its JavaScript value in `.value`, and its `kind` tells the classes apart. The classes are exported as types only: `import type { FormulaNumber } from 'evalex'`. A result passed back in is read as it is.
 
-| Kind | Class | JS value | Create with |
-| --- | --- | --- | --- |
-| `Number` | `FormulaNumber` | `number` | `new FormulaNumber(42)` |
-| `String` | `FormulaString` | `string` | `new FormulaString('hi')` |
-| `Boolean` | `FormulaBoolean` | `boolean` | `new FormulaBoolean(true)` |
-| `Date` | `FormulaDate` | `Temporal.ZonedDateTime` | `FormulaDate.from('2026-10-01T00:00:00Z')` — also a `Date`, a timestamp or a `ZonedDateTime`. Text is read as ISO 8601, in UTC unless it names an offset or time zone; a value that holds no date throws a `RangeError` |
-| `DateRange` | `FormulaDateRange` | `{ start, end }` of `Temporal.ZonedDateTime` | `FormulaDateRange.from({ start: '2026-10-01', end: '2026-10-07' })` — each end as `FormulaDate.from` takes it; an end before the start throws a `RangeError` |
-| `Duration` | `FormulaDuration` | `Temporal.Duration` | `FormulaDuration.from(Temporal.Duration.from({ days: 3 }))` |
-| `Array` | `FormulaArray` | `readonly FormulaDataType[]` | `FormulaArray.from([1, 2, 3])` |
-| `Object` | `FormulaObject` | `Readonly<Record<string, FormulaDataType>>` | `FormulaObject.from({ name: 'Ada' })` |
-| `RegExp` | `FormulaRegExp` | pattern and flags | `FormulaRegExp.from(/^[A-Z]{3}-\d+$/)` |
-| `Null` | `FormulaNull` | `null` | `FormulaNull.instance()` |
+| Kind | Class | JS value |
+| --- | --- | --- |
+| `Number` | `FormulaNumber` | `number` |
+| `String` | `FormulaString` | `string` |
+| `Boolean` | `FormulaBoolean` | `boolean` |
+| `Date` | `FormulaDate` | `Temporal.ZonedDateTime` |
+| `DateRange` | `FormulaDateRange` | `{ start, end }` of `Temporal.ZonedDateTime` |
+| `Duration` | `FormulaDuration` | `Temporal.Duration` |
+| `Array` | `FormulaArray` | `readonly FormulaDataType[]` |
+| `Object` | `FormulaObject` | `Readonly<Record<string, FormulaDataType>>` |
+| `RegExp` | `FormulaRegExp` | pattern and flags |
+| `Null` | `FormulaNull` | `null` |
 
 Values are immutable. To change a list or an object, create a new one instead of changing `.value` in place: a formula result can be the very same instance as its input, so an in-place change would alter results that were never recalculated.
 

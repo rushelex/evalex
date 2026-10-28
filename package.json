@@ -69,9 +69,6 @@
     "vite-plugin-circular-dependency": "^0.6.0",
     "vitest": "^5.0.5"
   },
-  "inlinedDependencies": {
-    "type-fest": "5.10.0"
-  },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",

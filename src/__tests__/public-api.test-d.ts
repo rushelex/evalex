@@ -6,6 +6,11 @@ describe('public API', () => {
     expectTypeOf<typeof API.Kind.Number>().toEqualTypeOf<'Number'>();
   });
 
+  it('should export the data type classes as the types a result narrows to by its kind', () => {
+    expectTypeOf<Extract<API.FormulaValue, { kind: 'Number' }>>().toEqualTypeOf<API.FormulaNumber>();
+    expectTypeOf<Extract<API.FormulaValue, { kind: 'DateRange' }>>().toEqualTypeOf<API.FormulaDateRange>();
+  });
+
   it('should type error codes as plain text', () => {
     expectTypeOf<'CIRCULAR_REFERENCE'>().toExtend<API.FormulaErrorCode>();
     expectTypeOf<typeof API.FormulaErrorCode.CIRCULAR_REFERENCE>().toEqualTypeOf<'CIRCULAR_REFERENCE'>();
