@@ -5,10 +5,7 @@ import type { FormulaDataTypeByKind, ToFormulaDataType } from '../types';
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
 
-/**
- * Represents a typed list of elements in the formula system.
- * @template TItem Type of elements in the list. Must be a subclass of FormulaDataType.
- */
+/** A list a formula computes: `value` holds its items, each a formula value of its own kind. */
 export class FormulaArray<TItem extends FormulaDataType = FormulaDataType> extends FormulaDataType<readonly TItem[], typeof Kind.Array> {
   static readonly SEPARATOR = ', ';
   static readonly kind = Kind.Array;

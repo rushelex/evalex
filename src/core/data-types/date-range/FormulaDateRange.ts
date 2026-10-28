@@ -16,6 +16,7 @@ interface DateRangeBounds {
 /** A date or a value `FormulaDate.from` reads as one. */
 type DateInput = Parameters<typeof FormulaDate.from>[0];
 
+/** A date range a formula computes: `value` holds its `start` and `end` as `Temporal.ZonedDateTime` in UTC. */
 export class FormulaDateRange extends FormulaDataType<DateRangeBounds, typeof Kind.DateRange> {
   static readonly kind = Kind.DateRange;
 

@@ -5,46 +5,10 @@ import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
 
 /**
- * Universal object type for the formula system that enables working with arbitrary JavaScript objects in formulas.
+ * An object a formula computes or reads from host data: `value` holds its fields, each a formula value of its own kind.
  *
- * FormulaObject provides dynamic field access through method-like syntax, allowing you to access nested
- * properties and work with complex data structures in formula expressions.
- *
- * @template T - The type of the object value, constrained to Record<string, FormulaDataType>
- *
- * @example
- * ```typescript
- * // Create from plain JavaScript object
- * const user = FormulaObject.from({
- *   name: "John Doe",
- *   age: 30,
- *   profile: {
- *     city: "New York",
- *     preferences: { theme: "dark" }
- *   }
- * });
- *
- * // Or create by hand
- * const user = new FormulaObject({
- *   name: new FormulaString("John Doe"),
- *   age: new FormulaNumber(30),
- *   profile: new FormulaObject({
- *     city: new FormulaString("New York"),
- *     preferences: new FormulaObject({ theme: new FormulaString("dark") })
- *   })
- * });
- *
- * // Use in formulas with dynamic field access
- * evaluate('user.name()', { context: { user } });
- * // Returns: FormulaString("John Doe")
- *
- * evaluate('user.profile().city()', { context: { user } });
- * // Returns: FormulaString("New York")
- *
- * // Works with conditional logic
- * evaluate('if(user.age() >= 18, "adult", "minor")', { context: { user } });
- * // Returns: FormulaString("adult")
- * ```
+ * @remarks
+ * A formula reads a field with method syntax: `user.name()`, `user.profile().city()`.
  */
 export class FormulaObject<T extends Record<string, FormulaDataType> = Record<string, FormulaDataType>> extends FormulaDataType<Readonly<T>, typeof Kind.Object> {
   static readonly kind = Kind.Object;

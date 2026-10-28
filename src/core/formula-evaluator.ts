@@ -25,6 +25,7 @@ export interface FormulaCellPlace {
   readonly key: string | number;
 }
 
+/** How an evaluator reads host data and where it reports host data it cannot read; both are optional. */
 export interface FormulaEvaluatorOptions {
   /**
    * Reads a cell of data in a format of the host's own, such as a cell of a backend response, which cannot hold a

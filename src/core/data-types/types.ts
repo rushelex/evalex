@@ -59,11 +59,12 @@ type ConvertibleLeaf
     | FormulaDataType;
 
 /**
- * Host data as the converter accepts it: each value without a formula form becomes `never`, so passing it fails to compile.
+ * Checks host data at compile time: each value without a formula form, such as a `Map`, becomes `never`, so passing it
+ * fails to compile instead of failing the formula that reads it.
  *
  * @remarks
- * Fields holding functions are left out, as conversion leaves them out, so a class instance passes with its methods.
- * `unknown` and `any` pass as they are: the converter checks them at run time.
+ * Fields holding functions are left out, as formulas never see them, so a class instance passes with its methods.
+ * `unknown` and `any` pass as they are and are checked when a formula reads them.
  */
 export type HostValue<T>
   = unknown extends T ? T

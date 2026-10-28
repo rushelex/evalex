@@ -6,18 +6,15 @@ export { FormulaError } from './formula-error';
 export { formatTypes, getRegExpFallbackError } from './utils';
 
 /**
- * Namespace containing all formula errors grouped by domain.
+ * Tells apart formula errors that share a code: `Errors.<Group>.<Error>.is(error)` matches exactly one of them and
+ * narrows its `payload`.
  *
  * @example
- * ```typescript
+ * ```ts
  * import { Errors } from 'evalex';
  *
- * // Create errors
- * throw Errors.Argument.TooFew.create({ expectedMin: 2, expectedMax: 5, actual: 1 });
- *
- * // Check error type
- * if (Errors.Reference.CircularReference.is(error)) {
- *   console.log(error.payload.name);
+ * if (Errors.Reference.VariableNotDefined.is(error)) {
+ *   error.payload.name; // the variable the formula reads but the host did not pass
  * }
  * ```
  */

@@ -16,6 +16,7 @@ const TEXT_PARSERS: readonly ((text: string) => Temporal.ZonedDateTime)[] = [
   (text) => Temporal.PlainYearMonth.from(YEAR.test(text) ? `${text}-01` : text).toPlainDate({ day: 1 }).toZonedDateTime('UTC'),
 ];
 
+/** A date a formula computes: `value` holds its instant as a `Temporal.ZonedDateTime` in UTC. */
 export class FormulaDate extends FormulaDataType<Temporal.ZonedDateTime, typeof Kind.Date> {
   static readonly kind = Kind.Date;
 

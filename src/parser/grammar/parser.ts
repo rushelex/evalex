@@ -17,7 +17,8 @@ import {
 // ── SyntaxError ──────────────────────────────────────────
 
 /**
- * Syntax error thrown by the parser when the input does not conform to the grammar.
+ * Thrown, or held in a formula cell, when formula text cannot be read as a formula; `location` points at the smallest
+ * part that explains why.
  */
 export class SyntaxError extends globalThis.SyntaxError {
   readonly location: FormulaLocation;

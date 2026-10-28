@@ -13,9 +13,7 @@ const CACHE_MIN = -10;
 const CACHE_MAX = 100;
 const numberCache: (FormulaNumber | undefined)[] = Array.from({ length: CACHE_MAX - CACHE_MIN + 1 });
 
-/**
- * Represents a number data type in the formula system.
- */
+/** A number a formula computes: `value` holds it as a JavaScript number, at 15 significant digits. */
 export class FormulaNumber extends FormulaDataType<number, typeof Kind.Number> {
   static readonly kind = Kind.Number;
   /** The full double, so that `1 / 3 * 3` is `1` even though `value` of `1 / 3` is cut to 15 digits. */

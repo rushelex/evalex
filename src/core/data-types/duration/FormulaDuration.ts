@@ -6,6 +6,7 @@ import { formatWith } from '../../value-format';
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
 
+/** A duration a formula computes: `value` holds it as a `Temporal.Duration`. */
 export class FormulaDuration extends FormulaDataType<Temporal.Duration, typeof Kind.Duration> {
   static readonly kind = Kind.Duration;
 

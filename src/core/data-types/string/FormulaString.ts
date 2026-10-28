@@ -3,9 +3,7 @@ import type { ToStringOptions } from '../FormulaDataType';
 import { FormulaDataType } from '../FormulaDataType';
 import { Kind } from '../kind';
 
-/**
- * Represents a text data type in the formula system.
- */
+/** Text a formula computes: `value` holds it. */
 export class FormulaString extends FormulaDataType<string, typeof Kind.String> {
   static readonly kind = Kind.String;
 

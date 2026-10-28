@@ -10,6 +10,7 @@ import { HostValues } from './host-values';
 import { parseFormula } from './parse-formula';
 import { validateValueFormat } from './value-format';
 
+/** Settings a host gives a `FormulaScope` once, for every formula it and its evaluators compute. */
 export interface FormulaScopeOptions {
   /** How values look where a formula turns them into text: `+` with text, `join`, `format()`. */
   readonly format?: ValueFormat;

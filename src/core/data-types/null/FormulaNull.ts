@@ -7,9 +7,7 @@ import { Kind } from '../kind';
 // Singleton instance - there's only one null value
 let NULL_INSTANCE: FormulaNull | null = null;
 
-/**
- * Represents null data type in the formula system.
- */
+/** The empty value a formula computes, such as a missing host value: `value` holds `null`. */
 export class FormulaNull extends FormulaDataType<null, typeof Kind.Null> {
   static readonly kind = Kind.Null;
 

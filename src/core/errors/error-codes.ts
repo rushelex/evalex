@@ -1,6 +1,13 @@
 /**
- * Error codes for FormulaError.
- * Each code represents a specific error type with its own payload structure.
+ * Names the groups of formula errors: the `code` of every `FormulaError` is one of them, and `FormulaErrorPayloads`
+ * gives the payload of each.
+ *
+ * @example
+ * ```ts
+ * if (error instanceof FormulaError && error.code === FormulaErrorCode.REFERENCE_ERROR) {
+ *   // a missing variable, function, method or field
+ * }
+ * ```
  */
 export const FormulaErrorCode = {
   ARGUMENT_TYPE_MISMATCH: 'ARGUMENT_TYPE_MISMATCH',

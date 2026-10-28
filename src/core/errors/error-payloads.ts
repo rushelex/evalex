@@ -66,10 +66,16 @@ export interface ExecutionTimeoutPayload {
   readonly timeoutMs: number;
 }
 
-// ============================================================================
-// Formula Error Payloads mapping: code -> payload type
-// ============================================================================
-
+/**
+ * The `payload` a `FormulaError` carries for each code.
+ *
+ * @example
+ * ```ts
+ * function describeReference(payload: FormulaErrorPayloads['REFERENCE_ERROR']): string {
+ *   return `${payload.referenceType} "${payload.name}" is not defined`;
+ * }
+ * ```
+ */
 export interface FormulaErrorPayloads {
   [FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]: ArgumentTypeMismatchPayload;
   [FormulaErrorCode.ARGUMENT_COUNT_MISMATCH]: ArgumentCountMismatchPayload;

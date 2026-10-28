@@ -8,9 +8,7 @@ import { Kind } from '../kind';
 let TRUE_INSTANCE: FormulaBoolean | null = null;
 let FALSE_INSTANCE: FormulaBoolean | null = null;
 
-/**
- * Represents a boolean data type in the formula system.
- */
+/** A boolean a formula computes, such as the result of a comparison: `value` holds it. */
 export class FormulaBoolean extends FormulaDataType<boolean, typeof Kind.Boolean> {
   static readonly kind = Kind.Boolean;
 

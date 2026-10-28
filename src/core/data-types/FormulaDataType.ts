@@ -8,21 +8,19 @@ export interface ToStringOptions {
 }
 
 /**
- * Abstract base class for all data types used in the formula system.
- * Each concrete data type (string, number, list, etc.) must inherit from this class.
+ * The shape every value a formula computes shares: its `kind`, its JavaScript `value` and its text.
+ *
+ * @remarks
+ * A host never creates one: it passes plain values and gets these back as results, of the kinds `FormulaValue` lists.
  */
 export abstract class FormulaDataType<TValue = unknown, TKind extends Kind = Kind> {
   /** The data type, a literal per class, so a union of data types narrows by it. */
   readonly kind: TKind;
+  /** The JavaScript form of the value, such as a `number` or a `Temporal.ZonedDateTime`. */
   readonly value: TValue;
+  /** The name of the data type to show to a person, such as `Date range`. */
   readonly displayType: string;
 
-  /**
-   * Constructor for the base formula data type.
-   * @param kind The kind of the data type.
-   * @param value The value that this type encapsulates.
-   * @param displayType The display type for the user interface.
-   */
   protected constructor(
     kind: TKind,
     value: TValue,
@@ -33,15 +31,9 @@ export abstract class FormulaDataType<TValue = unknown, TKind extends Kind = Kin
     this.displayType = displayType;
   }
 
-  /**
-   * Checks if the value is considered empty.
-   * This is used for functions like empty() and for conditional logic.
-   */
+  /** Returns whether a condition reads the value as false: `0`, `""`, `false`, an empty list or object, and `null`. */
   abstract isEmpty(): boolean;
 
-  /**
-   * Returns a string representation of the value.
-   * This is used for display and debugging purposes.
-   */
+  /** Returns the text a formula gives the value, such as with `format()`, through the host's formatters when given. */
   abstract toString(options?: ToStringOptions): string;
 }

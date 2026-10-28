@@ -33,7 +33,16 @@ export const ALL_DATA_TYPES = [
 /** A class of formula values. */
 export type DataTypeClass = (typeof ALL_DATA_TYPES)[number];
 
-/** A value a formula computes, of one of the data types, told apart by its `kind`. */
+/**
+ * A value a formula computes, of one of the data types, told apart by its `kind`.
+ *
+ * @example
+ * ```ts
+ * function show(result: FormulaValue): string {
+ *   return result.kind === 'Date' ? result.value.toPlainDate().toString() : result.toString();
+ * }
+ * ```
+ */
 export type FormulaValue = InstanceType<DataTypeClass>;
 
 const DATA_TYPE_CLASSES: ReadonlySet<unknown> = new Set(ALL_DATA_TYPES);

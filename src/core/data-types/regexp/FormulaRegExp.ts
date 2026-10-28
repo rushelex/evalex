@@ -9,24 +9,11 @@ interface RegExpData {
 }
 
 /**
- * Represents a regular expression data type in the formula system.
+ * A regular expression a formula computes, such as `/\d+/g`: `value` holds its pattern and flags as text.
  *
- * FormulaRegExp stores pattern and flags as separate strings to avoid
- * stateful behavior of native RegExp objects (like lastIndex in exec()).
- * Each method call creates a fresh RegExp instance for deterministic behavior.
- *
- * @example
- * ```typescript
- * // Create from pattern and flags
- * const regex1 = new FormulaRegExp("\\d+", "g");
- *
- * // Create from native RegExp
- * const regex2 = new FormulaRegExp(/\d+/g);
- *
- * // Use in formulas
- * text.match(regex1) // Returns FormulaArray of matches
- * text.test(regex2)  // Returns FormulaBoolean
- * ```
+ * @remarks
+ * It carries no state between uses, such as the `lastIndex` of a `RegExp`, so the same formula matches the same way
+ * every time.
  */
 export class FormulaRegExp extends FormulaDataType<RegExpData, typeof Kind.RegExp> {
   static readonly kind = Kind.RegExp;
