@@ -148,7 +148,7 @@ catch (error) {
 
 Use `location` to underline the offending part of the formula in your editor UI.
 
-## Highlighting formulas
+## Formula editors
 
 `evalex/language` gives a formula editor what it needs from the formula text. `tokenize` splits the text into tokens with their kinds, read the way the formula is evaluated:
 
@@ -161,6 +161,18 @@ tokenize('round(price, 2) + x.total()').map(({ kind }) => kind);
 ```
 
 It never throws, so it can run on every keystroke: text that does not parse yet ends with one `invalid` token from the syntax error to the end. Each token has the same `location` as errors do.
+
+`diagnose` finds the syntax errors to underline, going on past each one it can step over, so separate mistakes show at once:
+
+```ts
+import { diagnose } from 'evalex/language';
+
+diagnose('round(price,, 2) + max(1 2)').map(({ code, message }) => [code, message]);
+// [['MISSING_ARGUMENT', 'Unexpected comma or missing argument in function call.'],
+//  ['UNCLOSED_PARENTHESIS', 'Expected token ")".']]
+```
+
+The first diagnostic is always the error evaluating the formula throws. Each one carries the `code`, `payload` and `location` of that `SyntaxError`, so a host translates both the same way.
 
 ## Formulas in data
 
@@ -191,14 +203,14 @@ A formula reads the fields of its own record and of the records around it, cells
 flowchart LR
   A["Formula text"] --> P["parser<br/><sub>text → AST</sub>"]
   P --> C["core<br/><sub>AST and data → typed values</sub>"]
-  P --> L["language<br/><sub>text → tokens for editors</sub>"]
+  P --> L["language<br/><sub>text → tokens and diagnostics for editors</sub>"]
 ```
 
 | Module | What it does | Docs |
 | --- | --- | --- |
 | [`src/parser`](./src/parser) | Hand-written Pratt parser that turns formula text into an AST with source locations | [README](./src/parser/README.md) |
 | [`src/core`](./src/core) | Evaluates formulas: data types, built-in routines, errors, and the formula cells of host data | [README](./src/core/README.md) |
-| [`src/language`](./src/language) | Reads formula text for editors: tokens with their kinds | [Highlighting formulas](#highlighting-formulas) |
+| [`src/language`](./src/language) | Reads formula text for editors: tokens with their kinds and the syntax errors to underline | [Formula editors](#formula-editors) |
 
 All ship in one package. `core` is re-exported from `evalex`, `language` from `evalex/language`; the parser is used internally.
 

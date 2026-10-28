@@ -175,10 +175,13 @@ class Parser {
   #depth = 0;
   // Tokens read so far, kept only when the caller asks for them
   readonly #tokens: ScannedToken[] | undefined;
+  // Errors found so far, kept only when the caller asks the parse to go on past them
+  readonly #diagnostics: SyntaxError[] | undefined;
 
-  constructor(input: string, { collectTokens = false }: { collectTokens?: boolean } = {}) {
+  constructor(input: string, { collectTokens = false, recover = false }: { collectTokens?: boolean; recover?: boolean } = {}) {
     this.#input = input;
     this.#tokens = collectTokens ? [] : undefined;
+    this.#diagnostics = recover ? [] : undefined;
   }
 
   // ── Entry point ─────────────────────────────────────────────────────────
@@ -240,6 +243,32 @@ class Parser {
 
       return [...kept, { kind: 'invalid', location: this.#loc(start) }];
     }
+  }
+
+  /**
+   * Reads the input as `run` does, going on past the errors it can step over, and returns them in the order it finds
+   * them. The first one is the error `run` throws.
+   *
+   * @remarks
+   * An error inside a literal, such as a bad escape or bad flags, or a method that is not called, leaves the rest of the
+   * formula readable as it is. Any other error inside a bracket skips to the next `,` or closing bracket at the same
+   * level, so the next argument or element is read again. An error outside any bracket ends the reading.
+   */
+  diagnostics(): SyntaxError[] {
+    const diagnostics = this.#diagnostics ?? [];
+
+    try {
+      this.run();
+    }
+    catch (error) {
+      if (!isSyntaxError(error)) {
+        throw error;
+      }
+
+      this.#record(error);
+    }
+
+    return diagnostics;
   }
 
   // ── Core Pratt loop ─────────────────────────────────────────────────────
@@ -445,11 +474,10 @@ class Parser {
     const location = this.#loc(s);
 
     if (KEYWORDS.has(word) || word === 'let' || word === 'const') {
-      this.#fail('RESERVED_VARIABLE_NAME', { name: word }, location);
+      this.#report(this.#error('RESERVED_VARIABLE_NAME', { name: word }, location));
     }
-
-    if (scope.names.has(word)) {
-      this.#fail('DUPLICATE_VARIABLE', { name: word }, location);
+    else if (scope.names.has(word)) {
+      this.#report(this.#error('DUPLICATE_VARIABLE', { name: word }, location));
     }
 
     scope.current = scope.names.size;
@@ -469,7 +497,9 @@ class Parser {
       }
 
       if (declaration !== undefined) {
-        this.#fail('VARIABLE_USED_BEFORE_DECLARATION', { name: node.name }, node.location);
+        this.#report(this.#error('VARIABLE_USED_BEFORE_DECLARATION', { name: node.name }, node.location));
+
+        return;
       }
 
       scope.references.push({ name: node.name, location: node.location });
@@ -481,7 +511,7 @@ class Parser {
     const early = scope.references.find(({ name }) => scope.names.has(name));
 
     if (early) {
-      this.#fail('VARIABLE_USED_BEFORE_DECLARATION', { name: early.name }, early.location);
+      this.#report(this.#error('VARIABLE_USED_BEFORE_DECLARATION', { name: early.name }, early.location));
     }
   }
 
@@ -493,7 +523,8 @@ class Parser {
     if (this.#isKeywordAhead('in')) {
       const s = this.#mark();
       this.#consumeKeyword('in');
-      this.#fail('BARE_IN_AFTER_LET', {}, this.#loc(s));
+      // Read on, the `in` is the operator again, applied to the whole `let`
+      this.#report(this.#error('BARE_IN_AFTER_LET', {}, this.#loc(s)));
     }
 
     this.#restore(saved);
@@ -563,36 +594,33 @@ class Parser {
     this.#skipWhitespace();
     const prop = this.#parseIdentifier();
     this.#emit('method', prop.location.start);
+    const saved = this.#save();
     this.#skipWhitespace();
     if (this.#peek() !== '(') {
-      this.#fail('UNCALLED_METHOD', { name: prop.name }, this.#loc(dotStart, prop.location.end));
+      this.#report(this.#error('UNCALLED_METHOD', { name: prop.name }, this.#loc(dotStart, prop.location.end)));
+      // Read on as a call without arguments
+      this.#restore(saved);
+      return { type: 'MemberCall', property: prop, args: [], end: prop.location.end };
     }
-    const lpStart = this.#mark();
-    this.#consumePunctuation();
-    const lpEnd = this.#mark();
-    this.#skipWhitespace();
-    const args = this.#parseArguments();
-    this.#skipWhitespace();
-    if (this.#peek() !== ')') {
-      this.#throwUnclosedParen(lpStart, lpEnd, args);
-    }
-    this.#consumePunctuation();
-    return { type: 'MemberCall', property: prop, args, end: this.#mark() };
+    return { type: 'MemberCall', property: prop, ...this.#parseCallArguments() };
   }
 
   /** Parses `(args)` and returns a suffix descriptor. */
   #parseDirectCallSuffix(): Suffix {
+    return { type: 'DirectCall', ...this.#parseCallArguments() };
+  }
+
+  /** Parses the parenthesized arguments of a call. */
+  #parseCallArguments(): { args: AstNode[]; end: Pos } {
     const lpStart = this.#mark();
     this.#consumePunctuation();
     const lpEnd = this.#mark();
     this.#skipWhitespace();
-    const args = this.#parseArguments();
-    this.#skipWhitespace();
-    if (this.#peek() !== ')') {
-      this.#throwUnclosedParen(lpStart, lpEnd, args);
+    const args = this.#parseArguments(')', (list) => this.#unclosedParenError(lpStart, lpEnd, list));
+    if (this.#peek() === ')') {
+      this.#consumePunctuation();
     }
-    this.#consumePunctuation();
-    return { type: 'DirectCall', args, end: this.#mark() };
+    return { args, end: this.#mark() };
   }
 
   /** Reduces a list of collected suffixes into a chain of AST nodes, each spanning from the head to its own end. */
@@ -749,14 +777,15 @@ class Parser {
         const hex = this.#readHexDigits(2);
 
         if (hex === undefined) {
-          this.#fail('INVALID_HEX_ESCAPE', {}, this.#loc(start));
+          this.#report(this.#error('INVALID_HEX_ESCAPE', {}, this.#loc(start)));
+          return '';
         }
 
         return String.fromCharCode(Number.parseInt(hex, 16));
       }
       case '0':
         if (this.#isDigit(this.#peek())) {
-          this.#fail('ZERO_ESCAPE_BEFORE_DIGIT', {}, this.#loc(start));
+          this.#report(this.#error('ZERO_ESCAPE_BEFORE_DIGIT', {}, this.#loc(start)));
         }
         return '\0';
       // JavaScript rejects octal escapes and `\8`, `\9`; reading them as digits would silently turn a backreference like `\1` into a literal digit
@@ -769,7 +798,8 @@ class Parser {
       case '7':
       case '8':
       case '9':
-        return this.#fail('DIGIT_ESCAPE', { digit: c }, this.#loc(start));
+        this.#report(this.#error('DIGIT_ESCAPE', { digit: c }, this.#loc(start)));
+        return c;
       // A backslash before a line break continues the text on the next line
       case '\r':
         if (this.#peek() === '\n') {
@@ -791,7 +821,8 @@ class Parser {
       const hex = this.#readHexDigits(4);
 
       if (hex === undefined) {
-        this.#fail('INVALID_UNICODE_ESCAPE', {}, this.#loc(start));
+        this.#report(this.#error('INVALID_UNICODE_ESCAPE', {}, this.#loc(start)));
+        return '';
       }
 
       return String.fromCharCode(Number.parseInt(hex, 16));
@@ -814,7 +845,8 @@ class Parser {
     const codePoint = Number.parseInt(hex, 16);
 
     if (!closed || hex === '' || codePoint > 0x10FFFF) {
-      this.#fail('INVALID_UNICODE_ESCAPE', {}, this.#loc(start));
+      this.#report(this.#error('INVALID_UNICODE_ESCAPE', {}, this.#loc(start)));
+      return '';
     }
 
     return String.fromCodePoint(codePoint);
@@ -861,17 +893,21 @@ class Parser {
     const pattern = this.#input.slice(patternStart, this.#pos);
     this.#advance();
     if (pattern === '') {
-      this.#fail('EMPTY_REGEXP', {}, this.#loc(s));
+      this.#report(this.#error('EMPTY_REGEXP', {}, this.#loc(s)));
+      this.#readWord();
+      return this.#placeholder(s);
     }
     const flagsStart = this.#mark();
     const flags = this.#readWord();
     // Flags are checked against an empty pattern first so the error points at the flags, not the pattern
     if (this.#createRegExp('', flags) instanceof Error) {
-      this.#fail('INVALID_REGEXP_FLAGS', { flags }, this.#loc(flagsStart));
+      this.#report(this.#error('INVALID_REGEXP_FLAGS', { flags }, this.#loc(flagsStart)));
+      return this.#placeholder(s);
     }
     const regexp = this.#createRegExp(pattern, flags);
     if (regexp instanceof Error) {
-      this.#fail('INVALID_REGEXP', { reason: regexp.message }, this.#loc(s));
+      this.#report(this.#error('INVALID_REGEXP', { reason: regexp.message }, this.#loc(s)));
+      return this.#placeholder(s);
     }
     this.#emit('regexp', s);
     return new LiteralNode(regexp, `/${pattern}/${flags}`, this.#loc(s));
@@ -919,7 +955,7 @@ class Parser {
     }
     const word = this.#readWord();
     if (KEYWORDS.has(word)) {
-      this.#fail('KEYWORD_AS_METHOD_NAME', { keyword: word }, this.#loc(s));
+      this.#report(this.#error('KEYWORD_AS_METHOD_NAME', { keyword: word }, this.#loc(s)));
     }
     return new IdentifierNode(word, this.#loc(s));
   }
@@ -931,15 +967,19 @@ class Parser {
     this.#skipWhitespace();
     if (this.#peek() === ')') {
       this.#advance();
-      this.#fail('EMPTY_PARENTHESES', {}, this.#loc(lp));
+      this.#report(this.#error('EMPTY_PARENTHESES', {}, this.#loc(lp)));
+      return this.#placeholder(lp);
     }
-    const expr = this.#withNoIn(false, () => this.#parseExpr(0));
+    const expr = this.#recoverable(() => this.#withNoIn(false, () => this.#parseExpr(0)));
     this.#skipWhitespace();
     if (this.#peek() !== ')') {
       const m = this.#mark();
-      this.#fail('MISSING_TOKEN', { expected: [')'] }, this.#loc(m));
+      this.#report(this.#error('MISSING_TOKEN', { expected: [')'] }, this.#loc(m)));
+      this.#skipToSync();
     }
-    this.#consumePunctuation();
+    if (this.#peek() === ')') {
+      this.#consumePunctuation();
+    }
     return expr;
   }
 
@@ -948,42 +988,54 @@ class Parser {
     const s = this.#mark();
     this.#consumePunctuation();
     this.#skipWhitespace();
-    const elements = this.#parseArguments();
-    this.#skipWhitespace();
-    if (this.#peek() !== ']') {
-      const m = this.#mark();
-      this.#fail('MISSING_TOKEN', { expected: [']'] }, this.#loc(m));
+    const elements = this.#parseArguments(']', () => this.#error('MISSING_TOKEN', { expected: [']'] }, this.#loc(this.#mark())));
+    if (this.#peek() === ']') {
+      this.#consumePunctuation();
     }
-    this.#consumePunctuation();
     return new ArrayExpressionNode(elements, this.#loc(s));
   }
 
-  /** Parses a comma-separated list of expressions (used for function args and array elements). */
-  #parseArguments(): AstNode[] {
+  /**
+   * Parses a comma-separated list of expressions (used for function args and array elements) up to its `closer`,
+   * which it leaves for the caller to consume.
+   *
+   * @param closer - The bracket that ends the list.
+   * @param closeError - The error for a list that something other than `,` or `closer` follows.
+   */
+  #parseArguments(closer: ')' | ']', closeError: (args: readonly AstNode[]) => SyntaxError): AstNode[] {
+    const args: AstNode[] = [];
     if (this.#peek() === ',') {
       const s = this.#mark();
       this.#advance();
-      this.#fail('LEADING_COMMA', {}, this.#loc(s));
+      this.#report(this.#error('LEADING_COMMA', {}, this.#loc(s)));
+      this.#skipWhitespace();
     }
-    if (this.#peek() === ')' || this.#peek() === ']' || this.#isEnd()) {
-      return [];
-    }
-    const args: AstNode[] = [this.#withNoIn(false, () => this.#parseExpr(0))];
+    let expectArgument = this.#peek() !== ')' && this.#peek() !== ']' && !this.#isEnd();
     while (true) {
+      if (expectArgument) {
+        args.push(this.#recoverable(() => this.#withNoIn(false, () => this.#parseExpr(0))));
+      }
       this.#skipWhitespace();
       if (this.#peek() !== ',') {
-        break;
+        if (this.#peek() === closer) {
+          return args;
+        }
+        this.#report(closeError(args));
+        // Read on from the next argument, if the list has one
+        this.#skipToSync();
+        if (this.#peek() !== ',') {
+          return args;
+        }
       }
       const commaStart = this.#mark();
       this.#consumePunctuation();
       const commaEnd = this.#mark();
       this.#skipWhitespace();
-      if (this.#peek() === ')' || this.#peek() === ']' || this.#peek() === ',' || this.#isEnd()) {
-        this.#fail('MISSING_ARGUMENT', {}, { start: commaStart, end: commaEnd });
+      expectArgument = !(this.#peek() === ')' || this.#peek() === ']' || this.#peek() === ',' || this.#isEnd());
+      if (!expectArgument) {
+        this.#report(this.#error('MISSING_ARGUMENT', {}, { start: commaStart, end: commaEnd }));
       }
-      args.push(this.#withNoIn(false, () => this.#parseExpr(0)));
     }
-    return args;
   }
 
   // ── Operator table ──────────────────────────────────────────────────────
@@ -1282,7 +1334,105 @@ class Parser {
 
   /** Throws a SyntaxError at the given location. Always returns `never`. */
   #fail<C extends SyntaxErrorCode>(code: C, payload: SyntaxErrorPayloads[C], location: Location): never {
-    throw new SyntaxError(code, payload, location);
+    throw this.#error(code, payload, location);
+  }
+
+  #error<C extends SyntaxErrorCode>(code: C, payload: SyntaxErrorPayloads[C], location: Location): SyntaxError {
+    return new SyntaxError(code, payload, location);
+  }
+
+  /** Records an error the parse can read on after, or throws it when the caller asked for no recovery. */
+  #report(error: SyntaxError): void {
+    if (!this.#diagnostics) {
+      throw error;
+    }
+
+    this.#record(error);
+  }
+
+  #record(error: SyntaxError): void {
+    // Brackets of one kind that all lack their closer at the end of input report the same error at the same place
+    const known = this.#diagnostics?.some(({ code, message }) => code === error.code && message === error.message);
+
+    if (!known) {
+      this.#diagnostics?.push(error);
+    }
+  }
+
+  /**
+   * Parses an argument, an element or a parenthesized expression; when recovering, an error inside it is recorded and
+   * the input is skipped to the next `,` or closing bracket, leaving a placeholder in the tree.
+   */
+  #recoverable(parse: () => AstNode): AstNode {
+    if (!this.#diagnostics) {
+      return parse();
+    }
+
+    const start = this.#mark();
+    const depth = this.#depth;
+
+    try {
+      return parse();
+    }
+    catch (error) {
+      if (!isSyntaxError(error)) {
+        throw error;
+      }
+
+      this.#record(error);
+      // The levels the parse entered before the error are left on a throw
+      this.#depth = depth;
+      this.#skipToSync();
+
+      return this.#placeholder(start);
+    }
+  }
+
+  /** Skips to the next `,` or closing bracket at the current level of brackets, stepping over quoted text. */
+  #skipToSync(): void {
+    let depth = 0;
+
+    while (!this.#isEnd()) {
+      const c = this.#peek();
+
+      if (depth === 0 && (c === ',' || c === ')' || c === ']')) {
+        return;
+      }
+
+      if (c === '"' || c === '\'') {
+        this.#skipQuoted(c);
+        continue;
+      }
+
+      if (c === '(' || c === '[') {
+        depth++;
+      }
+      else if (c === ')' || c === ']') {
+        depth--;
+      }
+
+      this.#advance();
+    }
+  }
+
+  /** Skips text quoted with `quote`, up to its closing quote or the end of input. */
+  #skipQuoted(quote: string): void {
+    this.#advance();
+
+    while (!this.#isEnd() && this.#peek() !== quote) {
+      if (this.#advance() === '\\' && !this.#isEnd()) {
+        this.#advance();
+      }
+    }
+
+    if (!this.#isEnd()) {
+      this.#advance();
+    }
+  }
+
+  /** Stands in the tree for text that could not be read, from `start` to the current position. */
+  #placeholder(start: Pos): LiteralNode {
+    return new LiteralNode(null, this.#input.slice(start.offset, this.#pos), this.#loc(start));
   }
 
   /** Enters one more level of nesting; the parser leaves it when the enclosing `#parseExpr` returns. */
@@ -1310,12 +1460,17 @@ class Parser {
     return { start, end: end ?? this.#mark() };
   }
 
-  /** Throws an "unclosed parenthesis" error with a location spanning from `(` to the last argument. */
-  #throwUnclosedParen(lpStart: Pos, lpEnd: Pos, args: AstNode[]): never {
+  /** Builds the "unclosed parenthesis" error with a location spanning from `(` to the last argument. */
+  #unclosedParenError(lpStart: Pos, lpEnd: Pos, args: readonly AstNode[]): SyntaxError {
     const lastArg = args.at(-1);
     const end = lastArg ? lastArg.location.end : lpEnd;
-    this.#fail('UNCLOSED_PARENTHESIS', {}, { start: lpStart, end });
+    return this.#error('UNCLOSED_PARENTHESIS', {}, { start: lpStart, end });
   }
+}
+
+// `instanceof` reads the code of a generic error class as `any`
+function isSyntaxError(value: unknown): value is SyntaxError {
+  return value instanceof SyntaxError;
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -1339,4 +1494,14 @@ export function parse(input: string): AstNode {
  */
 export function tokenize(input: string): FormulaToken[] {
   return new Parser(input, { collectTokens: true }).tokens();
+}
+
+/**
+ * Finds the syntax errors of a formula string, reading on past each one it can step over.
+ *
+ * @param input The formula string to check.
+ * @returns The errors in the order they are found, the first being the one `parse` throws; empty when it parses.
+ */
+export function diagnose(input: string): SyntaxError[] {
+  return new Parser(input, { recover: true }).diagnostics();
 }

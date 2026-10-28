@@ -8,6 +8,14 @@ describe('language API', () => {
     expectTypeOf<API.FormulaToken['location']>().toEqualTypeOf<Root.FormulaLocation>();
   });
 
+  it('should type diagnostics with the code, payload and location of a syntax error', () => {
+    expectTypeOf<typeof API.diagnose>().toEqualTypeOf<(text: string) => API.FormulaDiagnostic[]>();
+    expectTypeOf<API.FormulaDiagnostic['code']>().toEqualTypeOf<Root.SyntaxErrorCode>();
+    expectTypeOf<API.FormulaDiagnostic<'UNEXPECTED_CHARACTER'>['payload']>().toEqualTypeOf<Root.SyntaxErrorPayloads['UNEXPECTED_CHARACTER']>();
+    expectTypeOf<API.FormulaDiagnostic['location']>().toEqualTypeOf<Root.FormulaLocation>();
+    expectTypeOf<API.FormulaDiagnostic['message']>().toEqualTypeOf<string>();
+  });
+
   it('should type token kinds as plain text', () => {
     expectTypeOf<'function'>().toExtend<API.FormulaTokenKind>();
     expectTypeOf<'invalid'>().toExtend<API.FormulaTokenKind>();

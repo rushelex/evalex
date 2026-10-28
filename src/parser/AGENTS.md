@@ -8,3 +8,4 @@
 - Every node and every error carries an exact source location. An error points at the smallest span that explains it, so editors can underline it.
 - Tests assert the whole AST, locations included, and every error message with its location.
 - Every syntax error has a code whose one message is filled in from the payload, so hosts can translate it. A new kind of error gets a new code, not a new message under an existing one.
+- Recovery never changes what `parse` does: up to the first error a recovering parse reads the same way, so the first diagnostic is the error `parse` throws. An error the parse can read on after goes through `#report`, which throws when not recovering.

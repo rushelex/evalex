@@ -137,6 +137,16 @@ Invalid input throws the parser's `SyntaxError`, a subclass of the built-in one.
 
 To add a syntax error, add its code, its payload and its message, and a formula that raises it to [`grammar/syntax-error.test.ts`](./grammar/syntax-error.test.ts).
 
+### Reading past errors
+
+`diagnose(text)` from [`grammar/parser.ts`](./grammar/parser.ts) parses with recovery and returns every error it finds, in reading order. Up to the first error it reads exactly as `parse`, so its first error is the one `parse` throws.
+
+- **Reported and read on**: errors that leave the rest readable as it is — a bad escape, bad regular expression flags or pattern, an empty regular expression, a method that is not called (read as a call without arguments), a keyword as a method name, empty `()`, a leading or doubled comma, and the name errors of `let`.
+- **Skipped to the next `,` or closing bracket**: any other error inside an argument, a list element or parentheses. The skip counts brackets and steps over quoted text, the part leaves a placeholder in the tree, and the next argument or element is read again. A list or group that something else follows reports its closing error, then skips the same way.
+- **Ends the reading**: an error outside any bracket, since what follows it cannot be told apart from what caused it.
+
+An error already reported with the same message is not reported again, so `((` reports the missing `)` once. Errors are reported where `#fail` would throw them: a site that can read on calls `#report`, which throws when the parse does not recover. The recovered tree is never evaluated.
+
 A formula nests at most 256 levels, so parsing and evaluating it never overflows the stack. Each parenthesis, list, call, prefix operator and ternary branch around a part counts a level, and so does each operator of a chain like `a + b + c` or each call of `a.b().c()`.
 
 ## Tokens
