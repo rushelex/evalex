@@ -1,4 +1,5 @@
 import { FormulaNumber } from '../../data-types';
+import { type } from '../../types';
 import { routinesRegistry } from '../registry';
 
 routinesRegistry.registerFunction('pi', {
@@ -10,5 +11,6 @@ routinesRegistry.registerFunction('pi', {
     },
   ],
   arguments: [],
+  returns: type.number,
   handler: () => new FormulaNumber(Math.PI),
 });

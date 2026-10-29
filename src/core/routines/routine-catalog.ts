@@ -1,5 +1,6 @@
 import type { Kind } from '../data-types';
 import type { FormulaRoutine, FormulaRoutineParameter } from '../formula-routine';
+import type { FormulaType } from '../types';
 import type { ArgumentsPattern } from './arguments';
 import type { RoutinesRegistry } from './registry';
 
@@ -10,7 +11,7 @@ interface MethodEntry {
   readonly name: string;
   readonly description: string;
   readonly kinds: Kind[];
-  readonly signatures: Map<string, { readonly kinds: Kind[]; readonly parameters: readonly FormulaRoutineParameter[] }>;
+  readonly signatures: Map<string, { readonly kinds: Kind[]; readonly parameters: readonly FormulaRoutineParameter[]; readonly returns: FormulaType }>;
 }
 
 /**
@@ -18,8 +19,8 @@ interface MethodEntry {
  *
  * @remarks
  * The registry keeps a method per data type. Methods of one name and description are one routine; a name with two
- * descriptions, such as `add` of numbers and of dates, is two. Equal argument lists of a routine are joined with the
- * kinds that accept them, in the order of the data types. Entries are sorted by name, a function before the methods.
+ * descriptions, such as `add` of numbers and of dates, is two. Equal argument lists with equal results are joined with
+ * the kinds that accept them, in the order of the data types. Entries are sorted by name, a function before the methods.
  */
 export function routineCatalog(registry: RoutinesRegistry): FormulaRoutine[] {
   const functions = [...registry.getFunctions()].map(([name, routine]): FormulaRoutine => ({
@@ -27,7 +28,7 @@ export function routineCatalog(registry: RoutinesRegistry): FormulaRoutine[] {
     form: 'function',
     description: routine.description,
     kinds: [],
-    signatures: routine.signatures.map((pattern) => ({ kinds: [], parameters: pattern.map(toParameter) })),
+    signatures: routine.signatures.map((pattern, index) => ({ kinds: [], parameters: pattern.map(toParameter), returns: routine.results[index] })),
   }));
   const methods = new Map<string, MethodEntry>();
 
@@ -39,9 +40,11 @@ export function routineCatalog(registry: RoutinesRegistry): FormulaRoutine[] {
       methods.set(key, entry);
       entry.kinds.push(ctor.kind);
 
-      for (const parameters of routine.signatures.map((pattern) => pattern.map(toParameter))) {
-        const signatureKey = JSON.stringify(parameters);
-        const signature = entry.signatures.get(signatureKey) ?? { kinds: [], parameters };
+      for (const [index, pattern] of routine.signatures.entries()) {
+        const parameters = pattern.map(toParameter);
+        const returns = routine.results[index];
+        const signatureKey = JSON.stringify([parameters, returns]);
+        const signature = entry.signatures.get(signatureKey) ?? { kinds: [], parameters, returns };
 
         entry.signatures.set(signatureKey, signature);
         signature.kinds.push(ctor.kind);

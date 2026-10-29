@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaDateTime } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -28,6 +29,7 @@ routinesRegistry.registerRoutine('fromTimestamp', {
           }),
     }),
   ],
+  returns: type.dateTime,
   handler: ({ subject }) => FormulaDateTime.from(
     Temporal.Instant.fromEpochMilliseconds(Math.floor(subject.value))
       .toZonedDateTimeISO('UTC')

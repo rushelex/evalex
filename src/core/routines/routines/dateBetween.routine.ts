@@ -2,6 +2,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaDate, FormulaDateTime, FormulaDuration } from '../../data-types';
 import { Errors } from '../../errors';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -52,6 +53,7 @@ routinesRegistry.registerRoutine({ function: 'dateBetween', method: ['between', 
     [arg.date('date1'), arg.date('date2'), arg.choice('unit', DATE_UNITS)],
     [arg.dateTime('date1'), arg.dateTime('date2'), arg.choice('unit', DATE_TIME_UNITS)],
   ],
+  returns: [type.duration, type.duration],
   handler: ({ subject, args: [other, unit], visitor }) => {
     // The signatures pair two dates with a date unit, or two dates and times with any unit.
     if (subject instanceof FormulaDate && other instanceof FormulaDate && isDateUnit(unit.value)) {

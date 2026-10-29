@@ -5,6 +5,7 @@ import { Errors } from '~/core/errors';
 
 import { evaluate, loc } from '../../../testing-library';
 import { routinesRegistry } from '../../routines/registry';
+import { type } from '../../types';
 import { FormulaArray } from '../array';
 import { FormulaBoolean } from '../boolean';
 import { FormulaDateTime } from '../date-time';
@@ -571,6 +572,7 @@ describe('FormulaObject', () => {
           },
         ],
         arguments: [],
+        returns: type.boolean,
         handler: ({ instance }) => {
           return new FormulaBoolean(instance.value.age.value >= 18);
         },

@@ -2,6 +2,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaBoolean, FormulaString } from '../../data-types';
 import { Errors } from '../../errors';
+import { type } from '../../types';
 import { routinesRegistry } from '../registry';
 
 const routineExamples: readonly RoutineExampleOptions[] = [
@@ -18,6 +19,7 @@ const routineExamples: readonly RoutineExampleOptions[] = [
 routinesRegistry.registerFunction('if', {
   description: 'Returns the first value if the condition is true, or the second.',
   examples: routineExamples,
+  returns: type.any,
   handler: ({ node, visitor }) => {
     // Use simple inline validation to avoid evaluate all static args
     if (node.args.length !== 3) {

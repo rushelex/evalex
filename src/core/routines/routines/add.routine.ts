@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { decimalArithmetic, FormulaNumber, FormulaString } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -26,6 +27,7 @@ routinesRegistry.registerRoutine('add', {
     [arg.number('a'), arg.number('b')],
     [arg.string('a'), arg.string('b')],
   ],
+  returns: [type.number, type.string],
   handler: ({ subject, args: [b] }) => (
     subject instanceof FormulaNumber && b instanceof FormulaNumber
       ? decimalArithmetic.add(subject, b)

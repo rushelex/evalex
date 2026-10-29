@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaBoolean } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -25,5 +26,6 @@ routinesRegistry.registerRoutine('empty', {
   arguments: [
     arg.any('value'),
   ],
+  returns: type.boolean,
   handler: ({ subject }) => new FormulaBoolean(subject.isEmpty()),
 });

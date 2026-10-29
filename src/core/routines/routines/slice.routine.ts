@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaArray } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { expectInteger } from './expect-integer';
@@ -28,5 +29,6 @@ routinesRegistry.registerRoutine('slice', {
     arg.number('start', { validation: expectInteger }),
     arg.number('end', { optional: true, validation: expectInteger }),
   ],
+  returns: type.array(type.any),
   handler: ({ subject, args: [start, end] }) => new FormulaArray(subject.value.slice(start.value, end?.value)),
 });

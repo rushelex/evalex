@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaNull, FormulaNumber } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { expectInteger } from './expect-integer';
@@ -24,5 +25,6 @@ routinesRegistry.registerRoutine('at', {
   description: 'Returns the item at the index, counted from the end if negative.',
   examples: routineExamples,
   arguments: [arg.array('list'), arg.number('index', { validation: expectInteger })],
+  returns: type.any,
   handler: ({ subject, args: [index] }) => subject.value.at(index.value) ?? FormulaNull.instance(),
 });

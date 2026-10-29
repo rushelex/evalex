@@ -2,6 +2,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaDate, FormulaDateTime } from '../../data-types';
 import { Errors } from '../../errors';
+import { type } from '../../types';
 import { routinesRegistry } from '../registry';
 import { DATE_SHIFT_SIGNATURES, shiftDate } from './date-shift';
 
@@ -40,6 +41,7 @@ routinesRegistry.registerRoutine({ function: 'dateAdd', method: ['add', 'dateAdd
   description: 'Adds a duration or a number of units to the date.',
   examples: routineExamples,
   arguments: DATE_SHIFT_SIGNATURES,
+  returns: [type.date, type.date, type.dateTime, type.dateTime],
   handler: ({ subject, args: [amount, unit], locations, visitor }) => shiftDate({
     date: subject,
     amount,

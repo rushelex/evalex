@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaString } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { expectInteger } from './expect-integer';
@@ -25,6 +26,7 @@ routinesRegistry.registerRoutine('padStart', {
     arg.number('length', { validation: expectInteger }),
     arg.string('padding', { optional: true }),
   ],
+  returns: type.string,
   handler: ({ subject, args: [length, padding], locations }) => {
     const fill = fillToLength({ text: subject.value, length: length.value, padding: padding?.value ?? ' ', lengthLocation: locations[0] });
 

@@ -22,6 +22,7 @@ export type {
   FormulaRoutineSignature,
   FormulaScopeOptions,
   FormulaString,
+  FormulaType,
   FormulaValue,
   FormulaView,
   HostValue,

@@ -2,6 +2,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaString } from '../../data-types';
 import { Errors } from '../../errors';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -27,6 +28,7 @@ routinesRegistry.registerRoutine('repeat', {
         : { message: 'Expected integer of 0 or more.', expected: ['integer of 0 or more'], actual: times.value }),
     }),
   ],
+  returns: type.string,
   handler: ({ subject, args: [times], locations }) => {
     try {
       return new FormulaString(subject.value.repeat(times.value));

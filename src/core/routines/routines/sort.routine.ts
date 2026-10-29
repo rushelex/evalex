@@ -3,6 +3,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaArray, FormulaDate, FormulaDateTime, FormulaNumber, FormulaString } from '../../data-types';
 import { Errors } from '../../errors';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -29,6 +30,7 @@ routinesRegistry.registerRoutine('sort', {
   description: 'Returns the list in ascending order, optionally by a key.',
   examples: routineExamples,
   arguments: [arg.array('list'), arg.eachItem('key', { optional: true })],
+  returns: type.array(type.any),
   handler: ({ subject, args: [key], locations, location, visitor }) => {
     const keys = key === undefined
       ? subject.value

@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaDate, FormulaDateRange, FormulaDateTime } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -23,5 +24,6 @@ routinesRegistry.registerRoutine({ function: 'dateEnd', method: ['end', 'dateEnd
   description: 'Returns the end of the date range; a date is its own end.',
   examples: routineExamples,
   arguments: [[arg.dateRange('range')], [arg.date('date')], [arg.dateTime('date')]],
+  returns: [type.union(type.date, type.dateTime), type.date, type.dateTime],
   handler: ({ subject }) => (subject instanceof FormulaDateRange ? subject.end : subject),
 });

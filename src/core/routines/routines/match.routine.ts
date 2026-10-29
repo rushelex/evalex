@@ -1,5 +1,6 @@
 import { FormulaArray, FormulaRegExp, FormulaString } from '../../data-types';
 import { getRegExpFallbackError } from '../../errors';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -23,6 +24,7 @@ routinesRegistry.registerRoutine('match', {
     arg.string('text'),
     arg.pattern('pattern'),
   ],
+  returns: type.array(type.string),
   handler: ({ subject, args: [pattern], location, visitor }) => {
     try {
       const regexp = pattern instanceof FormulaRegExp ? pattern : new FormulaRegExp(pattern.value);

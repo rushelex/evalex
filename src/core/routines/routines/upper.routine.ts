@@ -1,4 +1,5 @@
 import { FormulaString } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -11,5 +12,6 @@ routinesRegistry.registerRoutine('upper', {
     },
   ],
   arguments: [arg.string('text')],
+  returns: type.string,
   handler: ({ subject }) => new FormulaString(subject.value.toUpperCase()),
 });

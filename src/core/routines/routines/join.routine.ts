@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaString } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -26,6 +27,7 @@ routinesRegistry.registerRoutine('join', {
     arg.array('list'),
     arg.string('separator', { optional: true }),
   ],
+  returns: type.string,
   handler: ({ subject, args: [separator], visitor }) => new FormulaString(
     subject.value
       .map((item) => item.toString({ format: visitor.format }))

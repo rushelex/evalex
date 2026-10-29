@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaNull, FormulaNumber, FormulaString, Kind } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -22,6 +23,7 @@ routinesRegistry.registerRoutine('find', {
     arg.array('list'),
     arg.eachItem('predicate', { returns: Kind.Boolean }),
   ],
+  returns: type.any,
   handler: ({ subject, args: [predicate] }) => subject.value
     .find((current, index) => predicate.execute({ current, index: new FormulaNumber(index) }).value) ?? FormulaNull.instance(),
 });

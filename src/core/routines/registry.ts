@@ -3,6 +3,7 @@ import type { Class } from 'type-fest';
 import type { AST } from '../../parser';
 import type { DataTypeClass, FormulaDataType } from '../data-types';
 import type { FormulaEvaluatorVisitor } from '../evaluator.visitor';
+import type { FormulaType, ValueType } from '../types';
 import type { ArgumentsPattern, ProcessedArguments, Signatures, SubjectSignature, SubjectSignatures } from './arguments';
 import type { FunctionRoutineHandler, MethodRoutineHandler, SubjectRoutineHandler } from './routine';
 import type { RoutineExampleOptions } from './routine-example';
@@ -13,12 +14,33 @@ import { Argument, ArgumentsDefinitions, ProcessedArgument } from './arguments';
 import { Routine } from './routine';
 import { RoutineExamples } from './routine-examples';
 
-interface SingleFormDefinition<TSignatures extends Signatures | undefined> {
+/** What `returns` holds: one type, or one type per signature of a list of signatures. */
+type Returns = FormulaType | readonly FormulaType[];
+
+// One type for one signature, one per signature for a list of them. `[]` is one signature without arguments, as in `pi()`
+type ReturnsShape<TSignatures> = TSignatures extends readonly [readonly unknown[], ...(readonly unknown[])[]]
+  ? readonly FormulaType[] & { readonly length: TSignatures['length'] }
+  : FormulaType;
+
+// The values a handler may return under `returns`; a type not built with `type` allows none
+type DeclaredValues<TReturns extends Returns> = TReturns extends readonly (infer TType)[] ? ValueOf<TType> : ValueOf<TReturns>;
+
+type ValueOf<TType> = TType extends ValueType<infer TValue> ? TValue : never;
+
+interface SingleFormDefinition<TSignatures extends Signatures | undefined, TReturns extends Returns> {
   /** One sentence shown in UI tooltips. */
   readonly description: string;
   readonly examples: readonly RoutineExampleOptions[];
   /** One signature, or a list of alternative signatures, built with `arg`; omitted when the handler reads the call syntax itself. */
   readonly arguments?: TSignatures;
+  /**
+   * The type of the result, built with `type`; one per signature for a list of signatures.
+   *
+   * @remarks
+   * The handler fails to compile when it may return a value these types do not describe. A type wider than what the
+   * handler returns compiles, as the compiler cannot infer a handler and check it against another property at once.
+   */
+  readonly returns: TReturns & ReturnsShape<TSignatures>;
   /**
    * The result can differ between calls with the same arguments, as with `now()`.
    *
@@ -29,12 +51,13 @@ interface SingleFormDefinition<TSignatures extends Signatures | undefined> {
   readonly volatile?: boolean;
 }
 
-export interface FunctionDefinition<TSignatures extends Signatures | undefined> extends SingleFormDefinition<TSignatures> {
-  readonly handler: FunctionRoutineHandler<TSignatures>;
+export interface FunctionDefinition<TSignatures extends Signatures | undefined, TReturns extends Returns = Returns> extends SingleFormDefinition<TSignatures, TReturns> {
+  readonly handler: FunctionRoutineHandler<TSignatures, DeclaredValues<TReturns>>;
 }
 
-export interface MethodDefinition<TInstance extends FormulaDataType, TSignatures extends Signatures | undefined> extends SingleFormDefinition<TSignatures> {
-  readonly handler: MethodRoutineHandler<TInstance, TSignatures>;
+export interface MethodDefinition<TInstance extends FormulaDataType, TSignatures extends Signatures | undefined, TReturns extends Returns = Returns>
+  extends SingleFormDefinition<TSignatures, TReturns> {
+  readonly handler: MethodRoutineHandler<TInstance, TSignatures, DeclaredValues<TReturns>>;
 }
 
 /**
@@ -45,7 +68,7 @@ export interface MethodDefinition<TInstance extends FormulaDataType, TSignatures
  */
 export type RoutineName = string | { readonly function: string; readonly method: string | readonly [string, ...string[]] };
 
-export interface RoutineDefinition<TSignatures extends SubjectSignatures> {
+export interface RoutineDefinition<TSignatures extends SubjectSignatures, TReturns extends Returns = Returns> {
   /** One sentence shown in UI tooltips for both forms. */
   readonly description: string;
   /** Examples written once with `name(subject, ...args)` and run in both forms. */
@@ -57,6 +80,8 @@ export interface RoutineDefinition<TSignatures extends SubjectSignatures> {
    * The first argument of each is the call subject; its types decide which data types get the method form.
    */
   readonly arguments: TSignatures;
+  /** The type of the result, built with `type`; one per signature for a list of signatures, checked as for a function. */
+  readonly returns: TReturns & ReturnsShape<TSignatures>;
   /**
    * The result can differ between calls with the same arguments, as with `now()`.
    *
@@ -66,7 +91,7 @@ export interface RoutineDefinition<TSignatures extends SubjectSignatures> {
    */
   readonly volatile?: boolean;
   /** Implementation shared by both forms; receives the call subject apart from the remaining arguments. */
-  readonly handler: SubjectRoutineHandler<TSignatures>;
+  readonly handler: SubjectRoutineHandler<TSignatures, DeclaredValues<TReturns>>;
 }
 
 /**
@@ -87,13 +112,17 @@ export class RoutinesRegistry {
    * so that `f(x)` and `x.f()` share one description and cannot drift apart.
    * A second registration under the same name replaces the first.
    */
-  registerFunction<const TSignatures extends Signatures | undefined = undefined>(name: string, definition: FunctionDefinition<TSignatures>): void {
+  registerFunction<const TSignatures extends Signatures | undefined = undefined, const TReturns extends Returns = Returns>(
+    name: string,
+    definition: FunctionDefinition<TSignatures, TReturns>,
+  ): void {
     const handler = definition.handler as FunctionRoutineHandler<Signatures | undefined>;
 
     this.#functionRegistry.set(name, new Routine({
       description: definition.description,
       examples: new RoutineExamples(name, definition.examples).toFunctionExamples(),
       arguments: definition.arguments,
+      results: toResults(definition.returns),
       volatile: definition.volatile,
       handler: ({ node, args, visitor, location }) => handler({ node, args: args && toValues(args), visitor, location } as Parameters<typeof handler>[0]),
     }));
@@ -108,12 +137,17 @@ export class RoutinesRegistry {
    * A routine with both forms is registered with {@link RoutinesRegistry.registerRoutine} instead.
    * A second registration under the same name on the same type replaces the first.
    */
-  registerMethod<TInstance extends FormulaDataType, const TSignatures extends Signatures | undefined = undefined>(
+  registerMethod<
+    TInstance extends FormulaDataType,
+    const TSignatures extends Signatures | undefined = undefined,
+    const TReturns extends Returns = Returns,
+  >(
     dataTypeCtor: Class<TInstance>,
     name: string,
-    definition: MethodDefinition<TInstance, TSignatures>,
+    definition: MethodDefinition<TInstance, TSignatures, TReturns>,
   ): void {
-    const handler = definition.handler as MethodRoutineHandler<FormulaDataType, Signatures | undefined>;
+    const typedHandler: MethodRoutineHandler<TInstance, TSignatures> = definition.handler;
+    const handler = typedHandler as MethodRoutineHandler<FormulaDataType, Signatures | undefined>;
 
     if (!this.#methodRegistry.has(dataTypeCtor)) {
       this.#methodRegistry.set(dataTypeCtor, new Map());
@@ -123,6 +157,7 @@ export class RoutinesRegistry {
       description: definition.description,
       examples: new RoutineExamples(name, definition.examples).toMethodExamples(),
       arguments: definition.arguments,
+      results: toResults(definition.returns),
       volatile: definition.volatile,
       handler: ({ instance, args, visitor, location }) => handler({ instance, args: toValues(args), visitor, location } as Parameters<typeof handler>[0]),
     }) as Routine);
@@ -140,16 +175,26 @@ export class RoutinesRegistry {
    *
    * @throws Error when the function or the method name is already registered.
    */
-  registerRoutine<const TSignatures extends SubjectSignatures>(name: RoutineName, definition: RoutineDefinition<TSignatures>): void {
+  registerRoutine<const TSignatures extends SubjectSignatures, const TReturns extends Returns = Returns>(
+    name: RoutineName,
+    definition: RoutineDefinition<TSignatures, TReturns>,
+  ): void {
     const functionName = typeof name === 'string' ? name : name.function;
     const methodNames: readonly string[] = typeof name === 'string' ? [name] : [name.method].flat();
     const signatures = new ArgumentsDefinitions(definition.arguments).alternatives as readonly SubjectSignature[];
-    const handler = definition.handler as ErasedSubjectHandler;
+    const results = toResults(definition.returns);
+    const typedHandler: SubjectRoutineHandler<TSignatures> = definition.handler;
+    const handler = typedHandler as ErasedSubjectHandler;
 
     const methods = subjectDataTypes(signatures).map((ctor) => {
-      const accepted = signatures.filter(([subject]) => acceptsKind(subject, ctor.kind));
+      const accepted = signatures.flatMap((signature, index) => (acceptsKind(signature[0], ctor.kind) ? [{ signature, result: results[index] }] : []));
 
-      return { ctor, subjects: accepted.map(([subject]) => subject), signatures: accepted.map(toMethodSignature) };
+      return {
+        ctor,
+        subjects: accepted.map(({ signature: [subject] }) => subject),
+        signatures: accepted.map(({ signature }) => toMethodSignature(signature)),
+        results: accepted.map(({ result }) => result),
+      };
     });
 
     if (this.#functionRegistry.has(functionName) || methods.some(({ ctor }) => methodNames.some((methodName) => this.#methodRegistry.get(ctor)?.has(methodName)))) {
@@ -161,6 +206,7 @@ export class RoutinesRegistry {
       description: definition.description,
       examples: new RoutineExamples(functionName, definition.examples).toFunctionExamples(),
       arguments: signatures,
+      results,
       subjectFirst: true,
       volatile: definition.volatile,
       handler: ({ args, visitor, location }) => {
@@ -170,7 +216,7 @@ export class RoutinesRegistry {
       },
     }));
 
-    for (const { ctor, subjects, signatures: ctorSignatures } of methods) {
+    for (const { ctor, subjects, signatures: ctorSignatures, results: ctorResults } of methods) {
       if (!this.#methodRegistry.has(ctor)) {
         this.#methodRegistry.set(ctor, new Map());
       }
@@ -180,6 +226,7 @@ export class RoutinesRegistry {
           description: definition.description,
           examples: new RoutineExamples(methodName, definition.examples).toMethodExamples(methodNames[0]),
           arguments: ctorSignatures,
+          results: ctorResults,
           subjectAccepted: true,
           volatile: definition.volatile,
           handler: ({ instance, args, visitor, location }) => {
@@ -324,6 +371,11 @@ type ErasedSubjectHandler = (context: {
   readonly visitor: FormulaEvaluatorVisitor;
   readonly location: AST.Location;
 }) => FormulaDataType;
+
+// `returns` is one type, or a list of them, one per signature
+function toResults(returns: FormulaType | readonly FormulaType[]): FormulaType[] {
+  return Array.isArray(returns) ? [...returns] : [returns];
+}
 
 function toLocations(args: ProcessedArguments): AST.Location[] {
   return args.map((arg) => arg.location);

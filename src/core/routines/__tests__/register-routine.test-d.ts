@@ -1,8 +1,9 @@
 import type { AST } from '../../../parser';
-import type { FormulaArray, FormulaBoolean, FormulaDataType, FormulaDuration, FormulaRegExp, FormulaString } from '../../data-types';
+import type { FormulaBoolean, FormulaDataType, FormulaDuration, FormulaRegExp } from '../../data-types';
 import type { CallbackExecutor, ChoiceValue } from '../arguments';
 
-import { FormulaDateTime, FormulaNumber, Kind } from '../../data-types';
+import { FormulaArray, FormulaDateTime, FormulaNumber, FormulaString, Kind } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { RoutinesRegistry } from '../registry';
 
@@ -14,6 +15,7 @@ describe('RoutinesRegistry.registerRoutine handler types', () => {
       description: '',
       examples: [],
       arguments: [arg.string('text'), arg.pattern('pattern'), arg.string('replacement')],
+      returns: type.string,
       handler: ({ subject, args }) => {
         expectTypeOf(subject).toEqualTypeOf<FormulaString>();
         expectTypeOf(args).toEqualTypeOf<[FormulaString | FormulaRegExp, FormulaString]>();
@@ -28,6 +30,7 @@ describe('RoutinesRegistry.registerRoutine handler types', () => {
       description: '',
       examples: [],
       arguments: [arg.array('list'), arg.string('separator', { optional: true })],
+      returns: type.array(type.any),
       handler: ({ subject, args }) => {
         expectTypeOf(subject).toEqualTypeOf<FormulaArray>();
         expectTypeOf(args).toEqualTypeOf<[FormulaString?]>();
@@ -42,6 +45,7 @@ describe('RoutinesRegistry.registerRoutine handler types', () => {
       description: '',
       examples: [],
       arguments: [arg.oneOf('numbers', [Kind.Array, Kind.Number], { repeatable: true })],
+      returns: type.union(type.array(type.any), type.number),
       handler: ({ subject, args }) => {
         expectTypeOf(subject).toEqualTypeOf<FormulaArray | FormulaNumber>();
         expectTypeOf(args).toEqualTypeOf<(FormulaArray | FormulaNumber)[]>();
@@ -59,6 +63,7 @@ describe('RoutinesRegistry.registerRoutine handler types', () => {
         [arg.dateTime('date'), arg.duration('duration')],
         [arg.dateTime('date'), arg.number('amount'), arg.choice('unit', ['years', 'days'])],
       ],
+      returns: [type.dateTime, type.dateTime],
       handler: ({ subject, args }) => {
         expectTypeOf(subject).toEqualTypeOf<FormulaDateTime>();
         expectTypeOf(args).toEqualTypeOf<[FormulaDuration] | [FormulaNumber, ChoiceValue<'years' | 'days'>]>();
@@ -73,6 +78,7 @@ describe('RoutinesRegistry.registerRoutine handler types', () => {
       description: '',
       examples: [],
       arguments: [arg.dateTime('date'), arg.dateTime('other'), arg.choice('unit', ['years', 'days'])],
+      returns: type.dateTime,
       handler: ({ subject, args: [, unit] }) => {
         expectTypeOf(unit.value).toEqualTypeOf<'years' | 'days'>();
 
@@ -86,6 +92,7 @@ describe('RoutinesRegistry.registerRoutine handler types', () => {
       description: '',
       examples: [],
       arguments: [arg.array('list'), arg.callback('predicate', { variables: ['current', 'index'], returns: Kind.Boolean })],
+      returns: type.array(type.any),
       handler: ({ subject, args: [predicate] }) => {
         expectTypeOf(predicate).toEqualTypeOf<CallbackExecutor<'current' | 'index', FormulaBoolean>>();
         expectTypeOf<Parameters<typeof predicate.execute>[0]>().toEqualTypeOf<Readonly<Record<'current' | 'index', FormulaDataType>>>();
@@ -100,6 +107,7 @@ describe('RoutinesRegistry.registerRoutine handler types', () => {
       description: '',
       examples: [],
       arguments: [arg.array('list'), arg.eachItem('predicate', { returns: Kind.Boolean })],
+      returns: type.array(type.any),
       handler: ({ subject, args: [predicate] }) => {
         expectTypeOf(predicate).toEqualTypeOf<CallbackExecutor<'current' | 'index', FormulaBoolean>>();
 
@@ -114,6 +122,7 @@ describe('RoutinesRegistry.registerRoutine handler types', () => {
       examples: [],
       // @ts-expect-error The subject must be a value.
       arguments: [arg.callback('predicate', { variables: ['current'] })],
+      returns: type.number,
       handler: () => new FormulaNumber(0),
     });
   });
@@ -142,6 +151,7 @@ describe('RoutinesRegistry.registerFunction handler types', () => {
       description: '',
       examples: [],
       arguments: [arg.string('text'), arg.number('base', { optional: true })],
+      returns: type.number,
       handler: ({ args }) => {
         expectTypeOf(args).toEqualTypeOf<[FormulaString, FormulaNumber?]>();
 
@@ -155,6 +165,7 @@ describe('RoutinesRegistry.registerFunction handler types', () => {
       description: '',
       examples: [],
       arguments: [],
+      returns: type.number,
       handler: ({ args }) => {
         expectTypeOf(args).toEqualTypeOf<[]>();
 
@@ -167,6 +178,7 @@ describe('RoutinesRegistry.registerFunction handler types', () => {
     registry.registerFunction('lazy', {
       description: '',
       examples: [],
+      returns: type.number,
       handler: ({ args, node }) => {
         expectTypeOf(args).toEqualTypeOf<undefined>();
         expectTypeOf(node.args).toEqualTypeOf<AST.AstNode[]>();
@@ -183,12 +195,86 @@ describe('RoutinesRegistry.registerMethod handler types', () => {
       description: '',
       examples: [],
       arguments: [arg.duration('duration')],
+      returns: type.dateTime,
       handler: ({ instance, args }) => {
         expectTypeOf(instance).toEqualTypeOf<FormulaDateTime>();
         expectTypeOf(args).toEqualTypeOf<[FormulaDuration]>();
 
         return instance;
       },
+    });
+  });
+});
+
+describe('RoutinesRegistry returns types', () => {
+  it('should reject a handler that may return a value the declared type does not describe', () => {
+    registry.registerRoutine('half', {
+      description: '',
+      examples: [],
+      arguments: [arg.number('number')],
+      returns: type.number,
+      // @ts-expect-error The handler may return text, which `returns` does not describe.
+      handler: ({ subject }) => (subject.value > 0 ? subject : new FormulaString('')),
+    });
+  });
+
+  it('should check the items of a list', () => {
+    registry.registerRoutine('words', {
+      description: '',
+      examples: [],
+      arguments: [arg.string('text')],
+      returns: type.array(type.number),
+      // @ts-expect-error The items are text, not numbers.
+      handler: ({ subject }) => new FormulaArray([subject]),
+    });
+  });
+
+  it('should take one type per signature of a list and check the handler against all of them', () => {
+    registry.registerRoutine('same', {
+      description: '',
+      examples: [],
+      arguments: [[arg.string('text')], [arg.number('number')]],
+      returns: [type.string, type.number],
+      handler: ({ subject }) => subject,
+    });
+
+    registry.registerRoutine('sameText', {
+      description: '',
+      examples: [],
+      arguments: [[arg.string('text')], [arg.number('number')]],
+      returns: [type.string, type.string],
+      // @ts-expect-error A number is not text.
+      handler: ({ subject }) => subject,
+    });
+  });
+
+  it('should require one type per signature of a list, and one type for one signature', () => {
+    registry.registerRoutine('short', {
+      description: '',
+      examples: [],
+      arguments: [[arg.string('text')], [arg.number('number')]],
+      // @ts-expect-error One type for two signatures.
+      returns: [type.number],
+      handler: () => new FormulaNumber(0),
+    });
+
+    registry.registerRoutine('listed', {
+      description: '',
+      examples: [],
+      arguments: [arg.number('number')],
+      // @ts-expect-error A list for one signature.
+      returns: [type.number],
+      handler: () => new FormulaNumber(0),
+    });
+  });
+
+  it('should allow no result for a type not built with `type`', () => {
+    registry.registerFunction('plain', {
+      description: '',
+      examples: [],
+      returns: { kind: 'Number' },
+      // @ts-expect-error The plain type carries no class to check the handler against.
+      handler: () => new FormulaNumber(0),
     });
   });
 });

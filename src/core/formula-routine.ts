@@ -1,4 +1,5 @@
 import type { Kind } from './data-types';
+import type { FormulaType } from './types';
 
 /**
  * A function or method a formula can call, as an editor shows it in completion and signature help.
@@ -26,6 +27,8 @@ export interface FormulaRoutineSignature {
   /** For a method, the kinds of values this list is accepted on, such as `Number` for `5.add(b)`; empty for a function. */
   readonly kinds: readonly Kind[];
   readonly parameters: readonly FormulaRoutineParameter[];
+  /** The type of the result of a call with this list, such as `Number` for `round`. */
+  readonly returns: FormulaType;
 }
 
 /** One argument of a routine signature. */

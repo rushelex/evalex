@@ -2,6 +2,7 @@ import type { AST } from '../../../parser';
 import type { FormulaEvaluatorVisitor } from '../../evaluator.visitor';
 
 import { FormulaDataType, FormulaString, Kind } from '../../data-types';
+import { type } from '../../types';
 import { RoutinesRegistry } from '../registry';
 
 class BaseDataType extends FormulaDataType<number> {
@@ -51,6 +52,7 @@ describe('RoutinesRegistry', () => {
     registry.registerFunction('hello', {
       description: 'hello func',
       examples: [],
+      returns: type.string,
       handler: () => new FormulaString('world'),
     });
 
@@ -71,6 +73,7 @@ describe('RoutinesRegistry', () => {
     registry.registerMethod(BaseDataType, 'id', {
       description: 'base id',
       examples: [],
+      returns: type.string,
       handler: ({ instance }) => new FormulaString(`base:${(instance).value}`),
     });
 
@@ -97,12 +100,14 @@ describe('RoutinesRegistry', () => {
     registry.registerMethod(BaseDataType, 'foo', {
       description: 'base foo',
       examples: [],
+      returns: type.string,
       handler: () => new FormulaString('base'),
     });
 
     registry.registerMethod(DerivedDataType, 'foo', {
       description: 'derived foo',
       examples: [],
+      returns: type.string,
       handler: () => new FormulaString('derived'),
     });
 
@@ -121,6 +126,7 @@ describe('RoutinesRegistry', () => {
     registry.registerMethod(BaseDataType, 'm', {
       description: 'm',
       examples: [],
+      returns: type.string,
       handler: () => new FormulaString('m'),
     });
 
@@ -148,12 +154,12 @@ describe('RoutinesRegistry', () => {
 
   it('registerMethod: after finalize should invalidate cache', () => {
     const registry = new RoutinesRegistry();
-    registry.registerMethod(BaseDataType, 'm', { description: 'm', examples: [], handler: () => new FormulaString('m') });
+    registry.registerMethod(BaseDataType, 'm', { description: 'm', examples: [], returns: type.string, handler: () => new FormulaString('m') });
     registry.finalize();
 
     const before = registry.getMethods(BaseDataType);
 
-    registry.registerMethod(BaseDataType, 'n', { description: 'n', examples: [], handler: () => new FormulaString('n') });
+    registry.registerMethod(BaseDataType, 'n', { description: 'n', examples: [], returns: type.string, handler: () => new FormulaString('n') });
 
     const after = registry.getMethods(BaseDataType);
 

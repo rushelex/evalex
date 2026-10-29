@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaNumber } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -19,5 +20,6 @@ routinesRegistry.registerRoutine('floor', {
   description: 'Returns the largest integer less than or equal to the number.',
   examples: routineExamples,
   arguments: [arg.number('number')],
+  returns: type.number,
   handler: ({ subject }) => FormulaNumber.from(Math.floor(subject.value)),
 });

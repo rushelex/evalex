@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaDate, FormulaDateTime, FormulaString } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { DATE_PATTERN_SIGNATURE, DATE_TIME_PATTERN_SIGNATURE } from './date-pattern-signature';
@@ -29,6 +30,7 @@ routinesRegistry.registerRoutine('format', {
   description: 'Returns the value formatted as text.',
   examples: routineExamples,
   arguments: [DATE_PATTERN_SIGNATURE, DATE_TIME_PATTERN_SIGNATURE, [arg.any('value')]],
+  returns: [type.string, type.string, type.string],
   handler: ({ subject, args: [pattern, timezone], visitor }) => {
     if (subject instanceof FormulaDate && pattern) {
       return new FormulaString(formatDateText({ date: subject.value, pattern: pattern.value, names: visitor.format?.names }));

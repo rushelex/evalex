@@ -1,4 +1,5 @@
 import { areEqual, FormulaBoolean } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -15,5 +16,6 @@ routinesRegistry.registerRoutine('equal', {
     },
   ],
   arguments: [arg.any('a'), arg.any('b')],
+  returns: type.boolean,
   handler: ({ subject, args: [other] }) => new FormulaBoolean(areEqual(subject, other)),
 });

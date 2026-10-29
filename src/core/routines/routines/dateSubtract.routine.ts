@@ -1,4 +1,5 @@
 import { FormulaDate, FormulaDateTime } from '../../data-types';
+import { type } from '../../types';
 import { routinesRegistry } from '../registry';
 import { DATE_SHIFT_SIGNATURES, shiftDate } from './date-shift';
 
@@ -19,6 +20,7 @@ routinesRegistry.registerRoutine({ function: 'dateSubtract', method: ['subtract'
     },
   ],
   arguments: DATE_SHIFT_SIGNATURES,
+  returns: [type.date, type.date, type.dateTime, type.dateTime],
   handler: ({ subject, args: [amount, unit], locations, visitor }) => shiftDate({
     date: subject,
     amount,

@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaArray } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -19,5 +20,6 @@ routinesRegistry.registerRoutine('flat', {
   description: 'Returns the items of nested lists in one list, one level deep.',
   examples: routineExamples,
   arguments: [arg.array('list')],
+  returns: type.array(type.any),
   handler: ({ subject }) => new FormulaArray(subject.value.flatMap((item) => (FormulaArray.isOfType(item) ? item.value : [item]))),
 });

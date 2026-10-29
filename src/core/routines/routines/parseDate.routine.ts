@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaDate, FormulaDateTime } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -30,6 +31,7 @@ routinesRegistry.registerRoutine('parseDate', {
       },
     }),
   ],
+  returns: type.union(type.date, type.dateTime),
   // Text without a time is a date, so a date written as text never turns into midnight of some time zone.
   handler: ({ subject, visitor }) => (FormulaDate.isDayText(subject.value)
     ? FormulaDate.from(subject.value)

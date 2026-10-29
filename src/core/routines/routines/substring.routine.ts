@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaString } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { expectInteger } from './expect-integer';
@@ -25,6 +26,7 @@ routinesRegistry.registerRoutine('substring', {
     arg.number('start', { validation: expectInteger }),
     arg.number('end', { optional: true, validation: expectInteger }),
   ],
+  returns: type.string,
   // Indexes below 0 or past the end are clamped, and a start after the end swaps them, as in JavaScript
   handler: ({ subject, args: [start, end] }) => {
     const characters = splitGraphemes(subject.value);

@@ -1,5 +1,6 @@
 import { FormulaRegExp, FormulaString } from '../../data-types';
 import { getRegExpFallbackError } from '../../errors';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -24,6 +25,7 @@ routinesRegistry.registerRoutine('replace', {
     arg.pattern('pattern'),
     arg.string('replacement'),
   ],
+  returns: type.string,
   handler: ({ subject, args: [pattern, replacement], location, visitor }) => {
     try {
       const regexp = pattern instanceof FormulaRegExp ? pattern : new FormulaRegExp(pattern.value);

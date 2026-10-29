@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { decimalArithmetic, FormulaNull, FormulaNumber, Kind } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { collectNumbers } from './collect-numbers';
@@ -20,6 +21,7 @@ routinesRegistry.registerRoutine('median', {
   description: 'Returns the middle value of its arguments.',
   examples: routineExamples,
   arguments: [arg.oneOf('numbers', [Kind.Array, Kind.Number], { repeatable: true })],
+  returns: type.union(type.number, type.null),
   handler: ({ subject, args, location }) => {
     const numbers = collectNumbers({ values: [subject, ...args], location });
 

@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { decimalArithmetic, FormulaNumber } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -15,5 +16,6 @@ routinesRegistry.registerRoutine('multiply', {
   description: 'Returns the product of two numbers.',
   examples: routineExamples,
   arguments: [arg.number('a'), arg.number('b')],
+  returns: type.number,
   handler: ({ subject, args: [b] }) => decimalArithmetic.multiply(subject, b),
 });

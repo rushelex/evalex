@@ -1,6 +1,7 @@
 import { evaluate, loc } from '../../../testing-library';
 import { FormulaNumber, FormulaString, Kind } from '../../data-types';
 import { Errors } from '../../errors';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { RoutinesRegistry, routinesRegistry } from '../registry';
 
@@ -11,6 +12,7 @@ routinesRegistry.registerRoutine('measure', {
     [arg.string('text')],
     [arg.array('list'), arg.number('extra', { optional: true })],
   ],
+  returns: [type.number, type.number],
   handler: ({ subject, args: [extra] }) => new FormulaNumber(subject.value.length + (extra?.value ?? 0)),
 });
 
@@ -18,6 +20,7 @@ routinesRegistry.registerRoutine({ function: 'textShout', method: 'shout' }, {
   description: 'Returns the text in upper case.',
   examples: [],
   arguments: [arg.string('text')],
+  returns: type.string,
   handler: ({ subject }) => new FormulaString(subject.value.toUpperCase()),
 });
 
@@ -25,6 +28,7 @@ routinesRegistry.registerRoutine({ function: 'textWhisper', method: ['whisper', 
   description: 'Returns the text in lower case.',
   examples: [],
   arguments: [arg.string('text')],
+  returns: type.string,
   handler: ({ subject }) => new FormulaString(subject.value.toLowerCase()),
 });
 
@@ -32,6 +36,7 @@ routinesRegistry.registerRoutine('total', {
   description: 'Returns the sum of the numbers.',
   examples: [],
   arguments: [arg.number('numbers', { repeatable: true })],
+  returns: type.number,
   handler: ({ subject, args }) => new FormulaNumber(args.reduce((sum, number) => sum + number.value, subject.value)),
 });
 
@@ -43,6 +48,7 @@ routinesRegistry.registerRoutine('half', {
       validation: (value) => (value.value > 0 ? undefined : { message: 'Expected positive number.' }),
     }),
   ],
+  returns: type.number,
   handler: ({ subject }) => new FormulaNumber(subject.value / 2),
 });
 
@@ -50,6 +56,7 @@ routinesRegistry.registerRoutine('shift', {
   description: 'Returns the number moved by a step in the given direction.',
   examples: [],
   arguments: [arg.number('number'), arg.choice('direction', ['up', 'down'])],
+  returns: type.number,
   handler: ({ subject, args: [direction] }) => new FormulaNumber(direction.value === 'up' ? subject.value + 1 : subject.value - 1),
 });
 
@@ -57,6 +64,7 @@ routinesRegistry.registerRoutine('ratio', {
   description: 'Returns the number divided by a non-zero divisor.',
   examples: [],
   arguments: [arg.number('number'), arg.number('divisor')],
+  returns: type.number,
   handler: ({ subject, args: [divisor], locations }) => {
     if (divisor.value === 0) {
       throw Errors.Arithmetic.DivisionByZero.create({ dividend: subject.value }, { location: locations[0] });
@@ -73,6 +81,7 @@ routinesRegistry.registerRoutine('pad', {
     [arg.string('text'), arg.number('width')],
     [arg.string('text'), arg.number('width'), arg.string('filler')],
   ],
+  returns: [type.string, type.string],
   handler: ({ subject, args: [width, filler] }) => new FormulaString(subject.value.padEnd(width.value, filler?.value)),
 });
 
@@ -193,6 +202,7 @@ describe('RoutinesRegistry.registerRoutine', () => {
       description: 'Returns the text.',
       examples: [],
       arguments: [arg.string('text')],
+      returns: type.string,
       handler: ({ subject }: { subject: FormulaString }) => subject,
     } as const;
 

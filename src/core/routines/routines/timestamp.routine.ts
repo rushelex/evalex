@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaNumber } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -15,5 +16,6 @@ routinesRegistry.registerRoutine('timestamp', {
   description: 'Returns the Unix timestamp of the date in milliseconds.',
   examples: routineExamples,
   arguments: [arg.dateTime('date')],
+  returns: type.number,
   handler: ({ subject }) => new FormulaNumber(subject.value.epochMilliseconds),
 });

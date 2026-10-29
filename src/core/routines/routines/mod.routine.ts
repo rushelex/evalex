@@ -2,6 +2,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 
 import { decimalArithmetic, FormulaNumber } from '../../data-types';
 import { Errors } from '../../errors';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -24,6 +25,7 @@ routinesRegistry.registerRoutine('mod', {
   description: 'Returns the first number modulo the second number.',
   examples: routineExamples,
   arguments: [arg.number('dividend'), arg.number('divisor')],
+  returns: type.number,
   handler: ({ subject, args: [divisor], locations }) => {
     if (divisor.value === 0) {
       throw Errors.Arithmetic.ModuloByZero.create({ dividend: subject.value }, { location: locations[0] });

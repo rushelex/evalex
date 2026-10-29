@@ -1,5 +1,6 @@
 import type { AST } from '../../parser';
 import type { FormulaEvaluatorVisitor } from '../evaluator.visitor';
+import type { FormulaType } from '../types';
 import type { ArgumentsPattern, CallArguments, ProcessedArguments, Signatures, SubjectCalls, SubjectSignatures } from './arguments';
 import type { RoutineExample } from './routine-example';
 
@@ -34,7 +35,7 @@ export type SubjectRoutineHandlerContext<TSignatures extends SubjectSignatures> 
   readonly location: AST.Location;
 };
 
-export type SubjectRoutineHandler<TSignatures extends SubjectSignatures> = (context: SubjectRoutineHandlerContext<TSignatures>) => FormulaDataType;
+export type SubjectRoutineHandler<TSignatures extends SubjectSignatures, TResult extends FormulaDataType = FormulaDataType> = (context: SubjectRoutineHandlerContext<TSignatures>) => TResult;
 
 /** Context of a function-only routine; without declared arguments it reads the call syntax from `node` itself. */
 export interface FunctionRoutineHandlerContext<TSignatures extends Signatures | undefined> {
@@ -44,7 +45,7 @@ export interface FunctionRoutineHandlerContext<TSignatures extends Signatures | 
   readonly location: AST.Location;
 }
 
-export type FunctionRoutineHandler<TSignatures extends Signatures | undefined> = (context: FunctionRoutineHandlerContext<TSignatures>) => FormulaDataType;
+export type FunctionRoutineHandler<TSignatures extends Signatures | undefined, TResult extends FormulaDataType = FormulaDataType> = (context: FunctionRoutineHandlerContext<TSignatures>) => TResult;
 
 /** Context of a method-only routine: `instance` is the value before the dot, `args` are those in the parentheses. */
 export interface MethodRoutineHandlerContext<TInstance extends FormulaDataType, TSignatures extends Signatures | undefined> {
@@ -54,7 +55,9 @@ export interface MethodRoutineHandlerContext<TInstance extends FormulaDataType, 
   readonly location: AST.Location;
 }
 
-export type MethodRoutineHandler<TInstance extends FormulaDataType, TSignatures extends Signatures | undefined> = (context: MethodRoutineHandlerContext<TInstance, TSignatures>) => FormulaDataType;
+export type MethodRoutineHandler<TInstance extends FormulaDataType, TSignatures extends Signatures | undefined, TResult extends FormulaDataType = FormulaDataType> = (
+  context: MethodRoutineHandlerContext<TInstance, TSignatures>,
+) => TResult;
 
 export interface RoutineExecuteParams<TInstance extends FormulaDataType | unknown> {
   instance: TInstance;
@@ -67,6 +70,8 @@ export interface RoutineOptions<TInstance extends Routine | FormulaDataType | un
   readonly description: string;
   readonly examples: RoutineExample[];
   readonly arguments?: ArgumentsPattern | readonly ArgumentsPattern[];
+  /** The type of the result of each signature, in their order; one type when the routine checks its arguments itself. */
+  readonly results: readonly FormulaType[];
   /** The routine is a method form whose subject every signature accepts, so a failed call reports the same signature as the function form. */
   readonly subjectAccepted?: boolean;
   /** The routine is a function form whose first argument is the call subject, so a failed call reports the signatures its method form has on that type. */
@@ -81,6 +86,8 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
   readonly examples: RoutineExample[];
   /** The result can differ between calls with the same arguments, so formulas calling it are never skipped as unchanged. */
   readonly volatile: boolean;
+  /** The type of the result of each of {@link Routine.signatures}, in their order; one type when there are none. */
+  readonly results: readonly FormulaType[];
   readonly #argumentsProcessor?: ArgumentsProcessor;
   readonly #handler: RoutineHandler<TInstance>;
 
@@ -88,6 +95,7 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
     this.description = options.description;
     this.examples = options.examples;
     this.volatile = options.volatile ?? false;
+    this.results = options.results;
     this.#argumentsProcessor = options.arguments ? new ArgumentsProcessor(options.arguments, { precedingMatches: options.subjectAccepted ? 1 : 0, subjectFirst: options.subjectFirst }) : undefined;
     this.#handler = options.handler;
   }

@@ -2,6 +2,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaDate, FormulaDateRange, FormulaDateTime } from '../../data-types';
 import { Errors } from '../../errors';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -36,6 +37,7 @@ routinesRegistry.registerRoutine({ function: 'dateRange', method: ['range', 'dat
   description: 'Returns the date range from the start date to the end date.',
   examples: routineExamples,
   arguments: [[arg.date('start'), arg.date('end')], [arg.dateTime('start'), arg.dateTime('end')]],
+  returns: [type.dateRange, type.dateRange],
   handler: ({ subject, args: [end], locations }) => {
     // The signatures pair two dates or two dates and times, never one of each.
     const endsFirst = (subject instanceof FormulaDate && end instanceof FormulaDate && Temporal.PlainDate.compare(subject.value, end.value) > 0)

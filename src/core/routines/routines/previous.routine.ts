@@ -2,6 +2,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaArray } from '../../data-types';
 import { Errors } from '../../errors';
+import { type } from '../../types';
 import { routinesRegistry } from '../registry';
 import { neighborHandler } from './neighbor-routine';
 
@@ -24,5 +25,6 @@ const routineExamples: readonly RoutineExampleOptions[] = [
 routinesRegistry.registerFunction('previous', {
   description: 'Evaluates the expression over the previous record of the list.',
   examples: routineExamples,
+  returns: type.any,
   handler: neighborHandler(-1),
 });

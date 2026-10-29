@@ -1,4 +1,5 @@
 import { FormulaNumber } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -36,6 +37,7 @@ for (const unit of DURATION_UNITS) {
     arguments: [
       arg.duration('duration'),
     ],
+    returns: type.number,
     handler: ({ subject }) => new FormulaNumber(subject.value[unit]),
   });
 }

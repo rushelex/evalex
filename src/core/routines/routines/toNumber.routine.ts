@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaBoolean, FormulaDateTime, FormulaNumber, FormulaString } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -36,6 +37,7 @@ routinesRegistry.registerRoutine('toNumber', {
     [arg.boolean('boolean')],
     [arg.dateTime('date')],
   ],
+  returns: [type.number, type.number, type.number, type.number],
   handler: ({ subject }) => {
     if (subject instanceof FormulaString) {
       return new FormulaNumber(readNumber(subject.value));

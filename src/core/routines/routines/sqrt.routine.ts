@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaNumber } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -19,5 +20,6 @@ routinesRegistry.registerRoutine('sqrt', {
       validation: (number) => (number.value >= 0 ? undefined : { message: 'Expected non-negative number.', expected: ['non-negative number'], actual: number.value }),
     }),
   ],
+  returns: type.number,
   handler: ({ subject }) => FormulaNumber.from(Math.sqrt(subject.value)),
 });

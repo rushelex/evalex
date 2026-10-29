@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaArray, FormulaNumber } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -22,6 +23,7 @@ routinesRegistry.registerRoutine('map', {
     arg.array('list'),
     arg.eachItem('mapper'),
   ],
+  returns: type.array(type.any),
   handler: ({ subject, args: [mapper] }) => {
     const results = subject.value.map((current, index) => mapper.execute({ current, index: new FormulaNumber(index) }));
 

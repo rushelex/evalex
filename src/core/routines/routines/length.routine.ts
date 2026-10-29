@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaNumber, FormulaString } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { splitGraphemes } from './split-graphemes';
@@ -31,6 +32,7 @@ routinesRegistry.registerRoutine('length', {
     [arg.string('text')],
     [arg.array('list')],
   ],
+  returns: [type.number, type.number],
   handler: ({ subject }) => {
     if (subject instanceof FormulaString) {
       return new FormulaNumber(splitGraphemes(subject.value).length);

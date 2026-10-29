@@ -1,4 +1,5 @@
 import { FormulaDate } from '../../data-types';
+import { type } from '../../types';
 import { routinesRegistry } from '../registry';
 
 routinesRegistry.registerFunction('today', {
@@ -10,6 +11,7 @@ routinesRegistry.registerFunction('today', {
     },
   ],
   arguments: [],
+  returns: type.date,
   volatile: true,
   handler: ({ visitor }) => new FormulaDate(Temporal.Now.zonedDateTimeISO(visitor.timeZone).toPlainDate()),
 });

@@ -2,6 +2,7 @@ import type { FormulaDataType } from '../../data-types';
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { areEqual, FormulaArray } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -20,6 +21,7 @@ routinesRegistry.registerRoutine('unique', {
   description: 'Returns the list without repeats, keeping the first of each.',
   examples: routineExamples,
   arguments: [arg.array('list')],
+  returns: type.array(type.any),
   handler: ({ subject }) => {
     const kept: FormulaDataType[] = [];
 

@@ -1,12 +1,14 @@
 import { FormulaNumber } from '../data-types';
 import { arg } from '../routines/arguments';
 import { routinesRegistry } from '../routines/registry';
+import { type } from '../types';
 import { isVolatileFormula } from '../volatile-formula';
 
 routinesRegistry.registerRoutine('volatileProbe', {
   description: 'Returns the number unchanged, registered as volatile.',
   examples: [],
   arguments: [arg.number('number')],
+  returns: type.number,
   volatile: true,
   handler: ({ subject }) => new FormulaNumber(subject.value),
 });

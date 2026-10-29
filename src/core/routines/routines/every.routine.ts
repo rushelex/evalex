@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaBoolean, FormulaNumber, Kind } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -22,6 +23,7 @@ routinesRegistry.registerRoutine('every', {
     arg.array('list'),
     arg.eachItem('predicate', { returns: Kind.Boolean }),
   ],
+  returns: type.boolean,
   handler: ({ subject, args: [predicate] }) => new FormulaBoolean(subject.value
     .every((current, index) => predicate.execute({ current, index: new FormulaNumber(index) }).value)),
 });

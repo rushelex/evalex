@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { areEqual, FormulaBoolean } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -23,5 +24,6 @@ routinesRegistry.registerRoutine('includes', {
   description: 'Returns true if the list contains the value, and false otherwise.',
   examples: routineExamples,
   arguments: [arg.array('list'), arg.any('value')],
+  returns: type.boolean,
   handler: ({ subject, args: [value] }) => new FormulaBoolean(subject.value.some((item) => areEqual(item, value))),
 });

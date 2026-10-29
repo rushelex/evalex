@@ -1,4 +1,5 @@
 import { FormulaNull, FormulaNumber } from '../../data-types';
+import { type } from '../../types';
 import { routinesRegistry } from '../registry';
 import { CALENDAR_DATE, calendarDay } from './calendar-day';
 
@@ -15,6 +16,7 @@ routinesRegistry.registerRoutine('week', {
     },
   ],
   arguments: [CALENDAR_DATE],
+  returns: type.union(type.number, type.null),
   handler: ({ subject, visitor }) => {
     const { weekOfYear } = calendarDay({ date: subject, timeZone: visitor.timeZone });
 

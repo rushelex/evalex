@@ -1,4 +1,5 @@
 import { FormulaNumber } from '../../data-types';
+import { type } from '../../types';
 import { routinesRegistry } from '../registry';
 import { CALENDAR_DATE, calendarDay } from './calendar-day';
 
@@ -15,5 +16,6 @@ routinesRegistry.registerRoutine('month', {
     },
   ],
   arguments: [CALENDAR_DATE],
+  returns: type.number,
   handler: ({ subject, visitor }) => new FormulaNumber(calendarDay({ date: subject, timeZone: visitor.timeZone }).month),
 });

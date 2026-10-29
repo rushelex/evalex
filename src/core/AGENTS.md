@@ -5,6 +5,7 @@
 - A routine description is one sentence of at most 65 characters. It is shown in UI tooltips.
 - When a routine exists both as a function and as a method, both forms behave identically and share the description.
 - A routine with a call subject is registered once with `registerRoutine` and its arguments are built with `arg`, so the handler gets typed values without casts. `registerFunction` is only for routines without a subject, such as `if` or `pi`.
+- A routine declares the type of its result in `returns`, built with `type`: one type, or one per argument list when the lists return different types. The compiler rejects a handler that returns anything outside it, and the examples check that each result fits it.
 - Routine examples are user documentation and tests at the same time. Each form of a routine has at least one example, and examples use neutral, product-agnostic data.
 - An example either returns a `result` or fails with an `error`: the error definition, its message and the offsets it points at in each form of the routine. A wrong call worth explaining to users is written as an error example, not only as a test case.
 - An example of a routine that reads the records around its formula, such as `parent` or `previous`, gives those records in `records` and runs over them as a host runs it; its result is the list of the cells.

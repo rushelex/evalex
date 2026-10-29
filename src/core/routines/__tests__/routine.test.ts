@@ -49,6 +49,7 @@ function createRoutine(args: ArgumentsPattern | readonly ArgumentsPattern[] | un
     description: 'Test routine.',
     examples: [],
     arguments: args,
+    results: [],
     handler: () => FormulaNull.instance(),
   });
 }

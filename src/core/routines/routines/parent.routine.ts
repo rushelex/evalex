@@ -4,6 +4,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaArray } from '../../data-types';
 import { Errors } from '../../errors';
+import { type } from '../../types';
 import { routinesRegistry } from '../registry';
 
 const routineExamples: readonly RoutineExampleOptions[] = [
@@ -28,6 +29,7 @@ const NO_NAMES: GlobalProperties = new Map<string, FormulaDataType>();
 routinesRegistry.registerFunction('parent', {
   description: 'Evaluates the expression over the fields of the enclosing object.',
   examples: routineExamples,
+  returns: type.any,
   handler: ({ node, visitor }) => {
     // The expression is evaluated over other names, so the arguments are not evaluated ahead of the call.
     if (node.args.length !== 1) {

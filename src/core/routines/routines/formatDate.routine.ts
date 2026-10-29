@@ -2,6 +2,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaDate, FormulaString } from '../../data-types';
 import { Errors } from '../../errors';
+import { type } from '../../types';
 import { routinesRegistry } from '../registry';
 import { DATE_PATTERN_SIGNATURE, DATE_TIME_PATTERN_SIGNATURE } from './date-pattern-signature';
 import { formatDateText } from './format-date-text';
@@ -45,6 +46,7 @@ routinesRegistry.registerRoutine('formatDate', {
   description: 'Returns the date as text built from a pattern such as "MMMM D".',
   examples: routineExamples,
   arguments: [DATE_PATTERN_SIGNATURE, DATE_TIME_PATTERN_SIGNATURE],
+  returns: [type.string, type.string],
   handler: ({ subject, args: [pattern, timezone], visitor }) => new FormulaString(formatDateText({
     date: subject instanceof FormulaDate ? subject.value : subject.value.withTimeZone(timezone?.value ?? visitor.timeZone),
     pattern: pattern.value,

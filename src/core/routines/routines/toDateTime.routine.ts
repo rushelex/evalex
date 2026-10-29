@@ -1,5 +1,6 @@
 import { FormulaDateTime } from '../../data-types';
 import { Errors } from '../../errors';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { TIME_ZONE_ARGUMENT } from './time-zone-argument';
@@ -41,6 +42,7 @@ routinesRegistry.registerRoutine('toDateTime', {
     }),
     TIME_ZONE_ARGUMENT,
   ],
+  returns: type.dateTime,
   handler: ({ subject, args: [time, timezone], visitor, location }) => {
     const timeZone = timezone?.value ?? visitor.timeZone;
     const plainTime = time === undefined ? undefined : readTime(time.value);

@@ -1,5 +1,6 @@
 import { FormulaBoolean, FormulaString } from '../../data-types';
 import { getRegExpFallbackError } from '../../errors';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -23,6 +24,7 @@ routinesRegistry.registerRoutine('contains', {
     arg.string('text'),
     arg.pattern('search'),
   ],
+  returns: type.boolean,
   handler: ({ subject, args: [search], locations, visitor }) => {
     // A string argument is plain text, so regex metacharacters like "." match literally
     if (search instanceof FormulaString) {

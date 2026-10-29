@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaNumber } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { expectInteger } from './expect-integer';
@@ -30,6 +31,7 @@ routinesRegistry.registerRoutine('round', {
       validation: expectInteger,
     }),
   ],
+  returns: type.number,
   handler: ({ subject, args: [places] }) => FormulaNumber.from(round(subject.value, places?.value ?? 0)),
 });
 

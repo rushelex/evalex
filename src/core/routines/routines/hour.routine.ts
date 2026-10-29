@@ -1,4 +1,5 @@
 import { FormulaNumber } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -11,5 +12,6 @@ routinesRegistry.registerRoutine('hour', {
     },
   ],
   arguments: [arg.dateTime('date')],
+  returns: type.number,
   handler: ({ subject, visitor }) => new FormulaNumber(subject.value.withTimeZone(visitor.timeZone).hour),
 });

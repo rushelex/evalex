@@ -1,6 +1,7 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaNumber } from '../../data-types';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 
@@ -15,5 +16,6 @@ routinesRegistry.registerRoutine('abs', {
   description: 'Returns the absolute value of the number.',
   examples: routineExamples,
   arguments: [arg.number('number')],
+  returns: type.number,
   handler: ({ subject }) => FormulaNumber.from(Math.abs(subject.value)),
 });

@@ -4,6 +4,7 @@ import { FormulaString } from '../core/data-types';
 import { FormulaScope } from '../core/formula-scope';
 import { arg } from '../core/routines/arguments';
 import { routinesRegistry } from '../core/routines/registry';
+import { type } from '../core/types';
 import { FormulaLanguage } from './index';
 
 // No built-in routine repeats an argument that takes words, so completion of a repeated one is checked on this one.
@@ -11,6 +12,7 @@ routinesRegistry.registerRoutine('unitsProbe', {
   description: 'Returns the first unit.',
   examples: [],
   arguments: [arg.number('number'), arg.choice('units', ['days', 'hours'], { repeatable: true })],
+  returns: type.string,
   handler: ({ args: [unit] }) => new FormulaString(unit.value),
 });
 

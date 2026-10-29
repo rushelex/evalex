@@ -2,6 +2,7 @@ import type { RoutineExampleOptions } from '../routine-example';
 
 import { FormulaArray, FormulaString } from '../../data-types';
 import { getRegExpFallbackError } from '../../errors';
+import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
 import { splitGraphemes } from './split-graphemes';
@@ -25,8 +26,9 @@ routinesRegistry.registerRoutine('split', {
   description: 'Returns the parts of the text between matches of the separator.',
   examples: routineExamples,
   arguments: [arg.string('text'), arg.pattern('separator')],
+  returns: type.array(type.string),
   handler: ({ subject, args: [separator], locations, visitor }) => {
-    const toList = (parts: readonly string[]): FormulaArray => new FormulaArray(parts.map((part) => new FormulaString(part)));
+    const toList = (parts: readonly string[]) => new FormulaArray(parts.map((part) => new FormulaString(part)));
 
     // A text separator is plain text, so "." splits at dots; an empty one splits into characters
     if (separator instanceof FormulaString) {
