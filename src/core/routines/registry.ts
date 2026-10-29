@@ -355,7 +355,7 @@ function toMethodSignature(signature: ArgumentsPattern): ArgumentsPattern {
   const [subject, ...rest] = signature;
 
   if (subject instanceof Argument && subject.repeatable) {
-    return [new Argument(subject.types, { name: subject.name, repeatable: true, optional: true, validation: subject.validation }), ...rest];
+    return [new Argument(subject.types, { name: subject.name, repeatable: true, optional: true, validation: subject.validation, choices: subject.choices }), ...rest];
   }
 
   return rest;

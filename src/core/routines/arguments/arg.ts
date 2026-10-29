@@ -1,5 +1,5 @@
 import type { FormulaDataType, FormulaDataTypeByKind, FormulaString } from '../../data-types';
-import type { ArgumentValidationFailure } from './argument';
+import type { ArgumentOptions, ArgumentValidationFailure } from './argument';
 
 import { Kind } from '../../data-types';
 import { Argument } from './argument';
@@ -35,7 +35,7 @@ type ValueArgument<TKind extends Kind, TValue extends FormulaDataType, TFlags ex
 function define<TKind extends Kind, TValue extends FormulaDataType, TFlags extends object>(
   types: TKind | TKind[],
   name: string,
-  options: ValueArgumentOptions<FormulaDataTypeByKind<TKind>> | undefined,
+  options: Omit<ArgumentOptions<FormulaDataTypeByKind<TKind>>, 'name'> | undefined,
 ): ValueArgument<TKind, TValue, TFlags> {
   // `TFlags` carries the literal flags of `options`, which `Argument` itself stores as plain booleans.
   return new Argument<TKind, TValue>(types, { name, ...options }) as ValueArgument<TKind, TValue, TFlags>;
@@ -94,6 +94,7 @@ export const arg = {
     options?: TFlags,
   ) => define<typeof Kind.String, ChoiceValue<TChoice>, TFlags>(Kind.String, name, {
     ...options,
+    choices,
     validation: (dataType) => {
       if ((choices as readonly string[]).includes(dataType.value)) {
         return undefined;

@@ -40,6 +40,8 @@ export interface FormulaRoutineParameter {
   readonly optional: boolean;
   /** The argument takes any number of values, as in `sum(1, 2, 3)`. */
   readonly repeatable: boolean;
+  /** The only words a text argument takes, such as the units of `dateBetween`; absent when it takes any text. */
+  readonly choices?: readonly string[];
   /** For an argument evaluated once per item, the variables it can read, such as `current` and `index`. */
   readonly variables?: readonly string[];
 }

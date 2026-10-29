@@ -68,5 +68,8 @@ function toParameter(argument: ArgumentsPattern[number]): FormulaRoutineParamete
     return { name, kinds: [argument.returnType].flat(), optional: argument.optional, repeatable: false, variables: argument.contextVariables };
   }
 
-  return { name, kinds: [argument.types].flat(), optional: argument.optional, repeatable: argument.repeatable };
+  const parameter = { name, kinds: [argument.types].flat(), optional: argument.optional, repeatable: argument.repeatable };
+
+  // Copies, because validation reads the same list: a host changing the catalog must not change what a formula accepts.
+  return argument.choices ? { ...parameter, choices: [...argument.choices] } : parameter;
 }

@@ -165,6 +165,41 @@ describe(routineCatalog, () => {
     ]);
   });
 
+  it('should give a text argument that takes only some words those words', () => {
+    const registry = new RoutinesRegistry();
+
+    registry.registerRoutine('shift', {
+      description: 'Shifts the date by the units.',
+      examples: [],
+      arguments: [arg.date('date'), arg.choice('unit', ['days', 'months'])],
+      handler: zero,
+    });
+
+    expect(routineCatalog(registry).map(({ signatures }) => signatures[0]?.parameters.at(-1))).toEqual([
+      { name: 'unit', kinds: ['String'], optional: false, repeatable: false, choices: ['days', 'months'] },
+      { name: 'unit', kinds: ['String'], optional: false, repeatable: false, choices: ['days', 'months'] },
+    ]);
+  });
+
+  it('should give the words as a copy, so changing it does not change what a formula accepts', () => {
+    const registry = new RoutinesRegistry();
+    const units = ['days', 'months'];
+
+    registry.registerFunction('pick', { description: 'Picks the unit.', examples: [], arguments: [arg.choice('unit', units)], handler: zero });
+
+    expect(routineCatalog(registry)[0]?.signatures[0]?.parameters[0]?.choices).not.toBe(units);
+  });
+
+  it('should keep the words of a repeatable subject the method form takes as further values', () => {
+    const registry = new RoutinesRegistry();
+
+    registry.registerRoutine('units', { description: 'Lists the units.', examples: [], arguments: [arg.choice('unit', ['days', 'months'], { repeatable: true })], handler: zero });
+
+    expect(routineCatalog(registry).find(({ form }) => form === 'method')?.signatures[0]?.parameters).toEqual([
+      { name: 'unit', kinds: ['String'], optional: true, repeatable: true, choices: ['days', 'months'] },
+    ]);
+  });
+
   it('should leave out the name of an argument the routine does not name', () => {
     const registry = new RoutinesRegistry();
 

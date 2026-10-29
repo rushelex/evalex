@@ -256,6 +256,12 @@ describe(FormulaScope, () => {
       expect(round?.signatures[0]?.parameters.map(({ name, optional }) => (optional ? `[${name}]` : name)).join(', ')).toBe('number, [places]');
     });
 
+    it('should list the units dateBetween takes for a date', () => {
+      const dateBetween = new FormulaScope().routines().find(({ name, form }) => name === 'dateBetween' && form === 'function');
+
+      expect(dateBetween?.signatures[0]?.parameters.at(-1)?.choices).toEqual(['years', 'months', 'weeks', 'days']);
+    });
+
     it('should list add of numbers and add of dates as two methods', () => {
       const adds = new FormulaScope().routines().filter(({ name, form }) => name === 'add' && form === 'method');
 

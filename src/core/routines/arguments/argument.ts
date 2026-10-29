@@ -14,6 +14,8 @@ export interface ArgumentOptions<TValue extends FormulaDataType> {
   readonly optional?: boolean;
   readonly repeatable?: boolean;
   readonly validation?: ArgumentValidation<TValue>;
+  /** The only words a text argument takes, as `arg.choice` lists them; `validation` enforces them. */
+  readonly choices?: readonly string[];
 }
 
 /**
@@ -34,6 +36,7 @@ export class Argument<
   readonly optional: TOptional;
   readonly repeatable: TRepeatable;
   readonly validation?: ArgumentValidation<FormulaDataType>;
+  readonly choices?: readonly string[];
   declare readonly valueType?: TValue;
 
   constructor(
@@ -46,5 +49,6 @@ export class Argument<
     this.repeatable = (options?.repeatable ?? false) as TRepeatable;
     // Validation runs only after the type check has passed, so the value always has the declared type.
     this.validation = options?.validation as ArgumentValidation<FormulaDataType> | undefined;
+    this.choices = options?.choices;
   }
 }
