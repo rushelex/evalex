@@ -223,7 +223,7 @@ class Parser {
         throw error;
       }
 
-      // Drops the tokens the error explains, such as the operator of `a + @b`, read before parsing backtracked
+      // Drops the tokens the error explains, such as the comma of `round(price, `, read before the error was found
       const kept = tokens.filter((token) => token.location.end.offset <= error.location.start.offset);
       // An error may point inside a token it stopped, such as the flags of a regular expression.
       const { offset, line, column } = kept.at(-1)?.location.end ?? { offset: 0, line: 1, column: 1 };
@@ -335,12 +335,6 @@ class Parser {
         this.#consumeOp(op);
         const opLocation = this.#loc(opStart);
         this.#skipWhitespace();
-        // If no valid expression follows the operator, backtrack.
-        // This handles cases like trailing operators in partial input.
-        if (!this.#isExprStart()) {
-          this.#restore(saved);
-          break;
-        }
         const right = this.#parseExpr(op.rbp);
         // A chain like `a + b + c` nests its left side without recursing, so each operator counts a level
         this.#nest(opLocation);
@@ -1249,21 +1243,6 @@ class Parser {
 
   #isIdChar(c: string): boolean {
     return this.#isIdStart(c) || this.#isDigit(c);
-  }
-
-  /** Checks whether the current position could be the start of an expression. */
-  #isExprStart(): boolean {
-    const c = this.#peek();
-    return this.#isDigit(c)
-      || this.#isIdStart(c)
-      || c === '"'
-      || c === '\''
-      || c === '/'
-      || c === '('
-      || c === '['
-      || c === '-'
-      || c === '!'
-      || c === '.';
   }
 
   #isLineBreak(c: string): boolean {

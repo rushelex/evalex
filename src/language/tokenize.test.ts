@@ -64,7 +64,7 @@ describe(tokenize, () => {
   });
 
   it.each([
-    { formula: '1 +* 2', expected: [['1', 'number'], ['+* 2', 'invalid']] },
+    { formula: '1 +* 2', expected: [['1', 'number'], ['+', 'operator'], ['* 2', 'invalid']] },
     { formula: 'upper("abc', expected: [['upper', 'function'], ['(', 'punctuation'], ['"abc', 'invalid']] },
     { formula: 'f(1, @b)', expected: [['f', 'function'], ['(', 'punctuation'], ['1', 'number'], [',', 'punctuation'], ['@b)', 'invalid']] },
   ])('should end the tokens with the text from a syntax error, invalid: $formula', ({ formula, expected }) => {

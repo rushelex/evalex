@@ -26,6 +26,7 @@ describe(diagnose, () => {
   it.each([
     { formula: 'f(@, #)', expected: [['UNEXPECTED_CHARACTER', '@'], ['UNEXPECTED_CHARACTER', '#']] },
     { formula: 'f((@), #)', expected: [['UNEXPECTED_CHARACTER', '@'], ['UNEXPECTED_CHARACTER', '#']] },
+    { formula: 'f(b + @, c * #)', expected: [['UNEXPECTED_CHARACTER', '@'], ['UNEXPECTED_CHARACTER', '#']] },
     { formula: 'round(price,, 2) + max(1 2)', expected: [['MISSING_ARGUMENT', ','], ['UNCLOSED_PARENTHESIS', '(1']] },
     { formula: '[1 2, (3 4), 5 6]', expected: [['MISSING_TOKEN', ''], ['MISSING_TOKEN', ''], ['MISSING_TOKEN', '']] },
     { formula: 'upper("\\x") + lower("\\u")', expected: [['INVALID_HEX_ESCAPE', '\\x'], ['INVALID_UNICODE_ESCAPE', '\\u']] },

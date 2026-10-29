@@ -1102,7 +1102,11 @@ describe(parse, () => {
     it('should throw SyntaxError for an incomplete expression', () => {
       expect(() => {
         parse('1 +');
-      }).toThrow('Expected end of input but "+" found. [2,3]');
+      }).toThrow('Expected expression. [3,3]');
+    });
+
+    it('should point at the operand an operator cannot take, not at the operator', () => {
+      expect(() => parse('a + @b')).toThrow('Unexpected character "@". [4,5]');
     });
 
     it('should throw SyntaxError for an unexpected token', () => {

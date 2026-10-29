@@ -124,7 +124,8 @@ Invalid input throws the parser's `SyntaxError`, a subclass of the built-in one.
 
 | Input | Code and payload | Message |
 | --- | --- | --- |
-| `1 +* 2` | `EXPECTED_END_OF_INPUT`, `{ found: '+' }` | `Expected end of input but "+" found. [2,3]` |
+| `1 2` | `EXPECTED_END_OF_INPUT`, `{ found: '2' }` | `Expected end of input but "2" found. [2,3]` |
+| `1 +* 2` | `UNEXPECTED_CHARACTER`, `{ character: '*' }` | `Unexpected character "*". [3,4]` |
 | `user.name` | `UNCALLED_METHOD`, `{ name: 'name' }` | `Expected function 'name()' to be called. [4,9]` |
 | `"x".test(/[/)` | `UNTERMINATED_REGEXP` | `Unterminated regular expression. [9,13]` |
 | `/a/gg` | `INVALID_REGEXP_FLAGS`, `{ flags: 'gg' }` | `Invalid regular expression flags "gg". [3,5]` |
