@@ -1,4 +1,4 @@
-import { FormulaDate, FormulaNumber, Kind } from '../../data-types';
+import { FormulaDate, FormulaNumber } from '../../data-types';
 import { type } from '../../types';
 import { arg } from '../arguments';
 import { RoutinesRegistry } from '../registry';
@@ -7,6 +7,7 @@ import { routineCatalog } from '../routine-catalog';
 const zero = () => new FormulaNumber(0);
 
 const NUMBER = { kind: 'Number' };
+const STRING = { kind: 'String' };
 
 describe(routineCatalog, () => {
   it('should list a function with its arguments named, typed, optional and repeatable', () => {
@@ -15,7 +16,7 @@ describe(routineCatalog, () => {
     registry.registerFunction('roundTo', {
       description: 'Rounds the number.',
       examples: [],
-      arguments: [arg.number('number'), arg.oneOf('places', [Kind.Number, Kind.String], { optional: true })],
+      arguments: [arg.number('number'), arg('places', type.union(type.number, type.string), { optional: true })],
       returns: type.number,
       handler: zero,
     });
@@ -30,8 +31,8 @@ describe(routineCatalog, () => {
         signatures: [{
           kinds: [],
           parameters: [
-            { name: 'number', kinds: ['Number'], optional: false, repeatable: false },
-            { name: 'places', kinds: ['Number', 'String'], optional: true, repeatable: false },
+            { name: 'number', type: NUMBER, optional: false, repeatable: false },
+            { name: 'places', type: { kind: 'Union', of: [NUMBER, STRING] }, optional: true, repeatable: false },
           ],
           returns: NUMBER,
         }],
@@ -41,9 +42,31 @@ describe(routineCatalog, () => {
         form: 'function',
         description: 'Adds the numbers.',
         kinds: [],
-        signatures: [{ kinds: [], parameters: [{ name: 'numbers', kinds: ['Number'], optional: false, repeatable: true }], returns: NUMBER }],
+        signatures: [{ kinds: [], parameters: [{ name: 'numbers', type: NUMBER, optional: false, repeatable: true }], returns: NUMBER }],
       },
     ]);
+  });
+
+  it('should give an argument the type of the values it takes, and the result the variables the arguments bind', () => {
+    const registry = new RoutinesRegistry();
+    const T = type.variable('T');
+
+    registry.registerFunction('pick', {
+      description: 'Returns an item of the list.',
+      examples: [],
+      arguments: [arg('list', type.array(T)), arg.number('index')],
+      returns: type.union(T, type.null),
+      handler: zero,
+    });
+
+    expect(routineCatalog(registry)[0]?.signatures).toEqual([{
+      kinds: [],
+      parameters: [
+        { name: 'list', type: { kind: 'Array', items: { kind: 'Variable', name: 'T' } }, optional: false, repeatable: false },
+        { name: 'index', type: NUMBER, optional: false, repeatable: false },
+      ],
+      returns: { kind: 'Union', of: [{ kind: 'Variable', name: 'T' }, { kind: 'Null' }] },
+    }]);
   });
 
   it('should list a routine of both forms as a function with its subject and as a method without it', () => {
@@ -66,8 +89,8 @@ describe(routineCatalog, () => {
         signatures: [{
           kinds: [],
           parameters: [
-            { name: 'text', kinds: ['String'], optional: false, repeatable: false },
-            { name: 'extra', kinds: ['Number'], optional: true, repeatable: false },
+            { name: 'text', type: STRING, optional: false, repeatable: false },
+            { name: 'extra', type: NUMBER, optional: true, repeatable: false },
           ],
           returns: NUMBER,
         }],
@@ -77,7 +100,7 @@ describe(routineCatalog, () => {
         form: 'method',
         description: 'Returns the size of the text.',
         kinds: ['String'],
-        signatures: [{ kinds: ['String'], parameters: [{ name: 'extra', kinds: ['Number'], optional: true, repeatable: false }], returns: NUMBER }],
+        signatures: [{ kinds: ['String'], parameters: [{ name: 'extra', type: NUMBER, optional: true, repeatable: false }], returns: NUMBER }],
       },
     ]);
   });
@@ -99,7 +122,7 @@ describe(routineCatalog, () => {
       description: 'Returns the size of the text or list.',
       kinds: ['Array', 'String'],
       signatures: [
-        { kinds: ['Array'], parameters: [{ name: 'extra', kinds: ['Number'], optional: true, repeatable: false }], returns: NUMBER },
+        { kinds: ['Array'], parameters: [{ name: 'extra', type: NUMBER, optional: true, repeatable: false }], returns: NUMBER },
         { kinds: ['String'], parameters: [], returns: NUMBER },
       ],
     });
@@ -111,13 +134,13 @@ describe(routineCatalog, () => {
     registry.registerRoutine('pad', {
       description: 'Pads the value to the width.',
       examples: [],
-      arguments: [arg.oneOf('value', [Kind.Number, Kind.String]), arg.number('width')],
+      arguments: [arg('value', type.union(type.number, type.string)), arg.number('width')],
       returns: type.number,
       handler: zero,
     });
 
     expect(routineCatalog(registry).find(({ form }) => form === 'method')?.signatures).toEqual([
-      { kinds: ['Number', 'String'], parameters: [{ name: 'width', kinds: ['Number'], optional: false, repeatable: false }], returns: NUMBER },
+      { kinds: ['Number', 'String'], parameters: [{ name: 'width', type: NUMBER, optional: false, repeatable: false }], returns: NUMBER },
     ]);
   });
 
@@ -133,8 +156,8 @@ describe(routineCatalog, () => {
     });
 
     expect(routineCatalog(registry).map(({ form, signatures }) => [form, signatures.map(({ kinds, returns }) => [kinds, returns])])).toEqual([
-      ['function', [[[], { kind: 'String' }], [[], NUMBER]]],
-      ['method', [[['Number'], NUMBER], [['String'], { kind: 'String' }]]],
+      ['function', [[[], STRING], [[], NUMBER]]],
+      ['method', [[['Number'], NUMBER], [['String'], STRING]]],
     ]);
   });
 
@@ -150,14 +173,14 @@ describe(routineCatalog, () => {
         form: 'method',
         description: 'Adds a duration to the date.',
         kinds: ['Date'],
-        signatures: [{ kinds: ['Date'], parameters: [{ name: 'duration', kinds: ['Duration'], optional: false, repeatable: false }], returns: NUMBER }],
+        signatures: [{ kinds: ['Date'], parameters: [{ name: 'duration', type: { kind: 'Duration' }, optional: false, repeatable: false }], returns: NUMBER }],
       },
       {
         name: 'plus',
         form: 'method',
         description: 'Returns the sum of two numbers.',
         kinds: ['Number'],
-        signatures: [{ kinds: ['Number'], parameters: [{ name: 'b', kinds: ['Number'], optional: false, repeatable: false }], returns: NUMBER }],
+        signatures: [{ kinds: ['Number'], parameters: [{ name: 'b', type: NUMBER, optional: false, repeatable: false }], returns: NUMBER }],
       },
     ]);
   });
@@ -176,20 +199,20 @@ describe(routineCatalog, () => {
     expect(routineCatalog(registry).map(({ name, form }) => `${form} ${name}`)).toEqual(['function textWhisper', 'method textWhisper', 'method whisper']);
   });
 
-  it('should give an argument evaluated once per item the kinds it returns and the variables it reads', () => {
+  it('should give an argument evaluated once per item the type it returns and the variables it reads', () => {
     const registry = new RoutinesRegistry();
 
     registry.registerRoutine('keep', {
       description: 'Returns the items for which the condition is true.',
       examples: [],
-      arguments: [arg.array('list'), arg.eachItem('condition', { returns: Kind.Boolean }), arg.callback('fallback', { variables: ['list'], optional: true })],
+      arguments: [arg.array('list'), arg.eachItem('condition', { returns: type.boolean }), arg.callback('fallback', { variables: ['list'], optional: true })],
       returns: type.number,
       handler: zero,
     });
 
     expect(routineCatalog(registry).find(({ form }) => form === 'method')?.signatures[0]?.parameters).toEqual([
-      { name: 'condition', kinds: ['Boolean'], optional: false, repeatable: false, variables: ['current', 'index'] },
-      { name: 'fallback', kinds: ['Any'], optional: true, repeatable: false, variables: ['list'] },
+      { name: 'condition', type: { kind: 'Boolean' }, optional: false, repeatable: false, variables: ['current', 'index'] },
+      { name: 'fallback', type: { kind: 'Any' }, optional: true, repeatable: false, variables: ['list'] },
     ]);
   });
 
@@ -205,8 +228,8 @@ describe(routineCatalog, () => {
     });
 
     expect(routineCatalog(registry).map(({ signatures }) => signatures[0]?.parameters.at(-1))).toEqual([
-      { name: 'unit', kinds: ['String'], optional: false, repeatable: false, choices: ['days', 'months'] },
-      { name: 'unit', kinds: ['String'], optional: false, repeatable: false, choices: ['days', 'months'] },
+      { name: 'unit', type: STRING, optional: false, repeatable: false, choices: ['days', 'months'] },
+      { name: 'unit', type: STRING, optional: false, repeatable: false, choices: ['days', 'months'] },
     ]);
   });
 
@@ -225,7 +248,7 @@ describe(routineCatalog, () => {
     registry.registerRoutine('units', { description: 'Lists the units.', examples: [], arguments: [arg.choice('unit', ['days', 'months'], { repeatable: true })], returns: type.number, handler: zero });
 
     expect(routineCatalog(registry).find(({ form }) => form === 'method')?.signatures[0]?.parameters).toEqual([
-      { name: 'unit', kinds: ['String'], optional: true, repeatable: true, choices: ['days', 'months'] },
+      { name: 'unit', type: STRING, optional: true, repeatable: true, choices: ['days', 'months'] },
     ]);
   });
 

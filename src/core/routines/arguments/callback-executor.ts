@@ -6,7 +6,8 @@ import { Kind } from '../../data-types';
 import { Errors } from '../../errors';
 
 interface CallbackExecutorOptions {
-  readonly returnType?: Kind | Kind[];
+  /** The kinds each evaluation must return; any kind when omitted. */
+  readonly returnKinds?: readonly Kind[];
   readonly argumentPosition: number;
   readonly argumentName?: string;
 }
@@ -15,7 +16,7 @@ interface CallbackExecutorOptions {
 export class CallbackExecutor<TVariables extends string = string, TReturn extends FormulaDataType = FormulaDataType> {
   readonly node: AST.AstNode;
   readonly #visitor: FormulaEvaluatorVisitor;
-  readonly returnType?: Kind | Kind[];
+  readonly #returnKinds: readonly Kind[];
   readonly #argumentPosition: number;
   readonly #argumentName?: string;
 
@@ -26,7 +27,7 @@ export class CallbackExecutor<TVariables extends string = string, TReturn extend
   ) {
     this.node = node;
     this.#visitor = visitor;
-    this.returnType = options.returnType;
+    this.#returnKinds = options.returnKinds ?? [Kind.Any];
     this.#argumentPosition = options.argumentPosition;
     this.#argumentName = options.argumentName;
   }
@@ -37,14 +38,10 @@ export class CallbackExecutor<TVariables extends string = string, TReturn extend
     const result = callbackVisitor.evaluateNode(this.node);
     const origin = callbackVisitor.origin ?? this.location;
 
-    const returnTypes = this.returnType
-      ? (Array.isArray(this.returnType) ? this.returnType : [this.returnType])
-      : [];
-
-    if (returnTypes.length > 0 && !this.#isTypeMatch(result.kind)) {
+    if (!this.#returnKinds.includes(Kind.Any) && !this.#returnKinds.includes(result.kind)) {
       throw Errors.Argument.CallbackReturnTypeMismatch.create(
         {
-          expected: returnTypes,
+          expected: [...this.#returnKinds],
           actual: result.kind,
           argumentPosition: this.#argumentPosition,
           argumentName: this.#argumentName,
@@ -59,10 +56,5 @@ export class CallbackExecutor<TVariables extends string = string, TReturn extend
 
   get location(): AST.Location {
     return this.node.location;
-  }
-
-  #isTypeMatch(actualType: Kind): boolean {
-    const expectedTypesArray = Array.isArray(this.returnType) ? this.returnType : [this.returnType];
-    return expectedTypesArray.includes(actualType) || expectedTypesArray.includes(Kind.Any);
   }
 }

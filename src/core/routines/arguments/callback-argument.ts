@@ -1,11 +1,12 @@
-import type { FormulaDataType } from '../../data-types';
+import type { FormulaDataType, Kind } from '../../data-types';
+import type { FormulaType } from '../../types';
 
-import { Kind } from '../../data-types';
+import { kindsOf, type } from '../../types';
 import { argumentName } from './argument-name';
 
 interface CallbackArgumentOptions {
-  optional?: boolean;
-  returnType?: Kind | Kind[];
+  readonly optional?: boolean;
+  readonly returns?: FormulaType;
 }
 
 /**
@@ -13,15 +14,17 @@ interface CallbackArgumentOptions {
  *
  * @remarks
  * `TVariables` and `TReturn` exist only for types: they type `execute` of the {@link CallbackExecutor}
- * the handler receives. The return type is enforced at run time by `returnType`.
+ * the handler receives. The kinds of `returns` are enforced at run time.
  */
 export class CallbackArgument<TVariables extends string = string, TReturn extends FormulaDataType = FormulaDataType> {
-  readonly types = Kind.Any;
   /** The name signature help and error messages show. */
   readonly name: string;
   readonly optional: boolean;
   readonly contextVariables: readonly TVariables[];
-  readonly returnType: Kind | Kind[];
+  /** What each evaluation returns, as the catalog shows it. */
+  readonly returns: FormulaType;
+  /** The kinds each evaluation is checked against, see {@link kindsOf}. */
+  readonly returnKinds: readonly Kind[];
   declare readonly returnValueType?: TReturn;
 
   /** @throws Error when the name is blank. */
@@ -33,6 +36,7 @@ export class CallbackArgument<TVariables extends string = string, TReturn extend
     this.name = argumentName(name);
     this.optional = options?.optional ?? false;
     this.contextVariables = contextVariables;
-    this.returnType = options?.returnType ?? Kind.Any;
+    this.returns = options?.returns ?? type.any;
+    this.returnKinds = kindsOf(this.returns);
   }
 }

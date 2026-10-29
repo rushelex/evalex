@@ -1,6 +1,6 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { decimalArithmetic, FormulaNull, FormulaNumber, Kind } from '../../data-types';
+import { decimalArithmetic, FormulaNull, FormulaNumber } from '../../data-types';
 import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
@@ -16,7 +16,7 @@ const routineExamples: readonly RoutineExampleOptions[] = [
 routinesRegistry.registerRoutine('mean', {
   description: 'Returns the arithmetic average of its arguments.',
   examples: routineExamples,
-  arguments: [arg.oneOf('numbers', [Kind.Array, Kind.Number], { repeatable: true })],
+  arguments: [arg('numbers', type.union(type.array(type.any), type.number), { repeatable: true })],
   returns: type.union(type.number, type.null),
   handler: ({ subject, args, location }) => {
     const numbers = collectNumbers({ values: [subject, ...args], location });

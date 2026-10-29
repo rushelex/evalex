@@ -21,10 +21,12 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   },
 ];
 
+const T = type.variable('T');
+
 routinesRegistry.registerRoutine('at', {
   description: 'Returns the item at the index, counted from the end if negative.',
   examples: routineExamples,
-  arguments: [arg.array('list'), arg.number('index', { validation: expectInteger })],
-  returns: type.any,
+  arguments: [arg('list', type.array(T)), arg.number('index', { validation: expectInteger })],
+  returns: type.union(T, type.null),
   handler: ({ subject, args: [index] }) => subject.value.at(index.value) ?? FormulaNull.instance(),
 });

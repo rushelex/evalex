@@ -33,7 +33,7 @@ const twins = routinesRegistry.getRegisteredDataTypes().flatMap((ctor) => {
     const methodName = routinesRegistry.getMethodName(functionName);
     const method = methodName === undefined ? undefined : routinesRegistry.getMethod(ctor, methodName);
     // Another routine may own a method of the same name on a type this function does not take as its subject.
-    const takesSubject = routine.signatures.some(([subject]) => subject !== undefined && [subject.types].flat().some((type) => type === Kind.Any || type === kind));
+    const takesSubject = routine.signatures.some(([subject]) => subject !== undefined && 'kinds' in subject && subject.kinds.some((type) => type === Kind.Any || type === kind));
 
     if (methodName === undefined || method === undefined || !takesSubject) {
       return [];

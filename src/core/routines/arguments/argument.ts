@@ -1,5 +1,7 @@
-import type { FormulaDataType, FormulaDataTypeByKind, Kind } from '../../data-types';
+import type { FormulaDataType, Kind } from '../../data-types';
+import type { FormulaType, ValueType } from '../../types';
 
+import { kindsOf } from '../../types';
 import { argumentName } from './argument-name';
 
 /** What a failed custom check reports; the position of the argument is filled in by the engine. */
@@ -27,12 +29,14 @@ export interface ArgumentOptions<TValue extends FormulaDataType> {
  * its arguments typed from the signature. The constructor does not check them against the options.
  */
 export class Argument<
-  TKind extends Kind = Kind,
-  TValue extends FormulaDataType = FormulaDataTypeByKind<TKind>,
+  TValue extends FormulaDataType = FormulaDataType,
   TOptional extends boolean = boolean,
   TRepeatable extends boolean = boolean,
 > {
-  readonly types: TKind | TKind[];
+  /** The values the argument takes, as the catalog shows them. */
+  readonly type: FormulaType;
+  /** The kinds a call checks the value against, see {@link kindsOf}. */
+  readonly kinds: readonly Kind[];
   /** The name signature help and error messages show. */
   readonly name: string;
   readonly optional: TOptional;
@@ -41,13 +45,13 @@ export class Argument<
   readonly choices?: readonly string[];
   declare readonly valueType?: TValue;
 
-  /** @throws Error when the name is blank. */
-  constructor(
-    types: TKind | TKind[],
-    name: string,
-    options?: ArgumentOptions<FormulaDataTypeByKind<TKind>>,
-  ) {
-    this.types = types;
+  /**
+   * @param type Built with `type`, it gives `validation` the class of the values; a plain one gives it any value.
+   * @throws Error when the name is blank.
+   */
+  constructor(type: ValueType<TValue> | FormulaType, name: string, options?: ArgumentOptions<TValue>) {
+    this.type = type;
+    this.kinds = kindsOf(type);
     this.name = argumentName(name);
     this.optional = (options?.optional ?? false) as TOptional;
     this.repeatable = (options?.repeatable ?? false) as TRepeatable;

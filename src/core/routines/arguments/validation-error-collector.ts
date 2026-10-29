@@ -118,7 +118,7 @@ export class ValidationErrorCollector {
       }
 
       // Check type match
-      if (!this.#isTypeMatch(arg.dataType.kind, argDef.types)) {
+      if (!this.#isTypeMatch(arg.dataType.kind, argDef.kinds)) {
         return this.#errorFactory.createTypeError(arg, argDef, index + 1);
       }
 
@@ -160,17 +160,17 @@ export class ValidationErrorCollector {
       return undefined;
     }
 
-    return this.#errorFactory.createTypeError(subject, { types }, 1);
+    return this.#errorFactory.createTypeError(subject, { kinds: types }, 1);
   }
 
-  #subjectTypes(pattern: ArgumentsPattern): Kind[] {
+  #subjectTypes(pattern: ArgumentsPattern): readonly Kind[] {
     const argDef = this.#definitions.getArgumentForPattern(0, pattern);
 
     if (argDef === undefined || argDef instanceof CallbackArgument) {
       return [];
     }
 
-    return Array.isArray(argDef.types) ? argDef.types : [argDef.types];
+    return argDef.kinds;
   }
 
   /**
@@ -201,11 +201,10 @@ export class ValidationErrorCollector {
   /**
    * Checks if actual type matches any of the expected types.
    * @param actualType The actual data type kind
-   * @param expectedTypes Single expected type or array of expected types
+   * @param expectedTypes The expected types
    * @returns True if types match
    */
-  #isTypeMatch(actualType: Kind, expectedTypes: Kind | Kind[]): boolean {
-    const expectedTypesArray = Array.isArray(expectedTypes) ? expectedTypes : [expectedTypes];
-    return expectedTypesArray.includes(actualType) || expectedTypesArray.includes(Kind.Any);
+  #isTypeMatch(actualType: Kind, expectedTypes: readonly Kind[]): boolean {
+    return expectedTypes.includes(actualType) || expectedTypes.includes(Kind.Any);
   }
 }

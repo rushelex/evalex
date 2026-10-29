@@ -16,14 +16,17 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   },
 ];
 
+const T = type.variable('T');
+const U = type.variable('U');
+
 routinesRegistry.registerRoutine('map', {
   description: 'Returns the list with the expression applied to every item.',
   examples: routineExamples,
   arguments: [
-    arg.array('list'),
-    arg.eachItem('mapper'),
+    arg('list', type.array(T)),
+    arg.eachItem('mapper', { returns: U }),
   ],
-  returns: type.array(type.any),
+  returns: type.array(U),
   handler: ({ subject, args: [mapper] }) => {
     const results = subject.value.map((current, index) => mapper.execute({ current, index: new FormulaNumber(index) }));
 

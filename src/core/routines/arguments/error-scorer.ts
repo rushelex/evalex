@@ -60,7 +60,7 @@ export class ErrorScorer {
         return;
       }
 
-      if (this.#isTypeMatch(actualType, argDef.types)) {
+      if (this.#isTypeMatch(actualType, argDef.kinds)) {
         typeMatches++;
 
         if (!this.#isCustomValidationPass(arg, argDef)) {
@@ -84,12 +84,11 @@ export class ErrorScorer {
   /**
    * Checks if actual type matches any of the expected types.
    * @param actualType The actual data type kind
-   * @param expectedTypes Single expected type or array of expected types
+   * @param expectedTypes The expected types
    * @returns True if types match
    */
-  #isTypeMatch(actualType: Kind, expectedTypes: Kind | Kind[]): boolean {
-    const expectedTypesArray = Array.isArray(expectedTypes) ? expectedTypes : [expectedTypes];
-    return expectedTypesArray.includes(actualType) || expectedTypesArray.includes(Kind.Any);
+  #isTypeMatch(actualType: Kind, expectedTypes: readonly Kind[]): boolean {
+    return expectedTypes.includes(actualType) || expectedTypes.includes(Kind.Any);
   }
 
   /**

@@ -16,10 +16,12 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   },
 ];
 
+const T = type.variable('T');
+
 routinesRegistry.registerRoutine('last', {
   description: 'Returns the last item in the list.',
   examples: routineExamples,
-  arguments: [arg.array('list')],
-  returns: type.any,
+  arguments: [arg('list', type.array(T))],
+  returns: type.union(T, type.null),
   handler: ({ subject }) => subject.value.at(-1) ?? FormulaNull.instance(),
 });

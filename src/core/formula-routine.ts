@@ -36,10 +36,10 @@ export interface FormulaRoutineParameter {
   /** The name signature help shows, such as `places`. */
   readonly name: string;
   /**
-   * The kinds the argument takes, `Any` for any value. For an argument evaluated once per item, such as the condition
-   * of `filter`, the kinds each evaluation returns.
+   * The values the argument takes, such as a list of numbers. For an argument evaluated once per item, such as the
+   * condition of `filter`, what each evaluation returns.
    */
-  readonly kinds: readonly Kind[];
+  readonly type: FormulaType;
   readonly optional: boolean;
   /** The argument takes any number of values, as in `sum(1, 2, 3)`. */
   readonly repeatable: boolean;

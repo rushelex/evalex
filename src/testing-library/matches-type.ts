@@ -2,7 +2,7 @@ import type { FormulaDataType, FormulaType } from '../core';
 
 import { FormulaArray, Kind } from '../core';
 
-/** Tells whether a value is one the type describes, items of a list included. */
+/** Tells whether a value is one the type describes, items of a list included; a type variable admits any value. */
 export function matchesType(value: FormulaDataType, type: FormulaType): boolean {
   if (type.kind === 'Union') {
     return type.of.some((member) => matchesType(value, member));
@@ -12,7 +12,7 @@ export function matchesType(value: FormulaDataType, type: FormulaType): boolean 
     return isList(value) && value.value.every((item) => matchesType(item, type.items));
   }
 
-  return type.kind === Kind.Any || value.kind === type.kind;
+  return type.kind === Kind.Any || type.kind === 'Variable' || value.kind === type.kind;
 }
 
 // `instanceof` narrows a generic class to its `any` instantiation, so the guard names the item type.

@@ -21,14 +21,16 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   },
 ];
 
+const T = type.variable('T');
+
 routinesRegistry.registerRoutine('slice', {
   description: 'Returns the items from the start index up to the end index.',
   examples: routineExamples,
   arguments: [
-    arg.array('list'),
+    arg('list', type.array(T)),
     arg.number('start', { validation: expectInteger }),
     arg.number('end', { optional: true, validation: expectInteger }),
   ],
-  returns: type.array(type.any),
+  returns: type.array(T),
   handler: ({ subject, args: [start, end] }) => new FormulaArray(subject.value.slice(start.value, end?.value)),
 });

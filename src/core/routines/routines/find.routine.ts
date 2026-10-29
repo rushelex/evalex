@@ -1,6 +1,6 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaNull, FormulaNumber, FormulaString, Kind } from '../../data-types';
+import { FormulaNull, FormulaNumber, FormulaString } from '../../data-types';
 import { type } from '../../types';
 import { arg } from '../arguments';
 import { routinesRegistry } from '../registry';
@@ -16,14 +16,16 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   },
 ];
 
+const T = type.variable('T');
+
 routinesRegistry.registerRoutine('find', {
   description: 'Returns the first item for which the condition is true.',
   examples: routineExamples,
   arguments: [
-    arg.array('list'),
-    arg.eachItem('predicate', { returns: Kind.Boolean }),
+    arg('list', type.array(T)),
+    arg.eachItem('predicate', { returns: type.boolean }),
   ],
-  returns: type.any,
+  returns: type.union(T, type.null),
   handler: ({ subject, args: [predicate] }) => subject.value
     .find((current, index) => predicate.execute({ current, index: new FormulaNumber(index) }).value) ?? FormulaNull.instance(),
 });

@@ -28,7 +28,7 @@ export class TypeValidator {
       return false;
     }
 
-    return this.#isTypeMatch(arg.dataType.kind, argDef.types) && this.#isCustomValidationPass(arg, argDef);
+    return this.#isTypeMatch(arg.dataType.kind, argDef.kinds) && this.#isCustomValidationPass(arg, argDef);
   }
 
   /**
@@ -44,12 +44,11 @@ export class TypeValidator {
   /**
    * Checks if the actual type matches any of the expected types.
    * @param actualType The actual data type kind
-   * @param expectedTypes Single expected type or array of expected types
+   * @param expectedTypes The expected types
    * @returns True if types match
    */
-  #isTypeMatch(actualType: Kind, expectedTypes: Kind | Kind[]): boolean {
-    const expectedTypesArray = Array.isArray(expectedTypes) ? expectedTypes : [expectedTypes];
-    return expectedTypesArray.includes(actualType) || expectedTypesArray.includes(Kind.Any);
+  #isTypeMatch(actualType: Kind, expectedTypes: readonly Kind[]): boolean {
+    return expectedTypes.includes(actualType) || expectedTypes.includes(Kind.Any);
   }
 
   /**

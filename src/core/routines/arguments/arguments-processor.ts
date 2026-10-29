@@ -96,7 +96,7 @@ export class ArgumentsProcessor {
 
       if (argDef instanceof CallbackArgument) {
         return new CallbackExecutor(arg, visitor, {
-          returnType: argDef.returnType,
+          returnKinds: argDef.returnKinds,
           argumentPosition: index + 1,
           argumentName: argDef.name,
         });

@@ -12,10 +12,12 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   },
 ];
 
+const T = type.variable('T');
+
 routinesRegistry.registerRoutine('reverse', {
   description: 'Returns the items of the list in reverse order.',
   examples: routineExamples,
-  arguments: [arg.array('list')],
-  returns: type.array(type.any),
+  arguments: [arg('list', type.array(T))],
+  returns: type.array(T),
   handler: ({ subject }) => new FormulaArray(subject.value.toReversed()),
 });

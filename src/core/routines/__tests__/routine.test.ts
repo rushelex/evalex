@@ -1,27 +1,28 @@
 import type { ArgumentsPattern } from '../arguments';
 
-import { FormulaNull, Kind } from '../../data-types';
+import { FormulaNull } from '../../data-types';
+import { type } from '../../types';
 import { Argument, CallbackArgument } from '../arguments';
 import { Routine } from '../routine';
 
 describe(Routine, () => {
   describe('getCallbackVariables', () => {
     it('should return the names a callback at the position introduces', () => {
-      const routine = createRoutine([new Argument(Kind.Array, 'list'), new CallbackArgument(['current', 'index'], 'callback')]);
+      const routine = createRoutine([new Argument(type.array(type.any), 'list'), new CallbackArgument(['current', 'index'], 'callback')]);
 
       expect(routine.getCallbackVariables(1)).toEqual(['current', 'index']);
     });
 
     it('should return nothing for a value argument', () => {
-      const routine = createRoutine([new Argument(Kind.Array, 'list'), new CallbackArgument(['current'], 'callback')]);
+      const routine = createRoutine([new Argument(type.array(type.any), 'list'), new CallbackArgument(['current'], 'callback')]);
 
       expect(routine.getCallbackVariables(0)).toEqual([]);
     });
 
     it('should return nothing when another signature takes a value at the position', () => {
       const routine = createRoutine([
-        [new Argument(Kind.Array, 'list'), new CallbackArgument(['current'], 'callback')],
-        [new Argument(Kind.Array, 'list'), new Argument(Kind.Number, 'number')],
+        [new Argument(type.array(type.any), 'list'), new CallbackArgument(['current'], 'callback')],
+        [new Argument(type.array(type.any), 'list'), new Argument(type.number, 'number')],
       ]);
 
       expect(routine.getCallbackVariables(1)).toEqual([]);
@@ -29,8 +30,8 @@ describe(Routine, () => {
 
     it('should return only the names every signature declares at the position', () => {
       const routine = createRoutine([
-        [new Argument(Kind.Array, 'list'), new CallbackArgument(['current', 'index'], 'callback')],
-        [new Argument(Kind.String, 'text'), new CallbackArgument(['current'], 'callback')],
+        [new Argument(type.array(type.any), 'list'), new CallbackArgument(['current', 'index'], 'callback')],
+        [new Argument(type.string, 'text'), new CallbackArgument(['current'], 'callback')],
       ]);
 
       expect(routine.getCallbackVariables(1)).toEqual(['current']);

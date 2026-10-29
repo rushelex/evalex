@@ -92,7 +92,7 @@ export function routineCallArbitrary({ signatures, subjectKind }: RoutineCallOpt
 
 function signatureArbitrary(signature: ArgumentsPattern): fc.Arbitrary<ArgumentInput[]> {
   const positions = signature.map((argument) => {
-    const single = argument instanceof CallbackArgument ? callbackArbitrary(argument) : valueArbitrary(argument.types);
+    const single = argument instanceof CallbackArgument ? callbackArbitrary(argument) : valueArbitrary(argument.kinds);
 
     if (!(argument instanceof CallbackArgument) && argument.repeatable) {
       return fc.array(single, { minLength: argument.optional ? 0 : 1, maxLength: 3 });
@@ -105,15 +105,14 @@ function signatureArbitrary(signature: ArgumentsPattern): fc.Arbitrary<ArgumentI
   return fc.tuple(fc.tuple(...positions), fc.integer({ min: requiredCount, max: signature.length })).map(([groups, count]) => groups.slice(0, count).flat());
 }
 
-function valueArbitrary(types: Kind | readonly Kind[]): fc.Arbitrary<ArgumentInput> {
-  const kinds = Array.isArray(types) ? types : [types];
+function valueArbitrary(kinds: readonly Kind[]): fc.Arbitrary<ArgumentInput> {
   const fitting = fc.oneof(...kinds.map((kind) => formulaValueArbitrary(kind))).map((value): ArgumentInput => ({ value }));
 
   return fc.oneof({ weight: 9, arbitrary: fitting }, { weight: 1, arbitrary: anyArgument });
 }
 
 function callbackArbitrary(callback: CallbackArgument): fc.Arbitrary<ArgumentInput> {
-  const returnsBoolean = callback.returnType === Kind.Boolean;
+  const returnsBoolean = callback.returns.kind === Kind.Boolean;
   const expressions = returnsBoolean ? BOOLEAN_EXPRESSIONS : [...ANY_EXPRESSIONS, ...BOOLEAN_EXPRESSIONS];
   const expression = fc.constantFrom(...expressions).map((text): ArgumentInput => ({ expression: text }));
 

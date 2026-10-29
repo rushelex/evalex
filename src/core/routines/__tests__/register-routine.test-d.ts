@@ -1,8 +1,8 @@
 import type { AST } from '../../../parser';
-import type { FormulaBoolean, FormulaDataType, FormulaDuration, FormulaRegExp } from '../../data-types';
+import type { FormulaBoolean, FormulaDataType, FormulaDuration, FormulaNull, FormulaRegExp } from '../../data-types';
 import type { CallbackExecutor, ChoiceValue } from '../arguments';
 
-import { FormulaArray, FormulaDateTime, FormulaNumber, FormulaString, Kind } from '../../data-types';
+import { FormulaArray, FormulaDateTime, FormulaNumber, FormulaString } from '../../data-types';
 import { type } from '../../types';
 import { arg } from '../arguments';
 import { RoutinesRegistry } from '../registry';
@@ -44,7 +44,7 @@ describe('RoutinesRegistry.registerRoutine handler types', () => {
     registry.registerRoutine('sum', {
       description: '',
       examples: [],
-      arguments: [arg.oneOf('numbers', [Kind.Array, Kind.Number], { repeatable: true })],
+      arguments: [arg('numbers', type.union(type.array(type.any), type.number), { repeatable: true })],
       returns: type.union(type.array(type.any), type.number),
       handler: ({ subject, args }) => {
         expectTypeOf(subject).toEqualTypeOf<FormulaArray | FormulaNumber>();
@@ -91,7 +91,7 @@ describe('RoutinesRegistry.registerRoutine handler types', () => {
     registry.registerRoutine('filter', {
       description: '',
       examples: [],
-      arguments: [arg.array('list'), arg.callback('predicate', { variables: ['current', 'index'], returns: Kind.Boolean })],
+      arguments: [arg.array('list'), arg.callback('predicate', { variables: ['current', 'index'], returns: type.boolean })],
       returns: type.array(type.any),
       handler: ({ subject, args: [predicate] }) => {
         expectTypeOf(predicate).toEqualTypeOf<CallbackExecutor<'current' | 'index', FormulaBoolean>>();
@@ -106,12 +106,43 @@ describe('RoutinesRegistry.registerRoutine handler types', () => {
     registry.registerRoutine('every', {
       description: '',
       examples: [],
-      arguments: [arg.array('list'), arg.eachItem('predicate', { returns: Kind.Boolean })],
+      arguments: [arg.array('list'), arg.eachItem('predicate', { returns: type.boolean })],
       returns: type.array(type.any),
       handler: ({ subject, args: [predicate] }) => {
         expectTypeOf(predicate).toEqualTypeOf<CallbackExecutor<'current' | 'index', FormulaBoolean>>();
 
         return subject;
+      },
+    });
+  });
+
+  it('should type an argument of a type built with `type` by the kinds a call checks, leaving the items of a list unchecked', () => {
+    registry.registerRoutine('total', {
+      description: '',
+      examples: [],
+      arguments: [arg('list', type.array(type.number)), arg('fallback', type.union(type.number, type.null), { optional: true })],
+      returns: type.number,
+      handler: ({ subject, args }) => {
+        expectTypeOf(subject).toEqualTypeOf<FormulaArray>();
+        expectTypeOf(args).toEqualTypeOf<[(FormulaNumber | FormulaNull)?]>();
+
+        return new FormulaNumber(0);
+      },
+    });
+  });
+
+  it('should give a value of a type variable as any value, and take any value as its result', () => {
+    const T = type.variable('T');
+
+    registry.registerRoutine('head', {
+      description: '',
+      examples: [],
+      arguments: [arg('list', type.array(T))],
+      returns: T,
+      handler: ({ subject }) => {
+        expectTypeOf(subject.value).toEqualTypeOf<readonly FormulaDataType[]>();
+
+        return subject.value[0] ?? new FormulaNumber(0);
       },
     });
   });

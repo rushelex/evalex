@@ -1,6 +1,6 @@
 import { fc, it } from '@fast-check/vitest';
 
-import { Kind } from '../../../data-types';
+import { type } from '../../../types';
 import { arg } from '../arg';
 
 const blankName = fc.stringMatching(/^\s*$/);
@@ -15,7 +15,7 @@ describe('arg', () => {
   });
 
   it.prop([blankName])('should refuse a blank name of an argument evaluated per item', (name) => {
-    expect(() => arg.eachItem(name, { returns: Kind.Boolean })).toThrow(new Error(`An argument name must not be blank, got "${name}".`));
+    expect(() => arg.eachItem(name, { returns: type.boolean })).toThrow(new Error(`An argument name must not be blank, got "${name}".`));
   });
 
   it('should refuse an empty name of an argument that takes only some words', () => {

@@ -77,12 +77,12 @@ export class ValidationErrorFactory {
    */
   createTypeError(
     arg: ProcessedArgument,
-    argDef: Pick<Argument, 'types'>,
+    argDef: Pick<Argument, 'kinds'>,
     position: number,
   ): FormulaError {
     return Errors.Argument.TypeMismatch.create({
       actual: arg.dataType.kind,
-      expected: Array.isArray(argDef.types) ? [...argDef.types] : [argDef.types],
+      expected: [...argDef.kinds],
       argumentPosition: position,
     }, {
       location: arg.location,
@@ -170,7 +170,7 @@ export class ValidationErrorFactory {
   ): FormulaError {
     return Errors.Argument.UnexpectedCallback.create({
       argumentPosition: position,
-      expected: Array.isArray(argDef.types) ? [...argDef.types] : [argDef.types],
+      expected: [...argDef.kinds],
     }, {
       location: arg.location,
     });

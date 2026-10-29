@@ -1,4 +1,3 @@
-import type { Kind } from '../../data-types';
 import type { Argument } from './argument';
 import type { ArgumentsPattern } from './arguments-definitions';
 import type { CallbackArgument } from './callback-argument';
@@ -9,7 +8,7 @@ export type SubjectSignature = readonly [Argument, ...(Argument | CallbackArgume
 
 /** The value a handler receives for an argument definition. */
 export type ArgumentValue<TArgument>
-  = TArgument extends Argument<Kind, infer TValue> ? TValue
+  = TArgument extends Argument<infer TValue> ? TValue
   : TArgument extends CallbackArgument<infer TVariables, infer TReturn> ? CallbackExecutor<TVariables, TReturn>
   : never;
 

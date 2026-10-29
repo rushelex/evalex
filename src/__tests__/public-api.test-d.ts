@@ -41,11 +41,12 @@ describe('public API', () => {
     expectTypeOf<API.FormulaRoutine['form']>().toEqualTypeOf<'function' | 'method'>();
     expectTypeOf<API.FormulaRoutine['signatures'][number]>().toEqualTypeOf<API.FormulaRoutineSignature>();
     expectTypeOf<API.FormulaRoutineSignature['parameters'][number]>().toEqualTypeOf<API.FormulaRoutineParameter>();
-    expectTypeOf<API.FormulaRoutineParameter['kinds'][number]>().toEqualTypeOf<API.Kind>();
+    expectTypeOf<API.FormulaRoutineParameter['type']>().toEqualTypeOf<API.FormulaType>();
   });
 
   it('should describe the result of a routine as plain data: a kind, a list of a type or one of several types', () => {
     expectTypeOf<API.FormulaRoutineSignature['returns']>().toEqualTypeOf<API.FormulaType>();
+    expectTypeOf({ kind: 'Variable', name: 'T' } as const).toExtend<API.FormulaType>();
     expectTypeOf({ kind: 'Number' } as const).toExtend<API.FormulaType>();
     expectTypeOf({ kind: 'Array', items: { kind: 'String' } } as const).toExtend<API.FormulaType>();
     expectTypeOf({ kind: 'Union', of: [{ kind: 'Number' }, { kind: 'Null' }] } as const).toExtend<API.FormulaType>();

@@ -353,9 +353,7 @@ export class RoutinesRegistry {
 export const routinesRegistry = new RoutinesRegistry();
 
 function acceptsKind(argument: Argument, kind: Kind): boolean {
-  const kinds = Array.isArray(argument.types) ? argument.types : [argument.types];
-
-  return kinds.includes(Kind.Any) || kinds.includes(kind);
+  return argument.kinds.includes(Kind.Any) || argument.kinds.includes(kind);
 }
 
 // Data types whose values some signature accepts as the subject, in the order of `ALL_DATA_TYPES`.
@@ -407,7 +405,7 @@ function toMethodSignature(signature: ArgumentsPattern): ArgumentsPattern {
   const [subject, ...rest] = signature;
 
   if (subject instanceof Argument && subject.repeatable) {
-    return [new Argument(subject.types, subject.name, { repeatable: true, optional: true, validation: subject.validation, choices: subject.choices }), ...rest];
+    return [new Argument(subject.type, subject.name, { repeatable: true, optional: true, validation: subject.validation, choices: subject.choices }), ...rest];
   }
 
   return rest;

@@ -1,6 +1,6 @@
 import type { RoutineExampleOptions } from '../routine-example';
 
-import { FormulaArray, FormulaNumber, FormulaString, Kind } from '../../data-types';
+import { FormulaArray, FormulaNumber, FormulaString } from '../../data-types';
 import { Errors } from '../../errors';
 import { type } from '../../types';
 import { arg } from '../arguments';
@@ -29,14 +29,16 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   },
 ];
 
+const T = type.variable('T');
+
 routinesRegistry.registerRoutine('filter', {
   description: 'Returns the values in the list for which the condition is true.',
   examples: routineExamples,
   arguments: [
-    arg.array('list'),
-    arg.eachItem('predicate', { returns: Kind.Boolean }),
+    arg('list', type.array(T)),
+    arg.eachItem('predicate', { returns: type.boolean }),
   ],
-  returns: type.array(type.any),
+  returns: type.array(T),
   handler: ({ subject, args: [predicate] }) => {
     const results = subject.value.filter((current, index) => predicate.execute({ current, index: new FormulaNumber(index) }).value);
 

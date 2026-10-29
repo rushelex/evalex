@@ -43,4 +43,10 @@ export const type = {
 
   /** A value of any of the types. */
   union: <const TValues extends readonly FormulaDataType[]>(...of: { readonly [K in keyof TValues]: ValueType<TValues[K]> }): ValueType<TValues[number]> => describe({ kind: 'Union', of }),
+
+  /**
+   * The type a call binds by its arguments, the same wherever the name repeats in one signature, as `T` in
+   * `first(list: Array<T>): T`.
+   */
+  variable: (name: string): ValueType<FormulaDataType> => describe({ kind: 'Variable', name }),
 } as const;

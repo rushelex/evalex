@@ -17,11 +17,13 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   },
 ];
 
+const T = type.variable('T');
+
 routinesRegistry.registerRoutine('unique', {
   description: 'Returns the list without repeats, keeping the first of each.',
   examples: routineExamples,
-  arguments: [arg.array('list')],
-  returns: type.array(type.any),
+  arguments: [arg('list', type.array(T))],
+  returns: type.array(T),
   handler: ({ subject }) => {
     const kept: FormulaDataType[] = [];
 
