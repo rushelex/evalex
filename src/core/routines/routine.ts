@@ -72,6 +72,8 @@ export interface RoutineOptions<TInstance extends Routine | FormulaDataType | un
   readonly arguments?: ArgumentsPattern | readonly ArgumentsPattern[];
   /** The type of the result of each signature, in their order; one type when the routine checks its arguments itself. */
   readonly results: readonly FormulaType[];
+  /** For a method form, the type of the value it is called on with each signature, in their order. */
+  readonly subjects?: readonly FormulaType[];
   /** The routine is a method form whose subject every signature accepts, so a failed call reports the same signature as the function form. */
   readonly subjectAccepted?: boolean;
   /** The routine is a function form whose first argument is the call subject, so a failed call reports the signatures its method form has on that type. */
@@ -88,6 +90,8 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
   readonly volatile: boolean;
   /** The type of the result of each of {@link Routine.signatures}, in their order; one type when there are none. */
   readonly results: readonly FormulaType[];
+  /** The type of the value a method form is called on with each of {@link Routine.signatures}; empty for a function. */
+  readonly subjects: readonly FormulaType[];
   readonly #argumentsProcessor?: ArgumentsProcessor;
   readonly #handler: RoutineHandler<TInstance>;
 
@@ -96,6 +100,7 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
     this.examples = options.examples;
     this.volatile = options.volatile ?? false;
     this.results = options.results;
+    this.subjects = options.subjects ?? [];
     this.#argumentsProcessor = options.arguments ? new ArgumentsProcessor(options.arguments, { precedingMatches: options.subjectAccepted ? 1 : 0, subjectFirst: options.subjectFirst }) : undefined;
     this.#handler = options.handler;
   }

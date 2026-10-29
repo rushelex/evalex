@@ -227,6 +227,7 @@ export class RoutinesRegistry {
           examples: new RoutineExamples(methodName, definition.examples).toMethodExamples(methodNames[0]),
           arguments: ctorSignatures,
           results: ctorResults,
+          subjects: subjects.map((subject) => subject.type),
           subjectAccepted: true,
           volatile: definition.volatile,
           handler: ({ instance, args, visitor, location }) => {

@@ -24,8 +24,11 @@ export interface FormulaRoutine {
 
 /** One argument list a routine accepts; a method's list leaves out the value it is called on. */
 export interface FormulaRoutineSignature {
-  /** For a method, the kinds of values this list is accepted on, such as `Number` for `5.add(b)`; empty for a function. */
-  readonly kinds: readonly Kind[];
+  /**
+   * For a method, the type of the value it is called on with this list, such as `Number` for `5.add(b)` or a list of `T`
+   * for `list.first()`; absent for a function, whose list starts with that value.
+   */
+  readonly subject?: FormulaType;
   readonly parameters: readonly FormulaRoutineParameter[];
   /** The type of the result of a call with this list, such as `Number` for `round`. */
   readonly returns: FormulaType;

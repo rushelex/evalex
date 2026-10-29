@@ -29,7 +29,6 @@ describe(routineCatalog, () => {
         description: 'Rounds the number.',
         kinds: [],
         signatures: [{
-          kinds: [],
           parameters: [
             { name: 'number', type: NUMBER, optional: false, repeatable: false },
             { name: 'places', type: { kind: 'Union', of: [NUMBER, STRING] }, optional: true, repeatable: false },
@@ -42,7 +41,7 @@ describe(routineCatalog, () => {
         form: 'function',
         description: 'Adds the numbers.',
         kinds: [],
-        signatures: [{ kinds: [], parameters: [{ name: 'numbers', type: NUMBER, optional: false, repeatable: true }], returns: NUMBER }],
+        signatures: [{ parameters: [{ name: 'numbers', type: NUMBER, optional: false, repeatable: true }], returns: NUMBER }],
       },
     ]);
   });
@@ -60,7 +59,6 @@ describe(routineCatalog, () => {
     });
 
     expect(routineCatalog(registry)[0]?.signatures).toEqual([{
-      kinds: [],
       parameters: [
         { name: 'list', type: { kind: 'Array', items: { kind: 'Variable', name: 'T' } }, optional: false, repeatable: false },
         { name: 'index', type: NUMBER, optional: false, repeatable: false },
@@ -87,7 +85,6 @@ describe(routineCatalog, () => {
         description: 'Returns the size of the text.',
         kinds: [],
         signatures: [{
-          kinds: [],
           parameters: [
             { name: 'text', type: STRING, optional: false, repeatable: false },
             { name: 'extra', type: NUMBER, optional: true, repeatable: false },
@@ -100,12 +97,12 @@ describe(routineCatalog, () => {
         form: 'method',
         description: 'Returns the size of the text.',
         kinds: ['String'],
-        signatures: [{ kinds: ['String'], parameters: [{ name: 'extra', type: NUMBER, optional: true, repeatable: false }], returns: NUMBER }],
+        signatures: [{ subject: STRING, parameters: [{ name: 'extra', type: NUMBER, optional: true, repeatable: false }], returns: NUMBER }],
       },
     ]);
   });
 
-  it('should give each argument list of a method the kinds it is accepted on', () => {
+  it('should give each argument list of a method the type of the value it is called on', () => {
     const registry = new RoutinesRegistry();
 
     registry.registerRoutine('measure', {
@@ -122,13 +119,32 @@ describe(routineCatalog, () => {
       description: 'Returns the size of the text or list.',
       kinds: ['Array', 'String'],
       signatures: [
-        { kinds: ['Array'], parameters: [{ name: 'extra', type: NUMBER, optional: true, repeatable: false }], returns: NUMBER },
-        { kinds: ['String'], parameters: [], returns: NUMBER },
+        { subject: { kind: 'Array', items: { kind: 'Any' } }, parameters: [{ name: 'extra', type: NUMBER, optional: true, repeatable: false }], returns: NUMBER },
+        { subject: STRING, parameters: [], returns: NUMBER },
       ],
     });
   });
 
-  it('should list an argument list several kinds accept once with all of them', () => {
+  it('should give a method the type of its value with the variables the result follows', () => {
+    const registry = new RoutinesRegistry();
+    const T = type.variable('T');
+
+    registry.registerRoutine('head', {
+      description: 'Returns the first item.',
+      examples: [],
+      arguments: [arg('list', type.array(T))],
+      returns: type.union(T, type.null),
+      handler: ({ subject }) => subject.value[0] ?? zero(),
+    });
+
+    expect(routineCatalog(registry).find(({ form }) => form === 'method')?.signatures).toEqual([{
+      subject: { kind: 'Array', items: { kind: 'Variable', name: 'T' } },
+      parameters: [],
+      returns: { kind: 'Union', of: [{ kind: 'Variable', name: 'T' }, { kind: 'Null' }] },
+    }]);
+  });
+
+  it('should list an argument list several kinds accept once, called on any of them', () => {
     const registry = new RoutinesRegistry();
 
     registry.registerRoutine('pad', {
@@ -140,7 +156,7 @@ describe(routineCatalog, () => {
     });
 
     expect(routineCatalog(registry).find(({ form }) => form === 'method')?.signatures).toEqual([
-      { kinds: ['Number', 'String'], parameters: [{ name: 'width', type: NUMBER, optional: false, repeatable: false }], returns: NUMBER },
+      { subject: { kind: 'Union', of: [NUMBER, STRING] }, parameters: [{ name: 'width', type: NUMBER, optional: false, repeatable: false }], returns: NUMBER },
     ]);
   });
 
@@ -155,9 +171,9 @@ describe(routineCatalog, () => {
       handler: ({ subject }) => subject,
     });
 
-    expect(routineCatalog(registry).map(({ form, signatures }) => [form, signatures.map(({ kinds, returns }) => [kinds, returns])])).toEqual([
-      ['function', [[[], STRING], [[], NUMBER]]],
-      ['method', [[['Number'], NUMBER], [['String'], STRING]]],
+    expect(routineCatalog(registry).map(({ form, signatures }) => [form, signatures.map(({ subject, returns }) => [subject, returns])])).toEqual([
+      ['function', [[undefined, STRING], [undefined, NUMBER]]],
+      ['method', [[NUMBER, NUMBER], [STRING, STRING]]],
     ]);
   });
 
@@ -173,14 +189,14 @@ describe(routineCatalog, () => {
         form: 'method',
         description: 'Adds a duration to the date.',
         kinds: ['Date'],
-        signatures: [{ kinds: ['Date'], parameters: [{ name: 'duration', type: { kind: 'Duration' }, optional: false, repeatable: false }], returns: NUMBER }],
+        signatures: [{ subject: { kind: 'Date' }, parameters: [{ name: 'duration', type: { kind: 'Duration' }, optional: false, repeatable: false }], returns: NUMBER }],
       },
       {
         name: 'plus',
         form: 'method',
         description: 'Returns the sum of two numbers.',
         kinds: ['Number'],
-        signatures: [{ kinds: ['Number'], parameters: [{ name: 'b', type: NUMBER, optional: false, repeatable: false }], returns: NUMBER }],
+        signatures: [{ subject: NUMBER, parameters: [{ name: 'b', type: NUMBER, optional: false, repeatable: false }], returns: NUMBER }],
       },
     ]);
   });

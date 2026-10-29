@@ -6,6 +6,7 @@ import { Errors } from '../errors';
 import { Formula } from '../formula';
 import { FormulaScope } from '../formula-scope';
 import { routinesRegistry } from '../routines/registry';
+import { kindsOf } from '../types';
 
 describe(FormulaScope, () => {
   describe('evaluate', () => {
@@ -242,10 +243,13 @@ describe(FormulaScope, () => {
       }
     });
 
-    it('should give each argument list of a method only kinds its method is called on', () => {
-      for (const { name, kinds, signatures } of new FormulaScope().routines()) {
-        for (const signature of signatures) {
-          expect(signature.kinds.filter((kind) => !kinds.includes(kind)), name).toEqual([]);
+    it('should give each argument list of a method a value of a kind its method is called on', () => {
+      for (const { name, form, kinds, signatures } of new FormulaScope().routines()) {
+        for (const { subject } of signatures) {
+          const subjectKinds = subject ? kindsOf(subject) : [];
+
+          expect(subject !== undefined, name).toBe(form === 'method');
+          expect(subjectKinds.filter((kind) => kind !== Kind.Any && !kinds.includes(kind)), name).toEqual([]);
         }
       }
     });
