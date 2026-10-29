@@ -7,21 +7,21 @@ import { Routine } from '../routine';
 describe(Routine, () => {
   describe('getCallbackVariables', () => {
     it('should return the names a callback at the position introduces', () => {
-      const routine = createRoutine([new Argument(Kind.Array), new CallbackArgument(['current', 'index'])]);
+      const routine = createRoutine([new Argument(Kind.Array, { name: 'list' }), new CallbackArgument(['current', 'index'], { name: 'callback' })]);
 
       expect(routine.getCallbackVariables(1)).toEqual(['current', 'index']);
     });
 
     it('should return nothing for a value argument', () => {
-      const routine = createRoutine([new Argument(Kind.Array), new CallbackArgument(['current'])]);
+      const routine = createRoutine([new Argument(Kind.Array, { name: 'list' }), new CallbackArgument(['current'], { name: 'callback' })]);
 
       expect(routine.getCallbackVariables(0)).toEqual([]);
     });
 
     it('should return nothing when another signature takes a value at the position', () => {
       const routine = createRoutine([
-        [new Argument(Kind.Array), new CallbackArgument(['current'])],
-        [new Argument(Kind.Array), new Argument(Kind.Number)],
+        [new Argument(Kind.Array, { name: 'list' }), new CallbackArgument(['current'], { name: 'callback' })],
+        [new Argument(Kind.Array, { name: 'list' }), new Argument(Kind.Number, { name: 'number' })],
       ]);
 
       expect(routine.getCallbackVariables(1)).toEqual([]);
@@ -29,8 +29,8 @@ describe(Routine, () => {
 
     it('should return only the names every signature declares at the position', () => {
       const routine = createRoutine([
-        [new Argument(Kind.Array), new CallbackArgument(['current', 'index'])],
-        [new Argument(Kind.String), new CallbackArgument(['current'])],
+        [new Argument(Kind.Array, { name: 'list' }), new CallbackArgument(['current', 'index'], { name: 'callback' })],
+        [new Argument(Kind.String, { name: 'text' }), new CallbackArgument(['current'], { name: 'callback' })],
       ]);
 
       expect(routine.getCallbackVariables(1)).toEqual(['current']);

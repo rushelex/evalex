@@ -1,5 +1,5 @@
 import { FormulaDate, FormulaNumber, Kind } from '../../data-types';
-import { arg, Argument } from '../arguments';
+import { arg } from '../arguments';
 import { RoutinesRegistry } from '../registry';
 import { routineCatalog } from '../routine-catalog';
 
@@ -198,14 +198,6 @@ describe(routineCatalog, () => {
     expect(routineCatalog(registry).find(({ form }) => form === 'method')?.signatures[0]?.parameters).toEqual([
       { name: 'unit', kinds: ['String'], optional: true, repeatable: true, choices: ['days', 'months'] },
     ]);
-  });
-
-  it('should leave out the name of an argument the routine does not name', () => {
-    const registry = new RoutinesRegistry();
-
-    registry.registerFunction('identity', { description: 'Returns the number.', examples: [], arguments: [new Argument(Kind.Number)], handler: zero });
-
-    expect(routineCatalog(registry)[0]?.signatures[0]?.parameters).toEqual([{ kinds: ['Number'], optional: false, repeatable: false }]);
   });
 
   it('should list a function that reads its call itself without signatures', () => {

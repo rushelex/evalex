@@ -1,5 +1,7 @@
 import type { FormulaDataType, FormulaDataTypeByKind, Kind } from '../../data-types';
 
+import { argumentName } from './argument-name';
+
 /** What a failed custom check reports; the position of the argument is filled in by the engine. */
 export interface ArgumentValidationFailure {
   readonly message: string;
@@ -10,7 +12,8 @@ export interface ArgumentValidationFailure {
 type ArgumentValidation<TValue extends FormulaDataType> = (dataType: TValue) => ArgumentValidationFailure | undefined;
 
 export interface ArgumentOptions<TValue extends FormulaDataType> {
-  readonly name?: string;
+  /** The name signature help and error messages show; must not be blank. */
+  readonly name: string;
   readonly optional?: boolean;
   readonly repeatable?: boolean;
   readonly validation?: ArgumentValidation<TValue>;
@@ -32,23 +35,24 @@ export class Argument<
   TRepeatable extends boolean = boolean,
 > {
   readonly types: TKind | TKind[];
-  readonly name?: string;
+  readonly name: string;
   readonly optional: TOptional;
   readonly repeatable: TRepeatable;
   readonly validation?: ArgumentValidation<FormulaDataType>;
   readonly choices?: readonly string[];
   declare readonly valueType?: TValue;
 
+  /** @throws Error when the name is blank. */
   constructor(
     types: TKind | TKind[],
-    options?: ArgumentOptions<FormulaDataTypeByKind<TKind>>,
+    options: ArgumentOptions<FormulaDataTypeByKind<TKind>>,
   ) {
     this.types = types;
-    this.name = options?.name;
-    this.optional = (options?.optional ?? false) as TOptional;
-    this.repeatable = (options?.repeatable ?? false) as TRepeatable;
+    this.name = argumentName(options.name);
+    this.optional = (options.optional ?? false) as TOptional;
+    this.repeatable = (options.repeatable ?? false) as TRepeatable;
     // Validation runs only after the type check has passed, so the value always has the declared type.
-    this.validation = options?.validation as ArgumentValidation<FormulaDataType> | undefined;
-    this.choices = options?.choices;
+    this.validation = options.validation as ArgumentValidation<FormulaDataType> | undefined;
+    this.choices = options.choices;
   }
 }

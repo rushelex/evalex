@@ -30,8 +30,8 @@ export interface FormulaRoutineSignature {
 
 /** One argument of a routine signature. */
 export interface FormulaRoutineParameter {
-  /** The name signature help shows, such as `places`; absent when the routine gives none. */
-  readonly name?: string;
+  /** The name signature help shows, such as `places`. */
+  readonly name: string;
   /**
    * The kinds the argument takes, `Any` for any value. For an argument evaluated once per item, such as the condition
    * of `filter`, the kinds each evaluation returns.
