@@ -36,7 +36,7 @@ routinesRegistry.registerRoutine('filter', {
   examples: routineExamples,
   arguments: [
     arg('list', type.array(T)),
-    arg.eachItem('predicate', { returns: type.boolean }),
+    arg.eachItem('predicate', { item: T, returns: type.boolean }),
   ],
   returns: type.array(T),
   handler: ({ subject, args: [predicate] }) => {

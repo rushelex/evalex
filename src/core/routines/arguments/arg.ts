@@ -1,5 +1,5 @@
 import type { FormulaArray, FormulaDataType, FormulaString } from '../../data-types';
-import type { ValueType } from '../../types';
+import type { FormulaType, ValueType } from '../../types';
 import type { ArgumentValidationFailure } from './argument';
 
 import { type } from '../../types';
@@ -18,6 +18,8 @@ interface ValueArgumentOptions<TValue extends FormulaDataType> extends ArgumentF
 interface CallbackOptions<TVariables extends string, TReturn extends FormulaDataType> {
   /** Variables the routine puts in scope for each evaluation, such as `current` and `index`. */
   readonly variables: readonly TVariables[];
+  /** The types of the variables, by name; a variable left out holds any value. */
+  readonly variableTypes?: Readonly<Partial<Record<TVariables, FormulaType>>>;
   /** The type each evaluation must return; any type when omitted. */
   readonly returns?: ValueType<TReturn>;
   readonly optional?: boolean;
@@ -114,6 +116,7 @@ export const arg = Object.assign(value, {
   ): CallbackArgument<TVariables, Checked<TReturn>> => new CallbackArgument(options.variables, name, {
     optional: options.optional,
     returns: options.returns,
+    variableTypes: options.variableTypes,
   }),
 
   /**
@@ -121,9 +124,10 @@ export const arg = Object.assign(value, {
    *
    * @remarks
    * The variable names are fixed so that every list routine reads the same way, as in `filter(list, current > 3)`.
+   * `item` is the type of `current`, as `T` of the list `Array<T>`; any value when omitted.
    */
   eachItem: <TReturn extends FormulaDataType = FormulaDataType>(
     name: string,
-    options?: Omit<CallbackOptions<never, TReturn>, 'variables'>,
-  ) => arg.callback(name, { ...options, variables: ['current', 'index'] }),
+    { item = type.any, ...options }: Omit<CallbackOptions<never, TReturn>, 'variables' | 'variableTypes'> & { readonly item?: FormulaType } = {},
+  ) => arg.callback(name, { ...options, variables: ['current', 'index'], variableTypes: { current: item, index: type.number } }),
 });

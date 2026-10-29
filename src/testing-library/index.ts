@@ -4,3 +4,4 @@ export { evaluateOutcome } from './evaluate-outcome';
 export { formulaValueArbitrary } from './formula-value-arbitrary';
 export { loc } from './location';
 export { matchesType } from './matches-type';
+export { typeOfValue } from './type-of-value';

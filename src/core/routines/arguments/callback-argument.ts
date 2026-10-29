@@ -7,6 +7,8 @@ import { argumentName } from './argument-name';
 interface CallbackArgumentOptions {
   readonly optional?: boolean;
   readonly returns?: FormulaType;
+  /** The types of the variables, by name; a variable left out holds any value. */
+  readonly variableTypes?: Readonly<Partial<Record<string, FormulaType>>>;
 }
 
 /**
@@ -25,6 +27,8 @@ export class CallbackArgument<TVariables extends string = string, TReturn extend
   readonly returns: FormulaType;
   /** The kinds each evaluation is checked against, see {@link kindsOf}. */
   readonly returnKinds: readonly Kind[];
+  /** The types of {@link CallbackArgument.contextVariables}, by name; a variable left out holds any value. */
+  readonly variableTypes: Readonly<Partial<Record<string, FormulaType>>>;
   declare readonly returnValueType?: TReturn;
 
   /** @throws Error when the name is blank. */
@@ -38,5 +42,6 @@ export class CallbackArgument<TVariables extends string = string, TReturn extend
     this.contextVariables = contextVariables;
     this.returns = options?.returns ?? type.any;
     this.returnKinds = kindsOf(this.returns);
+    this.variableTypes = options?.variableTypes ?? {};
   }
 }

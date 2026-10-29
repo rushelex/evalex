@@ -31,7 +31,7 @@ const T = type.variable('T');
 routinesRegistry.registerRoutine('sort', {
   description: 'Returns the list in ascending order, optionally by a key.',
   examples: routineExamples,
-  arguments: [arg('list', type.array(T)), arg.eachItem('key', { optional: true })],
+  arguments: [arg('list', type.array(T)), arg.eachItem('key', { item: T, optional: true })],
   returns: type.array(T),
   handler: ({ subject, args: [key], locations, location, visitor }) => {
     const keys = key === undefined

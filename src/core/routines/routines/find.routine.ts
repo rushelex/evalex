@@ -23,7 +23,7 @@ routinesRegistry.registerRoutine('find', {
   examples: routineExamples,
   arguments: [
     arg('list', type.array(T)),
-    arg.eachItem('predicate', { returns: type.boolean }),
+    arg.eachItem('predicate', { item: T, returns: type.boolean }),
   ],
   returns: type.union(T, type.null),
   handler: ({ subject, args: [predicate] }) => subject.value

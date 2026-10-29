@@ -24,7 +24,7 @@ routinesRegistry.registerRoutine('map', {
   examples: routineExamples,
   arguments: [
     arg('list', type.array(T)),
-    arg.eachItem('mapper', { returns: U }),
+    arg.eachItem('mapper', { item: T, returns: U }),
   ],
   returns: type.array(U),
   handler: ({ subject, args: [mapper] }) => {

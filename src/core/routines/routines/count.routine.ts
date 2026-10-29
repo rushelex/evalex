@@ -16,12 +16,14 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   },
 ];
 
+const T = type.variable('T');
+
 routinesRegistry.registerRoutine('count', {
   description: 'Returns the number of items for which the condition is true.',
   examples: routineExamples,
   arguments: [
-    arg.array('list'),
-    arg.eachItem('predicate', { returns: type.boolean, optional: true }),
+    arg('list', type.array(T)),
+    arg.eachItem('predicate', { item: T, returns: type.boolean, optional: true }),
   ],
   returns: type.number,
   handler: ({ subject, args: [predicate] }) => new FormulaNumber(predicate === undefined

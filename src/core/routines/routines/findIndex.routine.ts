@@ -16,12 +16,14 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   },
 ];
 
+const T = type.variable('T');
+
 routinesRegistry.registerRoutine('findIndex', {
   description: 'Returns the index of the first item matching the condition.',
   examples: routineExamples,
   arguments: [
-    arg.array('list'),
-    arg.eachItem('predicate', { returns: type.boolean }),
+    arg('list', type.array(T)),
+    arg.eachItem('predicate', { item: T, returns: type.boolean }),
   ],
   returns: type.number,
   handler: ({ subject, args: [predicate] }) => new FormulaNumber(subject.value

@@ -16,12 +16,14 @@ const routineExamples: readonly RoutineExampleOptions[] = [
   },
 ];
 
+const T = type.variable('T');
+
 routinesRegistry.registerRoutine('every', {
   description: 'Returns true if the condition is true for every item in the list.',
   examples: routineExamples,
   arguments: [
-    arg.array('list'),
-    arg.eachItem('predicate', { returns: type.boolean }),
+    arg('list', type.array(T)),
+    arg.eachItem('predicate', { item: T, returns: type.boolean }),
   ],
   returns: type.boolean,
   handler: ({ subject, args: [predicate] }) => new FormulaBoolean(subject.value
