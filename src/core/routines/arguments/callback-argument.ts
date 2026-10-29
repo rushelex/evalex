@@ -4,8 +4,6 @@ import { Kind } from '../../data-types';
 import { argumentName } from './argument-name';
 
 interface CallbackArgumentOptions {
-  /** The name signature help and error messages show; must not be blank. */
-  name: string;
   optional?: boolean;
   returnType?: Kind | Kind[];
 }
@@ -19,6 +17,7 @@ interface CallbackArgumentOptions {
  */
 export class CallbackArgument<TVariables extends string = string, TReturn extends FormulaDataType = FormulaDataType> {
   readonly types = Kind.Any;
+  /** The name signature help and error messages show. */
   readonly name: string;
   readonly optional: boolean;
   readonly contextVariables: readonly TVariables[];
@@ -28,11 +27,12 @@ export class CallbackArgument<TVariables extends string = string, TReturn extend
   /** @throws Error when the name is blank. */
   constructor(
     contextVariables: readonly TVariables[],
-    options: CallbackArgumentOptions,
+    name: string,
+    options?: CallbackArgumentOptions,
   ) {
-    this.name = argumentName(options.name);
-    this.optional = options.optional ?? false;
+    this.name = argumentName(name);
+    this.optional = options?.optional ?? false;
     this.contextVariables = contextVariables;
-    this.returnType = options.returnType ?? Kind.Any;
+    this.returnType = options?.returnType ?? Kind.Any;
   }
 }

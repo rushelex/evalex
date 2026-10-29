@@ -12,8 +12,6 @@ export interface ArgumentValidationFailure {
 type ArgumentValidation<TValue extends FormulaDataType> = (dataType: TValue) => ArgumentValidationFailure | undefined;
 
 export interface ArgumentOptions<TValue extends FormulaDataType> {
-  /** The name signature help and error messages show; must not be blank. */
-  readonly name: string;
   readonly optional?: boolean;
   readonly repeatable?: boolean;
   readonly validation?: ArgumentValidation<TValue>;
@@ -35,6 +33,7 @@ export class Argument<
   TRepeatable extends boolean = boolean,
 > {
   readonly types: TKind | TKind[];
+  /** The name signature help and error messages show. */
   readonly name: string;
   readonly optional: TOptional;
   readonly repeatable: TRepeatable;
@@ -45,14 +44,15 @@ export class Argument<
   /** @throws Error when the name is blank. */
   constructor(
     types: TKind | TKind[],
-    options: ArgumentOptions<FormulaDataTypeByKind<TKind>>,
+    name: string,
+    options?: ArgumentOptions<FormulaDataTypeByKind<TKind>>,
   ) {
     this.types = types;
-    this.name = argumentName(options.name);
-    this.optional = (options.optional ?? false) as TOptional;
-    this.repeatable = (options.repeatable ?? false) as TRepeatable;
+    this.name = argumentName(name);
+    this.optional = (options?.optional ?? false) as TOptional;
+    this.repeatable = (options?.repeatable ?? false) as TRepeatable;
     // Validation runs only after the type check has passed, so the value always has the declared type.
-    this.validation = options.validation as ArgumentValidation<FormulaDataType> | undefined;
-    this.choices = options.choices;
+    this.validation = options?.validation as ArgumentValidation<FormulaDataType> | undefined;
+    this.choices = options?.choices;
   }
 }

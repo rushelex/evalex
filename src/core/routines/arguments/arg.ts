@@ -35,10 +35,10 @@ type ValueArgument<TKind extends Kind, TValue extends FormulaDataType, TFlags ex
 function define<TKind extends Kind, TValue extends FormulaDataType, TFlags extends object>(
   types: TKind | TKind[],
   name: string,
-  options: Omit<ArgumentOptions<FormulaDataTypeByKind<TKind>>, 'name'> | undefined,
+  options: ArgumentOptions<FormulaDataTypeByKind<TKind>> | undefined,
 ): ValueArgument<TKind, TValue, TFlags> {
   // `TFlags` carries the literal flags of `options`, which `Argument` itself stores as plain booleans.
-  return new Argument<TKind, TValue>(types, { name, ...options }) as ValueArgument<TKind, TValue, TFlags>;
+  return new Argument<TKind, TValue>(types, name, options) as ValueArgument<TKind, TValue, TFlags>;
 }
 
 function valueOf<TKind extends Kind>(types: TKind | TKind[]) {
@@ -111,8 +111,7 @@ export const arg = {
   callback: <const TVariables extends string, const TReturnKind extends Kind = typeof Kind.Any>(
     name: string,
     options: CallbackOptions<TVariables, TReturnKind>,
-  ): CallbackArgument<TVariables, FormulaDataTypeByKind<TReturnKind>> => new CallbackArgument(options.variables, {
-    name,
+  ): CallbackArgument<TVariables, FormulaDataTypeByKind<TReturnKind>> => new CallbackArgument(options.variables, name, {
     optional: options.optional,
     returnType: Array.isArray(options.returns) ? [...options.returns] : options.returns,
   }),

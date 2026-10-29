@@ -61,7 +61,7 @@ describe(ArgumentsProcessor, () => {
     describe('process()', () => {
       it('should create ProcessedArgument for regular arguments', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { name: 'text' }),
+          new Argument(Kind.String, 'text'),
         ]);
         const visitor = createMockVisitor();
 
@@ -75,7 +75,7 @@ describe(ArgumentsProcessor, () => {
 
       it('should create CallbackExecutor for callback arguments', () => {
         const processor = new ArgumentsProcessor([
-          new CallbackArgument(['current'], { name: 'callback' }),
+          new CallbackArgument(['current'], 'callback'),
         ]);
         const visitor = createMockVisitor();
 
@@ -89,7 +89,7 @@ describe(ArgumentsProcessor, () => {
     describe('validate()', () => {
       it('should validate ProcessedArguments correctly', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { name: 'text' }),
+          new Argument(Kind.String, 'text'),
         ]);
 
         expect(validateArgs(processor, [str()])).toBe(true);
@@ -100,7 +100,7 @@ describe(ArgumentsProcessor, () => {
     describe('getValidationError()', () => {
       it('should return error with location for specific argument errors', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { name: 'text' }),
+          new Argument(Kind.String, 'text'),
         ]);
 
         const error = getValidationError(processor, [num([9, 11])]);
@@ -116,7 +116,7 @@ describe(ArgumentsProcessor, () => {
 
       it('should return null location for count errors', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { name: 'text' }),
+          new Argument(Kind.String, 'text'),
         ]);
 
         const error = getValidationError(processor, [], loc([0, 100]));
@@ -136,7 +136,7 @@ describe(ArgumentsProcessor, () => {
     describe('Single Arguments', () => {
       describe('Required Arguments', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { name: 'text' }),
+          new Argument(Kind.String, 'text'),
         ]);
 
         it('should validate single required argument', () => {
@@ -160,7 +160,7 @@ describe(ArgumentsProcessor, () => {
 
       describe('Optional Arguments', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { optional: true, name: 'text' }),
+          new Argument(Kind.String, 'text', { optional: true }),
         ]);
 
         it('should validate optional argument', () => {
@@ -173,9 +173,9 @@ describe(ArgumentsProcessor, () => {
 
     describe('Multiple Arguments', () => {
       const processor = new ArgumentsProcessor([
-        new Argument(Kind.String, { name: 'text' }),
-        new Argument(Kind.Number, { name: 'value', optional: true }),
-        new Argument(Kind.Boolean, { name: 'value', optional: true }),
+        new Argument(Kind.String, 'text'),
+        new Argument(Kind.Number, 'value', { optional: true }),
+        new Argument(Kind.Boolean, 'value', { optional: true }),
       ]);
 
       it('should validate combinations of required and optional', () => {
@@ -200,7 +200,7 @@ describe(ArgumentsProcessor, () => {
 
     describe('Repeatable Arguments', () => {
       const processor = new ArgumentsProcessor([
-        new Argument(Kind.Number, { name: 'values', repeatable: true }),
+        new Argument(Kind.Number, 'values', { repeatable: true }),
       ]);
 
       it('should validate repeatable arguments', () => {
@@ -227,9 +227,9 @@ describe(ArgumentsProcessor, () => {
     describe('Alternative Patterns', () => {
       const processor = new ArgumentsProcessor([
         // Pattern 1: single array argument
-        [new Argument(Kind.Array, { name: 'numbers_array' })],
+        [new Argument(Kind.Array, 'numbers_array')],
         // Pattern 2: repeatable number arguments
-        [new Argument(Kind.Number, { name: 'numbers', repeatable: true })],
+        [new Argument(Kind.Number, 'numbers', { repeatable: true })],
       ]);
 
       it('should validate first pattern (array)', () => {
@@ -287,7 +287,7 @@ describe(ArgumentsProcessor, () => {
     describe('Basic Types', () => {
       it('should validate string type', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { name: 'text' }),
+          new Argument(Kind.String, 'text'),
         ]);
 
         expect(validateArgs(processor, [str()])).toBe(true);
@@ -296,7 +296,7 @@ describe(ArgumentsProcessor, () => {
 
       it('should validate number type', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.Number, { name: 'number' }),
+          new Argument(Kind.Number, 'number'),
         ]);
 
         expect(validateArgs(processor, [num()])).toBe(true);
@@ -305,7 +305,7 @@ describe(ArgumentsProcessor, () => {
 
       it('should validate boolean type', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.Boolean, { name: 'flag' }),
+          new Argument(Kind.Boolean, 'flag'),
         ]);
 
         expect(validateArgs(processor, [bool()])).toBe(true);
@@ -314,7 +314,7 @@ describe(ArgumentsProcessor, () => {
 
       it('should validate array type', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.Array, { name: 'list' }),
+          new Argument(Kind.Array, 'list'),
         ]);
 
         expect(validateArgs(processor, [arr()])).toBe(true);
@@ -324,7 +324,7 @@ describe(ArgumentsProcessor, () => {
 
     describe('Union Types', () => {
       const processor = new ArgumentsProcessor([
-        new Argument([Kind.String, Kind.Number], { name: 'value' }),
+        new Argument([Kind.String, Kind.Number], 'value'),
       ]);
 
       it('should validate union types', () => {
@@ -347,8 +347,8 @@ describe(ArgumentsProcessor, () => {
 
     describe('Any Type', () => {
       const processor = new ArgumentsProcessor([
-        new Argument(Kind.Any, { name: 'value' }),
-        new Argument([Kind.Any, Kind.String], { name: 'value' }),
+        new Argument(Kind.Any, 'value'),
+        new Argument([Kind.Any, Kind.String], 'value'),
       ]);
 
       it('should accept any type for Any arguments', () => {
@@ -366,7 +366,7 @@ describe(ArgumentsProcessor, () => {
     describe('CallbackArgument Processing', () => {
       it('should create CallbackExecutor for callback arguments', () => {
         const processor = new ArgumentsProcessor([
-          new CallbackArgument(['current'], { name: 'callback' }),
+          new CallbackArgument(['current'], 'callback'),
         ]);
         const visitor = createMockVisitor();
 
@@ -378,8 +378,7 @@ describe(ArgumentsProcessor, () => {
 
       it('should handle callback with return type', () => {
         const processor = new ArgumentsProcessor([
-          new CallbackArgument(['current'], {
-            name: 'callback',
+          new CallbackArgument(['current'], 'callback', {
             returnType: Kind.Number,
           }),
         ]);
@@ -393,8 +392,7 @@ describe(ArgumentsProcessor, () => {
 
       it('should handle optional callback arguments', () => {
         const processor = new ArgumentsProcessor([
-          new CallbackArgument(['current'], {
-            name: 'callback',
+          new CallbackArgument(['current'], 'callback', {
             optional: true,
           }),
         ]);
@@ -406,7 +404,7 @@ describe(ArgumentsProcessor, () => {
 
     describe('CallbackArgument Validation', () => {
       const processor = new ArgumentsProcessor([
-        new CallbackArgument(['current'], { name: 'callback' }),
+        new CallbackArgument(['current'], 'callback'),
       ]);
 
       it('should validate callback arguments', () => {
@@ -425,8 +423,8 @@ describe(ArgumentsProcessor, () => {
 
     describe('Mixed Callback and Regular Arguments', () => {
       const processor = new ArgumentsProcessor([
-        new Argument(Kind.Array, { name: 'array' }),
-        new CallbackArgument(['current'], { name: 'callback' }),
+        new Argument(Kind.Array, 'array'),
+        new CallbackArgument(['current'], 'callback'),
       ]);
 
       it('should validate mixed arguments', () => {
@@ -457,8 +455,7 @@ describe(ArgumentsProcessor, () => {
   describe('Custom Validation', () => {
     it('should validate arguments using custom validator', () => {
       const processor = new ArgumentsProcessor([
-        new Argument(Kind.String, {
-          name: 'text',
+        new Argument(Kind.String, 'text', {
           validation: (dataType) => dataType.value === 'test' ? undefined : { message: 'Invalid value' },
         }),
       ]);
@@ -469,8 +466,7 @@ describe(ArgumentsProcessor, () => {
 
     it('should return custom validation error message', () => {
       const processor = new ArgumentsProcessor([
-        new Argument(Kind.String, {
-          name: 'text',
+        new Argument(Kind.String, 'text', {
           validation: (dataType) => dataType.value === 'invalid'
             ? {
                 message: `Expected "test", but got "${dataType.value}".`,
@@ -498,8 +494,7 @@ describe(ArgumentsProcessor, () => {
 
     describe('String Literals', () => {
       const processor = new ArgumentsProcessor([
-        new Argument(Kind.String, {
-          name: 'unit',
+        new Argument(Kind.String, 'unit', {
           validation: (dataType) => {
             if (!['years', 'months', 'days'].includes(dataType.value)) {
               return {
@@ -540,8 +535,7 @@ describe(ArgumentsProcessor, () => {
 
     describe('Number Literals', () => {
       const processor = new ArgumentsProcessor([
-        new Argument(Kind.Number, {
-          name: 'level',
+        new Argument(Kind.Number, 'level', {
           validation: (dataType) => {
             if (![1, 2, 3].includes(dataType.value)) {
               return {
@@ -582,8 +576,7 @@ describe(ArgumentsProcessor, () => {
 
     describe('Boolean Literals', () => {
       const processor = new ArgumentsProcessor([
-        new Argument(Kind.Boolean, {
-          name: 'flag',
+        new Argument(Kind.Boolean, 'flag', {
           validation: (dataType) => {
             if (dataType.value !== true) {
               return {
@@ -608,9 +601,8 @@ describe(ArgumentsProcessor, () => {
 
     describe('Mixed Literals', () => {
       const processor = new ArgumentsProcessor([
-        new Argument(Kind.Number, { name: 'amount' }),
-        new Argument(Kind.String, {
-          name: 'unit',
+        new Argument(Kind.Number, 'amount'),
+        new Argument(Kind.String, 'unit', {
           validation: (dataType) => {
             if (!['hours', 'minutes', 'seconds'].includes(dataType.value)) {
               return {
@@ -642,9 +634,8 @@ describe(ArgumentsProcessor, () => {
         const multiPatternProcessor = new ArgumentsProcessor([
           // Pattern 1: Number and string with specific literals
           [
-            new Argument(Kind.Number, { name: 'amount' }),
-            new Argument(Kind.String, {
-              name: 'unit',
+            new Argument(Kind.Number, 'amount'),
+            new Argument(Kind.String, 'unit', {
               validation: (dataType) => {
                 if (!['hours', 'minutes', 'seconds'].includes(dataType.value)) {
                   return {
@@ -658,7 +649,7 @@ describe(ArgumentsProcessor, () => {
             }),
           ],
           // Pattern 2: Just a string
-          [new Argument(Kind.String, { name: 'text' })],
+          [new Argument(Kind.String, 'text')],
         ]);
 
         const error = getValidationError(multiPatternProcessor, [
@@ -682,7 +673,7 @@ describe(ArgumentsProcessor, () => {
     describe('Location Tracking', () => {
       it('should track location for type errors', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { name: 'text' }),
+          new Argument(Kind.String, 'text'),
         ]);
 
         const error = getValidationError(processor, [num([15, 17])]);
@@ -697,8 +688,7 @@ describe(ArgumentsProcessor, () => {
 
       it('should track location for custom validation errors', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, {
-            name: 'text',
+          new Argument(Kind.String, 'text', {
             validation: (dataType) => dataType.value === 'valid'
               ? undefined
               : {
@@ -723,7 +713,7 @@ describe(ArgumentsProcessor, () => {
 
       it('should return null location for count errors', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { name: 'text' }),
+          new Argument(Kind.String, 'text'),
         ]);
 
         const error = getValidationError(processor, [], loc([0, 100]));
@@ -739,8 +729,8 @@ describe(ArgumentsProcessor, () => {
 
       it('should return fallback location for pattern mismatch errors', () => {
         const processor = new ArgumentsProcessor([
-          [new Argument(Kind.Array, { name: 'list' })],
-          [new Argument(Kind.Number, { name: 'numbers', repeatable: true })],
+          [new Argument(Kind.Array, 'list')],
+          [new Argument(Kind.Number, 'numbers', { repeatable: true })],
         ]);
 
         const error = getValidationError(processor, [str()], loc([0, 100]));
@@ -752,7 +742,7 @@ describe(ArgumentsProcessor, () => {
     describe('Error Messages', () => {
       it('should provide clear type error messages', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { name: 'text' }),
+          new Argument(Kind.String, 'text'),
         ]);
 
         const error = getValidationError(processor, [num()]);
@@ -768,8 +758,7 @@ describe(ArgumentsProcessor, () => {
 
       it('should provide clear custom validation error messages', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, {
-            name: 'text',
+          new Argument(Kind.String, 'text', {
             validation: (dataType) => dataType.value === 'valid'
               ? undefined
               : {
@@ -795,8 +784,8 @@ describe(ArgumentsProcessor, () => {
 
       it('should provide clear count error messages', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { name: 'text' }),
-          new Argument(Kind.Number, { name: 'number' }),
+          new Argument(Kind.String, 'text'),
+          new Argument(Kind.Number, 'number'),
         ]);
 
         const error = getValidationError(processor, [str()]);
@@ -814,8 +803,8 @@ describe(ArgumentsProcessor, () => {
     describe('Error Context', () => {
       it('should provide argument position in payload', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { name: 'text' }),
-          new Argument(Kind.Number, { name: 'number' }),
+          new Argument(Kind.String, 'text'),
+          new Argument(Kind.Number, 'number'),
         ]);
 
         const error = getValidationError(processor, [str(), str([9, 11])]);
@@ -831,7 +820,7 @@ describe(ArgumentsProcessor, () => {
 
       it('should provide expected and actual types in payload', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { name: 'text' }),
+          new Argument(Kind.String, 'text'),
         ]);
 
         const error = getValidationError(processor, [num([0, 2])]);
@@ -847,7 +836,7 @@ describe(ArgumentsProcessor, () => {
 
       it('should provide expected and actual arguments count in payload', () => {
         const processor = new ArgumentsProcessor([
-          new Argument(Kind.String, { name: 'text' }),
+          new Argument(Kind.String, 'text'),
         ]);
 
         const error = getValidationError(processor, [], loc([0, 100]));
@@ -875,8 +864,8 @@ describe(ArgumentsProcessor, () => {
 
     describe('All Optional Arguments', () => {
       const processor = new ArgumentsProcessor([
-        new Argument(Kind.String, { name: 'value', optional: true }),
-        new Argument(Kind.Number, { name: 'value', optional: true }),
+        new Argument(Kind.String, 'value', { optional: true }),
+        new Argument(Kind.Number, 'value', { optional: true }),
       ]);
 
       it('should handle all optional arguments', () => {
@@ -888,9 +877,9 @@ describe(ArgumentsProcessor, () => {
 
     describe('Complex Scenarios', () => {
       const processor = new ArgumentsProcessor([
-        new Argument(Kind.String, { name: 'separator' }),
-        new Argument(Kind.Boolean, { optional: true, name: 'caseSensitive' }),
-        new Argument(Kind.String, { name: 'values', optional: true, repeatable: true }),
+        new Argument(Kind.String, 'separator'),
+        new Argument(Kind.Boolean, 'caseSensitive', { optional: true }),
+        new Argument(Kind.String, 'values', { optional: true, repeatable: true }),
       ]);
 
       it('should validate complex pattern combinations', () => {
