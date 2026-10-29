@@ -174,7 +174,19 @@ diagnose('round(price,, 2) + max(1 2)').map(({ code, message }) => [code, messag
 
 The first diagnostic is always the error evaluating the formula throws. Each one carries the `code`, `payload` and `location` of that `SyntaxError`, so a host translates both the same way.
 
-`scope.routines()` lists the functions and methods formulas can call, with their descriptions and argument lists, for completion and signature help; see the [core README](./src/core/README.md#built-in-routines).
+`scope.routines()` lists the functions and methods formulas can call, with their descriptions and argument lists; see the [core README](./src/core/README.md#built-in-routines). `FormulaLanguage` answers an editor from them as the formula is typed. Create one per scope; `signatureHelp` gives the call around the caret and the argument being typed, so the editor can show `round(number, [places])` with `places` marked:
+
+```ts
+import { FormulaLanguage } from 'evalex/language';
+
+const language = new FormulaLanguage(scope);
+
+const help = language.signatureHelp('round(price, ', 13);
+help?.routines[0]?.name; // 'round'
+help?.argument;          // 1
+```
+
+For a method, `routines` holds every method of the name, since the kind of the value before the dot is not known before the formula is evaluated.
 
 ## Formulas in data
 
@@ -205,14 +217,15 @@ A formula reads the fields of its own record and of the records around it, cells
 flowchart LR
   A["Formula text"] --> P["parser<br/><sub>text → AST</sub>"]
   P --> C["core<br/><sub>AST and data → typed values</sub>"]
-  P --> L["language<br/><sub>text → tokens and diagnostics for editors</sub>"]
+  P --> L["language<br/><sub>text → tokens, diagnostics and signature help for editors</sub>"]
+  C --> L
 ```
 
 | Module | What it does | Docs |
 | --- | --- | --- |
 | [`src/parser`](./src/parser) | Hand-written Pratt parser that turns formula text into an AST with source locations | [README](./src/parser/README.md) |
 | [`src/core`](./src/core) | Evaluates formulas: data types, built-in routines, errors, and the formula cells of host data | [README](./src/core/README.md) |
-| [`src/language`](./src/language) | Reads formula text for editors: tokens with their kinds and the syntax errors to underline | [Formula editors](#formula-editors) |
+| [`src/language`](./src/language) | Reads formula text for editors: tokens with their kinds, the syntax errors to underline and the call around the caret | [Formula editors](#formula-editors) |
 
 All ship in one package. `core` is re-exported from `evalex`, `language` from `evalex/language`; the parser is used internally.
 

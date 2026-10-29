@@ -1,6 +1,7 @@
 /* eslint-disable jsdoc/no-multi-asterisks */
 import type { AstNode, ILetDeclaration, Location } from '../ast';
 import type { FormulaToken, FormulaTokenKind } from '../ast/token';
+import type { CallSite } from './call-site';
 import type { SyntaxErrorCode } from './syntax-error-code';
 import type { SyntaxErrorPayloads } from './syntax-error-payloads';
 
@@ -177,11 +178,14 @@ class Parser {
   readonly #tokens: ScannedToken[] | undefined;
   // Errors found so far, kept only when the caller asks the parse to go on past them
   readonly #diagnostics: SyntaxError[] | undefined;
+  // Calls by name read so far, kept only when the caller asks for them
+  readonly #calls: CallSite[] | undefined;
 
-  constructor(input: string, { collectTokens = false, recover = false }: { collectTokens?: boolean; recover?: boolean } = {}) {
+  constructor(input: string, { collectTokens = false, recover = false, collectCalls = false }: { collectTokens?: boolean; recover?: boolean; collectCalls?: boolean } = {}) {
     this.#input = input;
     this.#tokens = collectTokens ? [] : undefined;
     this.#diagnostics = recover ? [] : undefined;
+    this.#calls = collectCalls ? [] : undefined;
   }
 
   // ── Entry point ─────────────────────────────────────────────────────────
@@ -269,6 +273,22 @@ class Parser {
     }
 
     return diagnostics;
+  }
+
+  /** Reads the input as `diagnostics` does and returns the calls by name it read, inner calls before outer ones. */
+  calls(): CallSite[] {
+    const calls = this.#calls ?? [];
+
+    try {
+      this.run();
+    }
+    catch (error) {
+      if (!isSyntaxError(error)) {
+        throw error;
+      }
+    }
+
+    return calls;
   }
 
   // ── Core Pratt loop ─────────────────────────────────────────────────────
@@ -561,10 +581,11 @@ class Parser {
       }
       if (this.#peek() === '(') {
         // Marked before the arguments, so a call still being typed shows its name as a function
-        if (head instanceof IdentifierNode && suffixes.length === 0) {
+        const isFunctionCall = head instanceof IdentifierNode && suffixes.length === 0;
+        if (isFunctionCall) {
           this.#markFunction(head);
         }
-        suffixes.push(this.#parseDirectCallSuffix());
+        suffixes.push(this.#parseDirectCallSuffix(isFunctionCall ? head.name : undefined));
         this.#nest(suffixLocation);
         continue;
       }
@@ -596,25 +617,30 @@ class Parser {
       this.#restore(saved);
       return { type: 'MemberCall', property: prop, args: [], end: prop.location.end };
     }
-    const args = this.#parseCallArguments();
+    const args = this.#parseCallArguments(prop.name, 'method');
     return { type: 'MemberCall', property: prop, args, end: this.#mark() };
   }
 
-  /** Parses `(args)` and returns a suffix descriptor. */
-  #parseDirectCallSuffix(): Suffix {
-    const args = this.#parseCallArguments();
+  /** Parses `(args)` and returns a suffix descriptor; `name` is the function called, if a name is called. */
+  #parseDirectCallSuffix(name: string | undefined): Suffix {
+    const args = this.#parseCallArguments(name, 'function');
     return { type: 'DirectCall', args, end: this.#mark() };
   }
 
   /** Parses the parenthesized arguments of a call, up to and with its `)`. */
-  #parseCallArguments(): AstNode[] {
+  #parseCallArguments(name: string | undefined, form: CallSite['form']): AstNode[] {
     const lpStart = this.#mark();
     this.#consumePunctuation();
     const lpEnd = this.#mark();
     this.#skipWhitespace();
-    const args = this.#parseArguments(')', (list) => this.#unclosedParenError(lpStart, lpEnd, list));
+    const commas = this.#calls && name !== undefined ? [] : undefined;
+    const args = this.#parseArguments(')', (list) => this.#unclosedParenError(lpStart, lpEnd, list), commas);
+    const end = this.#pos;
     if (this.#peek() === ')') {
       this.#consumePunctuation();
+    }
+    if (commas && name !== undefined) {
+      this.#calls?.push({ name, form, open: lpEnd.offset, end, commas });
     }
     return args;
   }
@@ -1001,8 +1027,9 @@ class Parser {
    *
    * @param closer - The bracket that ends the list.
    * @param closeError - The error for a list that something other than `,` or `closer` follows.
+   * @param commas - Receives the offset of each comma of the list, when given.
    */
-  #parseArguments(closer: ')' | ']', closeError: (args: readonly AstNode[]) => SyntaxError): AstNode[] {
+  #parseArguments(closer: ')' | ']', closeError: (args: readonly AstNode[]) => SyntaxError, commas?: number[]): AstNode[] {
     const args: AstNode[] = [];
     if (this.#peek() === ',') {
       const s = this.#mark();
@@ -1028,6 +1055,7 @@ class Parser {
         }
       }
       const commaStart = this.#mark();
+      commas?.push(commaStart.offset);
       this.#consumePunctuation();
       const commaEnd = this.#mark();
       this.#skipWhitespace();
@@ -1489,4 +1517,14 @@ export function tokenize(input: string): FormulaToken[] {
  */
 export function diagnose(input: string): SyntaxError[] {
   return new Parser(input, { recover: true }).diagnostics();
+}
+
+/**
+ * Finds the calls by name in a formula string, reading on past the syntax errors it can step over.
+ *
+ * @param input The formula string to read, complete or still being typed.
+ * @returns The calls in the order their argument lists end, inner calls before outer ones.
+ */
+export function findCalls(input: string): CallSite[] {
+  return new Parser(input, { recover: true, collectCalls: true }).calls();
 }
