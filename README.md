@@ -188,6 +188,20 @@ help?.argument;          // 1
 
 For a method, `routines` holds every method of the name, since the kind of the value before the dot is not known before the formula is evaluated.
 
+`complete` gives what can be typed at the caret and the range it replaces. The host passes the fields the formula can read, with the labels authors know them by:
+
+```ts
+const { from, to, items } = language.complete('let rate = 2 in round(pr', 24, {
+  fields: [{ name: 'price', label: 'Price' }],
+})!;
+
+[from, to]; // [22, 24], the text `pr`
+items.slice(0, 2).map(({ kind, label, text }) => [kind, label, text]);
+// [['variable', 'rate', 'rate'], ['field', 'Price', 'price']], then every function
+```
+
+Where a value goes, the items are the variables the formula declares around the caret, such as `let` names and `current` inside `filter`, then the fields, then the functions. After a dot they are every method; inside quotes, the words the argument takes, such as the units of `dateBetween`. Every item that fits the place is given: the editor narrows the list by the text typed from `from`. Fields are passed on each call rather than once per `FormulaLanguage`, since the names a formula can read may differ from cell to cell.
+
 ## Formulas in data
 
 When formulas read each other — a spreadsheet, a table with computed columns, a form with derived fields — put them right into your data with `new Formula(text)`. An evaluator gives back the same data with every formula replaced by its result:
@@ -225,7 +239,7 @@ flowchart LR
 | --- | --- | --- |
 | [`src/parser`](./src/parser) | Hand-written Pratt parser that turns formula text into an AST with source locations | [README](./src/parser/README.md) |
 | [`src/core`](./src/core) | Evaluates formulas: data types, built-in routines, errors, and the formula cells of host data | [README](./src/core/README.md) |
-| [`src/language`](./src/language) | Reads formula text for editors: tokens with their kinds, the syntax errors to underline and the call around the caret | [Formula editors](#formula-editors) |
+| [`src/language`](./src/language) | Reads formula text for editors: tokens with their kinds, the syntax errors to underline, the call around the caret and what can be typed at it | [Formula editors](#formula-editors) |
 
 All ship in one package. `core` is re-exported from `evalex`, `language` from `evalex/language`; the parser is used internally.
 

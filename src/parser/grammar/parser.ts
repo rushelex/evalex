@@ -2,6 +2,7 @@
 import type { AstNode, ILetDeclaration, Location } from '../ast';
 import type { FormulaToken, FormulaTokenKind } from '../ast/token';
 import type { CallSite } from './call-site';
+import type { CaretPlace } from './caret-place';
 import type { SyntaxErrorCode } from './syntax-error-code';
 import type { SyntaxErrorPayloads } from './syntax-error-payloads';
 
@@ -180,12 +181,19 @@ class Parser {
   readonly #diagnostics: SyntaxError[] | undefined;
   // Calls by name read so far, kept only when the caller asks for them
   readonly #calls: CallSite[] | undefined;
+  // Offset of the one-character marker the caller put at the caret, when it asks what the caret is in
+  readonly #caret: number | undefined;
+  #caretPlace: Omit<CaretPlace, 'calls'> | undefined;
 
-  constructor(input: string, { collectTokens = false, recover = false, collectCalls = false }: { collectTokens?: boolean; recover?: boolean; collectCalls?: boolean } = {}) {
+  constructor(
+    input: string,
+    { collectTokens = false, recover = false, collectCalls = false, caret }: { collectTokens?: boolean; recover?: boolean; collectCalls?: boolean; caret?: number } = {},
+  ) {
     this.#input = input;
     this.#tokens = collectTokens ? [] : undefined;
     this.#diagnostics = recover ? [] : undefined;
     this.#calls = collectCalls ? [] : undefined;
+    this.#caret = caret;
   }
 
   // ── Entry point ─────────────────────────────────────────────────────────
@@ -289,6 +297,24 @@ class Parser {
     }
 
     return calls;
+  }
+
+  /**
+   * Reads the input as `calls` does and returns what the caret marker is in, with offsets of the input without the
+   * marker; `undefined` when it is not in a name, a method name or a string.
+   */
+  caretPlace(): CaretPlace | undefined {
+    const calls = this.calls();
+    const caret = this.#caret ?? 0;
+    const place = this.#caretPlace;
+    const unmarked = (offset: number) => (offset > caret ? offset - 1 : offset);
+
+    return place && {
+      ...place,
+      calls: calls
+        .filter(({ open, end }) => open <= caret && caret <= end)
+        .map((call) => ({ ...call, open: unmarked(call.open), end: unmarked(call.end), commas: call.commas.map(unmarked) })),
+    };
   }
 
   // ── Core Pratt loop ─────────────────────────────────────────────────────
@@ -763,6 +789,7 @@ class Parser {
         value += this.#advance();
       }
     }
+    this.#markCaret('string', s.offset + 1);
     if (this.#isEnd()) {
       this.#fail('UNTERMINATED_STRING', {}, this.#loc(s));
     }
@@ -944,6 +971,7 @@ class Parser {
     const s = this.#mark();
     const word = this.#readWord();
     const location = this.#loc(s);
+    this.#markCaret('name', s.offset);
     switch (word) {
       case 'null':
         this.#emit('null', s);
@@ -976,6 +1004,7 @@ class Parser {
       this.#fail('EXPECTED_METHOD_NAME', {}, this.#loc(s));
     }
     const word = this.#readWord();
+    this.#markCaret('method', s.offset);
     if (KEYWORDS.has(word)) {
       this.#report(this.#error('KEYWORD_AS_METHOD_NAME', { keyword: word }, this.#loc(s)));
     }
@@ -1334,6 +1363,17 @@ class Parser {
     return true;
   }
 
+  /** Notes that the caret marker is in the text from `from` to the current position, when it is. */
+  #markCaret(kind: CaretPlace['kind'], from: number): void {
+    if (this.#caret === undefined || from > this.#caret || this.#pos <= this.#caret) {
+      return;
+    }
+
+    const variables = kind === 'name' ? this.#letScopes.toReversed().flatMap(({ names, current }) => [...names].filter(([, index]) => index < current).map(([name]) => name)) : [];
+
+    this.#caretPlace = { kind, from, to: this.#pos - 1, variables: [...new Set(variables)] };
+  }
+
   /** Reads a contiguous word of identifier characters. */
   #readWord(): string {
     let word = '';
@@ -1527,4 +1567,19 @@ export function diagnose(input: string): SyntaxError[] {
  */
 export function findCalls(input: string): CallSite[] {
   return new Parser(input, { recover: true, collectCalls: true }).calls();
+}
+
+/**
+ * Finds what the caret is in, reading on past the syntax errors it can step over.
+ *
+ * @param input The formula string, complete or still being typed.
+ * @param caret The offset of the caret in `input`.
+ * @returns The name, method name or string the caret is in, with the variables and calls around it; `undefined` elsewhere.
+ */
+export function findCaretPlace(input: string, caret: number): CaretPlace | undefined {
+  // A marker at the caret joins the word or the text it stands in, so the parse finds it where it reads them, and an
+  // empty place where a name or a method name goes becomes a word of its own.
+  const marked = `${input.slice(0, caret)}_${input.slice(caret)}`;
+
+  return new Parser(marked, { recover: true, collectCalls: true, caret }).caretPlace();
 }

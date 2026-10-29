@@ -22,6 +22,15 @@ describe('language API', () => {
     expectTypeOf<API.FormulaSignatureHelp['routines'][number]>().toEqualTypeOf<Root.FormulaRoutine>();
   });
 
+  it('should type completions with the fields the host passes and the routines of the root API', () => {
+    expectTypeOf<API.FormulaLanguage['complete']>().toEqualTypeOf<
+      (text: string, offset: number, options?: { readonly fields?: readonly API.FormulaField[] }) => API.FormulaCompletions | undefined
+    >();
+    expectTypeOf<API.FormulaCompletions['items'][number]>().toEqualTypeOf<API.FormulaCompletion>();
+    expectTypeOf<API.FormulaCompletion['routine']>().toEqualTypeOf<Root.FormulaRoutine | undefined>();
+    expectTypeOf<{ name: 'price' }>().toExtend<API.FormulaField>();
+  });
+
   it('should type token kinds as plain text', () => {
     expectTypeOf<'function'>().toExtend<API.FormulaTokenKind>();
     expectTypeOf<'invalid'>().toExtend<API.FormulaTokenKind>();
