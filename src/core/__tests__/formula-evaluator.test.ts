@@ -481,6 +481,16 @@ describe('FormulaEvaluator', () => {
       expect(evaluator.evaluate(data).total).toBeFormulaDataType(FormulaNumber, 6);
     });
 
+    it('should show a list as it is now once it holds no formulas, even when the record holding it did not change', () => {
+      const evaluator = scope.evaluator();
+      const data = { rows: [{ cost: new Formula('1 + 1') }], label: new Formula('"Costs"') };
+
+      evaluator.evaluate(data);
+      data.rows.pop();
+
+      expect(evaluator.evaluate(data).rows).toStrictEqual([]);
+    });
+
     it('should read again the fields of a record kept in the result of an earlier pass', () => {
       const evaluator = scope.evaluator();
       const rows = [{ price: 200, quantity: 1 }, { price: 50, quantity: 1 }];

@@ -807,12 +807,19 @@ export class EvaluationPass {
         return false;
       }
 
-      if (!Object.is(this.#shownFieldAt(site, fields, index), kept[index + 2])) {
+      if (!Object.is(this.#shownFieldAt(site, fields, index), kept[index + 2]) || this.#lostCopy(fields[index + 2])) {
         return false;
       }
     }
 
     return true;
+  }
+
+  /** Tells whether a value is a container copied in the previous pass but not in this one, so the view shows it itself. */
+  #lostCopy(value: unknown): boolean {
+    const inner = typeof value === 'object' && value !== null ? this.#sites.get(value) : undefined;
+
+    return inner !== undefined && !inner.copied && this.#memoOf(inner)?.view?.pass === this.#number - 1;
   }
 
   /** What the field at `index` of `fields` shows in the view, see {@link EvaluationPass.#shownField}. */
