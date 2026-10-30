@@ -171,7 +171,8 @@ export class FormulaLanguage {
    * the argument takes, such as the units of `dateBetween`.
    *
    * Every item that can be typed there is given, whatever is typed already: the editor narrows the list by the text from
-   * `from` to the caret, matching the `label` of each item.
+   * `from` to the caret, matching the `label` of each item. A chosen item replaces that text with its `text` and puts
+   * the caret at its `caret`: a function or a method inserts its call, or only its name where parentheses already follow.
    *
    * @param text - Formula text, complete or still being typed.
    * @param offset - Offset of the caret in `text`.
@@ -185,12 +186,13 @@ export class FormulaLanguage {
    * const { from, to, items } = language.complete('round(pr', 8, { fields: [{ name: 'price', label: 'Price' }] })!;
    *
    * [from, to];                                        // [6, 8], the text `pr`
-   * items.find(({ kind }) => kind === 'field');        // { kind: 'field', label: 'Price', text: 'price' }
+   * items.find(({ kind }) => kind === 'field');        // { kind: 'field', label: 'Price', text: 'price', caret: 5 }
+   * items.find(({ label }) => label === 'max');        // { kind: 'function', label: 'max', text: 'max()', caret: 4, … }
    * ```
    */
   complete(text: string, offset: number, options: { readonly fields?: readonly FormulaField[] } = {}): FormulaCompletions | undefined {
     const place = findCaretPlace(text, offset);
-    const items = place && this.#itemsAt({ place, offset, fields: options.fields ?? [] });
+    const items = place && this.#itemsAt({ place, offset, fields: options.fields ?? [], called: text[place.to] === '(' });
 
     if (!place || !items || items.length === 0) {
       return undefined;
@@ -247,9 +249,10 @@ export class FormulaLanguage {
     return formula ? [...DependencyExtractorVisitor.getDependencies(formula)] : [];
   }
 
-  #itemsAt({ place, offset, fields }: { place: CaretPlace; offset: number; fields: readonly FormulaField[] }): FormulaCompletion[] {
+  /** `called` tells that parentheses follow the text the items replace. */
+  #itemsAt({ place, offset, fields, called }: { place: CaretPlace; offset: number; fields: readonly FormulaField[]; called: boolean }): FormulaCompletion[] {
     if (place.kind === 'method') {
-      return this.#memberItems({ place, fields });
+      return this.#memberItems({ place, fields, called });
     }
 
     const [innermost] = place.calls;
@@ -257,26 +260,26 @@ export class FormulaLanguage {
     if (place.kind === 'string') {
       const choices = innermost ? this.#parametersAt(innermost, offset).flatMap(({ choices }) => choices ?? []) : [];
 
-      return unique(choices).map((choice) => ({ kind: 'choice', label: choice, text: choice }));
+      return unique(choices).map((choice) => ({ kind: 'choice', label: choice, text: choice, caret: choice.length }));
     }
 
     const callbackVariables = place.calls.flatMap((call) => this.#parametersAt(call, offset).flatMap(({ variables }) => variables ?? []));
 
     return [
-      ...unique([...callbackVariables, ...place.variables]).map((name): FormulaCompletion => ({ kind: 'variable', label: name, text: name })),
-      ...fields.map(({ name, label }): FormulaCompletion => ({ kind: 'field', label: label ?? name, text: name })),
-      ...this.#routineItems('function'),
+      ...unique([...callbackVariables, ...place.variables]).map((name): FormulaCompletion => ({ kind: 'variable', label: name, text: name, caret: name.length })),
+      ...fields.map(fieldItem),
+      ...this.#routineItems({ form: 'function', called }),
     ];
   }
 
   /** The fields of the records and the methods of the kinds the value before the dot may have. */
-  #memberItems({ place: { formula, method }, fields }: { place: CaretPlace; fields: readonly FormulaField[] }): FormulaCompletion[] {
+  #memberItems({ place: { formula, method }, fields, called }: { place: CaretPlace; fields: readonly FormulaField[]; called: boolean }): FormulaCompletion[] {
     const call = formula && method && findName({ formula, offset: method.location.start.offset });
     const subject = formula && call?.subject ? inferNodeType({ formula, fields: typesOf(fields), node: call.subject }).type : type.any;
 
     return [
-      ...uniqueBy(recordFieldsOf(subject), ({ name }) => name).map(({ name, label }): FormulaCompletion => ({ kind: 'field', label: label ?? name, text: name })),
-      ...this.#routineItems('method').filter(({ routine }) => routine && takes({ routine, subject })),
+      ...uniqueBy(recordFieldsOf(subject), ({ name }) => name).map(fieldItem),
+      ...this.#routineItems({ form: 'method', called }).filter(({ routine }) => routine && takes({ routine, subject })),
     ];
   }
 
@@ -345,8 +348,8 @@ export class FormulaLanguage {
     return field && { ...hover, kind: 'field', label: field.label ?? name };
   }
 
-  #routineItems(form: FormulaRoutine['form']): FormulaCompletion[] {
-    return this.#routines.filter((routine) => routine.form === form).map((routine) => ({ kind: form, label: routine.name, text: routine.name, routine }));
+  #routineItems({ form, called }: { form: FormulaRoutine['form']; called: boolean }): FormulaCompletion[] {
+    return this.#routines.filter((routine) => routine.form === form).map((routine) => ({ kind: form, label: routine.name, ...callOf({ routine, called }), routine }));
   }
 
   #routinesOf(call: CallSite): FormulaRoutine[] {
@@ -377,6 +380,22 @@ function typesOf(fields: readonly FormulaField[]): Map<string, FormulaType> {
 /** The fields of the records a value of `subject` may be. */
 function recordFieldsOf(subject: FormulaType): FormulaField[] {
   return membersOf(subject).flatMap((member) => (member.kind === Kind.Object ? member.fields ?? [] : []));
+}
+
+function fieldItem({ name, label }: FormulaField): FormulaCompletion {
+  return { kind: 'field', label: label ?? name, text: name, caret: name.length };
+}
+
+/** What completion inserts for a routine: its name where parentheses follow, otherwise a call with no arguments yet. */
+function callOf({ routine: { name, signatures }, called }: { routine: FormulaRoutine; called: boolean }): Pick<FormulaCompletion, 'text' | 'caret'> {
+  if (called) {
+    return { text: name, caret: name.length };
+  }
+
+  // A routine with no signatures checks its arguments itself, as `if` does, and takes some
+  const takesArguments = signatures.length === 0 || signatures.some(({ parameters }) => parameters.length > 0);
+
+  return { text: `${name}()`, caret: takesArguments ? name.length + 1 : name.length + 2 };
 }
 
 /** Tells whether a method may be called on a value of `subject`; a value of any type takes every method. */

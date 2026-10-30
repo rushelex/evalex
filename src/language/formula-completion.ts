@@ -9,8 +9,16 @@ export interface FormulaCompletion {
   readonly kind: 'field' | 'variable' | 'function' | 'method' | 'choice';
   /** What the list shows and the author types to find it: the label of a field, otherwise `text`. */
   readonly label: string;
-  /** What replaces the text the caret is in. */
+  /**
+   * What replaces the text the caret is in. For a function or a method, its call with empty parentheses, or its name
+   * alone when parentheses already follow.
+   */
   readonly text: string;
+  /**
+   * Offset in `text` to put the caret at once it is in: between the parentheses of a call that takes arguments,
+   * otherwise after `text`.
+   */
+  readonly caret: number;
   /** For a function or a method, the routine, with its description and arguments. */
   readonly routine?: FormulaRoutine;
 }

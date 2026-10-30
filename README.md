@@ -186,7 +186,12 @@ const { from, to, items } = language.complete('let rate = 2 in round(pr', 24, {
 [from, to]; // [22, 24], the text `pr`
 items.slice(0, 2).map(({ kind, label, text }) => [kind, label, text]);
 // [['variable', 'rate', 'rate'], ['field', 'Price', 'price']], then every function
+
+items.find(({ label }) => label === 'round');
+// { kind: 'function', label: 'round', text: 'round()', caret: 6, routine: … }
 ```
+
+An item replaces the text from `from` to `to` with its `text`, then puts the caret at `caret` in it. A function or a method inserts its call, with the caret between the parentheses unless it takes no arguments; where parentheses already follow, as in `rou(1)`, it inserts only its name.
 
 Where a value goes, the items are the variables the formula declares around the caret, such as `let` names and `current` inside `filter`, then the fields, then the functions. After a dot they are the methods of the value before the dot, and for a record its fields first; inside quotes, the words the argument takes, such as the units of `dateBetween`. Every item that fits the place is given: the editor narrows the list by the text typed from `from`. Fields are passed on each call rather than once per `FormulaLanguage`, since the names a formula can read may differ from cell to cell.
 
@@ -198,7 +203,7 @@ const line = { kind: 'Object', fields: [{ name: 'qty', label: 'Quantity', type: 
 language.complete('lines.filter(current.', 21, {
   fields: [{ name: 'lines', type: { kind: 'Array', items: line } }],
 })!.items[0];
-// { kind: 'field', label: 'Quantity', text: 'qty' }, then the methods of a record
+// { kind: 'field', label: 'Quantity', text: 'qty', caret: 3 }, then the methods of a record
 
 language.complete('title.', 6, { fields: [{ name: 'title', type: { kind: 'String' } }] });
 // the methods of text only
@@ -243,7 +248,7 @@ For a name the formula cannot read, `suggestions` lists the names spelled like i
 
 ```ts
 language.diagnose('price * qtty', { fields: [{ name: 'price' }, { name: 'qty' }] })[0].suggestions;
-// { from: 8, to: 12, items: [{ kind: 'field', label: 'qty', text: 'qty' }] }
+// { from: 8, to: 12, items: [{ kind: 'field', label: 'qty', text: 'qty', caret: 3 }] }
 ```
 
 `typeOf` gives the type of what a formula evaluates to on the fields, to show next to its result; text that does not parse has none:

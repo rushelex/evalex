@@ -148,7 +148,7 @@ describe(FormulaLanguage, () => {
         ['variable', 'rate', 'rate'],
         ['field', 'Price', 'price'],
         ['field', 'tax', 'tax'],
-        ...functionNames.map((name) => ['function', name, name]),
+        ...functionNames.map((name) => ['function', name, `${name}()`]),
       ]);
     });
 
@@ -156,6 +156,46 @@ describe(FormulaLanguage, () => {
       const round = language.complete('', 0)?.items.find(({ label }) => label === 'round');
 
       expect(round?.routine && [round.routine.name, round.routine.form]).toEqual(['round', 'function']);
+    });
+
+    it.prop([formulaText.chain((text) => fc.tuple(fc.constant(text), fc.nat({ max: text.length })))])('should put the caret inside the text each item inserts, whatever the text', ([text, offset]) => {
+      const items = language.complete(text, offset, { fields: orderFields })?.items ?? [];
+
+      expect(items.filter(({ caret, text: inserted }) => caret < 0 || caret > inserted.length)).toEqual([]);
+    });
+
+    it('should put the caret after a name that is not called', () => {
+      const plain = [
+        ...(language.complete('let rate = 2 in ', 16, { fields: orderFields })?.items ?? []),
+        ...(language.complete('order.', 6, { fields: orderFields })?.items ?? []),
+        ...(language.complete('dateBetween(start, end, "', 25)?.items ?? []),
+      ].filter(({ kind }) => kind !== 'function' && kind !== 'method');
+
+      expect(plain.filter(({ caret, text }) => caret !== text.length)).toEqual([]);
+      expect(new Set(plain.map(({ kind }) => kind))).toEqual(new Set(['variable', 'field', 'choice']));
+    });
+
+    it.each([
+      { text: 'round(pr', offset: 8, label: 'round', inserted: 'round()', caret: 6 },
+      { text: 'to', offset: 2, label: 'today', inserted: 'today()', caret: 7 },
+      { text: 'i', offset: 1, label: 'if', inserted: 'if()', caret: 3 },
+      { text: 'title.up', offset: 8, label: 'upper', inserted: 'upper()', caret: 7 },
+      { text: 'title.pad', offset: 9, label: 'padStart', inserted: 'padStart()', caret: 9 },
+      { text: 'due.form', offset: 8, label: 'format', inserted: 'format()', caret: 7 },
+    ])('should call a function or a method, with the caret where its arguments go: $label in $text', ({ text, offset, label, inserted, caret }) => {
+      const item = language.complete(text, offset, { fields: orderFields })?.items.find((candidate) => candidate.label === label);
+
+      expect(item && [item.text, item.caret]).toEqual([inserted, caret]);
+    });
+
+    it.each([
+      { text: 'rou(1)', offset: 3, label: 'round' },
+      { text: 'round(1)', offset: 2, label: 'round' },
+      { text: 'title.up()', offset: 8, label: 'upper' },
+    ])('should give only the name of a function or a method its parentheses already follow: $text at $offset', ({ text, offset, label }) => {
+      const item = language.complete(text, offset, { fields: orderFields })?.items.find((candidate) => candidate.label === label);
+
+      expect(item && [item.text, item.caret]).toEqual([label, label.length]);
     });
 
     it.each([
@@ -175,7 +215,7 @@ describe(FormulaLanguage, () => {
     ])('$place', ({ text }) => {
       it.prop([formulaValueArbitrary()])('should offer every method and field the value before the dot has, whatever the value', (value) => {
         const offered = language.complete(text, text.length, { fields: [{ name: 'value', type: typeOfValue(value) }] })?.items.map(({ kind, text }) => [kind, text]);
-        const methods = routines.filter(({ form, kinds }) => form === 'method' && kinds.includes(value.kind)).map(({ name }) => ['method', name]);
+        const methods = routines.filter(({ form, kinds }) => form === 'method' && kinds.includes(value.kind)).map(({ name }) => ['method', `${name}()`]);
         const fields = value instanceof FormulaObject ? Object.keys(value.value).map((name) => ['field', name]) : [];
 
         expect(offered).toEqual(expect.arrayContaining([...fields, ...methods]));
@@ -213,7 +253,7 @@ describe(FormulaLanguage, () => {
       expect(completions?.items.map(({ kind, label, text }) => [kind, label, text])).toEqual([
         ['field', 'Quantity', 'qty'],
         ['field', 'sku', 'sku'],
-        ...methodsOf(kinds).map(([kind, label]) => [kind, label, label]),
+        ...methodsOf(kinds).map(([kind, label]) => [kind, label, `${label}()`]),
       ]);
     });
 
@@ -527,7 +567,7 @@ describe(FormulaLanguage, () => {
     it('should suggest a field by its label and the span of the name it replaces', () => {
       const [diagnostic] = language.diagnose('totl + 1', { fields: [{ name: 'total', label: 'Total', type: { kind: 'Number' } }] });
 
-      expect(diagnostic?.suggestions).toEqual({ from: 0, to: 4, items: [{ kind: 'field', label: 'Total', text: 'total' }] });
+      expect(diagnostic?.suggestions).toEqual({ from: 0, to: 4, items: [{ kind: 'field', label: 'Total', text: 'total', caret: 5 }] });
     });
 
     it('should suggest a field whose label is spelled like the name, though its name is not', () => {

@@ -39,6 +39,7 @@ describe('language API', () => {
     >();
     expectTypeOf<API.FormulaCompletions['items'][number]>().toEqualTypeOf<API.FormulaCompletion>();
     expectTypeOf<API.FormulaCompletion['routine']>().toEqualTypeOf<Root.FormulaRoutine | undefined>();
+    expectTypeOf<API.FormulaCompletion['caret']>().toEqualTypeOf<number>();
     expectTypeOf<{ name: 'price' }>().toExtend<API.FormulaField>();
   });
 
