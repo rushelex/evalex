@@ -11,22 +11,14 @@ const MOVES: Readonly<Record<string, Direction>> = { ArrowLeft: -1, ArrowRight: 
 const DELETIONS: Readonly<Record<string, Direction>> = { Backspace: -1, Delete: 1 };
 
 /**
- * Lets the caret step over a chip and a deletion remove it whole, gives each edge of an inline formula two caret stops,
- * one outside and one inside, which look the same on screen, and makes Enter start a new line of the formula.
+ * Lets the caret step over a chip and a deletion remove it whole, and gives each edge of an inline formula two caret
+ * stops, one outside and one inside, which look the same on screen.
  */
 export function formulaKeys(): Plugin {
   return new Plugin({
     props: {
       handleKeyDown: (view, event) => {
-        if (event.altKey || event.ctrlKey || event.metaKey) {
-          return false;
-        }
-
-        if (event.key === 'Enter') {
-          return breakLine(view);
-        }
-
-        if (event.shiftKey) {
+        if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
           return false;
         }
 
@@ -41,19 +33,6 @@ export function formulaKeys(): Plugin {
       },
     },
   });
-}
-
-/** Inserts a line break in place of the selection when it lies within one formula. */
-function breakLine(view: EditorView): boolean {
-  const { $from, $to } = view.state.selection;
-
-  if (!FormulaText.isFormula($from.parent) || !$from.sameParent($to)) {
-    return false;
-  }
-
-  view.dispatch(view.state.tr.insertText('\n').scrollIntoView());
-
-  return true;
 }
 
 function isInlineFormula(node: Node | null | undefined): boolean {

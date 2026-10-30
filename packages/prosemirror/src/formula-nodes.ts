@@ -6,7 +6,8 @@ import type { NodeSpec } from 'prosemirror-model';
  *
  * @remarks
  * A formula holds its text and its fields, without marks. Its `textContent` is the formula as evalex stores it: a field
- * reads as its name, so `round(«Price», 2)` is `round(price, 2)`. Both keep the line breaks of the formula.
+ * reads as its name, so `round(«Price», 2)` is `round(price, 2)`. Both are code to the editor: they keep line breaks, which
+ * the `newlineInCode` command of the host's keymap inserts on Enter, take a paste as plain text and run no input rules.
  *
  * @example
  * ```ts
@@ -23,7 +24,7 @@ export const formulaNodes = {
     inline: true,
     content: '(text | formulaField)*',
     marks: '',
-    whitespace: 'pre',
+    code: true,
     parseDOM: [{ tag: 'span[data-formula]', preserveWhitespace: 'full' }],
     toDOM: () => ['span', { 'class': 'pm-formula', 'data-formula': '' }, 0],
   },

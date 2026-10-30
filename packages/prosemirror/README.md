@@ -75,7 +75,7 @@ The word being typed stays text until the caret leaves it or the editor loses fo
 
 ### Lines
 
-Enter starts a new line inside either formula, as a formula with `let` often has, and the line break stays in its text. A long inline formula wraps with the text around it.
+Both formulas are code to the editor, as a code block is: they keep line breaks, as a formula with `let` often has, and take a paste as plain text, so text of several lines pasted into an inline formula stays in it. What Enter does is the host's choice: the `newlineInCode` command of `baseKeymap` starts a new line in a formula, and an editor where Enter sends a message puts its own command first. A long inline formula wraps with the text around it.
 
 The caret stops twice at each edge of an inline formula, once outside and once inside, and the padding the stylesheet gives the formula tells the two apart on screen. Backspace in an empty inline formula removes it.
 

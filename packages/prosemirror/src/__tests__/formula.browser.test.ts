@@ -13,7 +13,7 @@ import { FormulaScope } from 'evalex';
 import { FormulaLanguage } from 'evalex/language';
 
 import { Schema } from 'prosemirror-model';
-import { EditorState, NodeSelection, TextSelection } from 'prosemirror-state';
+import { EditorState, NodeSelection, Plugin, TextSelection } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { afterEach, describe, expect, vi } from 'vitest';
 
@@ -43,6 +43,23 @@ const fields: readonly FormulaField[] = [
   { name: 'due', type: { kind: 'Date' } },
   { name: 'lines', label: 'Lines', type: { kind: 'Array', items: line } },
 ];
+
+// What the newlineInCode command of baseKeymap does on Enter, as a host's keymap runs it
+const newlineInCode = new Plugin({
+  props: {
+    handleKeyDown: (view, event) => {
+      const { $head, $anchor } = view.state.selection;
+
+      if (event.key !== 'Enter' || !$head.parent.type.spec.code || !$head.sameParent($anchor)) {
+        return false;
+      }
+
+      view.dispatch(view.state.tr.insertText('\n').scrollIntoView());
+
+      return true;
+    },
+  },
+});
 
 const views: EditorView[] = [];
 
@@ -186,6 +203,18 @@ describe(formula, () => {
       view.dom.dispatchEvent(new ClipboardEvent('copy', { clipboardData, bubbles: true, cancelable: true }));
 
       expect(clipboardData.getData('text/plain')).toBe('price * qty');
+    });
+
+    it('should keep text of several lines pasted into an inline formula in it', async () => {
+      const view = await mount({ blocks: [paragraph('a ', inline('1 + '), ' b')], options: { language } });
+      const clipboardData = new DataTransfer();
+
+      clipboardData.setData('text/plain', 'let x = 2\nin x * 3');
+      clipboardData.setData('text/html', '<p>let x = 2</p><p>in x * 3</p>');
+      view.focus();
+      view.dom.dispatchEvent(new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }));
+
+      expect([formulasOf(view), view.state.doc.childCount]).toEqual([['1 + let x = 2\nin x * 3'], 1]);
     });
 
     it('should show a pasted field as a chip at once', async () => {
@@ -551,13 +580,20 @@ describe(formula, () => {
     it.each([
       { case: 'an inline formula', blocks: [paragraph('a ', inline('let x = 1'), ' b')] },
       { case: 'a block formula', blocks: [block('let x = 1')] },
-    ])('should start a new line of $case on Enter', async ({ blocks }) => {
-      const view = await mount({ blocks, options: { language } });
+    ])('should start a new line of $case with the newlineInCode command of the host on Enter', async ({ blocks }) => {
+      const view = await mount({ blocks, options: { language }, keymap: [newlineInCode] });
 
       press({ view, key: 'Enter' });
       view.dispatch(view.state.tr.insertText('in x'));
 
       expect([formulasOf(view), view.state.doc.childCount]).toEqual([['let x = 1\nin x'], 1]);
+    });
+
+    it('should leave Enter in a formula to the host', async () => {
+      const view = await mount({ blocks: [paragraph('a ', inline('1 + 2'), ' b')], options: { language } });
+
+      expect(press({ view, key: 'Enter' })).toBe(true);
+      expect(formulasOf(view)).toEqual(['1 + 2']);
     });
 
     it('should remove an empty inline formula on Backspace', async () => {
@@ -571,10 +607,11 @@ describe(formula, () => {
   });
 });
 
-/** Presses a key as the plugins see it, without what the browser would do on its own. */
-function press({ view, key }: { view: EditorView; key: string }): void {
+/** Presses a key as the plugins see it, without what the browser would do on its own; false when one handled it. */
+function press({ view, key }: { view: EditorView; key: string }): boolean {
   view.focus();
-  view.dom.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+
+  return view.dom.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
 }
 
 async function settle(): Promise<void> {
@@ -666,7 +703,7 @@ function paragraph(...content: Inline[]): Node {
  * Mounts an editor of the blocks with the formula plugins, its caret at `offset` of the first formula or at its end, and
  * waits for the chips the plugins show once the editor is set up.
  */
-async function mount({ blocks, options, offset, record, width }: { blocks: Node[]; options: FormulaOptions; offset?: number; record?: Transaction[]; width?: number }): Promise<EditorView> {
+async function mount({ blocks, options, offset, record, width, keymap = [] }: { blocks: Node[]; options: FormulaOptions; offset?: number; record?: Transaction[]; width?: number; keymap?: Plugin[] }): Promise<EditorView> {
   const parent = document.createElement('div');
 
   parent.style.width = width === undefined ? '' : `${width}px`;
@@ -674,7 +711,7 @@ async function mount({ blocks, options, offset, record, width }: { blocks: Node[
   document.body.append(parent);
 
   const view: EditorView = new EditorView(parent, {
-    state: EditorState.create({ doc: schema.node('doc', null, blocks), plugins: formula(options) }),
+    state: EditorState.create({ doc: schema.node('doc', null, blocks), plugins: [...formula(options), ...keymap] }),
     // Records the transactions the plugins append too, which do not pass through here
     dispatchTransaction: (transaction) => {
       const { state, transactions } = view.state.applyTransaction(transaction);
