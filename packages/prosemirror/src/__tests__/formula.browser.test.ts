@@ -461,6 +461,35 @@ describe(formula, () => {
       expect([formulasOf(view), view.state.selection.head]).toEqual([['round()'], caretAt({ view, offset: 6 })]);
     });
 
+    it('should tell assistive technology the list the editor controls and the option selected in it, while it is open', async () => {
+      const view = await mount({ blocks: [block('')], options: { language, fields } });
+      const selectedOption = (): string | null | undefined => {
+        const list = document.getElementById(view.dom.getAttribute('aria-controls') ?? '');
+        const option = document.getElementById(view.dom.getAttribute('aria-activedescendant') ?? '');
+
+        return list?.contains(option) ? option?.textContent : undefined;
+      };
+
+      view.focus();
+      await userEvent.keyboard('Qu');
+      await listOf(view);
+
+      const first = [view.dom.getAttribute('aria-autocomplete'), view.dom.getAttribute('aria-haspopup'), selectedOption()];
+
+      await userEvent.keyboard('{ArrowDown}');
+
+      const second = selectedOption();
+
+      await userEvent.keyboard('{Escape}');
+
+      expect([first, second, view.dom.getAttribute('aria-controls'), view.dom.getAttribute('aria-activedescendant')]).toEqual([
+        ['list', 'listbox', expect.stringMatching(/^Quantity/)],
+        expect.not.stringMatching(/^Quantity/),
+        null,
+        null,
+      ]);
+    });
+
     it('should list a field by its label and insert it as a chip', async () => {
       const view = await mount({ blocks: [block('')], options: { language, fields } });
 

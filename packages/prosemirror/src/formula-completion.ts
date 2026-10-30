@@ -34,6 +34,9 @@ const OPENERS = new Set(['.', '"', '\'']);
 
 const PAGE = 10;
 
+// Ids of the lists, unique across the editors of a page
+let lastID = 0;
+
 /**
  * Offers the fields, variables, functions and methods that can be typed at the caret in a formula, matched by their
  * labels, in a list below the caret.
@@ -44,6 +47,8 @@ const PAGE = 10;
  * the ones whose name does, then the ones whose label holds it.
  */
 export function formulaCompletion(service: FormulaService): Plugin<CompletionState | null> {
+  const listID = `pm-formula-completions-${++lastID}`;
+
   return new Plugin<CompletionState | null>({
     key,
     state: {
@@ -84,6 +89,14 @@ export function formulaCompletion(service: FormulaService): Plugin<CompletionSta
       },
     },
     props: {
+      // The editor tells assistive technology which list it controls and which option is selected, as a combobox does
+      attributes: (state): Record<string, string> => {
+        const completions = key.getState(state);
+
+        return completions
+          ? { 'aria-autocomplete': 'list', 'aria-haspopup': 'listbox', 'aria-controls': listID, 'aria-activedescendant': `${listID}-${completions.selected}` }
+          : {};
+      },
       handleKeyDown: (view, event) => handleKey({ view, event }),
       handleDOMEvents: {
         blur: (view) => {
@@ -95,7 +108,7 @@ export function formulaCompletion(service: FormulaService): Plugin<CompletionSta
         },
       },
     },
-    view: (view) => new CompletionList(view),
+    view: (view) => new CompletionList({ view, listID }),
   });
 }
 
@@ -224,8 +237,9 @@ class CompletionList {
   readonly #info = document.createElement('div');
   #shown: CompletionState | null = null;
 
-  constructor(view: EditorView) {
+  constructor({ view, listID }: { view: EditorView; listID: string }) {
     this.#view = view;
+    this.#list.id = listID;
     this.#list.className = 'pm-formula-completion-list';
     this.#list.setAttribute('role', 'listbox');
     this.#info.className = 'pm-formula-completion-info';
@@ -272,6 +286,7 @@ class CompletionList {
     const dom = document.createElement('li');
     const label = document.createElement('span');
 
+    dom.id = `${this.#list.id}-${index}`;
     dom.className = `pm-formula-completion pm-formula-completion-${item.kind}`;
     dom.setAttribute('role', 'option');
     label.className = 'pm-formula-completion-label';

@@ -87,7 +87,7 @@ Errors show half a second after the author stops typing, as `pm-formula-error`, 
 
 ### Completion
 
-The list opens below the caret as a name is typed, after a dot and inside quotes, and on Ctrl-Space. ↑ and ↓ move through it, Enter and Tab insert the option, a click inserts the one clicked, and Escape closes it. Fields are listed by their labels and inserted by their names. Options whose label starts with the typed text come first, then the ones whose name does, then the ones whose label holds it. After a dot, the list holds the fields of a record and the methods of the type of the value before the dot, as the types of the fields tell. A function or a method is inserted as a call, with the caret between the parentheses unless it takes no arguments.
+The list opens below the caret as a name is typed, after a dot and inside quotes, and on Ctrl-Space. ↑ and ↓ move through it, Enter and Tab insert the option, a click inserts the one clicked, and Escape closes it. Fields are listed by their labels and inserted by their names. Options whose label starts with the typed text come first, then the ones whose name does, then the ones whose label holds it. After a dot, the list holds the fields of a record and the methods of the type of the value before the dot, as the types of the fields tell. A function or a method is inserted as a call, with the caret between the parentheses unless it takes no arguments. While the list is open, the editor tells assistive technology which list it controls and which option is selected, through `aria-controls` and `aria-activedescendant`, as a combobox does.
 
 ### Arguments and hover
 
