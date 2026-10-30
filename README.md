@@ -200,7 +200,23 @@ items.slice(0, 2).map(({ kind, label, text }) => [kind, label, text]);
 // [['variable', 'rate', 'rate'], ['field', 'Price', 'price']], then every function
 ```
 
-Where a value goes, the items are the variables the formula declares around the caret, such as `let` names and `current` inside `filter`, then the fields, then the functions. After a dot they are every method; inside quotes, the words the argument takes, such as the units of `dateBetween`. Every item that fits the place is given: the editor narrows the list by the text typed from `from`. Fields are passed on each call rather than once per `FormulaLanguage`, since the names a formula can read may differ from cell to cell.
+Where a value goes, the items are the variables the formula declares around the caret, such as `let` names and `current` inside `filter`, then the fields, then the functions. After a dot they are the methods of the value before the dot, and for a record its fields first; inside quotes, the words the argument takes, such as the units of `dateBetween`. Every item that fits the place is given: the editor narrows the list by the text typed from `from`. Fields are passed on each call rather than once per `FormulaLanguage`, since the names a formula can read may differ from cell to cell.
+
+A field may give the `type` of its values, a `FormulaType`. A record lists its own fields, each with a label and a type, so the type follows the formula through lists, `let` names and `current`:
+
+```ts
+const line = { kind: 'Object', fields: [{ name: 'qty', label: 'Quantity', type: { kind: 'Number' } }] } as const;
+
+language.complete('lines.filter(current.', 21, {
+  fields: [{ name: 'lines', type: { kind: 'Array', items: line } }],
+})!.items[0];
+// { kind: 'field', label: 'Quantity', text: 'qty' }, then the methods of a record
+
+language.complete('title.', 6, { fields: [{ name: 'title', type: { kind: 'String' } }] });
+// the methods of text only
+```
+
+A field without a type may hold any value, so after its dot every method is given.
 
 ## Formulas in data
 

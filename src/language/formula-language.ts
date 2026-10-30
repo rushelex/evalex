@@ -1,12 +1,15 @@
 import type { FormulaRoutine, FormulaRoutineParameter } from '../core/formula-routine';
 import type { FormulaScope } from '../core/formula-scope';
+import type { FormulaField } from '../core/types/formula-field';
 import type { CallSite } from '../parser/grammar/call-site';
 import type { CaretPlace } from '../parser/grammar/caret-place';
 import type { FormulaCompletion } from './formula-completion';
 import type { FormulaCompletions } from './formula-completions';
-import type { FormulaField } from './formula-field';
 import type { FormulaSignatureHelp } from './formula-signature-help';
 
+import { Kind } from '../core/data-types';
+import { inferSubjectType } from '../core/infer-subject-type';
+import { kindsOf, membersOf, type } from '../core/types';
 import { findCalls, findCaretPlace } from '../parser/grammar/parser';
 
 /**
@@ -64,8 +67,9 @@ export class FormulaLanguage {
    *
    * @remarks
    * Where a value goes, the items are the variables the formula declares around the caret, then the fields, then the
-   * functions. After a dot they are the methods of every kind, since the kind of the value before the dot is not known
-   * before evaluation. Inside quotes they are the words the argument takes, such as the units of `dateBetween`.
+   * functions. After a dot they are the fields of a record, then the methods of every type the value before the dot may
+   * have, as the types of the fields tell; a value of unknown type gets every method. Inside quotes they are the words
+   * the argument takes, such as the units of `dateBetween`.
    *
    * Every item that can be typed there is given, whatever is typed already: the editor narrows the list by the text from
    * `from` to the caret, matching the `label` of each item.
@@ -73,7 +77,8 @@ export class FormulaLanguage {
    * @param text - Formula text, complete or still being typed.
    * @param offset - Offset of the caret in `text`.
    * @param options - What the host knows about the place of the formula.
-   * @param options.fields - The fields the formula can read at its place in the host's data.
+   * @param options.fields - The fields the formula can read at its place in the host's data, with their types when the
+   * host knows them.
    * @returns `undefined` where nothing can be typed, such as right after a value or inside a number.
    *
    * @example
@@ -97,7 +102,7 @@ export class FormulaLanguage {
 
   #itemsAt({ place, offset, fields }: { place: CaretPlace; offset: number; fields: readonly FormulaField[] }): FormulaCompletion[] {
     if (place.kind === 'method') {
-      return this.#routineItems('method');
+      return this.#memberItems({ place, fields });
     }
 
     const [innermost] = place.calls;
@@ -114,6 +119,20 @@ export class FormulaLanguage {
       ...unique([...callbackVariables, ...place.variables]).map((name): FormulaCompletion => ({ kind: 'variable', label: name, text: name })),
       ...fields.map(({ name, label }): FormulaCompletion => ({ kind: 'field', label: label ?? name, text: name })),
       ...this.#routineItems('function'),
+    ];
+  }
+
+  /** The fields of the records and the methods of the kinds the value before the dot may have. */
+  #memberItems({ place: { formula, method }, fields }: { place: CaretPlace; fields: readonly FormulaField[] }): FormulaCompletion[] {
+    const types = new Map(fields.flatMap(({ name, type: fieldType }) => (fieldType ? [[name, fieldType] as const] : [])));
+    const subject = formula && method ? inferSubjectType({ formula, fields: types, method }) : type.any;
+    const kinds = kindsOf(subject);
+    const recordFields = membersOf(subject).flatMap((member) => (member.kind === Kind.Object ? member.fields ?? [] : []));
+    const takes = (routine: FormulaRoutine) => kinds.includes(Kind.Any) || routine.kinds.some((kind) => kinds.includes(kind));
+
+    return [
+      ...uniqueBy(recordFields, ({ name }) => name).map(({ name, label }): FormulaCompletion => ({ kind: 'field', label: label ?? name, text: name })),
+      ...this.#routineItems('method').filter(({ routine }) => routine && takes(routine)),
     ];
   }
 
@@ -143,4 +162,9 @@ function argumentAt(call: CallSite, offset: number): number {
 
 function unique(values: readonly string[]): string[] {
   return [...new Set(values)];
+}
+
+/** The values with the first of each key, in their order. */
+function uniqueBy<T>(values: readonly T[], keyOf: (value: T) => string): T[] {
+  return [...new Map(values.toReversed().map((value) => [keyOf(value), value])).values()].toReversed();
 }

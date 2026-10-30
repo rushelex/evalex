@@ -183,7 +183,7 @@ class Parser {
   readonly #calls: CallSite[] | undefined;
   // Offset of the one-character marker the caller put at the caret, when it asks what the caret is in
   readonly #caret: number | undefined;
-  #caretPlace: Omit<CaretPlace, 'calls'> | undefined;
+  #caretPlace: Omit<CaretPlace, 'calls' | 'formula'> | undefined;
 
   constructor(
     input: string,
@@ -287,14 +287,7 @@ class Parser {
   calls(): CallSite[] {
     const calls = this.#calls ?? [];
 
-    try {
-      this.run();
-    }
-    catch (error) {
-      if (!isSyntaxError(error)) {
-        throw error;
-      }
-    }
+    this.#runPastErrors();
 
     return calls;
   }
@@ -304,17 +297,33 @@ class Parser {
    * marker; `undefined` when it is not in a name, a method name or a string.
    */
   caretPlace(): CaretPlace | undefined {
-    const calls = this.calls();
+    const calls = this.#calls ?? [];
+    const formula = this.#runPastErrors();
     const caret = this.#caret ?? 0;
     const place = this.#caretPlace;
     const unmarked = (offset: number) => (offset > caret ? offset - 1 : offset);
 
     return place && {
       ...place,
+      formula,
       calls: calls
         .filter(({ open, end }) => open <= caret && caret <= end)
         .map((call) => ({ ...call, open: unmarked(call.open), end: unmarked(call.end), commas: call.commas.map(unmarked) })),
     };
+  }
+
+  /** Reads the input as `run` does, going on past the errors it can step over; `undefined` when one stops it. */
+  #runPastErrors(): AstNode | undefined {
+    try {
+      return this.run();
+    }
+    catch (error) {
+      if (!isSyntaxError(error)) {
+        throw error;
+      }
+
+      return undefined;
+    }
   }
 
   // ── Core Pratt loop ─────────────────────────────────────────────────────
@@ -1004,11 +1013,12 @@ class Parser {
       this.#fail('EXPECTED_METHOD_NAME', {}, this.#loc(s));
     }
     const word = this.#readWord();
-    this.#markCaret('method', s.offset);
+    const node = new IdentifierNode(word, this.#loc(s));
+    this.#markCaret('method', s.offset, node);
     if (KEYWORDS.has(word)) {
       this.#report(this.#error('KEYWORD_AS_METHOD_NAME', { keyword: word }, this.#loc(s)));
     }
-    return new IdentifierNode(word, this.#loc(s));
+    return node;
   }
 
   /** Parses a parenthesized group `(expr)` and returns the inner expression. */
@@ -1363,15 +1373,15 @@ class Parser {
     return true;
   }
 
-  /** Notes that the caret marker is in the text from `from` to the current position, when it is. */
-  #markCaret(kind: CaretPlace['kind'], from: number): void {
+  /** Notes that the caret marker is in the text from `from` to the current position, when it is; `method` is its node. */
+  #markCaret(kind: CaretPlace['kind'], from: number, method?: IdentifierNode): void {
     if (this.#caret === undefined || from > this.#caret || this.#pos <= this.#caret) {
       return;
     }
 
     const variables = kind === 'name' ? this.#letScopes.toReversed().flatMap(({ names, current }) => [...names].filter(([, index]) => index < current).map(([name]) => name)) : [];
 
-    this.#caretPlace = { kind, from, to: this.#pos - 1, variables: [...new Set(variables)] };
+    this.#caretPlace = { kind, from, to: this.#pos - 1, variables: [...new Set(variables)], method };
   }
 
   /** Reads a contiguous word of identifier characters. */

@@ -1,10 +1,11 @@
 import { fc, it } from '@fast-check/vitest';
 
-import { FormulaString } from '../core/data-types';
+import { FormulaObject, FormulaString } from '../core/data-types';
 import { FormulaScope } from '../core/formula-scope';
 import { arg } from '../core/routines/arguments';
 import { routinesRegistry } from '../core/routines/registry';
 import { type } from '../core/types';
+import { formulaValueArbitrary, typeOfValue } from '../testing-library';
 import { FormulaLanguage } from './index';
 
 // No built-in routine repeats an argument that takes words, so completion of a repeated one is checked on this one.
@@ -60,6 +61,14 @@ const routines = new FormulaScope().routines();
 const functionNames = routines.filter(({ form }) => form === 'function').map(({ name }) => name);
 
 const methodNames = routines.filter(({ form }) => form === 'method').map(({ name }) => name);
+
+const orderLine = { kind: 'Object', fields: [{ name: 'qty', label: 'Quantity', type: { kind: 'Number' } }, { name: 'sku' }] } as const;
+
+const orderFields = [
+  { name: 'title', type: { kind: 'String' } },
+  { name: 'order', type: orderLine },
+  { name: 'lines', type: { kind: 'Array', items: orderLine } },
+] as const;
 
 const language = new FormulaLanguage(new FormulaScope());
 
@@ -150,6 +159,54 @@ describe(FormulaLanguage, () => {
       expect(completions?.items.map(({ kind, label }) => [kind, label])).toEqual(methodNames.map((name) => ['method', name]));
     });
 
+    describe.each([
+      { place: 'after a field', text: 'value.' },
+      { place: 'after an item read per item', text: '[value].map(current.' },
+    ])('$place', ({ text }) => {
+      it.prop([formulaValueArbitrary()])('should offer every method and field the value before the dot has, whatever the value', (value) => {
+        const offered = language.complete(text, text.length, { fields: [{ name: 'value', type: typeOfValue(value) }] })?.items.map(({ kind, text }) => [kind, text]);
+        const methods = routines.filter(({ form, kinds }) => form === 'method' && kinds.includes(value.kind)).map(({ name }) => ['method', name]);
+        const fields = value instanceof FormulaObject ? Object.keys(value.value).map((name) => ['field', name]) : [];
+
+        expect(offered).toEqual(expect.arrayContaining([...fields, ...methods]));
+      });
+    });
+
+    it.each([
+      { text: 'title.', kinds: ['String'] },
+      { text: 'let all = lines in all.', kinds: ['Array'] },
+      { text: 'round(title.upper().', kinds: ['String'] },
+      { text: 'if(true, title.', kinds: ['String'] },
+      { text: 'missing(title.', kinds: ['String'] },
+      { text: 'unknown.join(title.', kinds: ['String'] },
+      { text: '-title.', kinds: ['String'] },
+      { text: '(title.length() > 1 ? lines : title).', kinds: ['Array', 'String'] },
+    ])('should offer only the methods of the type of the value before the dot: $text', ({ text, kinds }) => {
+      const completions = language.complete(text, text.length, { fields: orderFields });
+
+      expect(completions?.items.map(({ kind, label }) => [kind, label])).toEqual(methodsOf(kinds));
+    });
+
+    it('should find the value before the dot with the caret inside the formula', () => {
+      const completions = language.complete('title. ? lines : 0', 6, { fields: orderFields });
+
+      expect(completions?.items.map(({ kind, label }) => [kind, label])).toEqual(methodsOf(['String']));
+    });
+
+    it.each([
+      { text: 'order.', kinds: ['Object'] },
+      { text: 'lines.filter(current.', kinds: ['Object'] },
+      { text: 'lines.first().', kinds: ['Object', 'Null'] },
+    ])('should offer the fields of a record by their labels before its methods: $text', ({ text, kinds }) => {
+      const completions = language.complete(text, text.length, { fields: orderFields });
+
+      expect(completions?.items.map(({ kind, label, text }) => [kind, label, text])).toEqual([
+        ['field', 'Quantity', 'qty'],
+        ['field', 'sku', 'sku'],
+        ...methodsOf(kinds).map(([kind, label]) => [kind, label, label]),
+      ]);
+    });
+
     it.each([
       { text: 'let a = 1, b = ', offset: 15, expected: ['a'] },
       { text: 'let a = 1, b = a in ', offset: 20, expected: ['a', 'b'] },
@@ -195,6 +252,11 @@ describe(FormulaLanguage, () => {
     });
   });
 });
+
+/** The completion items of the methods called on values of `kinds`, in the order of the scope. */
+function methodsOf(kinds: readonly string[]): string[][] {
+  return routines.filter((routine) => routine.form === 'method' && routine.kinds.some((kind) => kinds.includes(kind))).map(({ name }) => ['method', name]);
+}
 
 function callPieces({ name, form, args }: { name: string; form: CallAtCaret['form']; args: readonly (readonly Piece[])[] }): Piece[] {
   const inArgument = (argument: number) => ({ name, form, argument });

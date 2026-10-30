@@ -1,3 +1,4 @@
+import type { AstNode, IIdentifierNode } from '../ast';
 import type { CallSite } from './call-site';
 
 /** What the caret is in, as the parser reads the text around it. */
@@ -12,4 +13,11 @@ export interface CaretPlace {
   readonly variables: readonly string[];
   /** The calls whose parentheses hold the caret, innermost first. */
   readonly calls: readonly CallSite[];
+  /**
+   * The formula as the parse read it past the errors it can step over, with the word at the caret one character
+   * longer; `undefined` when an error outside any bracket stopped the parse.
+   */
+  readonly formula?: AstNode;
+  /** For a method name, its node in `formula`. */
+  readonly method?: IIdentifierNode;
 }

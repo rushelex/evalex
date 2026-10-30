@@ -112,6 +112,26 @@ describe(inferType, () => {
     expect(inferType({ formula: parseFormula('concat(anything, [1])'), fields })).toEqual({ kind: 'Array', items: ANY });
   });
 
+  it.each([
+    { formula: 'order.qty()', expected: NUMBER },
+    { formula: 'lines.map(current.qty())', expected: { kind: 'Array', items: NUMBER } },
+    { formula: 'order.note()', expected: ANY },
+  ])('should give a field read of a record the type of the field, or any type when it has none: $formula', ({ formula, expected }) => {
+    const line = { kind: 'Object', fields: [{ name: 'qty', type: NUMBER }, { name: 'note' }] } as const;
+    const fields = new Map<string, FormulaType>([['order', line], ['lines', { kind: 'Array', items: line }]]);
+
+    expect(inferType({ formula: parseFormula(formula), fields })).toEqual(expected);
+  });
+
+  it('should leave out a record whose field read fails, as the call fails on it', () => {
+    const fields = new Map<string, FormulaType>([
+      ['entry', { kind: 'Union', of: [{ kind: 'Object', fields: [{ name: 'qty', type: NUMBER }] }, { kind: 'Object', fields: [] }] }],
+    ]);
+
+    expect(inferType({ formula: parseFormula('entry.qty()'), fields })).toEqual(NUMBER);
+    expect(inferType({ formula: parseFormula('entry.qty(1)'), fields })).toEqual(ANY);
+  });
+
   it('should leave out the types a method is not defined on, as the call fails on them', () => {
     const fields = new Map<string, FormulaType>([['price', { kind: 'Union', of: [NUMBER, NULL] }]]);
 

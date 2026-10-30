@@ -1,3 +1,4 @@
+export type { FormulaField } from './formula-field';
 export type { FormulaType } from './formula-type';
 export { kindsOf } from './kinds-of';
 export { membersOf } from './members-of';
