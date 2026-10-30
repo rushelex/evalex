@@ -382,6 +382,51 @@ describe(FormulaLanguage, () => {
     });
   });
 
+  describe('names', () => {
+    it.prop([fieldFormulaArbitrary({ lazy: true })])('should tell names as whole tokens of names, in the order of the text', (formula) => {
+      const spans = tokenize(formula)
+        .filter(({ kind }) => kind === 'name' || kind === 'function' || kind === 'method')
+        .map(({ location }) => `${location.start.offset}-${location.end.offset}`);
+      const told = language.names(formula, { fields: orderFields }).map(({ from, to }) => `${from}-${to}`);
+
+      expect(told.filter((span) => !spans.includes(span))).toEqual([]);
+      expect(told).toEqual(spans.filter((span) => told.includes(span)));
+    });
+
+    it.prop([fieldFormulaArbitrary({ lazy: true })])('should tell every name read as a value when the host passes no fields', (formula) => {
+      const values = tokenize(formula).filter(({ kind }) => kind === 'name').map(({ location }) => location.start.offset);
+
+      expect(language.names(formula).filter(({ kind }) => kind === 'field' || kind === 'variable').map(({ from }) => from)).toEqual(values);
+    });
+
+    it('should tell each name what it stands for', () => {
+      const names = language.names('let rate = 2 in round(order.qty() * rate, 2) + lines.first().qty()', { fields: orderFields });
+
+      expect(names.map(({ kind, label, from, to }) => [kind, label, from, to])).toEqual([
+        ['variable', 'rate', 4, 8],
+        ['function', 'round', 16, 21],
+        ['field', 'order', 22, 27],
+        ['field', 'Quantity', 28, 31],
+        ['variable', 'rate', 36, 40],
+        ['field', 'lines', 47, 52],
+        ['method', 'first', 53, 58],
+        ['field', 'Quantity', 61, 64],
+      ]);
+    });
+
+    it('should leave out a name it tells nothing of', () => {
+      expect(language.names('totl + nope(title) + title.round() + order.qtty() + "a".round()', { fields: orderFields }).map(({ label }) => label)).toEqual(['title', 'title', 'order']);
+    });
+
+    it('should tell the names of text with syntax errors', () => {
+      expect(language.names('round(title,, 2)', { fields: orderFields }).map(({ kind, label }) => [kind, label])).toEqual([['function', 'round'], ['field', 'title']]);
+    });
+
+    it('should tell nothing in text without names', () => {
+      expect([language.names(''), language.names('1 + "a"')]).toEqual([[], []]);
+    });
+  });
+
   describe('typeOf', () => {
     const records = fc.record({ a: formulaValueArbitrary(), b: formulaValueArbitrary(), c: formulaValueArbitrary() });
 

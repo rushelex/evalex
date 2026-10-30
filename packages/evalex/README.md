@@ -225,6 +225,13 @@ language.hover('round(price, 2)', 2, { fields })?.routines?.[0]?.description;
 
 After a dot, `routines` holds the methods of the types the value before the dot may have, as completion lists them. A name the formula cannot read, a literal or an operator gives `undefined`.
 
+`names` gives what `hover` gives for every name of a formula at once, in the order of the text, so an editor shows each field by its label without asking about every name:
+
+```ts
+language.names('round(price * qty, 2)', { fields: [...fields, { name: 'qty', label: 'Quantity' }] }).map(({ kind, label }) => [kind, label]);
+// [['function', 'round'], ['field', 'Price'], ['field', 'Quantity']]
+```
+
 `diagnose` finds the errors to underline. In text that does not parse, they are the syntax errors, read on past each one the reader can step over, so separate mistakes show at once:
 
 ```ts

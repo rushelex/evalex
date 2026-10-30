@@ -51,6 +51,12 @@ describe('language API', () => {
     expectTypeOf<API.FormulaHover['routines']>().toEqualTypeOf<readonly Root.FormulaRoutine[] | undefined>();
   });
 
+  it('should type names as the hover of every name', () => {
+    expectTypeOf<API.FormulaLanguage['names']>().toEqualTypeOf<
+      (text: string, options?: { readonly fields?: readonly API.FormulaField[] }) => API.FormulaHover[]
+    >();
+  });
+
   it('should type token kinds as plain text', () => {
     expectTypeOf<'function'>().toExtend<API.FormulaTokenKind>();
     expectTypeOf<'invalid'>().toExtend<API.FormulaTokenKind>();

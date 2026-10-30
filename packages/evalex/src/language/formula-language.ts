@@ -13,17 +13,18 @@ import type { FormulaCompletions } from './formula-completions';
 import type { FormulaDiagnostic } from './formula-diagnostic';
 import type { FormulaHover } from './formula-hover';
 import type { FormulaSignatureHelp } from './formula-signature-help';
+import type { NamePlace } from './name-place';
 
 import { checkFormula } from '../core/check-formula';
 import { Kind } from '../core/data-types';
 import { DependencyExtractorVisitor } from '../core/dependency-extractor.visitor';
 import { FormulaErrorCode } from '../core/errors';
-import { inferNodeType } from '../core/infer-node-type';
+import { inferNodeTypes } from '../core/infer-node-types';
 import { inferType } from '../core/infer-type';
 import { kindsOf, membersOf, type } from '../core/types';
 import { findCalls, findCaretPlace, diagnose as findSyntaxErrors, parsePastErrors } from '../parser/grammar/parser';
 import { SYNTAX_ERROR_MESSAGES } from '../parser/grammar/syntax-error-messages';
-import { findName } from './find-name';
+import { findNames } from './find-names';
 import { spellingDistance } from './spelling-distance';
 
 // What can stand in place of each kind of name that is not defined: a record reads a field by a method name
@@ -274,8 +275,8 @@ export class FormulaLanguage {
 
   /** The fields of the records and the methods of the kinds the value before the dot may have. */
   #memberItems({ place: { formula, method }, fields, called }: { place: CaretPlace; fields: readonly FormulaField[]; called: boolean }): FormulaCompletion[] {
-    const call = formula && method && findName({ formula, offset: method.location.start.offset });
-    const subject = formula && call?.subject ? inferNodeType({ formula, fields: typesOf(fields), node: call.subject }).type : type.any;
+    const call = formula && method && nameAt({ places: findNames(formula), offset: method.location.start.offset });
+    const subject = formula && call?.subject ? inferNodeTypes({ formula, fields: typesOf(fields), nodes: [call.subject] }).get(call.subject)?.type ?? type.any : type.any;
 
     return [
       ...uniqueBy(recordFieldsOf(subject), ({ name }) => name).map(fieldItem),
@@ -309,16 +310,49 @@ export class FormulaLanguage {
    * ```
    */
   hover(text: string, offset: number, options: { readonly fields?: readonly FormulaField[] } = {}): FormulaHover | undefined {
-    const formula = parsePastErrors(text);
-    const place = formula && findName({ formula, offset });
+    return this.names(text, options).find(({ from, to }) => from <= offset && offset <= to);
+  }
 
-    if (!formula || !place) {
-      return undefined;
+  /**
+   * Returns every name of the formula with what it stands for, as `hover` tells each, in the order of the text: for
+   * showing each field by its label at once.
+   *
+   * @remarks
+   * Reads the formula once however many names it has, so it costs about what one `hover` does. A name `hover` tells
+   * nothing of, such as a name outside the fields or a function the scope does not have, is left out. Never throws,
+   * whatever the text.
+   *
+   * @param text - Formula text, complete or still being typed.
+   * @param options - What the host knows about the place of the formula.
+   * @param options.fields - The fields the formula can read at its place in the host's data, with their types when the
+   * host knows them; a name outside them is left out. Without them, any name is a field of any value.
+   * @returns Empty for text without such names.
+   *
+   * @example
+   * ```ts
+   * const fields = [{ name: 'price', label: 'Price' }, { name: 'qty', label: 'Quantity' }];
+   *
+   * language.names('round(price * qty, 2)', { fields }).map(({ kind, label, from, to }) => [kind, label, from, to]);
+   * // [['function', 'round', 0, 5], ['field', 'Price', 6, 11], ['field', 'Quantity', 14, 17]]
+   * ```
+   */
+  names(text: string, options: { readonly fields?: readonly FormulaField[] } = {}): FormulaHover[] {
+    const formula = parsePastErrors(text);
+
+    if (!formula) {
+      return [];
     }
 
-    const types = typesOf(options.fields ?? []);
+    const places = findNames(formula);
+    const types = inferNodeTypes({ formula, fields: typesOf(options.fields ?? []), nodes: places.flatMap(({ value, subject }) => (subject ? [value, subject] : [value])) });
+
+    return places.flatMap((place) => this.#hoverOf({ place, types, fields: options.fields }) ?? []);
+  }
+
+  /** What one name stands for, from the types of the nodes of its formula. */
+  #hoverOf({ place, types, fields }: { place: NamePlace; types: ReturnType<typeof inferNodeTypes>; fields: readonly FormulaField[] | undefined }): FormulaHover | undefined {
     const { name, location } = place.name;
-    const { type: valueType, declared } = inferNodeType({ formula, fields: types, node: place.value });
+    const { type: valueType, declared } = types.get(place.value) ?? { type: type.any, declared: false };
     const hover = { from: location.start.offset, to: location.end.offset, label: name, type: valueType };
 
     if (place.role === 'function') {
@@ -328,7 +362,7 @@ export class FormulaLanguage {
     }
 
     if (place.role === 'method') {
-      const subject = place.subject ? inferNodeType({ formula, fields: types, node: place.subject }).type : type.any;
+      const subject = (place.subject && types.get(place.subject)?.type) ?? type.any;
       const routines = this.#routines.filter((routine) => routine.name === name && routine.form === 'method' && takes({ routine, subject }));
       const field = recordFieldsOf(subject).find((candidate) => candidate.name === name);
 
@@ -343,7 +377,7 @@ export class FormulaLanguage {
       return { ...hover, kind: 'variable' };
     }
 
-    const field = options.fields ? options.fields.find((candidate) => candidate.name === name) : { name };
+    const field = fields ? fields.find((candidate) => candidate.name === name) : { name };
 
     return field && { ...hover, kind: 'field', label: field.label ?? name };
   }
@@ -366,6 +400,10 @@ export class FormulaLanguage {
       return parameters[argument] ?? (last?.repeatable ? last : undefined);
     })).filter((parameter) => parameter !== undefined);
   }
+}
+
+function nameAt({ places, offset }: { places: readonly NamePlace[]; offset: number }): NamePlace | undefined {
+  return places.find(({ name: { location } }) => location.start.offset <= offset && offset <= location.end.offset);
 }
 
 function isReferenceError(error: FormulaError): error is FormulaError<'REFERENCE_ERROR'> {
