@@ -1,12 +1,16 @@
 import type { FormulaDiagnostic, FormulaField, FormulaLanguage } from 'evalex/language';
 import type { Node, NodeSpec } from 'prosemirror-model';
-import type { Plugin } from 'prosemirror-state';
+import type { Plugin, Transaction } from 'prosemirror-state';
 
 import type * as API from '../index';
 
 describe('@evalexjs/prosemirror API', () => {
   it('should make the plugins from the options of the formulas', () => {
     expectTypeOf<typeof API.formula>().toEqualTypeOf<(options: API.FormulaOptions) => Plugin[]>();
+  });
+
+  it('should mark a transaction that makes the formulas read their fields again', () => {
+    expectTypeOf<typeof API.refreshFormulas>().toEqualTypeOf<(transaction: Transaction) => Transaction>();
   });
 
   it('should give the formula nodes as specs to add to a schema', () => {

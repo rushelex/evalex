@@ -101,10 +101,23 @@ Hovering over a name tells what it stands for: a field with its label and type, 
 
 ### Changing the fields
 
-The options are fixed for the plugins. To change them, reconfigure the state with plugins made from new options:
+For fields that change while the editor is open, `fields` is a function that returns the current list. Once the list changes, `refreshFormulas` marks a transaction that makes the formulas read it again: errors and chips follow the new list at once, and the transaction stays out of the undo history.
 
 ```ts
-view.updateState(view.state.reconfigure({ plugins: [...formula({ language, fields: otherFields }), keymap(baseKeymap)] }));
+import { formula, refreshFormulas } from '@evalexjs/prosemirror';
+
+let fields = [{ name: 'price', label: 'Price', type: { kind: 'Number' } }];
+const plugins = [...formula({ language, fields: () => fields }), keymap(baseKeymap)];
+
+// Later, when the fields of the host change
+fields = [{ name: 'price', label: 'Cost', type: { kind: 'Number' } }];
+view.dispatch(refreshFormulas(view.state.tr));
+```
+
+The language and the other options are fixed for the plugins. To change them, reconfigure the state with plugins made from new options:
+
+```ts
+view.updateState(view.state.reconfigure({ plugins: [...formula({ language: otherLanguage, fields }), keymap(baseKeymap)] }));
 ```
 
 ## License

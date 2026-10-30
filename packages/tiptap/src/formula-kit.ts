@@ -1,7 +1,19 @@
 import type { FormulaOptions } from '@evalexjs/prosemirror';
 
-import { formula, formulaNodes } from '@evalexjs/prosemirror';
+import { formula, formulaNodes, refreshFormulas } from '@evalexjs/prosemirror';
 import { Extension, Node } from '@tiptap/core';
+
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    formulaKit: {
+      /**
+       * Makes every formula read its fields again, once the list the `fields` option gives has changed: errors and chips
+       * follow the new list at once, outside the undo history.
+       */
+      refreshFormulas: () => ReturnType;
+    };
+  }
+}
 
 const { formula: inlineSpec, formulaBlock: blockSpec, formulaField: fieldSpec } = formulaNodes;
 
@@ -52,7 +64,8 @@ const formulaFieldNode = Node.create({
  * configure the kit. The kit goes before the keyboard shortcuts of other extensions, so the completion list and chips
  * take the keys they handle in a formula, and Enter in a formula is left to the editor, which starts a new line there.
  *
- * The options are fixed for the editor: to change the fields, create the editor again with the kit configured anew.
+ * The options are fixed for the editor. For fields that change, `fields` is a function that returns the current list,
+ * and the `refreshFormulas` command makes the formulas read it again.
  *
  * @example
  * ```ts
@@ -81,6 +94,13 @@ export const FormulaKit = Extension.create<FormulaOptions, Record<string, never>
   // Tiptap runs the plugins of a higher priority first, and keyboard shortcuts are plugins too
   priority: 1000,
   addExtensions: () => [formulaNode, formulaBlockNode, formulaFieldNode],
+  addCommands: () => ({
+    refreshFormulas: () => ({ tr }) => {
+      refreshFormulas(tr);
+
+      return true;
+    },
+  }),
   addProseMirrorPlugins() {
     return formula(this.options);
   },

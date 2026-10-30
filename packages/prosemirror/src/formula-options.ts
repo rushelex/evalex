@@ -11,7 +11,8 @@ export interface FormulaOptions {
    * checked, completion offers no fields and there are no chips.
    *
    * @remarks
-   * A function that returns the same list for the same formula lets the plugins reuse what they found in it.
+   * A function that returns the same list for the same formula lets the plugins reuse what they found in it. Once the
+   * list changes, `refreshFormulas` makes the formulas read it again.
    */
   readonly fields?: readonly FormulaField[] | ((formula: { readonly node: Node; readonly pos: number }) => readonly FormulaField[] | undefined);
   /**

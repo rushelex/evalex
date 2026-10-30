@@ -5,6 +5,7 @@ import type { FormulaService } from './formula-service';
 
 import { Plugin, PluginKey } from 'prosemirror-state';
 
+import { formulaRefreshKey } from './formula-refresh-key';
 import { FormulaText } from './formula-text';
 
 interface Span {
@@ -66,10 +67,9 @@ export function formulaFieldChips(service: FormulaService): Plugin<ChipsState> {
       const before = key.getState(oldState)?.typing;
       const after = key.getState(state)?.typing;
       const moved = before?.from !== after?.from || before?.to !== after?.to;
+      const changed = transactions.some((transaction) => (transaction.docChanged && transaction.getMeta(key) !== 'sync') || transaction.getMeta(formulaRefreshKey));
 
-      return moved || transactions.some((transaction) => transaction.docChanged && transaction.getMeta(key) !== 'sync')
-        ? syncChips({ state, service })
-        : null;
+      return moved || changed ? syncChips({ state, service }) : null;
     },
     props: {
       handleDOMEvents: {

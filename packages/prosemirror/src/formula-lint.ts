@@ -6,6 +6,7 @@ import type { FormulaService } from './formula-service';
 import { Plugin, PluginKey } from 'prosemirror-state';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 
+import { formulaRefreshKey } from './formula-refresh-key';
 import { FormulaText } from './formula-text';
 
 // How long the author pauses before errors show, so a name is not underlined while it is typed
@@ -25,7 +26,12 @@ export function formulaLint(service: FormulaService): Plugin<DecorationSet> {
       apply: (transaction, decorations) => {
         const found: unknown = transaction.getMeta(key);
 
-        return found instanceof DecorationSet ? found : decorations.map(transaction.mapping, transaction.doc);
+        if (found instanceof DecorationSet) {
+          return found;
+        }
+
+        // New fields are not typing, so their errors show at once
+        return transaction.getMeta(formulaRefreshKey) ? decorationsOf({ doc: transaction.doc, service }) : decorations.map(transaction.mapping, transaction.doc);
       },
     },
     props: {

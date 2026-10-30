@@ -42,7 +42,18 @@ The kit adds the `formula`, `formulaBlock` and `formulaField` nodes of `@evalexj
 
 The completion list and chips take the keys they handle in a formula ahead of the keyboard shortcuts of other extensions. Enter in a formula is left to the editor: its keymap starts a new line there, and an extension that sends a message on Enter sends it.
 
-The options are fixed for the editor. To change the fields, create the editor again with the kit configured anew.
+For fields that change while the editor is open, `fields` is a function that returns the current list, and the `refreshFormulas` command makes the formulas read it again once it changes:
+
+```ts
+let fields = [{ name: 'price', label: 'Price', type: { kind: 'Number' } }];
+const editor = new Editor({ extensions: [StarterKit, FormulaKit.configure({ language, fields: () => fields })] });
+
+// Later, when the fields of the host change
+fields = [{ name: 'price', label: 'Cost', type: { kind: 'Number' } }];
+editor.commands.refreshFormulas();
+```
+
+The language and the other options are fixed for the editor.
 
 ## License
 

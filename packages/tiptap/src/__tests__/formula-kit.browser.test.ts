@@ -48,6 +48,16 @@ describe('FormulaKit', () => {
     expect([formulasOf(editor), chipsOf(editor)]).toEqual([['round(price * qty, 2)', 'price'], ['Price', 'Quantity', 'Price']]);
   });
 
+  it('should show the fields the host gives now, on the refreshFormulas command', async () => {
+    let given: readonly FormulaField[] = fields;
+    const editor = await mount({ content: '<div data-formula>price * total</div>', options: { language, fields: () => given } });
+
+    given = [{ name: 'price', label: 'Cost' }, { name: 'total', label: 'Total' }];
+    editor.commands.refreshFormulas();
+
+    expect(chipsOf(editor)).toEqual(['Cost', 'Total']);
+  });
+
   it('should give each field of a formula with its name and label in the JSON of the editor, and read it back from its HTML', async () => {
     const editor = await mount({ content: '<p>Total: <span data-formula>price * qty</span></p>', options: { language, fields } });
     const json = editor.getJSON();

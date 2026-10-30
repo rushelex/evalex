@@ -22,7 +22,7 @@ import { userEvent } from 'vitest/browser';
 import { spacedFormulaArbitrary } from '~/testing-library/formula-text-arbitrary';
 
 import { FormulaText } from '../formula-text';
-import { formula, formulaNodes } from '../index';
+import { formula, formulaNodes, refreshFormulas } from '../index';
 
 const schema = new Schema({
   nodes: {
@@ -148,6 +148,28 @@ describe(formula, () => {
       view.dispatch(view.state.tr.insertText('2', caretAt({ view, offset: 1, index: 1 })));
 
       expect(chipsOf(view)).toEqual(['Price']);
+    });
+
+    it('should show the fields the host gives now, once told to refresh the formulas', async () => {
+      let given: readonly FormulaField[] = fields;
+      const view = await mount({ blocks: [block('price * qty + total')], options: { language, fields: () => given } });
+
+      given = [{ name: 'price', label: 'Cost' }, { name: 'total', label: 'Total' }];
+      view.dispatch(refreshFormulas(view.state.tr));
+
+      expect([chipsOf(view), formulasOf(view)]).toEqual([['Cost', 'Total'], ['price * qty + total']]);
+    });
+
+    it('should keep a refresh of the formulas and the chips it changes out of the undo history', async () => {
+      const record: Transaction[] = [];
+      let given: readonly FormulaField[] = [];
+      const view = await mount({ blocks: [block('price')], options: { language, fields: () => given }, record });
+
+      record.splice(0);
+      given = fields;
+      view.dispatch(refreshFormulas(view.state.tr));
+
+      expect([chipsOf(view), record.map((transaction) => transaction.getMeta('addToHistory') !== false)]).toEqual([['Price'], [false, false]]);
     });
 
     it('should keep the word being typed as text, and show it as a chip once the author types on', async () => {
@@ -276,6 +298,17 @@ describe(formula, () => {
       const view = await mount({ blocks: [block('price * total')], options: { language, fields } });
 
       expect(await underlinesOf(view)).toEqual(['total']);
+    });
+
+    it('should check the names against the fields the host gives now at once, once told to refresh the formulas', async () => {
+      let given: readonly FormulaField[] = fields;
+      const view = await mount({ blocks: [block('price * total + qty')], options: { language, fields: () => given } });
+
+      await underlinesOf(view);
+      given = [{ name: 'price' }, { name: 'total' }];
+      view.dispatch(refreshFormulas(view.state.tr));
+
+      expect([...view.dom.querySelectorAll('.pm-formula-error')].map(({ textContent }) => textContent)).toEqual(['qty']);
     });
 
     it('should mark an error where nothing is there to underline', async () => {
