@@ -40,7 +40,7 @@ function hostValueOf(formulaType: FormulaType): unknown {
     return item === undefined ? [] : [item];
   }
 
-  if (formulaType.kind === 'Union' || formulaType.kind === 'Variable' || formulaType.kind === Kind.Any) {
+  if (formulaType.kind === 'Union' || formulaType.kind === 'Nested' || formulaType.kind === 'Variable' || formulaType.kind === Kind.Any) {
     return undefined;
   }
 

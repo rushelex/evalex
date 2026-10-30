@@ -260,6 +260,12 @@ describe(FormulaScope, () => {
       expect(round?.signatures[0]?.parameters.map(({ name, optional }) => (optional ? `[${name}]` : name)).join(', ')).toBe('number, [places]');
     });
 
+    it('should list sum as taking numbers and lists of them nested at any depth', () => {
+      const sum = new FormulaScope().routines().find(({ name, form }) => name === 'sum' && form === 'function');
+
+      expect(sum?.signatures[0]?.parameters[0]?.type).toEqual({ kind: 'Nested', items: { kind: 'Number' } });
+    });
+
     it('should list the units dateBetween takes for a date', () => {
       const dateBetween = new FormulaScope().routines().find(({ name, form }) => name === 'dateBetween' && form === 'function');
 

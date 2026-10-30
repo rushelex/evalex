@@ -1,7 +1,7 @@
 import type { Argument } from './argument';
 import type { CallbackExecutor } from './callback-executor';
 
-import { Kind } from '../../data-types';
+import { admits } from '../../types';
 
 import { CallbackArgument } from './callback-argument';
 import { ProcessedArgument } from './processed-argument';
@@ -28,7 +28,7 @@ export class TypeValidator {
       return false;
     }
 
-    return this.#isTypeMatch(arg.dataType.kind, argDef.kinds) && this.#isCustomValidationPass(arg, argDef);
+    return admits({ formulaType: argDef.type, value: arg.dataType }) && this.#isCustomValidationPass(arg, argDef);
   }
 
   /**
@@ -39,16 +39,6 @@ export class TypeValidator {
    */
   validateCustomRules(arg: ProcessedArgument, argDef: Argument): boolean {
     return this.#isCustomValidationPass(arg, argDef);
-  }
-
-  /**
-   * Checks if the actual type matches any of the expected types.
-   * @param actualType The actual data type kind
-   * @param expectedTypes The expected types
-   * @returns True if types match
-   */
-  #isTypeMatch(actualType: Kind, expectedTypes: readonly Kind[]): boolean {
-    return expectedTypes.includes(actualType) || expectedTypes.includes(Kind.Any);
   }
 
   /**

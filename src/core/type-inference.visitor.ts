@@ -12,6 +12,7 @@ import { FormulaEvaluatorVisitor } from './evaluator.visitor';
 import { representativeValue } from './representative-value';
 import { Argument, CallbackArgument, ProcessedArgument, RepresentativeArgument } from './routines/arguments';
 import { routinesRegistry } from './routines/registry';
+import { subjectTypeError } from './routines/subject-type-error';
 import { kindsOf, membersOf, type, TypeBindings, unionOf } from './types';
 
 interface TypeInferenceOptions {
@@ -206,7 +207,7 @@ export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
    * Its result never exists, so nothing that reads it is checked.
    */
   #operatorFails({ operands, apply }: { operands: readonly FormulaType[]; apply: (values: readonly FormulaDataType[]) => FormulaDataType }): boolean {
-    const combinations = combine(operands.map((operand) => representativesOf(kindsOf(operand))));
+    const combinations = combine(operands.map((operand) => representativesOf(operand)));
     const failure = combinations && commonFailure(combinations.map((values) => failureOf(() => apply(values))));
 
     if (failure) {
@@ -258,10 +259,12 @@ export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
       if (routine) {
         const result = this.#methodCallResult({ routine, args, subject: member });
         const failure = result ? this.#literalFailure({ routine, args, location: method.location }) : this.#argumentsFailure({ routine, args, location: method.location });
+        // A call checks its arguments before the value it is called on
+        const subjectFailure = result && !failure ? subjectFailureOf({ routine, member, location: method.location }) : undefined;
 
         routines.push(routine);
-        results.push(...(result && !failure ? [result] : []));
-        failures.push(...(result && !failure ? [] : [failure]));
+        results.push(...(result && !failure && !subjectFailure ? [result] : []));
+        failures.push(...(result && !failure && !subjectFailure ? [] : [failure ?? subjectFailure]));
       }
       else if (member.kind === Kind.Object) {
         // An object reads a field by the name of a method it does not have
@@ -358,7 +361,7 @@ export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
       if (parameter instanceof Argument) {
         const argument = this.typeOf(args[index]);
 
-        if (!mayHaveKind(argument, parameter.kinds)) {
+        if (!mayFit({ argument, parameter: parameter.type })) {
           return false;
         }
 
@@ -400,7 +403,7 @@ export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
    */
   #argumentsFailure({ routine, args, location }: { routine: Routine; args: readonly AST.AstNode[]; location: AST.Location }): FormulaError | undefined {
     const silent = this.#unreached();
-    const choices = args.map((arg) => (arg.type === 'Literal' ? [convertValueToFormulaType(arg.value)] : representativesOf(kindsOf(silent.typeOf(arg)))));
+    const choices = args.map((arg) => (arg.type === 'Literal' ? [convertValueToFormulaType(arg.value)] : representativesOf(silent.typeOf(arg))));
     const combinations = combine(choices);
     const errors = combinations?.map((values) => routine.argumentsError({
       args,
@@ -424,9 +427,9 @@ function parameterAt(signature: ArgumentsPattern, index: number): Argument | Cal
   return index < signature.length ? signature[index] : signature.findLast((parameter) => parameter instanceof Argument && parameter.repeatable);
 }
 
-/** One value of each kind, or `undefined` when a kind is any kind. */
-function representativesOf(kinds: readonly Kind[]): FormulaDataType[] | undefined {
-  const values = kinds.map((kind) => representativeValue(kind === Kind.Array ? { kind, items: type.any } : { kind }));
+/** One value of each type a value of `formulaType` may have, or `undefined` when one of them has no single kind. */
+function representativesOf(formulaType: FormulaType): FormulaDataType[] | undefined {
+  const values = membersOf(formulaType).map(representativeValue);
 
   return values.every((value) => value !== undefined) ? values : undefined;
 }
@@ -521,6 +524,33 @@ function sumType(left: FormulaType, right: FormulaType): FormulaType {
   }));
 
   return unionOf(results);
+}
+
+/** The error a method fails with on a value of `member` it is called on, which only a nested type has, see `subjectTypeError`. */
+function subjectFailureOf({ routine, member, location }: { routine: Routine; member: FormulaType; location: AST.Location }): FormulaError | undefined {
+  const instance = representativeValue(member);
+
+  return instance && subjectTypeError({ subjects: routine.subjects, instance, location });
+}
+
+/**
+ * Tells whether a value of `argument` may be taken where a call declares `parameter`, see `admits`: by its kind, and for
+ * a nested type by the items of its lists, which a list of no items has none of.
+ */
+function mayFit({ argument, parameter }: { argument: FormulaType; parameter: FormulaType }): boolean {
+  return membersOf(parameter).some((expected) => {
+    if (expected.kind !== 'Nested') {
+      return mayHaveKind(argument, kindsOf(expected));
+    }
+
+    return membersOf(argument).some((member) => {
+      if (member.kind !== Kind.Array) {
+        return mayFit({ argument: member, parameter: expected.items });
+      }
+
+      return membersOf(member.items).length === 0 || mayFit({ argument: member.items, parameter: expected });
+    });
+  });
 }
 
 /** Tells whether a value of `formulaType` may be of one of `kinds`, as a call checks an argument. */

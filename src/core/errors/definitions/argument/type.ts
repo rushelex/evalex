@@ -159,37 +159,25 @@ export const UnexpectedArgument = createErrorDefinition({
 });
 
 /**
- * Error thrown when all arguments must be numbers but one or more are not.
+ * Error thrown when an argument that takes values of a type or lists of them, nested at any depth, holds another value.
  *
  * @example
  * ```typescript
- * // Thrown automatically for variadic numeric functions
- * sum(1, 2, 'three') // throws AllNumbersMustBeNumbers
+ * sum(1, ['a']) // throws NestedTypeMismatch: Expected type Number, or lists of it.
  *
- * // Manual creation
- * throw AllNumbersMustBeNumbers.create({
- *   actual: 'string',
- *   argumentName: 'values'
- * }, { location: node.location });
- *
- * // Type checking
- * if (AllNumbersMustBeNumbers.is(error)) {
- *   console.log(error.payload.expected); // ['numbers']
- *   console.log(error.payload.argumentPosition); // -1 (indicates all arguments)
+ * if (NestedTypeMismatch.is(error)) {
+ *   console.log(error.payload.expected); // ['Number'], the kinds of the values
+ *   console.log(error.payload.actual); // 'String', the kind of the first value that is none of them
  * }
  * ```
  *
- * @param payload - Object without expected and argumentPosition (automatically set)
+ * @param payload - Object containing the kinds of the values, the kind of the value found, and the argument position
  */
-export const AllArgumentsMustBeNumbers = createErrorDefinition({
+export const NestedTypeMismatch = createErrorDefinition({
   code: FormulaErrorCode.ARGUMENT_TYPE_MISMATCH,
-  createPayload: (payload: Omit<FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_TYPE_MISMATCH], 'expected' | 'argumentPosition'>) => ({
-    ...payload,
-    argumentPosition: -1,
-    expected: ['numbers'],
-  }),
-  formatMessage: () => 'All arguments must be numbers.',
-  messageKey: 'formula_error.all_arguments_must_be_numbers',
+  createPayload: (payload: FormulaErrorPayloads[typeof FormulaErrorCode.ARGUMENT_TYPE_MISMATCH]) => payload,
+  formatMessage: ({ expected }) => `Expected type ${formatTypes(expected)}, or lists of it.`,
+  messageKey: 'formula_error.nested_type_mismatch',
 });
 
 /**

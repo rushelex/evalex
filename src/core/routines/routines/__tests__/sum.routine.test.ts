@@ -1,3 +1,4 @@
+import { evaluateOutcome } from '../../../../testing-library';
 import { FormulaNumber } from '../../../data-types';
 import { RoutineTester } from '../../test-helpers/routine-tester';
 
@@ -52,7 +53,7 @@ describe('sum routine', tester.examples([
     formula: 'sum("1", 2, 3)',
     expected: {
       function: {
-        message: 'Expected type Array | Number.',
+        message: 'Expected type Number, or lists of it.',
         location: [4, 7],
       },
     },
@@ -61,7 +62,7 @@ describe('sum routine', tester.examples([
     formula: 'sum([1, 2], "3", 4, 5)',
     expected: {
       function: {
-        message: 'Expected type Array | Number.',
+        message: 'Expected type Number, or lists of it.',
         location: [12, 15],
       },
     },
@@ -70,7 +71,7 @@ describe('sum routine', tester.examples([
     formula: 'sum(1, "2", 3)',
     expected: {
       function: {
-        message: 'Expected type Array | Number.',
+        message: 'Expected type Number, or lists of it.',
         location: [7, 10],
       },
     },
@@ -79,13 +80,24 @@ describe('sum routine', tester.examples([
     formula: '["a", 1].sum()',
     expected: {
       function: {
-        message: 'All arguments must be numbers.',
-        location: [0, 13],
+        message: 'Expected type Number, or lists of it.',
+        location: [4, 12],
       },
       method: {
-        message: 'All arguments must be numbers.',
+        message: 'Expected type Number, or lists of it.',
         location: [9, 12],
       },
     },
   },
 ]));
+
+describe('sum of a list holding a value that is not a number', () => {
+  it.each([
+    { formula: 'sum(1, [2, [true, "a"]])', argumentPosition: 2 },
+    { formula: '[2, [true, "a"]].sum()', argumentPosition: 0 },
+  ])('should name the kind of the first such value at any depth: $formula', ({ formula, argumentPosition }) => {
+    const outcome = evaluateOutcome(formula);
+
+    expect('error' in outcome && outcome.error.payload).toEqual({ expected: ['Number'], actual: 'Boolean', argumentPosition });
+  });
+});

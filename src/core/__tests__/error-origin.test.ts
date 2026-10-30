@@ -17,7 +17,7 @@ const PASS_THROUGH = [
 const REJECTING_TEXT = [
   { call: 'filter([1], PART)', message: 'Expected callback to return type Boolean, but got String.' },
   { call: '[1].filter(PART)', message: 'Expected callback to return type Boolean, but got String.' },
-  { call: 'sum(PART)', message: 'Expected type Array | Number.' },
+  { call: 'sum(PART)', message: 'Expected type Number, or lists of it.' },
 ] as const;
 
 describe('error locations', () => {
@@ -42,11 +42,11 @@ describe('error locations', () => {
   });
 
   it('should point at the branch taken when its value is rejected', () => {
-    expect(() => evaluate('sum(if(false, 1, "a"))')).toThrow('Expected type Array | Number. [17,20]');
+    expect(() => evaluate('sum(if(false, 1, "a"))')).toThrow('Expected type Number, or lists of it. [17,20]');
   });
 
   it('should point at the name a rejected value was read through, not at where it was declared', () => {
-    expect(() => evaluate('let v = "a" in sum(v)')).toThrow('Expected type Array | Number. [19,20]');
+    expect(() => evaluate('let v = "a" in sum(v)')).toThrow('Expected type Number, or lists of it. [19,20]');
   });
 
   it('should point at the whole callback when it computes a new value', () => {

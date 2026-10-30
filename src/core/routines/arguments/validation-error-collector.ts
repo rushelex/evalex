@@ -4,10 +4,12 @@ import type { ArgumentsDefinitions, ArgumentsPattern, ProcessedArguments } from 
 import type { ArgumentsScoringOptions } from './types';
 
 import { Kind } from '../../data-types';
+import { admits } from '../../types';
 
 import { CallbackArgument } from './callback-argument';
 import { CallbackExecutor } from './callback-executor';
 import { ErrorScorer } from './error-scorer';
+import { nestedTypeError } from './nested-type-error';
 import { ProcessedArgument } from './processed-argument';
 import { ValidationErrorFactory } from './validation-error-factory';
 
@@ -118,8 +120,10 @@ export class ValidationErrorCollector {
       }
 
       // Check type match
-      if (!this.#isTypeMatch(arg.dataType.kind, argDef.kinds)) {
-        return this.#errorFactory.createTypeError(arg, argDef, index + 1);
+      if (!admits({ formulaType: argDef.type, value: arg.dataType })) {
+        return argDef.type.kind === 'Nested'
+          ? nestedTypeError({ value: arg.dataType, nested: argDef.type, position: index + 1, location: arg.location })
+          : this.#errorFactory.createTypeError(arg, argDef, index + 1);
       }
 
       // Check custom validation

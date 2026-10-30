@@ -1,3 +1,4 @@
+export { admits } from './admits';
 export type { FormulaField } from './formula-field';
 export type { FormulaType } from './formula-type';
 export { kindsOf } from './kinds-of';

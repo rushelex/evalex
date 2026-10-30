@@ -24,11 +24,11 @@ describe('median routine', tester.examples([
     formula: '["a", 1].median()',
     expected: {
       function: {
-        message: 'All arguments must be numbers.',
-        location: [0, 16],
+        message: 'Expected type Number, or lists of it.',
+        location: [7, 15],
       },
       method: {
-        message: 'All arguments must be numbers.',
+        message: 'Expected type Number, or lists of it.',
         location: [9, 15],
       },
     },

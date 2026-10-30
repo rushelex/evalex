@@ -13,6 +13,7 @@ import { Errors } from '../errors';
 import { Argument, ArgumentsDefinitions, ProcessedArgument } from './arguments';
 import { Routine } from './routine';
 import { RoutineExamples } from './routine-examples';
+import { subjectTypeError } from './subject-type-error';
 
 /** What `returns` holds: one type, or one type per signature of a list of signatures. */
 type Returns = FormulaType | readonly FormulaType[];
@@ -385,8 +386,14 @@ function toValues(args: ProcessedArguments): unknown[] {
   return args.map((arg) => (arg instanceof ProcessedArgument ? arg.dataType : arg));
 }
 
-// The method form drops the subject argument, so its custom validation runs here, as it does for the function form.
+// The method form drops the subject argument, so the checks a dispatch by kind leaves run here, as for the function form.
 function validateSubject(subjects: readonly Argument[], instance: FormulaDataType, location: AST.Location): void {
+  const typeError = subjectTypeError({ subjects: subjects.map(({ type: subjectType }) => subjectType), instance, location });
+
+  if (typeError) {
+    throw typeError;
+  }
+
   for (const subject of subjects) {
     const failure = subject.validation?.(instance);
 

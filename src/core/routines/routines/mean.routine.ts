@@ -16,10 +16,10 @@ const routineExamples: readonly RoutineExampleOptions[] = [
 routinesRegistry.registerRoutine('mean', {
   description: 'Returns the arithmetic average of its arguments.',
   examples: routineExamples,
-  arguments: [arg('numbers', type.union(type.array(type.any), type.number), { repeatable: true })],
+  arguments: [arg('numbers', type.nested(type.number), { repeatable: true })],
   returns: type.union(type.number, type.null),
-  handler: ({ subject, args, location }) => {
-    const numbers = collectNumbers({ values: [subject, ...args], location });
+  handler: ({ subject, args }) => {
+    const numbers = collectNumbers([subject, ...args]);
 
     return numbers.length === 0 ? new FormulaNull() : decimalArithmetic.divide(numbers.reduce(decimalArithmetic.add, FormulaNumber.from(0)), FormulaNumber.from(numbers.length));
   },

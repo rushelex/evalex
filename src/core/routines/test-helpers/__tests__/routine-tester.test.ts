@@ -9,7 +9,7 @@ describe(RoutineTester, () => {
     const tester = new RoutineTester('sum');
 
     expect(() => tester.examples({ skipFunction: true }, [
-      { formula: 'sum("a")', expected: { function: { message: 'Expected type Array | Number.', location: [4, 7] } } },
+      { formula: 'sum("a")', expected: { function: { message: 'Expected type Number, or lists of it.', location: [4, 7] } } },
     ])).toThrow('The expected error of "sum("a")" is for a call form this test skips.');
   });
 });

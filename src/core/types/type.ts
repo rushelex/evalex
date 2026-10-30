@@ -41,6 +41,9 @@ export const type = {
   /** A list whose items are all of `items`. */
   array: <TItem extends FormulaDataType>(items: ValueType<TItem>): ValueType<FormulaArray<TItem>> => describe({ kind: Kind.Array, items }),
 
+  /** A value of `items`, or a list of such values nested at any depth, as `sum` takes numbers and lists of them. */
+  nested: <TItem extends FormulaDataType>(items: ValueType<TItem>): ValueType<TItem | FormulaArray> => describe({ kind: 'Nested', items }),
+
   /** A value of any of the types. */
   union: <const TValues extends readonly FormulaDataType[]>(...of: { readonly [K in keyof TValues]: ValueType<TValues[K]> }): ValueType<TValues[number]> => describe({ kind: 'Union', of }),
 

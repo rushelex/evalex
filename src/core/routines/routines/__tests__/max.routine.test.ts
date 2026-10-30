@@ -24,11 +24,11 @@ describe('max routine', tester.examples([
     formula: '["a", 1].max()',
     expected: {
       function: {
-        message: 'All arguments must be numbers.',
-        location: [0, 13],
+        message: 'Expected type Number, or lists of it.',
+        location: [4, 12],
       },
       method: {
-        message: 'All arguments must be numbers.',
+        message: 'Expected type Number, or lists of it.',
         location: [9, 12],
       },
     },

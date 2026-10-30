@@ -106,6 +106,16 @@ describe(inferType, () => {
     expect(inferType({ formula: parseFormula(formula), fields })).toEqual(expected);
   });
 
+  it.each([
+    'sum([])',
+    'sum(1, [[], [2, [3]]])',
+    'sum(items, [items])',
+  ])('should give a number to a sum of numbers and lists of them at any depth: %s', (formula) => {
+    const fields = new Map<string, FormulaType>([['items', { kind: 'Array', items: NUMBER }]]);
+
+    expect(inferType({ formula: parseFormula(formula), fields })).toEqual(NUMBER);
+  });
+
   it('should give a list of any items to a routine joining a list of any items', () => {
     const fields = new Map<string, FormulaType>([['anything', ANY]]);
 

@@ -21,7 +21,7 @@ const samples: readonly DefinitionSample[] = [
   { name: 'Argument.UnexpectedCallback', definition: Errors.Argument.UnexpectedCallback, error: Errors.Argument.UnexpectedCallback.create({ expected: ['Number'], argumentPosition: 0 }) },
   { name: 'Argument.CallbackReturnTypeMismatch', definition: Errors.Argument.CallbackReturnTypeMismatch, error: Errors.Argument.CallbackReturnTypeMismatch.create({ expected: ['Boolean'], actual: 'Number', argumentPosition: 2 }) },
   { name: 'Argument.Unexpected', definition: Errors.Argument.Unexpected, error: Errors.Argument.Unexpected.create({ expected: [], actual: 'Number', argumentPosition: 2 }) },
-  { name: 'Argument.AllMustBeNumbers', definition: Errors.Argument.AllMustBeNumbers, error: Errors.Argument.AllMustBeNumbers.create({ actual: 'String' }) },
+  { name: 'Argument.NestedTypeMismatch', definition: Errors.Argument.NestedTypeMismatch, error: Errors.Argument.NestedTypeMismatch.create({ expected: ['Number'], actual: 'String', argumentPosition: 1 }) },
   { name: 'Argument.PatternMismatch', definition: Errors.Argument.PatternMismatch, error: Errors.Argument.PatternMismatch.create({ patterns: [] }) },
   { name: 'Argument.Validation', definition: Errors.Argument.Validation, error: Errors.Argument.Validation.create({ expected: ['Number'], actual: 'String', argumentPosition: 0 }) },
   { name: 'Argument.Unknown', definition: Errors.Argument.Unknown, error: Errors.Argument.Unknown.create({ expected: ['Number'], actual: 'String', argumentPosition: 0 }) },

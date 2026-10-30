@@ -20,11 +20,11 @@ describe('mean routine', tester.examples([
     formula: '["a", 1].mean()',
     expected: {
       function: {
-        message: 'All arguments must be numbers.',
-        location: [0, 14],
+        message: 'Expected type Number, or lists of it.',
+        location: [5, 13],
       },
       method: {
-        message: 'All arguments must be numbers.',
+        message: 'Expected type Number, or lists of it.',
         location: [9, 13],
       },
     },

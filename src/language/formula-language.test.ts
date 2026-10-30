@@ -396,6 +396,9 @@ describe(FormulaLanguage, () => {
       { formula: 'upper(title * 2)', expected: [['formula_error.non_numeric_math_operation', 'title * 2']] },
       { formula: 'lines.filter(curent > 1, 2)', expected: [['formula_error.exact_argument_count', 'filter']] },
       { formula: 'format(totl + "x", 1)', expected: [['formula_error.exact_argument_count', 'format(totl + "x", 1)'], ['formula_error.variable_not_defined', 'totl']] },
+      { formula: 'sum(1, ["a"])', expected: [['formula_error.nested_type_mismatch', '["a"]']] },
+      { formula: 'sum(title)', expected: [['formula_error.nested_type_mismatch', 'title']] },
+      { formula: '["a", "b"].max()', expected: [['formula_error.nested_type_mismatch', 'max']] },
     ])('should find what evaluation fails on in every record of the field types: $formula', ({ formula, expected }) => {
       expect(language.diagnose(formula, { fields: orderFields }).map(({ messageKey, location }) => [messageKey, formula.slice(location.start.offset, location.end.offset)])).toEqual(expected);
     });
@@ -406,9 +409,19 @@ describe(FormulaLanguage, () => {
       { formula: 'lines.filter(curent.qty() > 1)', expected: [['formula_error.variable_not_defined', 'curent']] },
       { formula: 'lines.map(current.qtty())', expected: [['formula_error.field_not_defined', 'qtty']] },
       { formula: 'toDateTime(today(), title, 1)', expected: [['formula_error.argument_type_mismatch', '1']] },
+      { formula: 'lines.sum()', expected: [['formula_error.nested_type_mismatch', 'sum']] },
+      { formula: 'mean(lines)', expected: [['formula_error.nested_type_mismatch', 'lines']] },
       { formula: 'toDateTime(today(), title, "Mars/Olympus")', expected: [['formula_error.argument_validation_error', '"Mars/Olympus"']] },
     ])('should find what evaluation fails on whenever it reaches a part it may skip: $formula', ({ formula, expected }) => {
       expect(language.diagnose(formula, { fields: orderFields }).map(({ messageKey, location }) => [messageKey, formula.slice(location.start.offset, location.end.offset)])).toEqual(expected);
+    });
+
+    it.each([
+      'sum([])',
+      '[[1, 2], [], 3].sum()',
+      'sum(lines.map(current.qty()), [order.qty()])',
+    ])('should find nothing in a call that takes numbers and lists of them at any depth: %s', (formula) => {
+      expect(language.diagnose(formula, { fields: orderFields })).toEqual([]);
     });
 
     it('should name every type of a value that has no such method', () => {
@@ -429,6 +442,7 @@ describe(FormulaLanguage, () => {
       { formula: 'lines.first().sku().filter(current > 1)', reason: 'an expression per item of a value of any type' },
       { formula: 'entry * 2', reason: 'an operand only some types of the value fit' },
       { formula: 'title + 1', reason: 'text joined with a number' },
+      { formula: 'sum([1, title])', reason: 'a list whose items may all be numbers by their types' },
       { formula: '1 / lines.length()', reason: 'a division by a number that may be zero' },
       { formula: 'parent(anything)', reason: 'a name read in the enclosing object' },
     ])('should find nothing where the error depends on the values: $reason', ({ formula }) => {

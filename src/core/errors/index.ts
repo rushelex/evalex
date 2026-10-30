@@ -29,7 +29,7 @@ export const Errors = {
     UnexpectedCallback: Defs.UnexpectedCallback,
     CallbackReturnTypeMismatch: Defs.CallbackReturnTypeMismatch,
     Unexpected: Defs.UnexpectedArgument,
-    AllMustBeNumbers: Defs.AllArgumentsMustBeNumbers,
+    NestedTypeMismatch: Defs.NestedTypeMismatch,
     PatternMismatch: Defs.PatternMismatch,
     Validation: Defs.ArgumentValidationError,
     Unknown: Defs.ArgumentUnknownError,

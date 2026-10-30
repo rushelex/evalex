@@ -20,10 +20,10 @@ const routineExamples: readonly RoutineExampleOptions[] = [
 routinesRegistry.registerRoutine('max', {
   description: 'Returns the largest number of the arguments.',
   examples: routineExamples,
-  arguments: [arg('numbers', type.union(type.array(type.any), type.number), { repeatable: true })],
+  arguments: [arg('numbers', type.nested(type.number), { repeatable: true })],
   returns: type.union(type.number, type.null),
-  handler: ({ subject, args, location }) => {
-    const numbers = collectNumbers({ values: [subject, ...args], location });
+  handler: ({ subject, args }) => {
+    const numbers = collectNumbers([subject, ...args]);
 
     return numbers.length === 0 ? new FormulaNull() : numbers.reduce((largest, number) => (number.value > largest.value ? number : largest));
   },

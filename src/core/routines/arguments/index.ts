@@ -4,6 +4,7 @@ export * from './arguments-definitions';
 export * from './arguments-processor';
 export * from './callback-argument';
 export * from './callback-executor';
+export * from './nested-type-error';
 export * from './processed-argument';
 export * from './representative-argument';
 export type * from './types';

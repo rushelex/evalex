@@ -57,6 +57,8 @@ describe('public API', () => {
     expectTypeOf({ kind: 'Number' } as const).toExtend<API.FormulaType>();
     expectTypeOf({ kind: 'Array', items: { kind: 'String' } } as const).toExtend<API.FormulaType>();
     expectTypeOf({ kind: 'Union', of: [{ kind: 'Number' }, { kind: 'Null' }] } as const).toExtend<API.FormulaType>();
+    expectTypeOf({ kind: 'Nested', items: { kind: 'Number' } } as const).toExtend<API.FormulaType>();
+    expectTypeOf({ kind: 'Nested' } as const).not.toExtend<API.FormulaType>();
     expectTypeOf({ kind: 'Array' } as const).not.toExtend<API.FormulaType>();
   });
 
