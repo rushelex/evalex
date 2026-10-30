@@ -12,6 +12,7 @@ export type {
   FormulaErrorPayloads,
   FormulaEvaluator,
   FormulaEvaluatorOptions,
+  FormulaField,
   FormulaLocation,
   FormulaNull,
   FormulaNumber,

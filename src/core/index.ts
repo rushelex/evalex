@@ -28,5 +28,5 @@ export type { FormulaCell, FormulaCellPlace, FormulaEvaluator, FormulaEvaluatorO
 export type { FormulaRoutine, FormulaRoutineParameter, FormulaRoutineSignature } from './formula-routine';
 export type { FormulaScopeOptions } from './formula-scope';
 export { FormulaScope } from './formula-scope';
-export type { FormulaType } from './types';
+export type { FormulaField, FormulaType } from './types';
 export type { DateNames, ValueFormat } from './value-format';

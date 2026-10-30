@@ -53,6 +53,12 @@ describe('public API', () => {
     expectTypeOf({ kind: 'Array' } as const).not.toExtend<API.FormulaType>();
   });
 
+  it('should describe a record by its fields, each with its name, label and type', () => {
+    expectTypeOf({ kind: 'Object' } as const).toExtend<API.FormulaType>();
+    expectTypeOf<Extract<API.FormulaType, { kind: 'Object' }>['fields']>().toEqualTypeOf<readonly API.FormulaField[] | undefined>();
+    expectTypeOf({ name: 'qty', label: 'Quantity', type: { kind: 'Number' } } as const).toExtend<API.FormulaField>();
+  });
+
   it('should type the evaluator, its options and the view it gives back', () => {
     expectTypeOf<API.FormulaScope['evaluator']>().parameters.toEqualTypeOf<[options?: API.FormulaEvaluatorOptions]>();
     expectTypeOf<API.FormulaScope['evaluator']>().returns.toEqualTypeOf<API.FormulaEvaluator>();
