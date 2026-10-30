@@ -157,7 +157,17 @@ describe(formula, () => {
       given = [{ name: 'price', label: 'Cost' }, { name: 'total', label: 'Total' }];
       view.dispatch(refreshFormulas(view.state.tr));
 
-      expect([chipsOf(view), formulasOf(view)]).toEqual([['Cost', 'Total'], ['price * qty + total']]);
+      expect([chipsOf(view), formulasOf(view)]).toEqual([['Cost', 'Quantity', 'Total'], ['price * qty + total']]);
+    });
+
+    it('should keep a field the host no longer gives as a chip with its last label, marked as an error', async () => {
+      let given: readonly FormulaField[] = fields;
+      const view = await mount({ blocks: [block('price * qty')], options: { language, fields: () => given } });
+
+      given = [{ name: 'qty', label: 'Quantity' }];
+      view.dispatch(refreshFormulas(view.state.tr));
+
+      expect([chipsOf(view), [...view.dom.querySelectorAll('.pm-formula-field.pm-formula-error')].map(({ textContent }) => textContent)]).toEqual([['Price', 'Quantity'], ['Price']]);
     });
 
     it('should keep a refresh of the formulas and the chips it changes out of the undo history', async () => {
@@ -275,6 +285,14 @@ describe(formula, () => {
       await vi.waitFor(() => expect(chipsOf(view)).toEqual(['Unit price']));
     });
 
+    it('should turn the chips back into names when the plugins are reconfigured without fields', async () => {
+      const view = await mount({ blocks: [block('price * qty')], options: { language, fields } });
+
+      view.updateState(view.state.reconfigure({ plugins: formula({ language }) }));
+
+      await vi.waitFor(() => expect([chipsOf(view), formulasOf(view)]).toEqual([[], ['price * qty']]));
+    });
+
     it('should keep chips out of the undo history', async () => {
       const recorded: Transaction[] = [];
       const view = await mount({ blocks: [block('')], options: { language, fields }, record: recorded });
@@ -308,7 +326,7 @@ describe(formula, () => {
       given = [{ name: 'price' }, { name: 'total' }];
       view.dispatch(refreshFormulas(view.state.tr));
 
-      expect([...view.dom.querySelectorAll('.pm-formula-error')].map(({ textContent }) => textContent)).toEqual(['qty']);
+      expect([...view.dom.querySelectorAll('.pm-formula-error')].map(({ textContent }) => textContent)).toEqual(['Quantity']);
     });
 
     it('should mark an error where nothing is there to underline', async () => {

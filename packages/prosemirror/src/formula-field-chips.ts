@@ -37,7 +37,8 @@ const WORD = /\w/;
  * The word the author is typing stays text until the caret leaves it or the editor loses focus, so a name that is a
  * field only on its way to a longer one, as `qty` on the way to `qtyTotal`, never turns into a chip. A name inserted by
  * completion, a fix or a paste is a chip at once. A chip that stops being a field, as when a `let` declares its name,
- * turns back into text. These changes stay out of the undo history. Without fields there are no chips.
+ * turns back into text, but a field the host no longer gives stays a chip with its last label, which the errors mark.
+ * These changes stay out of the undo history. Without fields there are no chips.
  */
 export function formulaFieldChips(service: FormulaService): Plugin<ChipsState> {
   return new Plugin<ChipsState>({
@@ -146,6 +147,15 @@ function chipsOf({ formula, service, typing }: { formula: FormulaText; service: 
 }
 
 /**
+ * Whether a chip stands for a field the host no longer gives: its name is still a whole name of the formula, and nothing
+ * else, such as a variable, goes by it. Such a chip keeps its last label and the errors of the formula mark it.
+ */
+function isGoneField({ formula, service, from, to }: { formula: FormulaText; service: FormulaService; from: number; to: number }): boolean {
+  return !service.names(formula).some((name) => name.from === from)
+    && service.tokens(formula).some(({ kind, location: { start, end } }) => (kind === 'name' || kind === 'method') && start.offset === from && end.offset === to);
+}
+
+/**
  * Turns the chips that no longer stand for fields into text, then the names that do into chips; null when every
  * formula already shows its fields as chips.
  */
@@ -162,11 +172,13 @@ function syncChips({ state, service }: { state: EditorState; service: FormulaSer
       const chip = chips.get(from);
       const at = tr.mapping.map(pos);
 
-      if (chip?.to !== to) {
-        tr.replaceWith(at, at + 1, schema.text(node.textContent));
+      if (chip?.to === to) {
+        if (chip.label !== node.attrs.label) {
+          tr.setNodeAttribute(at, 'label', chip.label);
+        }
       }
-      else if (chip.label !== node.attrs.label) {
-        tr.setNodeAttribute(at, 'label', chip.label);
+      else if (!isGoneField({ formula, service, from, to })) {
+        tr.replaceWith(at, at + 1, schema.text(node.textContent));
       }
     }
   });

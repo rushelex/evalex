@@ -51,6 +51,12 @@ span.pm-formula:empty {
   text-decoration-skip-ink: none;
 }
 
+/* A chip of a field the host no longer gives */
+.pm-formula-field.pm-formula-error {
+  background: rgba(221, 17, 17, 0.15);
+  color: #d11;
+}
+
 .pm-formula-error-point {
   display: inline-block;
   width: 0;
