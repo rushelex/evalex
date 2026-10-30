@@ -85,6 +85,7 @@ describe('diagnose: syntax errors', () => {
       code: 'UNEXPECTED_CHARACTER',
       payload: { character: '@' },
       message: 'Unexpected character "@".',
+      messageKey: 'syntax_error.unexpected_character',
       location: { start: { offset: 7, line: 1, column: 8 }, end: { offset: 8, line: 1, column: 9 } },
     }]);
   });
@@ -114,9 +115,9 @@ function parseFailure(text: string): FormulaDiagnostic | undefined {
       throw error;
     }
 
-    const { code, payload, location, message } = error;
+    const { code, payload, location, message, messageKey } = error;
 
-    return { code, payload, location, message: message.replace(/ \[\d+,\d+\]$/, '') };
+    return { code, payload, location, message: message.replace(/ \[\d+,\d+\]$/, ''), messageKey };
   }
 }
 

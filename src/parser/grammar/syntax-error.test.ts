@@ -43,6 +43,10 @@ describe(SyntaxError, () => {
     expect(syntaxErrorOf(formula)).toMatchObject({ code, payload });
   });
 
+  it.each(CASES)('should give the error of $formula the message key of its code', ({ formula, code }) => {
+    expect(syntaxErrorOf(formula).messageKey).toBe(`syntax_error.${code.toLowerCase()}`);
+  });
+
   it('should have a formula above for every code', () => {
     expect(new Set(CASES.map(({ code }) => code))).toEqual(new Set(Object.values(SyntaxErrorCode)));
   });

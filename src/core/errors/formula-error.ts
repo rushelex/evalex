@@ -5,7 +5,7 @@ import type { FormulaErrorPayloads } from './error-payloads';
 
 export interface FormulaErrorOptions {
   location?: FormulaLocation;
-  messageKey?: string;
+  messageKey: string;
   messageParams?: Record<string, unknown>;
   cause?: Error;
 }
@@ -39,7 +39,7 @@ export class FormulaError<C extends FormulaErrorCode = FormulaErrorCode> extends
   /** The part of the formula at fault; an error a formula cell gets from a failed input points at the read. */
   readonly location?: FormulaLocation;
   /** The key of the message for a host that shows errors in its own language, such as `formula_error.division_by_zero`. */
-  readonly messageKey?: string;
+  readonly messageKey: string;
   /** The values the localized message fills in. */
   readonly messageParams?: Record<string, unknown>;
 
@@ -47,21 +47,21 @@ export class FormulaError<C extends FormulaErrorCode = FormulaErrorCode> extends
     code: C,
     message: string,
     payload: FormulaErrorPayloads[C],
-    options?: FormulaErrorOptions,
+    options: FormulaErrorOptions,
   ) {
     const formattedMessage = message.endsWith('.') ? message : `${message}.`;
     const hasMessageLocation = /\[\d+,\d+\]$/.test(message);
     const messageWithLocation = hasMessageLocation
       ? formattedMessage
-      : `${formattedMessage}${options?.location ? ` [${options.location.start.offset},${options.location.end.offset}]` : ''}`;
+      : `${formattedMessage}${options.location ? ` [${options.location.start.offset},${options.location.end.offset}]` : ''}`;
 
-    super(messageWithLocation, options?.cause ? { cause: options.cause } : undefined);
+    super(messageWithLocation, options.cause ? { cause: options.cause } : undefined);
 
     this.name = 'FormulaError';
     this.code = code;
     this.payload = payload;
-    this.location = options?.location;
-    this.messageKey = options?.messageKey;
-    this.messageParams = options?.messageParams;
+    this.location = options.location;
+    this.messageKey = options.messageKey;
+    this.messageParams = options.messageParams;
   }
 }

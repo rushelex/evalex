@@ -56,8 +56,8 @@ describe(parse, () => {
     expect(node).toHaveProperty('location', location);
   });
 
-  it('should carry only the name, the code, the payload and the location as own fields of a syntax error', () => {
-    expect(Object.keys(syntaxErrorOf('1 +')).sort()).toEqual(['code', 'location', 'name', 'payload']);
+  it('should carry only the name, the code, the payload, the message key and the location as own fields of a syntax error', () => {
+    expect(Object.keys(syntaxErrorOf('1 +')).sort()).toEqual(['code', 'location', 'messageKey', 'name', 'payload']);
   });
 
   it.prop([spacedFormula])('should parse a well-formed formula to the same tree whatever whitespace separates its tokens', ({ tokens, formula }) => {

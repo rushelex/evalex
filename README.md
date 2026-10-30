@@ -237,7 +237,7 @@ language.diagnose('title.round() + lines.map(current.qtty()).sum() + totl', {
 // ['Method "round" is not defined.', 'Field "qtty" is not defined.', 'Variable "totl" is not defined.']
 ```
 
-An error that depends on the values rather than their types, such as a read of an empty value or a division by zero, is left to evaluation. Without `fields`, names are not checked. Each diagnostic carries the `code`, `payload` and `location` of the `SyntaxError` or `FormulaError` it stands for, and the `messageKey` of a `FormulaError`, so a host translates them the same way.
+An error that depends on the values rather than their types, such as a read of an empty value or a division by zero, is left to evaluation. Without `fields`, names are not checked. Each diagnostic carries the `code`, `payload`, `messageKey` and `location` of the `SyntaxError` or `FormulaError` it stands for. `messageKey` names each message, such as `syntax_error.missing_argument` or `formula_error.variable_not_defined`, so a host translates every diagnostic by it and fills in the `payload`.
 
 For a name the formula cannot read, `suggestions` lists the names spelled like it that can stand there, closest first, in the shape `complete` returns, so the editor offers the fix as it offers completions:
 

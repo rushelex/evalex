@@ -453,6 +453,10 @@ describe(FormulaLanguage, () => {
       expect([language.diagnose('totl + 1'), language.diagnose('totl + 1', { fields: [] }).map(({ messageKey }) => messageKey)]).toEqual([[], ['formula_error.variable_not_defined']]);
     });
 
+    it('should give a syntax error the message key it has, as a formula error has', () => {
+      expect(language.diagnose('round(1,, 2)').map(({ messageKey }) => messageKey)).toEqual(['syntax_error.missing_argument']);
+    });
+
     it('should give only the syntax errors of a formula that has them', () => {
       expect(language.diagnose('title.round() + (', { fields: orderFields }).map(({ code }) => code)).toEqual(['EXPECTED_EXPRESSION', 'MISSING_TOKEN']);
     });

@@ -9,7 +9,7 @@ import type { FormulaCompletions } from './formula-completions';
  * A problem in formula text that an editor underlines, with the message to show next to it.
  *
  * @remarks
- * A plain object, so it survives being posted to and from a worker. `code` and `payload` are those of the
+ * A plain object, so it survives being posted to and from a worker. `code`, `payload` and `messageKey` are those of the
  * `SyntaxError` or the `FormulaError` the formula throws, so a host translates them the same way.
  */
 export interface FormulaDiagnostic<C extends SyntaxErrorCode | FormulaErrorCode = SyntaxErrorCode | FormulaErrorCode> {
@@ -18,8 +18,8 @@ export interface FormulaDiagnostic<C extends SyntaxErrorCode | FormulaErrorCode 
   readonly payload: (SyntaxErrorPayloads & FormulaErrorPayloads)[C];
   /** The English message, without the offsets an error message ends with. */
   readonly message: string;
-  /** For a `FormulaError`, the key of its message, which tells apart the errors that share a `code`. */
-  readonly messageKey?: string;
+  /** The key of the message to show in the host's language, which tells apart the errors that share a `code`. */
+  readonly messageKey: string;
   /** The part of the formula to underline. */
   readonly location: FormulaLocation;
   /**

@@ -12,7 +12,7 @@ export interface ErrorDefinitionConfig<
   code: TCode;
   createPayload: (...args: TArgs) => FormulaErrorPayloads[TCode];
   formatMessage: (payload: FormulaErrorPayloads[TCode]) => string;
-  messageKey?: string;
+  messageKey: string;
 }
 
 interface CreateOptions {

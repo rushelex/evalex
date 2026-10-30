@@ -26,6 +26,8 @@ describe('public API', () => {
     expectTypeOf<'UNEXPECTED_CHARACTER'>().toExtend<API.SyntaxErrorCode>();
     expectTypeOf<typeof API.SyntaxErrorCode.UNEXPECTED_CHARACTER>().toEqualTypeOf<'UNEXPECTED_CHARACTER'>();
     expectTypeOf<API.SyntaxError['code']>().toEqualTypeOf<API.SyntaxErrorCode>();
+    expectTypeOf<API.SyntaxError['messageKey']>().toEqualTypeOf<string>();
+    expectTypeOf<API.FormulaError['messageKey']>().toEqualTypeOf<string>();
     expectTypeOf<API.SyntaxError<'UNEXPECTED_CHARACTER'>['payload']>().toEqualTypeOf<API.SyntaxErrorPayloads['UNEXPECTED_CHARACTER']>();
     expectTypeOf<API.SyntaxErrorPayloads['UNEXPECTED_CHARACTER']>().toEqualTypeOf<{ readonly character: string }>();
   });

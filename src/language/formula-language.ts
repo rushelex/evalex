@@ -336,8 +336,8 @@ function takes({ routine, subject }: { routine: FormulaRoutine; subject: Formula
   return kinds.includes(Kind.Any) || routine.kinds.some((kind) => kinds.includes(kind));
 }
 
-function syntaxDiagnostic<C extends SyntaxErrorCode>({ code, payload, location }: SyntaxError<C>): FormulaDiagnostic {
-  return { code, payload, message: SYNTAX_ERROR_MESSAGES[code](payload), location };
+function syntaxDiagnostic<C extends SyntaxErrorCode>({ code, payload, messageKey, location }: SyntaxError<C>): FormulaDiagnostic {
+  return { code, payload, message: SYNTAX_ERROR_MESSAGES[code](payload), messageKey, location };
 }
 
 function argumentAt(call: CallSite, offset: number): number {

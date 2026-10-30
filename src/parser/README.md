@@ -120,7 +120,7 @@ class IdentifierCounter implements AST.IVisitor<number> {
 
 ## Syntax errors
 
-Invalid input throws the parser's `SyntaxError`, a subclass of the built-in one. Its `location` holds the span to highlight, and the message ends with the same span as `[start,end]` offsets. `code` names the error and `payload` holds what its message fills in, so a host can translate the message by code. Each code has one message; the codes, their payloads and messages live in [`grammar/syntax-error-code.ts`](./grammar/syntax-error-code.ts), [`grammar/syntax-error-payloads.ts`](./grammar/syntax-error-payloads.ts) and [`grammar/syntax-error-messages.ts`](./grammar/syntax-error-messages.ts).
+Invalid input throws the parser's `SyntaxError`, a subclass of the built-in one. Its `location` holds the span to highlight, and the message ends with the same span as `[start,end]` offsets. `code` names the error and `payload` holds what its message fills in; `messageKey`, `syntax_error.` and the code in lower case, keys the message the way a `FormulaError` keys its own, so a host translates both alike. Each code has one message; the codes, their payloads and messages live in [`grammar/syntax-error-code.ts`](./grammar/syntax-error-code.ts), [`grammar/syntax-error-payloads.ts`](./grammar/syntax-error-payloads.ts) and [`grammar/syntax-error-messages.ts`](./grammar/syntax-error-messages.ts).
 
 | Input | Code and payload | Message |
 | --- | --- | --- |

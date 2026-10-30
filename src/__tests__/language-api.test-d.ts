@@ -13,7 +13,7 @@ describe('language API', () => {
     expectTypeOf<API.FormulaDiagnostic['code']>().toEqualTypeOf<Root.SyntaxErrorCode | Root.FormulaErrorCode>();
     expectTypeOf<API.FormulaDiagnostic<'UNEXPECTED_CHARACTER'>['payload']>().toEqualTypeOf<Root.SyntaxErrorPayloads['UNEXPECTED_CHARACTER']>();
     expectTypeOf<API.FormulaDiagnostic<'REFERENCE_ERROR'>['payload']>().toEqualTypeOf<Root.FormulaErrorPayloads['REFERENCE_ERROR']>();
-    expectTypeOf<API.FormulaDiagnostic['messageKey']>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<API.FormulaDiagnostic['messageKey']>().toEqualTypeOf<string>();
     expectTypeOf<API.FormulaDiagnostic['location']>().toEqualTypeOf<Root.FormulaLocation>();
     expectTypeOf<API.FormulaDiagnostic['message']>().toEqualTypeOf<string>();
     expectTypeOf<API.FormulaDiagnostic['suggestions']>().toEqualTypeOf<API.FormulaCompletions | undefined>();
