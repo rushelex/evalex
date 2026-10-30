@@ -1,3 +1,5 @@
+import type { FormulaError } from '../core/errors';
+import type { FormulaErrorPayloads } from '../core/errors/error-payloads';
 import type { FormulaRoutine, FormulaRoutineParameter } from '../core/formula-routine';
 import type { FormulaScope } from '../core/formula-scope';
 import type { FormulaType } from '../core/types';
@@ -14,11 +16,21 @@ import type { FormulaSignatureHelp } from './formula-signature-help';
 
 import { checkFormula } from '../core/check-formula';
 import { Kind } from '../core/data-types';
+import { FormulaErrorCode } from '../core/errors';
 import { inferNodeType } from '../core/infer-node-type';
 import { kindsOf, membersOf, type } from '../core/types';
 import { findCalls, findCaretPlace, diagnose as findSyntaxErrors, parsePastErrors } from '../parser/grammar/parser';
 import { SYNTAX_ERROR_MESSAGES } from '../parser/grammar/syntax-error-messages';
 import { findName } from './find-name';
+import { spellingDistance } from './spelling-distance';
+
+// What can stand in place of each kind of name that is not defined: a record reads a field by a method name
+const SUGGESTED_KINDS: Readonly<Record<FormulaErrorPayloads['REFERENCE_ERROR']['referenceType'], readonly FormulaCompletion['kind'][]>> = {
+  variable: ['variable', 'field'],
+  function: ['function'],
+  method: ['method'],
+  field: ['method', 'field'],
+};
 
 /**
  * Answers what a formula editor asks about the text being typed, with the functions and methods of a scope.
@@ -85,7 +97,8 @@ export class FormulaLanguage {
    * take. Each is found where evaluation fails on it whenever it gets there, also inside a branch of `? :` or an
    * expression evaluated per item, which evaluation may skip. An error that depends on the values rather than their
    * types, such as a read of an empty value or a division by zero, is left to evaluation. Names are checked only when the host passes `fields`, and not inside `parent`,
-   * which reads the enclosing object.
+   * which reads the enclosing object. A name the formula cannot read comes with `suggestions`: the names spelled like
+   * it that can stand there.
    *
    * Never throws, so it can run on every keystroke.
    *
@@ -115,9 +128,35 @@ export class FormulaLanguage {
     const fields = options.fields && new Map(options.fields.map(({ name, type: fieldType }) => [name, fieldType ?? type.any]));
 
     // Every error a check finds points into the formula
-    return checkFormula({ text, fields }).flatMap(({ code, payload, message, messageKey, location }) => (location
-      ? [{ code, payload, message: message.replace(/ \[\d+,\d+\]$/, ''), messageKey, location }]
-      : []));
+    return checkFormula({ text, fields }).flatMap((error) => {
+      const { code, payload, message, messageKey, location } = error;
+      const suggestions = this.#suggestionsFor({ text, error, fields: options.fields ?? [] });
+      const diagnostic = { code, payload, message: message.replace(/ \[\d+,\d+\]$/, ''), messageKey, location };
+
+      if (!location) {
+        return [];
+      }
+
+      return [suggestions ? { ...diagnostic, location, suggestions } : { ...diagnostic, location }];
+    });
+  }
+
+  /** The names completion offers in place of a name that is not defined, spelled close enough to be meant by it. */
+  #suggestionsFor({ text, error, fields }: { text: string; error: FormulaError; fields: readonly FormulaField[] }): FormulaCompletions | undefined {
+    if (!isReferenceError(error) || !error.location) {
+      return undefined;
+    }
+
+    const { name, referenceType } = error.payload;
+    // A name starts where the call of a function that is not defined starts
+    const completions = this.complete(text, error.location.start.offset + name.length, { fields });
+    const candidates = uniqueBy(completions?.items.filter(({ kind }) => SUGGESTED_KINDS[referenceType].includes(kind)) ?? [], ({ text: candidate }) => candidate);
+    const close = candidates
+      .map((item) => ({ item, distance: Math.min(spellingDistance({ typed: name, meant: item.text }), spellingDistance({ typed: name, meant: item.label })) }))
+      .filter(({ distance }) => distance <= Math.floor(name.length * 0.4))
+      .toSorted((left, right) => left.distance - right.distance);
+
+    return completions && close.length > 0 ? { from: completions.from, to: completions.to, items: close.map(({ item }) => item) } : undefined;
   }
 
   /**
@@ -274,6 +313,10 @@ export class FormulaLanguage {
       return parameters[argument] ?? (last?.repeatable ? last : undefined);
     })).filter((parameter) => parameter !== undefined);
   }
+}
+
+function isReferenceError(error: FormulaError): error is FormulaError<'REFERENCE_ERROR'> {
+  return error.code === FormulaErrorCode.REFERENCE_ERROR;
 }
 
 /** The types of the fields the host gives one; a field without a type holds any value. */

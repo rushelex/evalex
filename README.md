@@ -239,6 +239,13 @@ language.diagnose('title.round() + lines.map(current.qtty()).sum() + totl', {
 
 An error that depends on the values rather than their types, such as a read of an empty value or a division by zero, is left to evaluation. Without `fields`, names are not checked. Each diagnostic carries the `code`, `payload` and `location` of the `SyntaxError` or `FormulaError` it stands for, and the `messageKey` of a `FormulaError`, so a host translates them the same way.
 
+For a name the formula cannot read, `suggestions` lists the names spelled like it that can stand there, closest first, in the shape `complete` returns, so the editor offers the fix as it offers completions:
+
+```ts
+language.diagnose('price * qtty', { fields: [{ name: 'price' }, { name: 'qty' }] })[0].suggestions;
+// { from: 8, to: 12, items: [{ kind: 'field', label: 'qty', text: 'qty' }] }
+```
+
 ## Formulas in data
 
 When formulas read each other — a spreadsheet, a table with computed columns, a form with derived fields — put them right into your data with `new Formula(text)`. An evaluator gives back the same data with every formula replaced by its result:

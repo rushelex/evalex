@@ -441,6 +441,62 @@ describe(FormulaLanguage, () => {
       expect(language.diagnose('title.round() + (', { fields: orderFields }).map(({ code }) => code)).toEqual(['EXPECTED_EXPRESSION', 'MISSING_TOKEN']);
     });
   });
+
+  describe('diagnose: suggestions', () => {
+    it.prop([fieldFormulaArbitrary({ lazy: true })])('should suggest only names that leave no reference error where they replace the name', (formula) => {
+      const fields = [{ name: 'a' }, { name: 'b' }, { name: 'c' }];
+      const fixed = language.diagnose(formula, { fields }).flatMap(({ suggestions }) => (suggestions ? [suggestions] : [])).map(({ from, to, items }) => {
+        const text = `${formula.slice(0, from)}${items[0]?.text}${formula.slice(to)}`;
+
+        return language.diagnose(text, { fields }).filter(({ code, location }) => code === 'REFERENCE_ERROR' && location.start.offset === from);
+      });
+
+      expect(fixed.flat()).toEqual([]);
+    });
+
+    it('should suggest a field by its label and the span of the name it replaces', () => {
+      const [diagnostic] = language.diagnose('totl + 1', { fields: [{ name: 'total', label: 'Total', type: { kind: 'Number' } }] });
+
+      expect(diagnostic?.suggestions).toEqual({ from: 0, to: 4, items: [{ kind: 'field', label: 'Total', text: 'total' }] });
+    });
+
+    it('should suggest a field whose label is spelled like the name, though its name is not', () => {
+      const [diagnostic] = language.diagnose('Totl + 1', { fields: [{ name: 'amount', label: 'Total' }] });
+
+      expect(diagnostic?.suggestions?.items.map(({ text }) => text)).toEqual(['amount']);
+    });
+
+    it.each([
+      { formula: 'let rate = 2 in rat * 3', from: 16, text: 'rate' },
+      { formula: 'lines.filter(curent.qty() > 1)', from: 13, text: 'current' },
+      { formula: 'rond(1.5)', from: 0, text: 'round' },
+      { formula: 'Round(1.5)', from: 0, text: 'round' },
+      { formula: 'title.uper()', from: 6, text: 'upper' },
+      { formula: 'order.qtty()', from: 6, text: 'qty' },
+      { formula: 'order.emty()', from: 6, text: 'empty' },
+    ])('should suggest first the closest name that can stand there: $formula', ({ formula, from, text }) => {
+      const [diagnostic] = language.diagnose(formula, { fields: orderFields });
+
+      expect([diagnostic?.suggestions?.from, diagnostic?.suggestions?.items[0]?.text]).toEqual([from, text]);
+    });
+
+    it('should suggest a name once, though it means different things on the types the value may have', () => {
+      const [diagnostic] = language.diagnose('entry.addd(1)', { fields: [{ name: 'entry', type: { kind: 'Union', of: [{ kind: 'Number' }, { kind: 'Date' }] } }] });
+
+      expect(diagnostic?.suggestions?.items.map(({ text }) => text)).toEqual(['add']);
+    });
+
+    it.each([
+      { formula: 'zzzz + 1', reason: 'a name like no other' },
+      { formula: 'ttl + 1', reason: 'a name with two mistakes in three letters' },
+      { formula: 'rond + 1', reason: 'a value spelled like a function, which cannot stand there' },
+      { formula: 'order.uper()', reason: 'a method the value does not have, though another value has it' },
+      { formula: 'title.round(1, 2, 3, 4)', reason: 'an error that is not about a name' },
+      { formula: 'totl +', reason: 'a syntax error' },
+    ])('should suggest nothing for $reason', ({ formula }) => {
+      expect(language.diagnose(formula, { fields: orderFields }).filter(({ suggestions }) => suggestions)).toEqual([]);
+    });
+  });
 });
 
 /** The fields of a record, each with the type of its value. */

@@ -3,6 +3,7 @@ import type { FormulaErrorPayloads } from '../core/errors/error-payloads';
 import type { FormulaLocation } from '../parser/ast/location';
 import type { SyntaxErrorCode } from '../parser/grammar/syntax-error-code';
 import type { SyntaxErrorPayloads } from '../parser/grammar/syntax-error-payloads';
+import type { FormulaCompletions } from './formula-completions';
 
 /**
  * A problem in formula text that an editor underlines, with the message to show next to it.
@@ -21,4 +22,9 @@ export interface FormulaDiagnostic<C extends SyntaxErrorCode | FormulaErrorCode 
   readonly messageKey?: string;
   /** The part of the formula to underline. */
   readonly location: FormulaLocation;
+  /**
+   * For a name the formula cannot read, the names spelled like it that can stand there, closest first, and the span of
+   * the name they replace; absent when none is close.
+   */
+  readonly suggestions?: FormulaCompletions;
 }

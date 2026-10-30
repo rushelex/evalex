@@ -16,6 +16,7 @@ describe('language API', () => {
     expectTypeOf<API.FormulaDiagnostic['messageKey']>().toEqualTypeOf<string | undefined>();
     expectTypeOf<API.FormulaDiagnostic['location']>().toEqualTypeOf<Root.FormulaLocation>();
     expectTypeOf<API.FormulaDiagnostic['message']>().toEqualTypeOf<string>();
+    expectTypeOf<API.FormulaDiagnostic['suggestions']>().toEqualTypeOf<API.FormulaCompletions | undefined>();
   });
 
   it('should create the language service from a scope and type its signature help with the routines of the root API', () => {
