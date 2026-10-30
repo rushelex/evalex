@@ -13,7 +13,6 @@ import type { FormulaSignatureHelp } from './formula-signature-help';
 import { checkFormula } from '../core/check-formula';
 import { Kind } from '../core/data-types';
 import { inferSubjectType } from '../core/infer-subject-type';
-import { parseFormula } from '../core/parse-formula';
 import { kindsOf, membersOf, type } from '../core/types';
 import { findCalls, findCaretPlace, diagnose as findSyntaxErrors } from '../parser/grammar/parser';
 import { SYNTAX_ERROR_MESSAGES } from '../parser/grammar/syntax-error-messages';
@@ -79,10 +78,10 @@ export class FormulaLanguage {
    * any bracket ends the reading, since what follows it cannot be told apart from what caused it.
    *
    * A formula without syntax errors is checked as evaluation reads it: names that are not defined, functions and
-   * methods that do not exist, fields a record does not have, and arguments a routine does not take. Each is found
-   * where evaluation fails on it whenever it gets there, also inside a branch of `? :` or an expression evaluated per
-   * item, which evaluation may skip. An error that depends on the values rather than their types, such as a read of an
-   * empty value, is left to evaluation. Names are checked only when the host passes `fields`, and not inside `parent`,
+   * methods that do not exist, fields a record does not have, arguments a routine and operands an operator does not
+   * take. Each is found where evaluation fails on it whenever it gets there, also inside a branch of `? :` or an
+   * expression evaluated per item, which evaluation may skip. An error that depends on the values rather than their
+   * types, such as a read of an empty value or a division by zero, is left to evaluation. Names are checked only when the host passes `fields`, and not inside `parent`,
    * which reads the enclosing object.
    *
    * Never throws, so it can run on every keystroke.
@@ -113,7 +112,7 @@ export class FormulaLanguage {
     const fields = options.fields && new Map(options.fields.map(({ name, type: fieldType }) => [name, fieldType ?? type.any]));
 
     // Every error a check finds points into the formula
-    return checkFormula({ formula: parseFormula(text), fields }).flatMap(({ code, payload, message, messageKey, location }) => (location
+    return checkFormula({ text, fields }).flatMap(({ code, payload, message, messageKey, location }) => (location
       ? [{ code, payload, message: message.replace(/ \[\d+,\d+\]$/, ''), messageKey, location }]
       : []));
   }

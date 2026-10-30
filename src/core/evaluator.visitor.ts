@@ -162,6 +162,11 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
     const left = this.evaluateNode(node.left);
     const right = this.evaluateNode(node.right);
 
+    return this.binaryResult({ node, left, right });
+  }
+
+  /** Applies the operator of `node` to the values of its operands, which the type check also runs on values of each kind. */
+  binaryResult({ node, left, right }: { node: AST.IBinaryExpressionNode; left: FormulaDataType; right: FormulaDataType }): FormulaDataType {
     switch (node.operator) {
       case '+': {
         // Text joins the other operand as the same text `format()` gives
@@ -249,8 +254,11 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
   }
 
   visitUnaryExpressionNode(node: AST.IUnaryExpressionNode): FormulaDataType {
-    const arg = this.evaluateNode(node.arg);
+    return this.unaryResult({ node, arg: this.evaluateNode(node.arg) });
+  }
 
+  /** Applies the operator of `node` to the value of its operand, which the type check also runs on values of each kind. */
+  unaryResult({ node, arg }: { node: AST.IUnaryExpressionNode; arg: FormulaDataType }): FormulaDataType {
     switch (node.operator) {
       case '-': {
         if (!(arg instanceof FormulaNumber)) {

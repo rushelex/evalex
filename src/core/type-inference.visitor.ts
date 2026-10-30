@@ -25,6 +25,8 @@ interface TypeInferenceOptions {
   readonly errors?: FormulaError[];
   /** A name neither in `fields` nor in `locals` is an error, as `fields` lists every name the formula can read. */
   readonly closedNames?: boolean;
+  /** Runs the checks of routines and operators on values of each kind, with the formula text the errors name. */
+  readonly checker?: FormulaEvaluatorVisitor;
 }
 
 interface SubjectProbe {
@@ -42,6 +44,9 @@ const OWN_ORIGIN = new Set<AST.AstNode['type']>(['Literal', 'Identifier', 'Array
 // Stands in for the evaluator of the callbacks a call is checked with; it never evaluates them
 const CHECK_VISITOR = new FormulaEvaluatorVisitor('', new FormulaEvaluationContext(new Map()));
 
+// These errors depend on the values, so a value of each kind tells nothing of them
+const VALUE_ERRORS = [Errors.Arithmetic.DivisionByZero, Errors.Arithmetic.ModuloByZero];
+
 /**
  * Infers the type of a node with the names in scope where it stands: local ones first, then the fields.
  *
@@ -57,13 +62,15 @@ export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
   readonly #probe: SubjectProbe | undefined;
   readonly #errors: FormulaError[] | undefined;
   readonly #closedNames: boolean;
+  readonly #checker: FormulaEvaluatorVisitor;
 
-  constructor({ fields, locals = new Map(), probe, errors, closedNames = false }: TypeInferenceOptions) {
+  constructor({ fields, locals = new Map(), probe, errors, closedNames = false, checker = CHECK_VISITOR }: TypeInferenceOptions) {
     this.#fields = fields;
     this.#locals = locals;
     this.#probe = probe;
     this.#errors = errors;
     this.#closedNames = closedNames;
+    this.#checker = checker;
   }
 
   typeOf(node: AST.AstNode): FormulaType {
@@ -97,7 +104,11 @@ export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
   }
 
   visitUnaryExpressionNode(node: AST.IUnaryExpressionNode): FormulaType {
-    this.typeOf(node.arg);
+    const arg = this.typeOf(node.arg);
+
+    if (this.#operatorFails({ operands: [arg], apply: ([value]) => this.#checker.unaryResult({ node, arg: value }) })) {
+      return type.any;
+    }
 
     return node.operator === '-' ? type.number : type.boolean;
   }
@@ -105,6 +116,10 @@ export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
   visitBinaryExpressionNode(node: AST.IBinaryExpressionNode): FormulaType {
     const left = this.typeOf(node.left);
     const right = this.typeOf(node.right);
+
+    if (this.#operatorFails({ operands: [left, right], apply: ([l, r]) => this.#checker.binaryResult({ node, left: l, right: r }) })) {
+      return type.any;
+    }
 
     switch (node.operator) {
       case '+':
@@ -173,8 +188,24 @@ export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
       probe: this.#probe,
       errors: this.#errors,
       closedNames: this.#closedNames,
+      checker: this.#checker,
       ...changes,
     });
+  }
+
+  /**
+   * Tells whether an operator fails on every value of the types of its operands, all alike, and gathers its error then.
+   * Its result never exists, so nothing that reads it is checked.
+   */
+  #operatorFails({ operands, apply }: { operands: readonly FormulaType[]; apply: (values: readonly FormulaDataType[]) => FormulaDataType }): boolean {
+    const combinations = combine(operands.map((operand) => representativesOf(kindsOf(operand))));
+    const failure = combinations && commonFailure(combinations.map((values) => failureOf(() => apply(values))));
+
+    if (failure) {
+      this.#errors?.push(failure);
+    }
+
+    return failure !== undefined;
   }
 
   #functionResult({ name, args, location }: { name: string; args: readonly AST.AstNode[]; location: AST.Location }): FormulaType {
@@ -376,7 +407,7 @@ export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
     const combinations = combine(choices);
     const errors = combinations?.map((values) => routine.argumentsError({
       args,
-      visitor: CHECK_VISITOR,
+      visitor: this.#checker,
       valueOf: (node) => new ProcessedArgument(values[args.indexOf(node)], node),
       location,
     }));
@@ -440,6 +471,18 @@ function commonFailure(failures: readonly (FormulaError | undefined)[]): Formula
   const targets = [...new Set(references.map(({ payload }) => payload.target))].join(' or ');
 
   return definition.create({ name: references[0].payload.name, target: targets }, { location: first.location });
+}
+
+/** The error a check fails with, or `undefined` when it passes or its error may not come on other values of the kinds. */
+function failureOf(check: () => unknown): FormulaError | undefined {
+  try {
+    check();
+
+    return undefined;
+  }
+  catch (error) {
+    return error instanceof FormulaError && !VALUE_ERRORS.some((definition) => definition.is(error)) ? error : undefined;
+  }
 }
 
 function sameLocation(left: AST.Location | undefined, right: AST.Location | undefined): boolean {

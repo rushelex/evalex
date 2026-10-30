@@ -214,7 +214,7 @@ language.diagnose('round(price,, 2) + max(1 2)').map(({ code, message }) => [cod
 //  ['UNCLOSED_PARENTHESIS', 'Expected token ")".']]
 ```
 
-The first of them is always the error evaluating the formula throws. A formula that parses is checked against the fields and their types: a name that is not a field, a function or method that does not exist, a field a record does not have, an argument a routine does not take. Each is found where evaluation fails on it whenever it gets there, also in a branch of `? :` or in an expression evaluated per item:
+The first of them is always the error evaluating the formula throws. A formula that parses is checked against the fields and their types: a name that is not a field, a function or method that does not exist, a field a record does not have, an argument a routine or an operand an operator does not take, as in `title * 2`. Each is found where evaluation fails on it whenever it gets there, also in a branch of `? :` or in an expression evaluated per item:
 
 ```ts
 language.diagnose('title.round() + lines.map(current.qtty()).sum() + totl', {
@@ -223,7 +223,7 @@ language.diagnose('title.round() + lines.map(current.qtty()).sum() + totl', {
 // ['Method "round" is not defined.', 'Field "qtty" is not defined.', 'Variable "totl" is not defined.']
 ```
 
-An error that depends on the values rather than their types, such as a read of an empty value, is left to evaluation. Without `fields`, names are not checked. Each diagnostic carries the `code`, `payload` and `location` of the `SyntaxError` or `FormulaError` it stands for, and the `messageKey` of a `FormulaError`, so a host translates them the same way.
+An error that depends on the values rather than their types, such as a read of an empty value or a division by zero, is left to evaluation. Without `fields`, names are not checked. Each diagnostic carries the `code`, `payload` and `location` of the `SyntaxError` or `FormulaError` it stands for, and the `messageKey` of a `FormulaError`, so a host translates them the same way.
 
 ## Formulas in data
 

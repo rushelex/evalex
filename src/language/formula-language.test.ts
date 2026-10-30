@@ -285,6 +285,12 @@ describe(FormulaLanguage, () => {
       }]);
     });
 
+    it('should give an operator error the formula it fails in, as evaluation does', () => {
+      expect(language.diagnose('1 + -title', { fields: orderFields }).map(({ payload }) => payload)).toEqual([
+        { reason: 'Cannot apply unary minus to non-numeric value', expression: '1 + -title' },
+      ]);
+    });
+
     it.each([
       { formula: 'title + totl', expected: [['formula_error.variable_not_defined', 'totl']] },
       { formula: 'nope(totl)', expected: [['formula_error.function_not_defined', 'nope(totl)']] },
@@ -295,6 +301,13 @@ describe(FormulaLanguage, () => {
       { formula: 'round(1, 2, 3)', expected: [['formula_error.too_many_arguments', 'round(1, 2, 3)']] },
       { formula: 'dateBetween(today(), today(), "dais")', expected: [['formula_error.argument_validation_error', '"dais"']] },
       { formula: 'round(totl, title)', expected: [['formula_error.variable_not_defined', 'totl']] },
+      { formula: 'title * 2', expected: [['formula_error.non_numeric_math_operation', 'title * 2']] },
+      { formula: '-title', expected: [['formula_error.unary_minus_non_numeric', '-title']] },
+      { formula: 'title < 1', expected: [['formula_error.comparison_type_mismatch', 'title < 1']] },
+      { formula: 'today() < now()', expected: [['formula_error.date_with_date_time', 'today() < now()']] },
+      { formula: '1 in order.qty()', expected: [['formula_error.argument_type_mismatch', 'order.qty()']] },
+      { formula: 'order in title', expected: [['formula_error.argument_type_mismatch', 'order']] },
+      { formula: 'upper(title * 2)', expected: [['formula_error.non_numeric_math_operation', 'title * 2']] },
       { formula: 'lines.filter(curent > 1, 2)', expected: [['formula_error.exact_argument_count', 'filter']] },
       { formula: 'format(totl + "x", 1)', expected: [['formula_error.exact_argument_count', 'format(totl + "x", 1)'], ['formula_error.variable_not_defined', 'totl']] },
     ])('should find what evaluation fails on in every record of the field types: $formula', ({ formula, expected }) => {
@@ -326,6 +339,9 @@ describe(FormulaLanguage, () => {
       { formula: 'toDateTime(today(), title, 1)', reason: 'an argument checked after a word read from a field' },
       { formula: 'round(lines.length() > 0 ? "a" : "b")', reason: 'an argument whose value comes from a part of it' },
       { formula: 'lines.first().sku().filter(current > 1)', reason: 'an expression per item of a value of any type' },
+      { formula: 'entry * 2', reason: 'an operand only some types of the value fit' },
+      { formula: 'title + 1', reason: 'text joined with a number' },
+      { formula: '1 / lines.length()', reason: 'a division by a number that may be zero' },
       { formula: 'parent(anything)', reason: 'a name read in the enclosing object' },
     ])('should find nothing where the error depends on the values: $reason', ({ formula }) => {
       expect(language.diagnose(formula, { fields: [...orderFields, { name: 'entry', type: { kind: 'Union', of: [{ kind: 'Number' }, { kind: 'String' }] } }] })).toEqual([]);
