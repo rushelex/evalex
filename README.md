@@ -206,6 +206,20 @@ language.complete('title.', 6, { fields: [{ name: 'title', type: { kind: 'String
 
 A field without a type may hold any value, so after its dot every method is given.
 
+`hover` tells what the name at the caret stands for, for a tooltip: a field with its label, a variable, or the routines a call may run, each with the type of its value:
+
+```ts
+const fields = [{ name: 'price', label: 'Price', type: { kind: 'Number' } }] as const;
+
+language.hover('round(price, 2)', 8, { fields });
+// { from: 6, to: 11, kind: 'field', label: 'Price', type: { kind: 'Number' } }
+
+language.hover('round(price, 2)', 2, { fields })?.routines?.[0]?.description;
+// 'Rounds the number to the nearest integer or to the given places.'
+```
+
+After a dot, `routines` holds the methods of the types the value before the dot may have, as completion lists them. A name the formula cannot read, a literal or an operator gives `undefined`.
+
 `diagnose` finds the errors to underline. In text that does not parse, they are the syntax errors, read on past each one the reader can step over, so separate mistakes show at once:
 
 ```ts

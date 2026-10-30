@@ -283,6 +283,11 @@ class Parser {
     return diagnostics;
   }
 
+  /** Reads the input as `diagnostics` does and returns the tree it read; `undefined` when an error stopped it. */
+  formula(): AstNode | undefined {
+    return this.#runPastErrors();
+  }
+
   /** Reads the input as `diagnostics` does and returns the calls by name it read, inner calls before outer ones. */
   calls(): CallSite[] {
     const calls = this.#calls ?? [];
@@ -1572,6 +1577,17 @@ export function tokenize(input: string): FormulaToken[] {
  */
 export function diagnose(input: string): SyntaxError[] {
   return new Parser(input, { recover: true }).diagnostics();
+}
+
+/**
+ * Parses a formula string, reading on past the syntax errors it can step over.
+ *
+ * @param input The formula string to read, complete or still being typed.
+ * @returns The tree, with a placeholder where an error was skipped; `undefined` when an error outside any bracket stops
+ * the reading.
+ */
+export function parsePastErrors(input: string): AstNode | undefined {
+  return new Parser(input, { recover: true }).formula();
 }
 
 /**

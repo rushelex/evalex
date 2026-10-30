@@ -10,7 +10,7 @@ import { arg } from '../core/routines/arguments';
 import { routinesRegistry } from '../core/routines/registry';
 import { type } from '../core/types';
 import { evaluateOutcome, fieldFormulaArbitrary, formulaValueArbitrary, typeOfValue } from '../testing-library';
-import { FormulaLanguage } from './index';
+import { FormulaLanguage, tokenize } from './index';
 
 // No built-in routine repeats an argument that takes words, so completion of a repeated one is checked on this one.
 routinesRegistry.registerRoutine('unitsProbe', {
@@ -259,6 +259,86 @@ describe(FormulaLanguage, () => {
       { text: 'a + @', offset: 5 },
     ])('should give nothing where no name or word can be typed: $text at $offset', ({ text, offset }) => {
       expect(language.complete(text, offset, { fields: [{ name: 'price' }] })).toBeUndefined();
+    });
+  });
+
+  describe('hover', () => {
+    const HOVER_KINDS: Readonly<Record<string, readonly string[]>> = { name: ['field', 'variable'], function: ['function'], method: ['method', 'field'] };
+
+    it.prop([formulaText.chain((text) => fc.tuple(fc.constant(text), fc.nat({ max: text.length })))])('should give a range around the caret inside the text, whatever the text', ([text, offset]) => {
+      const hover = language.hover(text, offset, { fields: orderFields });
+
+      expect(hover === undefined || (hover.from <= offset && offset <= hover.to && hover.to <= text.length)).toBe(true);
+    });
+
+    it.prop([fieldFormulaArbitrary({ lazy: true })])('should tell each name the whole token of it, as what it is called in the formula', (formula) => {
+      const names = tokenize(formula).filter(({ kind }) => kind in HOVER_KINDS);
+      const hovers = names.map(({ location }) => language.hover(formula, location.start.offset));
+
+      expect(hovers.map((hover, index) => hover && [hover.from, hover.to, HOVER_KINDS[names[index].kind].includes(hover.kind)]))
+        .toEqual(hovers.map((hover, index) => hover && [names[index].location.start.offset, names[index].location.end.offset, true]));
+      expect(hovers.filter((hover, index) => !hover && names[index].kind === 'name')).toEqual([]);
+    });
+
+    it('should give a field its label and the type of its values', () => {
+      expect(language.hover('round(price, 2)', 8, { fields: [{ name: 'price', label: 'Price', type: { kind: 'Number' } }] }))
+        .toEqual({ from: 6, to: 11, kind: 'field', label: 'Price', type: { kind: 'Number' } });
+    });
+
+    it('should give a function its routine and the type of the result of the call', () => {
+      const hover = language.hover('round(price, 2)', 2);
+
+      expect([hover?.kind, hover?.label, hover?.from, hover?.to, hover?.type, hover?.routines]).toEqual(['function', 'round', 0, 5, { kind: 'Number' }, routines.filter(({ name, form }) => name === 'round' && form === 'function')]);
+    });
+
+    it('should give a method the methods of the types the value before the dot may have', () => {
+      const typed = language.hover('price.add(1)', 7, { fields: [{ name: 'price', type: { kind: 'Number' } }] });
+      const untyped = language.hover('price.add(1)', 7);
+
+      expect([typed?.kind, typed?.routines, untyped?.routines]).toEqual([
+        'method',
+        routines.filter(({ name, form, kinds }) => name === 'add' && form === 'method' && kinds.includes('Number')),
+        routines.filter(({ name, form }) => name === 'add' && form === 'method'),
+      ]);
+    });
+
+    it('should give a field of a record read by a method name its label and type', () => {
+      expect(language.hover('order.qty()', 8, { fields: orderFields })).toEqual({ from: 6, to: 9, kind: 'field', label: 'Quantity', type: { kind: 'Number' } });
+    });
+
+    it.each([
+      { text: 'let rate = 2 in rate * 3', offset: 17, from: 16, to: 20 },
+      { text: 'let rate = 2 in rate * 3', offset: 4, from: 4, to: 8 },
+    ])('should give a variable a let declares the type of its value: $text at $offset', ({ text, offset, from, to }) => {
+      expect(language.hover(text, offset, { fields: orderFields })).toEqual({ from, to, kind: 'variable', label: 'rate', type: { kind: 'Number' } });
+    });
+
+    it('should give the item an expression per item reads the type of the items', () => {
+      expect(language.hover('lines.filter(current.qty() > 1)', 15, { fields: orderFields })).toEqual({ from: 13, to: 20, kind: 'variable', label: 'current', type: orderLine });
+    });
+
+    it('should count the end of a name as in it', () => {
+      expect(language.hover('title + 1', 5, { fields: orderFields })?.label).toBe('title');
+    });
+
+    it('should tell a name in text with syntax errors', () => {
+      expect(language.hover('round(title,, 2)', 7, { fields: orderFields })?.type).toEqual({ kind: 'String' });
+    });
+
+    it('should take any name for a field of any value when the host passes no fields', () => {
+      expect(language.hover('totl + 1', 2)).toEqual({ from: 0, to: 4, kind: 'field', label: 'totl', type: { kind: 'Any' } });
+    });
+
+    it.each([
+      { text: 'totl + 1', offset: 2, reason: 'a name outside the fields' },
+      { text: 'nope(title)', offset: 2, reason: 'a function the scope does not have' },
+      { text: 'title.round()', offset: 8, reason: 'a method the value does not have' },
+      { text: 'order.qtty()', offset: 8, reason: 'a field the record does not have' },
+      { text: 'round(12345, 2)', offset: 8, reason: 'a number' },
+      { text: 'title + "abc"', offset: 6, reason: 'an operator' },
+      { text: 'title + "abc"', offset: 10, reason: 'text' },
+    ])('should give nothing at $reason', ({ text, offset }) => {
+      expect(language.hover(text, offset, { fields: orderFields })).toBeUndefined();
     });
   });
 

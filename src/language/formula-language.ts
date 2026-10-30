@@ -1,5 +1,6 @@
 import type { FormulaRoutine, FormulaRoutineParameter } from '../core/formula-routine';
 import type { FormulaScope } from '../core/formula-scope';
+import type { FormulaType } from '../core/types';
 import type { FormulaField } from '../core/types/formula-field';
 import type { CallSite } from '../parser/grammar/call-site';
 import type { CaretPlace } from '../parser/grammar/caret-place';
@@ -8,14 +9,16 @@ import type { SyntaxErrorCode } from '../parser/grammar/syntax-error-code';
 import type { FormulaCompletion } from './formula-completion';
 import type { FormulaCompletions } from './formula-completions';
 import type { FormulaDiagnostic } from './formula-diagnostic';
+import type { FormulaHover } from './formula-hover';
 import type { FormulaSignatureHelp } from './formula-signature-help';
 
 import { checkFormula } from '../core/check-formula';
 import { Kind } from '../core/data-types';
-import { inferSubjectType } from '../core/infer-subject-type';
+import { inferNodeType } from '../core/infer-node-type';
 import { kindsOf, membersOf, type } from '../core/types';
-import { findCalls, findCaretPlace, diagnose as findSyntaxErrors } from '../parser/grammar/parser';
+import { findCalls, findCaretPlace, diagnose as findSyntaxErrors, parsePastErrors } from '../parser/grammar/parser';
 import { SYNTAX_ERROR_MESSAGES } from '../parser/grammar/syntax-error-messages';
+import { findName } from './find-name';
 
 /**
  * Answers what a formula editor asks about the text being typed, with the functions and methods of a scope.
@@ -179,16 +182,78 @@ export class FormulaLanguage {
 
   /** The fields of the records and the methods of the kinds the value before the dot may have. */
   #memberItems({ place: { formula, method }, fields }: { place: CaretPlace; fields: readonly FormulaField[] }): FormulaCompletion[] {
-    const types = new Map(fields.flatMap(({ name, type: fieldType }) => (fieldType ? [[name, fieldType] as const] : [])));
-    const subject = formula && method ? inferSubjectType({ formula, fields: types, method }) : type.any;
-    const kinds = kindsOf(subject);
-    const recordFields = membersOf(subject).flatMap((member) => (member.kind === Kind.Object ? member.fields ?? [] : []));
-    const takes = (routine: FormulaRoutine) => kinds.includes(Kind.Any) || routine.kinds.some((kind) => kinds.includes(kind));
+    const call = formula && method && findName({ formula, offset: method.location.start.offset });
+    const subject = formula && call?.subject ? inferNodeType({ formula, fields: typesOf(fields), node: call.subject }).type : type.any;
 
     return [
-      ...uniqueBy(recordFields, ({ name }) => name).map(({ name, label }): FormulaCompletion => ({ kind: 'field', label: label ?? name, text: name })),
-      ...this.#routineItems('method').filter(({ routine }) => routine && takes(routine)),
+      ...uniqueBy(recordFieldsOf(subject), ({ name }) => name).map(({ name, label }): FormulaCompletion => ({ kind: 'field', label: label ?? name, text: name })),
+      ...this.#routineItems('method').filter(({ routine }) => routine && takes({ routine, subject })),
     ];
+  }
+
+  /**
+   * Returns what the name at the caret stands for, for a tooltip: a field with its label and type, a variable with its
+   * type, or the routines a call may run with the type of its result.
+   *
+   * @remarks
+   * A method name gives the methods of the types the value before the dot may have, as the types of the fields tell; a
+   * value of unknown type gives every method of the name. A method name a record reads as its field gives the field.
+   * Never throws, whatever the text.
+   *
+   * @param text - Formula text, complete or still being typed.
+   * @param offset - Offset of the caret in `text`; the end of a name counts as in it.
+   * @param options - What the host knows about the place of the formula.
+   * @param options.fields - The fields the formula can read at its place in the host's data, with their types when the
+   * host knows them; a name outside them gives nothing. Without them, any name is a field of any value.
+   * @returns `undefined` where no name stands, such as in a literal or an operator, and at a name, function or method
+   * the formula cannot read.
+   *
+   * @example
+   * ```ts
+   * const hover = language.hover('round(price, 2)', 8, { fields: [{ name: 'price', label: 'Price', type: { kind: 'Number' } }] });
+   *
+   * [hover?.kind, hover?.label, hover?.type]; // ['field', 'Price', { kind: 'Number' }]
+   * language.hover('round(price, 2)', 2)?.routines?.[0]?.description; // the description of `round`
+   * ```
+   */
+  hover(text: string, offset: number, options: { readonly fields?: readonly FormulaField[] } = {}): FormulaHover | undefined {
+    const formula = parsePastErrors(text);
+    const place = formula && findName({ formula, offset });
+
+    if (!formula || !place) {
+      return undefined;
+    }
+
+    const types = typesOf(options.fields ?? []);
+    const { name, location } = place.name;
+    const { type: valueType, declared } = inferNodeType({ formula, fields: types, node: place.value });
+    const hover = { from: location.start.offset, to: location.end.offset, label: name, type: valueType };
+
+    if (place.role === 'function') {
+      const routines = this.#routines.filter((routine) => routine.name === name && routine.form === 'function');
+
+      return routines.length > 0 ? { ...hover, kind: 'function', routines } : undefined;
+    }
+
+    if (place.role === 'method') {
+      const subject = place.subject ? inferNodeType({ formula, fields: types, node: place.subject }).type : type.any;
+      const routines = this.#routines.filter((routine) => routine.name === name && routine.form === 'method' && takes({ routine, subject }));
+      const field = recordFieldsOf(subject).find((candidate) => candidate.name === name);
+
+      if (routines.length > 0) {
+        return { ...hover, kind: 'method', routines };
+      }
+
+      return field && { ...hover, kind: 'field', label: field.label ?? name };
+    }
+
+    if (place.role === 'declaration' || declared) {
+      return { ...hover, kind: 'variable' };
+    }
+
+    const field = options.fields ? options.fields.find((candidate) => candidate.name === name) : { name };
+
+    return field && { ...hover, kind: 'field', label: field.label ?? name };
   }
 
   #routineItems(form: FormulaRoutine['form']): FormulaCompletion[] {
@@ -209,6 +274,23 @@ export class FormulaLanguage {
       return parameters[argument] ?? (last?.repeatable ? last : undefined);
     })).filter((parameter) => parameter !== undefined);
   }
+}
+
+/** The types of the fields the host gives one; a field without a type holds any value. */
+function typesOf(fields: readonly FormulaField[]): Map<string, FormulaType> {
+  return new Map(fields.flatMap(({ name, type: fieldType }) => (fieldType ? [[name, fieldType] as const] : [])));
+}
+
+/** The fields of the records a value of `subject` may be. */
+function recordFieldsOf(subject: FormulaType): FormulaField[] {
+  return membersOf(subject).flatMap((member) => (member.kind === Kind.Object ? member.fields ?? [] : []));
+}
+
+/** Tells whether a method may be called on a value of `subject`; a value of any type takes every method. */
+function takes({ routine, subject }: { routine: FormulaRoutine; subject: FormulaType }): boolean {
+  const kinds = kindsOf(subject);
+
+  return kinds.includes(Kind.Any) || routine.kinds.some((kind) => kinds.includes(kind));
 }
 
 function syntaxDiagnostic<C extends SyntaxErrorCode>({ code, payload, location }: SyntaxError<C>): FormulaDiagnostic {

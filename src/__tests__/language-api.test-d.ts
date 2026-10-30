@@ -33,6 +33,14 @@ describe('language API', () => {
     expectTypeOf<{ name: 'price' }>().toExtend<API.FormulaField>();
   });
 
+  it('should type hover with the fields the host passes and the types and routines of the root API', () => {
+    expectTypeOf<API.FormulaLanguage['hover']>().toEqualTypeOf<
+      (text: string, offset: number, options?: { readonly fields?: readonly API.FormulaField[] }) => API.FormulaHover | undefined
+    >();
+    expectTypeOf<API.FormulaHover['type']>().toEqualTypeOf<Root.FormulaType>();
+    expectTypeOf<API.FormulaHover['routines']>().toEqualTypeOf<readonly Root.FormulaRoutine[] | undefined>();
+  });
+
   it('should type token kinds as plain text', () => {
     expectTypeOf<'function'>().toExtend<API.FormulaTokenKind>();
     expectTypeOf<'invalid'>().toExtend<API.FormulaTokenKind>();

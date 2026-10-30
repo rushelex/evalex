@@ -19,8 +19,8 @@ interface TypeInferenceOptions {
   readonly fields: ReadonlyMap<string, FormulaType>;
   /** The types of the names the formula declares around the node, which hide the fields. */
   readonly locals?: ReadonlyMap<string, FormulaType>;
-  /** Gathers the types of the value a method call is read on, in every scope it is read in. */
-  readonly probe?: SubjectProbe;
+  /** Gathers the types of one node, in every scope it is read in. */
+  readonly probe?: NodeProbe;
   /** Gathers the errors evaluation raises whenever it reaches the node they point at; nothing is gathered without it. */
   readonly errors?: FormulaError[];
   /** A name neither in `fields` nor in `locals` is an error, as `fields` lists every name the formula can read. */
@@ -29,10 +29,12 @@ interface TypeInferenceOptions {
   readonly checker?: FormulaEvaluatorVisitor;
 }
 
-interface SubjectProbe {
-  /** The method name of the call, as the parser read it. */
-  readonly method: AST.IIdentifierNode;
-  readonly subjects: FormulaType[];
+interface NodeProbe {
+  /** The node itself, as the parser read it, rather than an equal one. */
+  readonly node: AST.AstNode;
+  readonly types: FormulaType[];
+  /** For a name, whether a scope it is read in declares it, as `let` does, rather than reading it from the record. */
+  declared: boolean;
 }
 
 // The kinds of the values a call is checked with are tried together, up to this many sets of them
@@ -52,14 +54,14 @@ const VALUE_ERRORS = [Errors.Arithmetic.DivisionByZero, Errors.Arithmetic.Modulo
  *
  * @remarks
  * Reads every argument of a call at least once, also where the type of the call does not depend on it, so a probe
- * finds a method call and an error is found wherever they stand. An error is gathered only where evaluation raises it
+ * finds its node and an error is found wherever they stand. An error is gathered only where evaluation raises it
  * on every value of the types, and only in a part evaluation reaches when it reaches the call around it: not in the
  * arguments of a call that fails before evaluating them.
  */
 export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
   readonly #fields: ReadonlyMap<string, FormulaType>;
   readonly #locals: ReadonlyMap<string, FormulaType>;
-  readonly #probe: SubjectProbe | undefined;
+  readonly #probe: NodeProbe | undefined;
   readonly #errors: FormulaError[] | undefined;
   readonly #closedNames: boolean;
   readonly #checker: FormulaEvaluatorVisitor;
@@ -74,7 +76,13 @@ export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
   }
 
   typeOf(node: AST.AstNode): FormulaType {
-    return node.accept(this);
+    const result = node.accept(this);
+
+    if (this.#probe?.node === node) {
+      this.#probe.types.push(result);
+    }
+
+    return result;
   }
 
   visitLiteralNode(node: AST.ILiteralNode): FormulaType {
@@ -95,6 +103,10 @@ export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
 
   visitIdentifierNode(node: AST.IIdentifierNode): FormulaType {
     const found = this.#locals.get(node.name) ?? this.#fields.get(node.name);
+
+    if (this.#probe?.node === node && this.#locals.has(node.name)) {
+      this.#probe.declared = true;
+    }
 
     if (!found && this.#closedNames) {
       this.#errors?.push(Errors.Reference.VariableNotDefined.create({ name: node.name }, { location: node.location }));
@@ -143,10 +155,6 @@ export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
     }
 
     const subject = this.typeOf(callee.object);
-
-    if (this.#probe?.method === callee.property) {
-      this.#probe.subjects.push(subject);
-    }
 
     return this.#methodResult({ subject, method: callee.property, args });
   }
