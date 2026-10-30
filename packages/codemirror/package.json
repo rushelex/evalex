@@ -1,0 +1,44 @@
+{
+  "name": "@evalexjs/codemirror",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "CodeMirror extension for evalex formulas: highlighting, errors, completion and tooltips.",
+  "author": "Aleksey Shelementev <rushelex@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/rushelex/evalex/tree/main/packages/codemirror#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rushelex/evalex.git",
+    "directory": "packages/codemirror"
+  },
+  "bugs": {
+    "url": "https://github.com/rushelex/evalex/issues"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "prepublishOnly": "pnpm run build"
+  },
+  "peerDependencies": {
+    "@codemirror/autocomplete": "^6.20.4",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/lint": "^6.9.7",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@lezer/highlight": "^1.2.5",
+    "evalex": "workspace:^"
+  },
+  "devDependencies": {
+    "evalex": "workspace:^"
+  }
+}

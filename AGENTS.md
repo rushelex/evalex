@@ -21,7 +21,7 @@ A feature belongs in evalex only when all four hold:
 3. It works on the shapes JSON has: values, objects and lists. Rows, columns, totals, foreign keys and other domain or storage concepts belong to the host.
 4. evalex neither stores nor changes host data.
 
-A feature that fails one of them stays out of the core even when hosts need it. Once two hosts write the same code for it, it may ship outside the core, as a separate entry point or package.
+A feature that fails one of them stays out of the core even when hosts need it. Once two hosts write the same code for it, it may ship outside the core, as a separate entry point or package. Editor adapters are the exception: every host that lets authors write formulas needs an editor, so they ship as packages from the start.
 
 ## Public API
 
@@ -32,6 +32,8 @@ A feature that fails one of them stays out of the core even when hosts need it. 
 ## Packages
 
 - All packages share one version and are released together.
+- `evalex` is published without a scope, every other package under `@evalexjs`.
+- An editor adapter, such as `@evalexjs/codemirror`, turns the language service of `evalex/language` into an extension of one editor and adds no formula behavior of its own. It declares `evalex` and the editor as peer dependencies, so it works on the host's copies of both.
 - A package reads another from its source: tests, type-checking and lint run once over the whole repository, without a build.
 
 ## Issues

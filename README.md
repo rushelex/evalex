@@ -19,6 +19,7 @@ evalex lets the people using your product write formulas like `price * quantity 
 | Package | What it does | Docs |
 | --- | --- | --- |
 | [`evalex`](./packages/evalex) | Parses and evaluates formulas, and answers formula editors as a formula is typed | [README](./packages/evalex/README.md) |
+| [`@evalexjs/codemirror`](./packages/codemirror) | Makes a CodeMirror 6 editor an editor of formulas: colors, errors, fixes and completion | [README](./packages/codemirror/README.md) |
 
 All packages are released together, with one version.
 
