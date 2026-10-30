@@ -142,7 +142,7 @@ To add a syntax error, add its code, its payload and its message, and a formula 
 
 `diagnose(text)` from [`grammar/parser.ts`](./grammar/parser.ts) parses with recovery and returns every error it finds, in reading order. Up to the first error it reads exactly as `parse`, so its first error is the one `parse` throws.
 
-- **Reported and read on**: errors that leave the rest readable as it is — a bad escape, bad regular expression flags or pattern, an empty regular expression, a method that is not called (read as a call without arguments), a keyword as a method name, empty `()`, a leading or doubled comma, and the name errors of `let`.
+- **Reported and read on**: errors that leave the rest readable as it is — a bad escape, bad regular expression flags or pattern, an empty regular expression, a method that is not called (read as a call without arguments), parentheses of a call after a value that is not a function name (read past, leaving the value uncalled), a keyword as a method name, empty `()`, a leading or doubled comma, and the name errors of `let`.
 - **Skipped to the next `,` or closing bracket**: any other error inside an argument, a list element or parentheses. The skip counts brackets and steps over quoted text, the part leaves a placeholder in the tree, and the next argument or element is read again. A list or group that something else follows reports its closing error, then skips the same way.
 - **Ends the reading**: an error outside any bracket, since what follows it cannot be told apart from what caused it.
 

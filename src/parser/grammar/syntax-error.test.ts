@@ -17,6 +17,7 @@ const CASES = [
   { formula: 'let x = x in x', code: 'VARIABLE_USED_BEFORE_DECLARATION', payload: { name: 'x' } },
   { formula: 'let x = 1 in x in y', code: 'BARE_IN_AFTER_LET', payload: {} },
   { formula: 'a.b', code: 'UNCALLED_METHOD', payload: { name: 'b' } },
+  { formula: '(1)(2)', code: 'UNCALLABLE_EXPRESSION', payload: {} },
   { formula: '-', code: 'EXPECTED_EXPRESSION', payload: {} },
   { formula: '@', code: 'UNEXPECTED_CHARACTER', payload: { character: '@' } },
   { formula: 'and', code: 'UNEXPECTED_KEYWORD', payload: { keyword: 'and' } },

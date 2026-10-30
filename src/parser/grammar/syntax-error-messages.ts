@@ -14,6 +14,7 @@ export const SYNTAX_ERROR_MESSAGES: { readonly [C in SyntaxErrorCode]: (payload:
   VARIABLE_USED_BEFORE_DECLARATION: ({ name }) => `Variable "${name}" is used before its declaration.`,
   BARE_IN_AFTER_LET: () => 'Put "in" inside a "let" body in parentheses: "(a in b)".',
   UNCALLED_METHOD: ({ name }) => `Expected function '${name}()' to be called.`,
+  UNCALLABLE_EXPRESSION: () => 'Only a function name can be called.',
   EXPECTED_EXPRESSION: () => 'Expected expression.',
   UNEXPECTED_CHARACTER: ({ character }) => `Unexpected character "${character}".`,
   UNEXPECTED_KEYWORD: ({ keyword }) => `Unexpected keyword "${keyword}".`,

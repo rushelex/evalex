@@ -26,6 +26,7 @@ export interface SyntaxErrorPayloads {
   [SyntaxErrorCode.VARIABLE_USED_BEFORE_DECLARATION]: { readonly name: string };
   [SyntaxErrorCode.BARE_IN_AFTER_LET]: NoDetails;
   [SyntaxErrorCode.UNCALLED_METHOD]: { readonly name: string };
+  [SyntaxErrorCode.UNCALLABLE_EXPRESSION]: NoDetails;
   [SyntaxErrorCode.EXPECTED_EXPRESSION]: NoDetails;
   [SyntaxErrorCode.UNEXPECTED_CHARACTER]: { readonly character: string };
   [SyntaxErrorCode.UNEXPECTED_KEYWORD]: { readonly keyword: string };

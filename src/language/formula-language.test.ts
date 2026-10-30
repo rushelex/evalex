@@ -128,6 +128,12 @@ describe(FormulaLanguage, () => {
       expect(completions === undefined || (completions.from <= offset && offset <= completions.to && completions.to <= text.length)).toBe(true);
     });
 
+    it('should complete a method in text that calls a value, which is not a function name', () => {
+      const completions = language.complete('list.filter(([+1 )(["1', 5);
+
+      expect([completions?.from, completions?.to, completions?.items.some(({ label }) => label === 'filter')]).toEqual([5, 11, true]);
+    });
+
     it.prop([word.chain((name) => fc.tuple(fc.constant(name), fc.nat({ max: name.length })))])('should replace the whole word the caret is in where a value goes', ([name, caret]) => {
       const completions = language.complete(`max(1, ${name})`, 7 + caret, { fields: [{ name: 'price' }] });
 

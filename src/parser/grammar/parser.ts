@@ -606,6 +606,7 @@ class Parser {
     const suffixes: Suffix[] = [];
     while (true) {
       const saved = this.#save();
+      const end = this.#mark();
       this.#skipWhitespace();
       // Like an operator chain, each call of `a.b().c()` nests the calls before it
       const suffixLocation = this.#nextCharLoc();
@@ -615,12 +616,15 @@ class Parser {
         continue;
       }
       if (this.#peek() === '(') {
-        // Marked before the arguments, so a call still being typed shows its name as a function
-        const isFunctionCall = head instanceof IdentifierNode && suffixes.length === 0;
-        if (isFunctionCall) {
-          this.#markFunction(head);
+        if (!(head instanceof IdentifierNode) || suffixes.length > 0) {
+          this.#report(this.#error('UNCALLABLE_EXPRESSION', {}, this.#loc(start, end)));
+          // Read on past the arguments, leaving the value uncalled
+          this.#parseCallArguments(undefined, 'function');
+          continue;
         }
-        suffixes.push(this.#parseDirectCallSuffix(isFunctionCall ? head.name : undefined));
+        // Marked before the arguments, so a call still being typed shows its name as a function
+        this.#markFunction(head);
+        suffixes.push(this.#parseDirectCallSuffix(head.name));
         this.#nest(suffixLocation);
         continue;
       }
@@ -689,8 +693,9 @@ class Parser {
         const member = new MemberExpressionNode(node, suffix.property, false, this.#loc(start, suffix.property.location.end));
         node = new CallExpressionNode(member, suffix.args, location);
       }
-      else {
-        node = new CallExpressionNode(node as IdentifierNode, suffix.args, location);
+      // Only a name is called directly, and only first in its chain
+      else if (node instanceof IdentifierNode) {
+        node = new CallExpressionNode(node, suffix.args, location);
       }
     }
     return node;

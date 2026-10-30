@@ -47,6 +47,7 @@ describe('diagnose: syntax errors', () => {
     { formula: 'f(, @)', expected: [['LEADING_COMMA', ','], ['UNEXPECTED_CHARACTER', '@']] },
     { formula: '//g + a.b', expected: [['EMPTY_REGEXP', '//'], ['UNCALLED_METHOD', '.b']] },
     { formula: '"\\01\\1"', expected: [['ZERO_ESCAPE_BEFORE_DIGIT', '\\0'], ['DIGIT_ESCAPE', '\\1']] },
+    { formula: '(1)(x.y).z() + a.b', expected: [['UNCALLABLE_EXPRESSION', '(1)'], ['UNCALLED_METHOD', '.y'], ['UNCALLED_METHOD', '.b']] },
   ])('should read on past a mistake to the next one: $formula', ({ formula, expected }) => {
     expect(diagnose(formula).map((diagnostic) => [diagnostic.code, textOf(formula, diagnostic)])).toEqual(expected);
   });

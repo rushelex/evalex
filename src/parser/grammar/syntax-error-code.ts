@@ -35,6 +35,8 @@ export const SyntaxErrorCode = {
   BARE_IN_AFTER_LET: 'BARE_IN_AFTER_LET',
   /** `Expected function 'x()' to be called.`: a member is read without calling it. */
   UNCALLED_METHOD: 'UNCALLED_METHOD',
+  /** `Only a function name can be called.`: parentheses of a call follow a value; the location spans the value. */
+  UNCALLABLE_EXPRESSION: 'UNCALLABLE_EXPRESSION',
   /** `Expected expression.`: the text ends where an operand should be. */
   EXPECTED_EXPRESSION: 'EXPECTED_EXPRESSION',
   /** `Unexpected character "x".` */

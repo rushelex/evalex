@@ -494,6 +494,15 @@ describe(parse, () => {
         location: createLocation(0, 33),
       });
     });
+
+    it.each([
+      { formula: '(1)(2)', message: 'Only a function name can be called. [0,3]' },
+      { formula: 'f()(1)', message: 'Only a function name can be called. [0,3]' },
+      { formula: 'a.b() (1)', message: 'Only a function name can be called. [0,5]' },
+      { formula: '[f](1)', message: 'Only a function name can be called. [0,3]' },
+    ])('should throw SyntaxError when calling what is not a function name: $formula', ({ formula, message }) => {
+      expect(() => parse(formula)).toThrow(message);
+    });
   });
 
   describe('Member Expressions', () => {
