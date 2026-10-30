@@ -1,0 +1,134 @@
+/* Styles of @evalexjs/prosemirror. A theme overrides them by the same class names. */
+
+.pm-formula {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+}
+
+/* The padding keeps the caret stops outside and inside an inline formula apart on screen */
+span.pm-formula {
+  padding: 0 3px;
+  border-radius: 4px;
+  background: rgba(127, 127, 127, 0.1);
+}
+
+/* A browser puts the caret into an empty inline element only when it is a box of its own */
+span.pm-formula:empty {
+  display: inline-block;
+  min-width: 1ch;
+  min-height: 1em;
+  vertical-align: text-bottom;
+}
+
+.pm-formula-block {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(127, 127, 127, 0.1);
+}
+
+.pm-formula-number { color: #164; }
+.pm-formula-string { color: #a11; }
+.pm-formula-regexp { color: #e40; }
+.pm-formula-boolean,
+.pm-formula-null { color: #219; }
+.pm-formula-function,
+.pm-formula-method { color: #00f; }
+.pm-formula-keyword { color: #708; }
+.pm-formula-operator,
+.pm-formula-punctuation { color: #555; }
+
+.pm-formula-field {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(127, 127, 127, 0.2);
+  color: inherit;
+  font-family: inherit;
+}
+
+.pm-formula-error {
+  text-decoration: underline wavy #d11;
+  text-decoration-skip-ink: none;
+}
+
+.pm-formula-error-point {
+  display: inline-block;
+  width: 0;
+  height: 1em;
+  border-left: 2px solid #d11;
+  vertical-align: text-bottom;
+}
+
+.pm-formula-tooltip {
+  z-index: 100;
+  max-width: 40em;
+  padding: 2px 6px;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  background: #f5f5f5;
+  color: #222;
+  font: 13px/1.4 system-ui, sans-serif;
+}
+
+.pm-formula-signature,
+.pm-formula-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.pm-formula-argument-active { font-weight: bold; }
+.pm-formula-description { opacity: 0.75; margin-bottom: 2px; }
+
+.pm-formula-diagnostic {
+  padding-left: 6px;
+  border-left: 3px solid #d11;
+}
+
+.pm-formula-fix {
+  margin-left: 6px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 3px;
+  background: #444;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pm-formula-completions {
+  display: flex;
+  align-items: flex-start;
+  padding: 0;
+}
+
+.pm-formula-completion-list {
+  max-height: 12em;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.pm-formula-completion {
+  padding: 1px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pm-formula-completion[aria-selected='true'] {
+  background: #17c;
+  color: #fff;
+}
+
+.pm-formula-completion-detail {
+  margin-left: 0.5em;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.pm-formula-completion-info {
+  max-width: 24em;
+  padding: 2px 6px;
+  border-left: 1px solid #bbb;
+  white-space: pre-line;
+}

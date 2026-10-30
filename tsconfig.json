@@ -36,5 +36,5 @@
     "*.mts",
     "*.tsx"
   ],
-  "exclude": ["packages/codemirror", "node_modules", "**/dist"]
+  "exclude": ["packages/codemirror", "packages/prosemirror", "node_modules", "**/dist"]
 }

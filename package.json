@@ -15,7 +15,7 @@
     "test:watch": "vitest watch",
     "prebench": "pnpm build",
     "bench": "vitest bench --run",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/codemirror",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/codemirror && tsc --noEmit -p packages/prosemirror",
     "lint": "eslint --cache",
     "lint:fix": "pnpm lint --fix"
   },
@@ -60,6 +60,9 @@
     "jsonc-eslint-parser": "^3.3.0",
     "lefthook": "^2.2.1",
     "playwright": "^1.64.1",
+    "prosemirror-model": "^1.25.12",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-view": "^1.42.8",
     "taze": "^21.3.0",
     "temporal-polyfill": "^1.0.6",
     "tsdown": "^0.23.1",

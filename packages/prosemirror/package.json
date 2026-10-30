@@ -1,0 +1,46 @@
+{
+  "name": "@evalexjs/prosemirror",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "ProseMirror nodes and plugins for evalex formulas: highlighting, errors, completion, tooltips and field chips.",
+  "author": "Aleksey Shelementev <rushelex@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/rushelex/evalex/tree/main/packages/prosemirror#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rushelex/evalex.git",
+    "directory": "packages/prosemirror"
+  },
+  "bugs": {
+    "url": "https://github.com/rushelex/evalex/issues"
+  },
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json",
+    "./style.css": "./style.css"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "dist",
+    "package.json",
+    "style.css"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "prepublishOnly": "pnpm run build"
+  },
+  "peerDependencies": {
+    "evalex": "workspace:^",
+    "prosemirror-model": "^1.25.12",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-view": "^1.42.8"
+  },
+  "devDependencies": {
+    "evalex": "workspace:^"
+  }
+}
