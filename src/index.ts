@@ -19,6 +19,7 @@ export type {
   FormulaObject,
   FormulaRegExp,
   FormulaRoutine,
+  FormulaRoutineExample,
   FormulaRoutineParameter,
   FormulaRoutineSignature,
   FormulaScopeOptions,

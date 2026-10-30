@@ -133,6 +133,6 @@ export class FormulaScope {
    * ```
    */
   routines(): FormulaRoutine[] {
-    return routineCatalog(routinesRegistry);
+    return routineCatalog({ registry: routinesRegistry, evaluate: (formula) => this.evaluate(formula) });
   }
 }

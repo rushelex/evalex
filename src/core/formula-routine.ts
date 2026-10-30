@@ -1,4 +1,5 @@
 import type { Kind } from './data-types';
+import type { FormulaRoutineExample } from './formula-routine-example';
 import type { FormulaType } from './types';
 
 /**
@@ -20,6 +21,12 @@ export interface FormulaRoutine {
   readonly kinds: readonly Kind[];
   /** The argument lists it accepts, one per alternative; empty when it checks its arguments itself. */
   readonly signatures: readonly FormulaRoutineSignature[];
+  /**
+   * Calls of it written in its form, such as `round(3.14159, 2)` for the function and `3.14159.round(2)` for the method,
+   * each with what it returns or the error it fails with. Examples that read the records around their formula, as those
+   * of `parent` do, are left out.
+   */
+  readonly examples: readonly FormulaRoutineExample[];
 }
 
 /** One argument list a routine accepts; a method's list leaves out the value it is called on. */

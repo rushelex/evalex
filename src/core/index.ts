@@ -26,6 +26,7 @@ export type { FormulaErrorPayloads } from './errors/error-payloads';
 export { Formula } from './formula';
 export type { FormulaCell, FormulaCellPlace, FormulaEvaluator, FormulaEvaluatorOptions, FormulaView } from './formula-evaluator';
 export type { FormulaRoutine, FormulaRoutineParameter, FormulaRoutineSignature } from './formula-routine';
+export type { FormulaRoutineExample } from './formula-routine-example';
 export type { FormulaScopeOptions } from './formula-scope';
 export { FormulaScope } from './formula-scope';
 export type { FormulaField, FormulaType } from './types';

@@ -238,6 +238,13 @@ round.signatures[0].returns;
 // { kind: 'Number' }
 ```
 
+Each routine also gives its `examples`, written in its form: `round(1.234, 2)` for the function, `1.234.round(2)` for the method. An example gives the `result` the scope evaluates it to, a `FormulaValue` to show as the host shows any result, or the `FormulaError` it fails with, to translate by its code. The scope evaluates them with its own settings, so `today()` gives the current day in its time zone. Examples that read the records around their formula, such as those of `parent`, are left out.
+
+```ts
+round.examples[1];
+// { formula: 'round(1.234, 2)', result: FormulaNumber 1.23 }
+```
+
 ### Text
 
 | Method | Description | Example |

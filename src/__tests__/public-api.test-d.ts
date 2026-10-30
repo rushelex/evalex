@@ -44,6 +44,13 @@ describe('public API', () => {
     expectTypeOf<API.FormulaRoutineParameter['type']>().toEqualTypeOf<API.FormulaType>();
   });
 
+  it('should give the examples of a routine with the value of a result or the error of a failure', () => {
+    expectTypeOf<API.FormulaRoutine['examples'][number]>().toEqualTypeOf<API.FormulaRoutineExample>();
+    expectTypeOf<API.FormulaRoutineExample>().toEqualTypeOf<
+      { readonly formula: string; readonly result: API.FormulaValue } | { readonly formula: string; readonly error: API.FormulaError }
+    >();
+  });
+
   it('should describe the result of a routine as plain data: a kind, a list of a type or one of several types', () => {
     expectTypeOf<API.FormulaRoutineSignature['returns']>().toEqualTypeOf<API.FormulaType>();
     expectTypeOf({ kind: 'Variable', name: 'T' } as const).toExtend<API.FormulaType>();

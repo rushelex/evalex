@@ -162,7 +162,7 @@ tokenize('round(price, 2) + x.total()').map(({ kind }) => kind);
 
 It never throws, so it can run on every keystroke: text that does not parse yet ends with one `invalid` token from the syntax error to the end. Each token has the same `location` as errors do.
 
-`scope.routines()` lists the functions and methods formulas can call, with their descriptions and argument lists; see the [core README](./src/core/README.md#built-in-routines). `FormulaLanguage` answers an editor from them as the formula is typed. Create one per scope; `signatureHelp` gives the call around the caret and the argument being typed, so the editor can show `round(number, [places])` with `places` marked:
+`scope.routines()` lists the functions and methods formulas can call, with their descriptions, argument lists and examples; see the [core README](./src/core/README.md#built-in-routines). `FormulaLanguage` answers an editor from them as the formula is typed. Create one per scope; `signatureHelp` gives the call around the caret and the argument being typed, so the editor can show `round(number, [places])` with `places` marked:
 
 ```ts
 import { FormulaLanguage } from 'evalex/language';
