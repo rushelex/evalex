@@ -5,7 +5,6 @@ import type { FormulaOptions } from './formula-options';
 
 import { RangeSetBuilder, StateEffect, StateField } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
-import { tokenize } from 'evalex/language';
 
 /** A field shown by its label, which the caret steps over and a deletion removes whole. */
 class FieldChip extends WidgetType {
@@ -74,13 +73,9 @@ export function formulaFieldChips({ language, fields }: FormulaOptions): Extensi
     const skipped = state.field(typing);
     const builder = new RangeSetBuilder<Decoration>();
 
-    for (const { kind, location: { start, end } } of tokenize(text)) {
-      const hover = (kind === 'name' || kind === 'method') && !(skipped && start.offset <= skipped.to && skipped.from <= end.offset)
-        ? language.hover(text, start.offset, { fields })
-        : undefined;
-
-      if (hover?.kind === 'field') {
-        builder.add(start.offset, end.offset, Decoration.replace({ widget: new FieldChip(hover.label) }));
+    for (const { kind, from, to, label } of language.names(text, { fields })) {
+      if (kind === 'field' && !(skipped && from <= skipped.to && skipped.from <= to)) {
+        builder.add(from, to, Decoration.replace({ widget: new FieldChip(label) }));
       }
     }
 
