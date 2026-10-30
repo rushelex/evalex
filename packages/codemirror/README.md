@@ -1,6 +1,6 @@
 # @evalexjs/codemirror
 
-A [CodeMirror 6](https://codemirror.net/) extension that makes an editor an editor of [evalex](https://github.com/rushelex/evalex/tree/main/packages/evalex#readme) formulas. As the author types, the formula is colored by the editor's theme, its errors are underlined with their messages, misspelled names get fixes, and fields, functions and methods are completed.
+A [CodeMirror 6](https://codemirror.net/) extension that makes an editor an editor of [evalex](https://github.com/rushelex/evalex/tree/main/packages/evalex#readme) formulas. As the author types, the formula is colored by the editor's theme, its errors are underlined with their messages, misspelled names get fixes, fields, functions and methods are completed, and tooltips show the arguments of a call and what a name stands for.
 
 ## Installation
 
@@ -62,6 +62,14 @@ An editor without a highlight style shows the formula uncolored. The text after 
 ### Completion
 
 Fields are listed by their labels and inserted by their names: the author picks «Quantity», the formula gets `qty`. After a dot, the list holds the fields of a record and the methods of the type of the value before the dot, as the types of the fields tell. A function or a method is inserted as a call, with the caret between the parentheses unless it takes no arguments. The list opens by itself as a name is typed, after a dot and inside quotes, where it offers the words a text argument takes.
+
+### Arguments and hover
+
+While the editor has focus and the caret is inside a call, the argument lists of what the call runs show above the caret, with the argument being typed marked: `round(number, [places]): Number`. Brackets mark an optional argument, `…` one that repeats, and a method shows the type it is called on, as in `Number.add(…)` and `Date.add(…)` for a value whose type is not known.
+
+Hovering over a name tells what it stands for: a field with its label and type, such as `Price · price: Number`, a variable with its type, or the argument lists and descriptions of a function or method. Types read as `Array<Number>`, `{ qty: Number }` for a record, and `Number | Null` for one of several types.
+
+Tooltips carry the classes `cm-formula-routines`, `cm-formula-signature`, `cm-formula-argument-active`, `cm-formula-description` and `cm-formula-name`; a theme styles them like any other part of the editor.
 
 ### Changing the fields
 

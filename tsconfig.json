@@ -25,6 +25,7 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
   },
+  // An editor adapter type-checks with the DOM in its own tsconfig, so evalex never sees browser globals
   "include": [
     "**/*.ts",
     "**/*.cts",
@@ -34,5 +35,6 @@
     "*.cts",
     "*.mts",
     "*.tsx"
-  ]
+  ],
+  "exclude": ["packages/codemirror", "node_modules", "**/dist"]
 }

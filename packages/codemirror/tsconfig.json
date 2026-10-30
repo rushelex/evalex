@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["vitest/globals", "@vitest/browser/matchers", "../evalex/src/reset.d.ts"]
+  },
+  "include": ["src", "*.ts"],
+  "exclude": []
+}

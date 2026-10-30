@@ -1,4 +1,3 @@
-/// <reference lib="dom" />
 import type { Extension } from '@codemirror/state';
 import type { FormulaField, FormulaTokenKind } from 'evalex/language';
 
@@ -202,6 +201,113 @@ describe(formula, () => {
       expect(completionStatus(view.state)).toBeNull();
     });
   });
+
+  describe('signature help', () => {
+    it('should show the arguments of the call around the caret, the one being typed marked', async () => {
+      const view = mount({ doc: 'round(price, ', extensions: [formula({ language, fields })] });
+
+      view.focus();
+
+      expect(await signatureHelpOf(view)).toEqual({ signatures: ['round(number, [places]): Number'], active: ['[places]'], descriptions: [expect.any(String)] });
+    });
+
+    it('should mark the argument that repeats for each of its repeats', async () => {
+      const view = mount({ doc: 'sum(1, 2, 3', extensions: [formula({ language, fields })] });
+
+      view.focus();
+
+      expect((await signatureHelpOf(view)).active).toEqual(['numbers…']);
+    });
+
+    it('should show every method a call may run, each with the type it is called on', async () => {
+      const view = mount({ doc: 'x.add(', extensions: [formula({ language })] });
+
+      view.focus();
+
+      const { signatures, descriptions } = await signatureHelpOf(view);
+
+      expect(signatures).toEqual(expect.arrayContaining([expect.stringMatching(/^Number\.add\(/), expect.stringMatching(/^Date\.add\(/)]));
+      expect(new Set(descriptions).size).toBeGreaterThan(1);
+    });
+
+    it('should show a function that reads its own arguments by its name alone', async () => {
+      const view = mount({ doc: 'if(', extensions: [formula({ language })] });
+
+      view.focus();
+
+      expect((await signatureHelpOf(view)).signatures).toEqual(['if(…)']);
+    });
+
+    it('should follow the caret to the next argument', async () => {
+      const view = mount({ doc: 'round(price', extensions: [formula({ language, fields })] });
+
+      view.focus();
+      await signatureHelpOf(view);
+      type(view, ', ');
+
+      await vi.waitFor(() => expect(view.dom.querySelector('.cm-formula-argument-active')?.textContent).toBe('[places]'));
+    });
+
+    it('should hide outside a call', async () => {
+      const view = mount({ doc: 'round(price) + 1', extensions: [formula({ language, fields })] });
+
+      view.focus();
+      await settle();
+
+      expect(view.dom.querySelector('.cm-formula-routines')).toBeNull();
+    });
+
+    it('should hide when the caret leaves the call', async () => {
+      const view = mount({ doc: 'round(price, 2) + 1', extensions: [formula({ language, fields })] });
+
+      view.dispatch({ selection: { anchor: 13 } });
+      view.focus();
+      await signatureHelpOf(view);
+      view.dispatch({ selection: { anchor: 19 } });
+
+      await vi.waitFor(() => expect(view.dom.querySelector('.cm-formula-routines')).toBeNull());
+    });
+
+    it('should hide while the editor does not have focus', async () => {
+      const view = mount({ doc: 'round(price, ', extensions: [formula({ language, fields })] });
+
+      view.focus();
+      await signatureHelpOf(view);
+      view.contentDOM.blur();
+
+      await vi.waitFor(() => expect(view.dom.querySelector('.cm-formula-routines')).toBeNull());
+    });
+  });
+
+  describe('hover', () => {
+    const line = { kind: 'Object', fields: [{ name: 'qty', label: 'Quantity', type: { kind: 'Number' } }] } as const;
+    const hoverFields: readonly FormulaField[] = [...fields, { name: 'lines', type: { kind: 'Array', items: line } }];
+
+    it.each([
+      { doc: 'price * 2', pos: 2, expected: 'Price · price: Number' },
+      { doc: 'lines.length()', pos: 2, expected: 'lines: Array<{ qty: Number }>' },
+      { doc: 'let rate = 2 in rate * 3', pos: 17, expected: 'rate: Number' },
+      { doc: 'lines.first().qty()', pos: 15, expected: 'Quantity · qty: Number' },
+    ])('should tell a name its label and the type of its value: $doc at $pos', async ({ doc, pos, expected }) => {
+      const view = mount({ doc, extensions: [formula({ language, fields: hoverFields })] });
+
+      expect((await hoverAt({ view, pos })).textContent).toBe(expected);
+    });
+
+    it('should tell a call the argument lists and the description of what it runs', async () => {
+      const view = mount({ doc: 'lines.first()', extensions: [formula({ language, fields: hoverFields })] });
+      const tooltip = await hoverAt({ view, pos: 8 });
+
+      expect([...tooltip.querySelectorAll('.cm-formula-signature')].map(({ textContent }) => textContent)).toEqual(['Array<T>.first(): T | Null']);
+      expect(tooltip.querySelector('.cm-formula-description')?.textContent).toBe(language.hover(doc(view), 8)?.routines?.[0]?.description);
+    });
+
+    it('should tell nothing over an operator', async () => {
+      const view = mount({ doc: 'price * 2', extensions: [formula({ language, fields })] });
+
+      await expect(hoverAt({ view, pos: 6 })).rejects.toThrow();
+    });
+  });
 });
 
 function mount({ doc, extensions }: { doc: string; extensions: Extension }): EditorView {
@@ -249,6 +355,49 @@ async function complete(view: EditorView): Promise<readonly { label: string; inf
 async function accept(view: EditorView): Promise<void> {
   // The list takes a choice only once it has been open for a moment
   await vi.waitFor(() => expect(acceptCompletion(view)).toBe(true));
+}
+
+async function signatureHelpOf(view: EditorView): Promise<{ signatures: (string | null)[]; active: (string | null)[]; descriptions: (string | null)[] }> {
+  const tooltip = await vi.waitFor(() => {
+    const found = view.dom.querySelector('.cm-tooltip.cm-formula-routines');
+
+    expect(found).not.toBeNull();
+
+    return found;
+  });
+  const textsOf = (selector: string): (string | null)[] => [...(tooltip?.querySelectorAll(selector) ?? [])].map(({ textContent }) => textContent);
+
+  return { signatures: textsOf('.cm-formula-signature'), active: textsOf('.cm-formula-argument-active'), descriptions: textsOf('.cm-formula-description') };
+}
+
+/** Moves the pointer over `pos` and waits for the hover tooltip; rejects when none shows. */
+async function hoverAt({ view, pos }: { view: EditorView; pos: number }): Promise<Element> {
+  const coords = view.coordsAtPos(pos, 1);
+
+  if (!coords) {
+    throw new Error(`No coordinates at ${pos}`);
+  }
+
+  const x = coords.left + 1;
+  const y = (coords.top + coords.bottom) / 2;
+
+  (document.elementFromPoint(x, y) ?? view.contentDOM).dispatchEvent(new MouseEvent('mousemove', { clientX: x, clientY: y, bubbles: true }));
+
+  return vi.waitFor(() => {
+    const found = view.dom.querySelector('.cm-tooltip-hover');
+
+    expect(found).not.toBeNull();
+
+    return found ?? view.dom;
+  }, { timeout: 1500 });
+}
+
+function doc(view: EditorView): string {
+  return view.state.doc.toString();
+}
+
+async function settle(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 100));
 }
 
 function type(view: EditorView, text: string): void {

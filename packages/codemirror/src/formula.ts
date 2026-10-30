@@ -2,20 +2,36 @@ import type { Extension } from '@codemirror/state';
 
 import type { FormulaOptions } from './formula-options';
 
+import { EditorView } from '@codemirror/view';
+
 import { formulaCompletion } from './formula-completion';
 import { formulaHighlighting } from './formula-highlighting';
+import { formulaHover } from './formula-hover';
 import { formulaLint } from './formula-lint';
+import { formulaSignatureHelp } from './formula-signature-help';
+
+// Defaults a theme of the host overrides by the same class names
+const theme = EditorView.baseTheme({
+  '.cm-formula-routines, .cm-formula-name': { padding: '2px 6px', maxWidth: '40em' },
+  '.cm-formula-signature, .cm-formula-name': { fontFamily: 'monospace' },
+  '.cm-formula-argument-active': { fontWeight: 'bold' },
+  '.cm-formula-description': { opacity: '0.75', marginBottom: '2px' },
+});
 
 /**
  * Makes a CodeMirror editor an editor of evalex formulas: it colors the formula, underlines its errors with fixes for
- * misspelled names, and completes fields, functions and methods as the author types.
+ * misspelled names, completes fields, functions and methods as the author types, shows the arguments of the call
+ * around the caret, and tells what a name stands for under the pointer.
  *
  * @remarks
  * Colors come from the highlight style of the editor, such as its theme, by the tags of `@lezer/highlight`: numbers are
  * `number`, names `variableName`, functions and methods `function(variableName)` and `function(propertyName)`. An
  * editor without a highlight style shows the formula uncolored.
  *
- * A completion of a function or a method inserts its call with the caret between the parentheses. The options are
+ * A completion of a function or a method inserts its call with the caret between the parentheses. The arguments of
+ * the call around the caret show above it while the editor has focus, with the one being typed marked. Tooltips use
+ * the classes `cm-formula-routines`, `cm-formula-signature`, `cm-formula-argument-active`, `cm-formula-description`
+ * and `cm-formula-name`, which a theme may style. The options are
  * fixed for the extension: to change the fields, as when the formula moves to another cell, reconfigure it in a
  * `Compartment`.
  *
@@ -38,5 +54,5 @@ import { formulaLint } from './formula-lint';
  * ```
  */
 export function formula(options: FormulaOptions): Extension {
-  return [formulaHighlighting(), formulaLint(options), formulaCompletion(options)];
+  return [formulaHighlighting(), formulaLint(options), formulaCompletion(options), formulaSignatureHelp(options), formulaHover(options), theme];
 }

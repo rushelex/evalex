@@ -35,6 +35,7 @@ A feature that fails one of them stays out of the core even when hosts need it. 
 - `evalex` is published without a scope, every other package under `@evalexjs`.
 - An editor adapter, such as `@evalexjs/codemirror`, turns the language service of `evalex/language` into an extension of one editor and adds no formula behavior of its own. It declares `evalex` and the editor as peer dependencies, so it works on the host's copies of both.
 - A package reads another from its source: tests, type-checking and lint run once over the whole repository, without a build.
+- An editor adapter has its own `tsconfig.json` with the DOM, and `pnpm typecheck` checks it separately: the root one leaves the DOM out, so evalex never compiles against browser globals.
 
 ## Issues
 
