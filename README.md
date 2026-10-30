@@ -21,6 +21,7 @@ evalex lets the people using your product write formulas like `price * quantity 
 | [`evalex`](./packages/evalex) | Parses and evaluates formulas, and answers formula editors as a formula is typed | [README](./packages/evalex/README.md) |
 | [`@evalexjs/codemirror`](./packages/codemirror) | Makes a CodeMirror 6 editor an editor of formulas: colors, errors, fixes, completion and tooltips | [README](./packages/codemirror/README.md) |
 | [`@evalexjs/prosemirror`](./packages/prosemirror) | Puts formulas into a ProseMirror document, inline or as blocks, with the same colors, errors, fixes, completion and tooltips | [README](./packages/prosemirror/README.md) |
+| [`@evalexjs/tiptap`](./packages/tiptap) | Puts the formulas of `@evalexjs/prosemirror` into a Tiptap editor as one extension | [README](./packages/tiptap/README.md) |
 
 All packages are released together, with one version.
 

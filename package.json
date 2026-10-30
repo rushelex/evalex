@@ -15,7 +15,7 @@
     "test:watch": "vitest watch",
     "prebench": "pnpm build",
     "bench": "vitest bench --run",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/codemirror && tsc --noEmit -p packages/prosemirror",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/codemirror && tsc --noEmit -p packages/prosemirror && tsc --noEmit -p packages/tiptap",
     "lint": "eslint --cache",
     "lint:fix": "pnpm lint --fix"
   },
@@ -45,6 +45,8 @@
     "@lezer/highlight": "^1.2.5",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
+    "@tiptap/core": "^3.32.1",
+    "@tiptap/pm": "^3.32.1",
     "@total-typescript/ts-reset": "^0.6.1",
     "@types/node": "^26.6.4",
     "@vitest/browser": "^5.0.5",

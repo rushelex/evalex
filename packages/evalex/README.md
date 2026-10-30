@@ -150,7 +150,7 @@ Use `location` to underline the offending part of the formula in your editor UI.
 
 ## Formula editors
 
-For a CodeMirror 6 editor, [`@evalexjs/codemirror`](https://github.com/rushelex/evalex/tree/main/packages/codemirror#readme) does all of the below in one extension, and for formulas inside a ProseMirror document, [`@evalexjs/prosemirror`](https://github.com/rushelex/evalex/tree/main/packages/prosemirror#readme). For any other editor, `evalex/language` gives what it needs from the formula text. `tokenize` splits the text into tokens with their kinds, read the way the formula is evaluated:
+For a CodeMirror 6 editor, [`@evalexjs/codemirror`](https://github.com/rushelex/evalex/tree/main/packages/codemirror#readme) does all of the below in one extension, for formulas inside a ProseMirror document, [`@evalexjs/prosemirror`](https://github.com/rushelex/evalex/tree/main/packages/prosemirror#readme), and for a Tiptap editor, [`@evalexjs/tiptap`](https://github.com/rushelex/evalex/tree/main/packages/tiptap#readme). For any other editor, `evalex/language` gives what it needs from the formula text. `tokenize` splits the text into tokens with their kinds, read the way the formula is evaluated:
 
 ```ts
 import { tokenize } from 'evalex/language';

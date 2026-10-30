@@ -20,6 +20,7 @@ export default defineConfig({
       // A package reads another from its source, so tests run without a build
       'evalex/language': path.resolve(import.meta.dirname, './packages/evalex/src/language/index.ts'),
       'evalex': path.resolve(import.meta.dirname, './packages/evalex/src/index.ts'),
+      '@evalexjs/prosemirror': path.resolve(import.meta.dirname, './packages/prosemirror/src/index.ts'),
     },
   },
 

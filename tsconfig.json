@@ -8,7 +8,8 @@
     "paths": {
       "~/*": ["./packages/evalex/src/*"],
       "evalex": ["./packages/evalex/src/index.ts"],
-      "evalex/language": ["./packages/evalex/src/language/index.ts"]
+      "evalex/language": ["./packages/evalex/src/language/index.ts"],
+      "@evalexjs/prosemirror": ["./packages/prosemirror/src/index.ts"]
     },
     "resolveJsonModule": true,
     "types": [
@@ -36,5 +37,5 @@
     "*.mts",
     "*.tsx"
   ],
-  "exclude": ["packages/codemirror", "packages/prosemirror", "node_modules", "**/dist"]
+  "exclude": ["packages/codemirror", "packages/prosemirror", "packages/tiptap", "node_modules", "**/dist"]
 }

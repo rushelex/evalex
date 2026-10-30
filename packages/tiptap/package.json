@@ -1,0 +1,42 @@
+{
+  "name": "@evalexjs/tiptap",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "A Tiptap extension for evalex formulas: highlighting, errors, completion, tooltips and field chips.",
+  "author": "Aleksey Shelementev <rushelex@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/rushelex/evalex/tree/main/packages/tiptap#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rushelex/evalex.git",
+    "directory": "packages/tiptap"
+  },
+  "bugs": {
+    "url": "https://github.com/rushelex/evalex/issues"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "prepublishOnly": "pnpm run build"
+  },
+  "peerDependencies": {
+    "@evalexjs/prosemirror": "workspace:^",
+    "@tiptap/core": "^3.32.1",
+    "evalex": "workspace:^"
+  },
+  "devDependencies": {
+    "@evalexjs/prosemirror": "workspace:^",
+    "evalex": "workspace:^"
+  }
+}
