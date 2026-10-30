@@ -62,10 +62,11 @@ afterEach(() => {
 
 describe(formula, () => {
   describe('highlighting', () => {
-    it.prop([spacedFormulaArbitrary], { numRuns: 50 })('should color each token of a formula by its kind, with the highlight style of the editor', ({ tokens, formula: text }) => {
+    it.prop([spacedFormulaArbitrary], { numRuns: 50 })('should color each token of a formula by its kind, with the highlight style of the editor', async ({ tokens, formula: text }) => {
       const view = mount({ doc: text, extensions: [formula({ language }), highlighter] });
 
-      expect(coloredText(view)).toEqual(tokens.map(({ text: token, kind }) => [token, kind === 'invalid' ? undefined : CLASSES[kind]]));
+      // Until it measures its lines, the editor draws only as many of them as fit an estimated height
+      await vi.waitFor(() => expect(coloredText(view)).toEqual(tokens.map(({ text: token, kind }) => [token, kind === 'invalid' ? undefined : CLASSES[kind]])));
     });
 
     it('should leave the text from a syntax error on uncolored', () => {
