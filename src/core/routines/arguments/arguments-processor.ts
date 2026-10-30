@@ -31,9 +31,17 @@ export class ArgumentsProcessor {
    * If no pattern matches, returns processed arguments using the first pattern for error generation.
    */
   process(args: AST.AstNode[], visitor: FormulaEvaluatorVisitor): ProcessedArguments {
+    return this.processWith({ args, visitor, valueOf: (node) => new ProcessedArgument(visitor.evaluateNode(node), node, visitor.origin) });
+  }
+
+  /**
+   * Processes arguments as `process` does, with the value of each value argument from `valueOf`, so a check can stand
+   * in a value of the kind an argument may have for the value the argument evaluates to.
+   */
+  processWith({ args, visitor, valueOf }: { args: readonly AST.AstNode[]; visitor: FormulaEvaluatorVisitor; valueOf: (node: AST.AstNode) => ProcessedArgument }): ProcessedArguments {
     // Try each pattern to find a match
     for (const pattern of this.definitions.alternatives) {
-      const processedArgs = this.#processArgsForPattern(args, pattern, visitor);
+      const processedArgs = this.#processArgsForPattern({ args, pattern, visitor, valueOf });
 
       if (this.#patternMatcher.validatePatternStructure(processedArgs, pattern)) {
         return processedArgs;
@@ -42,7 +50,7 @@ export class ArgumentsProcessor {
 
     // If none of the patterns matched, use the first one for error generation
     const firstPattern = this.definitions.alternatives[0];
-    return this.#processArgsForPattern(args, firstPattern, visitor);
+    return this.#processArgsForPattern({ args, pattern: firstPattern, visitor, valueOf });
   }
 
   /**
@@ -79,18 +87,13 @@ export class ArgumentsProcessor {
     return this.#errorCollector.collectPatternErrors(args, globalLocation);
   }
 
-  /**
-   * Processes AST nodes into ProcessedArguments for a specific pattern.
-   * @param args The AST nodes to process
-   * @param pattern The pattern to process arguments for
-   * @param visitor The evaluator visitor
-   * @returns Processed arguments for the pattern
-   */
-  #processArgsForPattern(
-    args: AST.AstNode[],
-    pattern: ArgumentsPattern,
-    visitor: FormulaEvaluatorVisitor,
-  ): ProcessedArguments {
+  /** Processes AST nodes into ProcessedArguments for a specific pattern. */
+  #processArgsForPattern({ args, pattern, visitor, valueOf }: {
+    args: readonly AST.AstNode[];
+    pattern: ArgumentsPattern;
+    visitor: FormulaEvaluatorVisitor;
+    valueOf: (node: AST.AstNode) => ProcessedArgument;
+  }): ProcessedArguments {
     return args.map((arg, index) => {
       const argDef = this.definitions.getArgumentForPattern(index, pattern);
 
@@ -102,7 +105,7 @@ export class ArgumentsProcessor {
         });
       }
 
-      return new ProcessedArgument(visitor.evaluateNode(arg), arg, visitor.origin);
+      return valueOf(arg);
     });
   }
 }

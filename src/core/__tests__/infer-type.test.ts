@@ -3,7 +3,7 @@ import type { FormulaType } from '../types';
 
 import { fc, it } from '@fast-check/vitest';
 
-import { evaluateOutcome, formulaValueArbitrary, matchesType, typeOfValue } from '../../testing-library';
+import { evaluateOutcome, fieldFormulaArbitrary, formulaValueArbitrary, matchesType, typeOfValue } from '../../testing-library';
 import { ALL_DATA_TYPES, Kind } from '../data-types';
 import { inferType } from '../infer-type';
 import { parseFormula } from '../parse-formula';
@@ -44,7 +44,7 @@ describe(inferType, () => {
     });
   });
 
-  it.prop([formulaArbitrary(), fc.record({ a: formulaValueArbitrary(), b: formulaValueArbitrary(), c: formulaValueArbitrary() })], { numRuns: 2000 })(
+  it.prop([fieldFormulaArbitrary({ lazy: true }), fc.record({ a: formulaValueArbitrary(), b: formulaValueArbitrary(), c: formulaValueArbitrary() })], { numRuns: 2000 })(
     'should give a type that describes what any formula returns on its fields',
     (formula, context) => {
       const outcome = evaluateOutcome(formula, { context });
@@ -175,30 +175,4 @@ function typeOf(formula: string, context: Readonly<Record<string, FormulaDataTyp
   const fields = new Map(Object.entries(context).map(([name, value]) => [name, typeOfValue(value)]));
 
   return inferType({ formula: parseFormula(formula), fields });
-}
-
-const METHODS = ['first', 'last', 'at(0)', 'map(current)', 'filter(current)', 'sort()', 'concat([1])', 'sum()', 'length()', 'upper()', 'round()', 'format()', 'add(1)', 'reverse()', 'unique()', 'join(", ")', 'toNumber()', 'find(current)'];
-const FUNCTIONS = ['first', 'max', 'sum', 'concat', 'abs', 'empty', 'if', 'length', 'map'];
-
-/** Formulas over the fields `a`, `b` and `c`, of operators, literals, lists, `let` and calls of routines, with `current` and `index`. */
-function formulaArbitrary(): fc.Arbitrary<string> {
-  return fc.letrec<{ formula: string }>((tie) => ({
-    formula: fc.oneof(
-      { depthSize: 'small', withCrossShrink: true },
-      fc.constantFrom('1', '0', '-2.5', '"x"', '""', 'true', 'false', 'null', 'a', 'b', 'c', 'current', 'index', '[]'),
-      fc.tuple(fc.constantFrom('-', '!'), tie('formula')).map(([operator, operand]) => `${operator}(${operand})`),
-      fc.tuple(tie('formula'), fc.constantFrom('+', '-', '*', '/', '%', '==', '<', 'and', 'in'), tie('formula')).map(([left, operator, right]) => `(${left}) ${operator} (${right})`),
-      fc.tuple(tie('formula'), tie('formula'), tie('formula')).map(([test, consequent, alternate]) => `(${test}) ? (${consequent}) : (${alternate})`),
-      fc.array(tie('formula'), { maxLength: 3 }).map((items) => `[${items.join(', ')}]`),
-      fc.tuple(tie('formula'), tie('formula')).map(([value, body]) => {
-        // The body reads the variable where a formula outside reads `a`. A `let` holds more `let`s than any of
-        // those nested in it, so their count names it apart from them, and their values never read it.
-        const name = `v${body.match(/\blet\b/g)?.length ?? 0}`;
-
-        return `let ${name} = (${value}) in (${body.replaceAll(/\ba\b/g, name)})`;
-      }),
-      fc.tuple(tie('formula'), fc.constantFrom(...METHODS)).map(([subject, method]) => `(${subject}).${method.includes('(') ? method : `${method}()`}`),
-      fc.tuple(fc.constantFrom(...FUNCTIONS), fc.array(tie('formula'), { maxLength: 3 })).map(([name, args]) => `${name}(${args.join(', ')})`),
-    ),
-  })).formula;
 }

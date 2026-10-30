@@ -8,10 +8,12 @@ describe('language API', () => {
     expectTypeOf<API.FormulaToken['location']>().toEqualTypeOf<Root.FormulaLocation>();
   });
 
-  it('should type diagnostics with the code, payload and location of a syntax error', () => {
-    expectTypeOf<typeof API.diagnose>().toEqualTypeOf<(text: string) => API.FormulaDiagnostic[]>();
-    expectTypeOf<API.FormulaDiagnostic['code']>().toEqualTypeOf<Root.SyntaxErrorCode>();
+  it('should type diagnostics with the code, payload and location of a syntax error or a formula error', () => {
+    expectTypeOf<API.FormulaLanguage['diagnose']>().toEqualTypeOf<(text: string, options?: { readonly fields?: readonly API.FormulaField[] }) => API.FormulaDiagnostic[]>();
+    expectTypeOf<API.FormulaDiagnostic['code']>().toEqualTypeOf<Root.SyntaxErrorCode | Root.FormulaErrorCode>();
     expectTypeOf<API.FormulaDiagnostic<'UNEXPECTED_CHARACTER'>['payload']>().toEqualTypeOf<Root.SyntaxErrorPayloads['UNEXPECTED_CHARACTER']>();
+    expectTypeOf<API.FormulaDiagnostic<'REFERENCE_ERROR'>['payload']>().toEqualTypeOf<Root.FormulaErrorPayloads['REFERENCE_ERROR']>();
+    expectTypeOf<API.FormulaDiagnostic['messageKey']>().toEqualTypeOf<string | undefined>();
     expectTypeOf<API.FormulaDiagnostic['location']>().toEqualTypeOf<Root.FormulaLocation>();
     expectTypeOf<API.FormulaDiagnostic['message']>().toEqualTypeOf<string>();
   });

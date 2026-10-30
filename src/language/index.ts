@@ -1,6 +1,5 @@
 export type { FormulaField } from '../core/types/formula-field';
 export type { FormulaToken, FormulaTokenKind } from '../parser/ast/token';
-export { diagnose } from './diagnose';
 export type { FormulaCompletion } from './formula-completion';
 export type { FormulaCompletions } from './formula-completions';
 export type { FormulaDiagnostic } from './formula-diagnostic';

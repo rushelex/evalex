@@ -162,18 +162,6 @@ tokenize('round(price, 2) + x.total()').map(({ kind }) => kind);
 
 It never throws, so it can run on every keystroke: text that does not parse yet ends with one `invalid` token from the syntax error to the end. Each token has the same `location` as errors do.
 
-`diagnose` finds the syntax errors to underline, going on past each one it can step over, so separate mistakes show at once:
-
-```ts
-import { diagnose } from 'evalex/language';
-
-diagnose('round(price,, 2) + max(1 2)').map(({ code, message }) => [code, message]);
-// [['MISSING_ARGUMENT', 'Unexpected comma or missing argument in function call.'],
-//  ['UNCLOSED_PARENTHESIS', 'Expected token ")".']]
-```
-
-The first diagnostic is always the error evaluating the formula throws. Each one carries the `code`, `payload` and `location` of that `SyntaxError`, so a host translates both the same way.
-
 `scope.routines()` lists the functions and methods formulas can call, with their descriptions and argument lists; see the [core README](./src/core/README.md#built-in-routines). `FormulaLanguage` answers an editor from them as the formula is typed. Create one per scope; `signatureHelp` gives the call around the caret and the argument being typed, so the editor can show `round(number, [places])` with `places` marked:
 
 ```ts
@@ -217,6 +205,25 @@ language.complete('title.', 6, { fields: [{ name: 'title', type: { kind: 'String
 ```
 
 A field without a type may hold any value, so after its dot every method is given.
+
+`diagnose` finds the errors to underline. In text that does not parse, they are the syntax errors, read on past each one the reader can step over, so separate mistakes show at once:
+
+```ts
+language.diagnose('round(price,, 2) + max(1 2)').map(({ code, message }) => [code, message]);
+// [['MISSING_ARGUMENT', 'Unexpected comma or missing argument in function call.'],
+//  ['UNCLOSED_PARENTHESIS', 'Expected token ")".']]
+```
+
+The first of them is always the error evaluating the formula throws. A formula that parses is checked against the fields and their types: a name that is not a field, a function or method that does not exist, a field a record does not have, an argument a routine does not take. Each is found where evaluation fails on it whenever it gets there, also in a branch of `? :` or in an expression evaluated per item:
+
+```ts
+language.diagnose('title.round() + lines.map(current.qtty()).sum() + totl', {
+  fields: [{ name: 'title', type: { kind: 'String' } }, { name: 'lines', type: { kind: 'Array', items: line } }],
+}).map(({ message }) => message);
+// ['Method "round" is not defined.', 'Field "qtty" is not defined.', 'Variable "totl" is not defined.']
+```
+
+An error that depends on the values rather than their types, such as a read of an empty value, is left to evaluation. Without `fields`, names are not checked. Each diagnostic carries the `code`, `payload` and `location` of the `SyntaxError` or `FormulaError` it stands for, and the `messageKey` of a `FormulaError`, so a host translates them the same way.
 
 ## Formulas in data
 

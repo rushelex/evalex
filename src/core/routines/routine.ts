@@ -1,4 +1,5 @@
 import type { AST } from '../../parser';
+import type { FormulaError } from '../errors';
 import type { FormulaEvaluatorVisitor } from '../evaluator.visitor';
 import type { FormulaType } from '../types';
 import type { ArgumentsPattern, CallArguments, ProcessedArguments, Signatures, SubjectCalls, SubjectSignatures } from './arguments';
@@ -174,18 +175,39 @@ export class Routine<TInstance extends Routine | FormulaDataType | unknown = unk
     return this.#argumentsProcessor.process(args, visitor);
   }
 
+  /**
+   * The error a call fails with before the routine runs, with the value of each value argument from `valueOf` in place
+   * of evaluating it.
+   *
+   * @returns `undefined` when the arguments fit a signature, or the routine checks its arguments itself.
+   */
+  argumentsError({ args, visitor, valueOf, location }: {
+    args: readonly AST.AstNode[];
+    visitor: FormulaEvaluatorVisitor;
+    valueOf: (node: AST.AstNode) => ProcessedArgument;
+    location: AST.Location;
+  }): FormulaError | undefined {
+    const processedArgs = this.#argumentsProcessor?.processWith({ args, visitor, valueOf });
+
+    return processedArgs && this.#errorOf(processedArgs, location);
+  }
+
   #validate(
     processedArgs: ProcessedArguments | undefined,
     location: AST.Location,
   ): void {
-    if (!this.#argumentsProcessor) {
-      return;
+    const error = processedArgs && this.#errorOf(processedArgs, location);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  #errorOf(processedArgs: ProcessedArguments, location: AST.Location): FormulaError | undefined {
+    if (!this.#argumentsProcessor || this.#argumentsProcessor.validate(processedArgs)) {
+      return undefined;
     }
 
-    if (!processedArgs || this.#argumentsProcessor.validate(processedArgs)) {
-      return;
-    }
-
-    throw this.#argumentsProcessor.getValidationError(processedArgs, location);
+    return this.#argumentsProcessor.getValidationError(processedArgs, location);
   }
 }

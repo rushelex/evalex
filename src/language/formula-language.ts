@@ -3,14 +3,20 @@ import type { FormulaScope } from '../core/formula-scope';
 import type { FormulaField } from '../core/types/formula-field';
 import type { CallSite } from '../parser/grammar/call-site';
 import type { CaretPlace } from '../parser/grammar/caret-place';
+import type { SyntaxError } from '../parser/grammar/syntax-error';
+import type { SyntaxErrorCode } from '../parser/grammar/syntax-error-code';
 import type { FormulaCompletion } from './formula-completion';
 import type { FormulaCompletions } from './formula-completions';
+import type { FormulaDiagnostic } from './formula-diagnostic';
 import type { FormulaSignatureHelp } from './formula-signature-help';
 
+import { checkFormula } from '../core/check-formula';
 import { Kind } from '../core/data-types';
 import { inferSubjectType } from '../core/infer-subject-type';
+import { parseFormula } from '../core/parse-formula';
 import { kindsOf, membersOf, type } from '../core/types';
-import { findCalls, findCaretPlace } from '../parser/grammar/parser';
+import { findCalls, findCaretPlace, diagnose as findSyntaxErrors } from '../parser/grammar/parser';
+import { SYNTAX_ERROR_MESSAGES } from '../parser/grammar/syntax-error-messages';
 
 /**
  * Answers what a formula editor asks about the text being typed, with the functions and methods of a scope.
@@ -60,6 +66,56 @@ export class FormulaLanguage {
     }
 
     return { routines, argument: argumentAt(call, offset) };
+  }
+
+  /**
+   * Finds the errors in formula text, for underlining them in an editor: the syntax errors, or when there are none, the
+   * errors evaluation raises on every record whose fields have the types the host gives.
+   *
+   * @remarks
+   * The first syntax error is the error evaluating the formula throws, so the editor and the result agree. Reading goes
+   * on past errors it can step over, so separate mistakes show at once: a bad escape or a method that is not called
+   * leaves the rest readable, and an error inside brackets goes on from the next argument or element. An error outside
+   * any bracket ends the reading, since what follows it cannot be told apart from what caused it.
+   *
+   * A formula without syntax errors is checked as evaluation reads it: names that are not defined, functions and
+   * methods that do not exist, fields a record does not have, and arguments a routine does not take. Each is found
+   * where evaluation fails on it whenever it gets there, also inside a branch of `? :` or an expression evaluated per
+   * item, which evaluation may skip. An error that depends on the values rather than their types, such as a read of an
+   * empty value, is left to evaluation. Names are checked only when the host passes `fields`, and not inside `parent`,
+   * which reads the enclosing object.
+   *
+   * Never throws, so it can run on every keystroke.
+   *
+   * @param text - Formula text, as a host passes it to `FormulaScope.evaluate`.
+   * @param options - What the host knows about the place of the formula.
+   * @param options.fields - Every field the formula can read at its place in the host's data, with their types when the
+   * host knows them.
+   * @returns The diagnostics in the order of the text; empty when evaluation can fail only on the values.
+   *
+   * @example
+   * ```ts
+   * language.diagnose('round(price,, 2) + max(1 2)').map(({ code, location }) => [code, location.start.offset]);
+   * // [['MISSING_ARGUMENT', 11], ['UNCLOSED_PARENTHESIS', 22]]
+   *
+   * language.diagnose('title.round() + totl', { fields: [{ name: 'title', type: { kind: 'String' } }] })
+   *   .map(({ messageKey }) => messageKey);
+   * // ['formula_error.method_not_defined', 'formula_error.variable_not_defined']
+   * ```
+   */
+  diagnose(text: string, options: { readonly fields?: readonly FormulaField[] } = {}): FormulaDiagnostic[] {
+    const syntaxErrors = findSyntaxErrors(text);
+
+    if (syntaxErrors.length > 0) {
+      return syntaxErrors.map((error) => syntaxDiagnostic(error));
+    }
+
+    const fields = options.fields && new Map(options.fields.map(({ name, type: fieldType }) => [name, fieldType ?? type.any]));
+
+    // Every error a check finds points into the formula
+    return checkFormula({ formula: parseFormula(text), fields }).flatMap(({ code, payload, message, messageKey, location }) => (location
+      ? [{ code, payload, message: message.replace(/ \[\d+,\d+\]$/, ''), messageKey, location }]
+      : []));
   }
 
   /**
@@ -154,6 +210,10 @@ export class FormulaLanguage {
       return parameters[argument] ?? (last?.repeatable ? last : undefined);
     })).filter((parameter) => parameter !== undefined);
   }
+}
+
+function syntaxDiagnostic<C extends SyntaxErrorCode>({ code, payload, location }: SyntaxError<C>): FormulaDiagnostic {
+  return { code, payload, message: SYNTAX_ERROR_MESSAGES[code](payload), location };
 }
 
 function argumentAt(call: CallSite, offset: number): number {

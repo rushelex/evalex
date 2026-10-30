@@ -2,14 +2,20 @@ import type { FormulaDiagnostic } from './index';
 
 import { it } from '@fast-check/vitest';
 
+import { FormulaScope } from '../core/formula-scope';
 import { parse } from '../parser';
+import { SyntaxErrorCode } from '../parser/grammar/syntax-error-code';
 import { formulaTextArbitrary, spacedFormulaArbitrary } from '../testing-library/formula-text-arbitrary';
 import { isSyntaxError } from '../testing-library/is-syntax-error';
-import { diagnose } from './index';
+import { FormulaLanguage } from './index';
 
-describe(diagnose, () => {
-  it.prop([formulaTextArbitrary])('should start with the error parsing throws, and find none in text that parses', (text) => {
-    expect(diagnose(text)[0]).toEqual(parseFailure(text));
+const language = new FormulaLanguage(new FormulaScope());
+
+const SYNTAX_ERROR_CODES: readonly string[] = Object.values(SyntaxErrorCode);
+
+describe('diagnose: syntax errors', () => {
+  it.prop([formulaTextArbitrary])('should start with the error parsing throws, and find no syntax error in text that parses', (text) => {
+    expect(syntaxErrorsOf(text)[0]).toEqual(parseFailure(text));
   });
 
   it.prop([formulaTextArbitrary])('should point every diagnostic inside the text, each one once', (text) => {
@@ -19,8 +25,8 @@ describe(diagnose, () => {
     expect(new Set(diagnostics.map(({ message, location }) => `${message} ${location.start.offset} ${location.end.offset}`)).size).toBe(diagnostics.length);
   });
 
-  it.prop([spacedFormulaArbitrary])('should find nothing in a well-formed formula', ({ formula }) => {
-    expect(diagnose(formula)).toEqual([]);
+  it.prop([spacedFormulaArbitrary])('should find no syntax error in a well-formed formula', ({ formula }) => {
+    expect(syntaxErrorsOf(formula)).toEqual([]);
   });
 
   it.each([
@@ -86,6 +92,14 @@ describe(diagnose, () => {
     expect([diagnose(''), diagnose(' \n ')]).toEqual([[], []]);
   });
 });
+
+function diagnose(text: string): FormulaDiagnostic[] {
+  return language.diagnose(text);
+}
+
+function syntaxErrorsOf(text: string): FormulaDiagnostic[] {
+  return diagnose(text).filter(({ code }) => SYNTAX_ERROR_CODES.includes(code));
+}
 
 /** The diagnostic for the error parsing `text` throws, or `undefined` when it parses. */
 function parseFailure(text: string): FormulaDiagnostic | undefined {

@@ -1,3 +1,7 @@
+import type { FormulaDataType } from '../core/data-types';
+import type { FormulaLocation } from '../parser';
+import type { FormulaField } from './index';
+
 import { fc, it } from '@fast-check/vitest';
 
 import { FormulaObject, FormulaString } from '../core/data-types';
@@ -5,7 +9,7 @@ import { FormulaScope } from '../core/formula-scope';
 import { arg } from '../core/routines/arguments';
 import { routinesRegistry } from '../core/routines/registry';
 import { type } from '../core/types';
-import { formulaValueArbitrary, typeOfValue } from '../testing-library';
+import { evaluateOutcome, fieldFormulaArbitrary, formulaValueArbitrary, typeOfValue } from '../testing-library';
 import { FormulaLanguage } from './index';
 
 // No built-in routine repeats an argument that takes words, so completion of a repeated one is checked on this one.
@@ -251,7 +255,100 @@ describe(FormulaLanguage, () => {
       expect(language.complete(text, offset, { fields: [{ name: 'price' }] })).toBeUndefined();
     });
   });
+
+  describe('diagnose', () => {
+    const CHECKED_CODES: readonly string[] = ['REFERENCE_ERROR', 'ARGUMENT_TYPE_MISMATCH', 'ARGUMENT_COUNT_MISMATCH'];
+    const records = fc.record({ a: formulaValueArbitrary(), b: formulaValueArbitrary(), c: formulaValueArbitrary() });
+
+    it.prop([fieldFormulaArbitrary({ lazy: false }), records], { numRuns: 1000 })('should find an error only in a formula evaluation fails on, when evaluation reads all of it', (formula, record) => {
+      const diagnostics = language.diagnose(formula, { fields: fieldsOf(record) });
+
+      expect(diagnostics.length === 0 || 'error' in evaluateOutcome(formula, { context: record })).toBe(true);
+    });
+
+    // An operator inside an argument may fail first, where a wrong argument would fail later
+    it.prop([fieldFormulaArbitrary({ lazy: true }), records], { numRuns: 1000 })('should give the error evaluation fails with on a name or a call, where it fails', (formula, record) => {
+      const outcome = evaluateOutcome(formula, { context: record });
+      const failure = 'error' in outcome && CHECKED_CODES.includes(outcome.error.code) ? outcome.error : undefined;
+      const there = language.diagnose(formula, { fields: fieldsOf(record) }).filter(({ location }) => failure?.location && sameOffsets(location, failure.location));
+
+      expect(there.map(({ code, messageKey }) => [code, messageKey])).toEqual(there.map(() => [failure?.code, failure?.messageKey]));
+    });
+
+    it('should give the code, payload, message and key of the error evaluation fails with', () => {
+      expect(language.diagnose('title.round()', { fields: orderFields })).toEqual([{
+        code: 'REFERENCE_ERROR',
+        payload: { referenceType: 'method', name: 'round', target: 'Text' },
+        message: 'Method "round" is not defined.',
+        messageKey: 'formula_error.method_not_defined',
+        location: { start: { offset: 6, line: 1, column: 7 }, end: { offset: 11, line: 1, column: 12 } },
+      }]);
+    });
+
+    it.each([
+      { formula: 'title + totl', expected: [['formula_error.variable_not_defined', 'totl']] },
+      { formula: 'nope(totl)', expected: [['formula_error.function_not_defined', 'nope(totl)']] },
+      { formula: 'title.upper().nope(totl)', expected: [['formula_error.method_not_defined', 'nope']] },
+      { formula: 'order.qtty()', expected: [['formula_error.field_not_defined', 'qtty']] },
+      { formula: 'order.qty(1)', expected: [['formula_error.exact_argument_count', 'qty']] },
+      { formula: 'round(title)', expected: [['formula_error.argument_type_mismatch', 'title']] },
+      { formula: 'round(1, 2, 3)', expected: [['formula_error.too_many_arguments', 'round(1, 2, 3)']] },
+      { formula: 'dateBetween(today(), today(), "dais")', expected: [['formula_error.argument_validation_error', '"dais"']] },
+      { formula: 'round(totl, title)', expected: [['formula_error.variable_not_defined', 'totl']] },
+      { formula: 'lines.filter(curent > 1, 2)', expected: [['formula_error.exact_argument_count', 'filter']] },
+      { formula: 'format(totl + "x", 1)', expected: [['formula_error.exact_argument_count', 'format(totl + "x", 1)'], ['formula_error.variable_not_defined', 'totl']] },
+    ])('should find what evaluation fails on in every record of the field types: $formula', ({ formula, expected }) => {
+      expect(language.diagnose(formula, { fields: orderFields }).map(({ messageKey, location }) => [messageKey, formula.slice(location.start.offset, location.end.offset)])).toEqual(expected);
+    });
+
+    it.each([
+      { formula: 'true ? 1 : title.round()', expected: [['formula_error.method_not_defined', 'round']] },
+      { formula: 'if(lines.length() > 0, title.round(), 1)', expected: [['formula_error.method_not_defined', 'round']] },
+      { formula: 'lines.filter(curent.qty() > 1)', expected: [['formula_error.variable_not_defined', 'curent']] },
+      { formula: 'lines.map(current.qtty())', expected: [['formula_error.field_not_defined', 'qtty']] },
+    ])('should find what evaluation fails on whenever it reaches a part it may skip: $formula', ({ formula, expected }) => {
+      expect(language.diagnose(formula, { fields: orderFields }).map(({ messageKey, location }) => [messageKey, formula.slice(location.start.offset, location.end.offset)])).toEqual(expected);
+    });
+
+    it('should name every type of a value that has no such method', () => {
+      const [diagnostic] = language.diagnose('entry.nope()', { fields: [{ name: 'entry', type: { kind: 'Union', of: [{ kind: 'Number' }, { kind: 'String' }] } }] });
+
+      expect(diagnostic?.payload).toEqual({ referenceType: 'method', name: 'nope', target: 'Number or Text' });
+    });
+
+    it.each([
+      { formula: 'entry.round()', reason: 'a method only some types of the value have' },
+      { formula: 'round(1, entry)', reason: 'an argument only some types of the value fit' },
+      { formula: 'round(lines.first().sku(), 1)', reason: 'an argument of any type' },
+      { formula: 'dateBetween(today(), today(), title)', reason: 'a word read from a field' },
+      { formula: '(lines.length() > 0 ? null : 1).round()', reason: 'a method of a value that may be empty' },
+      { formula: '(lines.length() > 0 ? null : title).round()', reason: 'a method neither type of the value has, one of them empty' },
+      { formula: 'toDateTime(today(), title, 1)', reason: 'an argument checked after a word read from a field' },
+      { formula: 'round(lines.length() > 0 ? "a" : "b")', reason: 'an argument whose value comes from a part of it' },
+      { formula: 'lines.first().sku().filter(current > 1)', reason: 'an expression per item of a value of any type' },
+      { formula: 'parent(anything)', reason: 'a name read in the enclosing object' },
+    ])('should find nothing where the error depends on the values: $reason', ({ formula }) => {
+      expect(language.diagnose(formula, { fields: [...orderFields, { name: 'entry', type: { kind: 'Union', of: [{ kind: 'Number' }, { kind: 'String' }] } }] })).toEqual([]);
+    });
+
+    it('should check names only against the fields the host passes', () => {
+      expect([language.diagnose('totl + 1'), language.diagnose('totl + 1', { fields: [] }).map(({ messageKey }) => messageKey)]).toEqual([[], ['formula_error.variable_not_defined']]);
+    });
+
+    it('should give only the syntax errors of a formula that has them', () => {
+      expect(language.diagnose('title.round() + (', { fields: orderFields }).map(({ code }) => code)).toEqual(['EXPECTED_EXPRESSION', 'MISSING_TOKEN']);
+    });
+  });
 });
+
+/** The fields of a record, each with the type of its value. */
+function fieldsOf(record: Readonly<Record<string, FormulaDataType>>): FormulaField[] {
+  return Object.entries(record).map(([name, value]) => ({ name, type: typeOfValue(value) }));
+}
+
+function sameOffsets(left: FormulaLocation, right: FormulaLocation): boolean {
+  return left.start.offset === right.start.offset && left.end.offset === right.end.offset;
+}
 
 /** The completion items of the methods called on values of `kinds`, in the order of the scope. */
 function methodsOf(kinds: readonly string[]): string[][] {

@@ -1,3 +1,5 @@
+import type { FormulaErrorCode } from '../core/errors/error-codes';
+import type { FormulaErrorPayloads } from '../core/errors/error-payloads';
 import type { FormulaLocation } from '../parser/ast/location';
 import type { SyntaxErrorCode } from '../parser/grammar/syntax-error-code';
 import type { SyntaxErrorPayloads } from '../parser/grammar/syntax-error-payloads';
@@ -7,14 +9,16 @@ import type { SyntaxErrorPayloads } from '../parser/grammar/syntax-error-payload
  *
  * @remarks
  * A plain object, so it survives being posted to and from a worker. `code` and `payload` are those of the
- * `SyntaxError` the formula throws, so a host translates both the same way.
+ * `SyntaxError` or the `FormulaError` the formula throws, so a host translates them the same way.
  */
-export interface FormulaDiagnostic<C extends SyntaxErrorCode = SyntaxErrorCode> {
+export interface FormulaDiagnostic<C extends SyntaxErrorCode | FormulaErrorCode = SyntaxErrorCode | FormulaErrorCode> {
   readonly code: C;
-  /** What the message fills in, such as the unexpected character. */
-  readonly payload: SyntaxErrorPayloads[C];
-  /** The English message, without the offsets a `SyntaxError` message ends with. */
+  /** What the message fills in, such as the unexpected character or the name that is not defined. */
+  readonly payload: (SyntaxErrorPayloads & FormulaErrorPayloads)[C];
+  /** The English message, without the offsets an error message ends with. */
   readonly message: string;
+  /** For a `FormulaError`, the key of its message, which tells apart the errors that share a `code`. */
+  readonly messageKey?: string;
   /** The part of the formula to underline. */
   readonly location: FormulaLocation;
 }
