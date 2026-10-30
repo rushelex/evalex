@@ -99,6 +99,37 @@ describe(formula, () => {
     });
   });
 
+  describe('styles', () => {
+    afterEach(() => {
+      document.documentElement.style.removeProperty('--pm-formula-tooltip-background');
+    });
+
+    it('should color the tokens of a formula by default when no theme sets them', async () => {
+      const view = await mount({ blocks: [block('1 + "a"')], options: { language } });
+
+      expect(['.pm-formula-number', '.pm-formula-string'].map((selector) => colorOf(view.dom.querySelector(selector)))).toEqual(['rgb(17, 102, 68)', 'rgb(170, 17, 17)']);
+    });
+
+    it('should color the tokens and the chips of a formula by the variables a theme sets around the editor', async () => {
+      const view = await mount({ blocks: [block('price + 1')], options: { language, fields } });
+
+      view.dom.parentElement?.style.setProperty('--pm-formula-number-color', 'rgb(1, 2, 3)');
+      view.dom.parentElement?.style.setProperty('--pm-formula-field-background', 'rgb(4, 5, 6)');
+
+      expect([colorOf(view.dom.querySelector('.pm-formula-number')), getComputedStyle(view.dom.querySelector('.pm-formula-field') ?? view.dom).backgroundColor]).toEqual(['rgb(1, 2, 3)', 'rgb(4, 5, 6)']);
+    });
+
+    it('should style the tooltips by the variables a theme sets on the root of the page', async () => {
+      const view = await mount({ blocks: [block('round(price, ')], options: { language, fields } });
+
+      document.documentElement.style.setProperty('--pm-formula-tooltip-background', 'rgb(7, 8, 9)');
+      view.focus();
+      await signatureHelpOf();
+
+      expect(getComputedStyle(document.querySelector('.pm-formula-signature-help') ?? document.body).backgroundColor).toBe('rgb(7, 8, 9)');
+    });
+  });
+
   describe('field chips', () => {
     it.each([
       { case: 'an inline formula', blocks: [paragraph('a ', inline('let p = price\nin p * qty'), ' b')] },
@@ -816,6 +847,10 @@ async function fix({ view, offset, label }: { view: EditorView; offset: number; 
   }
 
   await userEvent.click(button);
+}
+
+function colorOf(element: Element | null): string | undefined {
+  return element ? getComputedStyle(element).color : undefined;
 }
 
 /** The text of the elements the `aria-describedby` of an element names. */

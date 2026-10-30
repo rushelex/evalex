@@ -99,6 +99,34 @@ Hovering over a name tells what it stands for: a field with its label and type, 
 
 `style.css` styles every part through `pm-formula-*` classes, which a theme overrides: `pm-formula` and `pm-formula-block` for the formulas, `pm-formula-field` for chips, `pm-formula-tooltip` for every tooltip, `pm-formula-completions`, `pm-formula-completion` and `pm-formula-completion-info` for the list, and `pm-formula-routines`, `pm-formula-signature`, `pm-formula-argument-active`, `pm-formula-description`, `pm-formula-name`, `pm-formula-diagnostic` and `pm-formula-fix` inside tooltips. Tooltips are placed in the body of the page, so no container of the editor clips them.
 
+A theme changes the colors and the font through CSS variables, without overriding the classes:
+
+| Variable | What it styles | Default |
+| --- | --- | --- |
+| `--pm-formula-number-color`, `--pm-formula-string-color`, `--pm-formula-regexp-color`, `--pm-formula-boolean-color`, `--pm-formula-null-color`, `--pm-formula-function-color`, `--pm-formula-method-color`, `--pm-formula-keyword-color`, `--pm-formula-operator-color`, `--pm-formula-punctuation-color`, `--pm-formula-name-color` | The tokens of each kind | Light-theme colors, and the color of the text for names |
+| `--pm-formula-font-family` | Formulas, argument lists and the completion list | A monospace font |
+| `--pm-formula-background` | Inline and block formulas | Translucent gray |
+| `--pm-formula-field-background` | Chips | Translucent gray |
+| `--pm-formula-error-color` | Error underlines and marks, the edge of a message and the text of a chip of a field the host no longer gives | Red |
+| `--pm-formula-error-background` | A chip of a field the host no longer gives | Translucent red |
+| `--pm-formula-tooltip-background`, `--pm-formula-tooltip-color`, `--pm-formula-tooltip-border-color` | Tooltips and the completion list | Light gray, near black, gray |
+| `--pm-formula-selected-background`, `--pm-formula-selected-color` | The selected option of the list | Blue, white |
+| `--pm-formula-fix-background`, `--pm-formula-fix-color` | Fix buttons | Dark gray, white |
+
+The variables of the formulas apply wherever the theme sets them, such as on the editor. Tooltips and the list are in the body of the page, so their variables are set on `:root`:
+
+```css
+:root {
+  --pm-formula-tooltip-background: #222;
+  --pm-formula-tooltip-color: #eee;
+}
+
+.dark-editor {
+  --pm-formula-number-color: #8c8;
+  --pm-formula-background: rgba(255, 255, 255, 0.08);
+}
+```
+
 ### Changing the fields
 
 For fields that change while the editor is open, `fields` is a function that returns the current list. Once the list changes, `refreshFormulas` marks a transaction that makes the formulas read it again: errors and chips follow the new list at once, and the transaction stays out of the undo history.

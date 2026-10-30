@@ -1,7 +1,10 @@
-/* Styles of @evalexjs/prosemirror. A theme overrides them by the same class names. */
+/*
+ * Styles of @evalexjs/prosemirror. A theme sets the --pm-formula-* variables, or overrides the classes. Tooltips and
+ * the completion list live in the body of the page, so their variables are set on :root.
+ */
 
 .pm-formula {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--pm-formula-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   white-space: pre-wrap;
 }
 
@@ -9,7 +12,7 @@
 span.pm-formula {
   padding: 0 3px;
   border-radius: 4px;
-  background: rgba(127, 127, 127, 0.1);
+  background: var(--pm-formula-background, rgba(127, 127, 127, 0.1));
 }
 
 /* A browser puts the caret into an empty inline element only when it is a box of its own */
@@ -24,44 +27,45 @@ span.pm-formula:empty {
   display: block;
   padding: 6px 8px;
   border-radius: 4px;
-  background: rgba(127, 127, 127, 0.1);
+  background: var(--pm-formula-background, rgba(127, 127, 127, 0.1));
 }
 
-.pm-formula-number { color: #164; }
-.pm-formula-string { color: #a11; }
-.pm-formula-regexp { color: #e40; }
-.pm-formula-boolean,
-.pm-formula-null { color: #219; }
-.pm-formula-function,
-.pm-formula-method { color: #00f; }
-.pm-formula-keyword { color: #708; }
-.pm-formula-operator,
-.pm-formula-punctuation { color: #555; }
+.pm-formula-number { color: var(--pm-formula-number-color, #164); }
+.pm-formula-string { color: var(--pm-formula-string-color, #a11); }
+.pm-formula-regexp { color: var(--pm-formula-regexp-color, #e40); }
+.pm-formula-boolean { color: var(--pm-formula-boolean-color, #219); }
+.pm-formula-null { color: var(--pm-formula-null-color, #219); }
+.pm-formula-function { color: var(--pm-formula-function-color, #00f); }
+.pm-formula-method { color: var(--pm-formula-method-color, #00f); }
+.pm-formula-keyword { color: var(--pm-formula-keyword-color, #708); }
+.pm-formula-operator { color: var(--pm-formula-operator-color, #555); }
+.pm-formula-punctuation { color: var(--pm-formula-punctuation-color, #555); }
+.pm-formula .pm-formula-name { color: var(--pm-formula-name-color, inherit); }
 
 .pm-formula-field {
   padding: 0 4px;
   border-radius: 4px;
-  background: rgba(127, 127, 127, 0.2);
+  background: var(--pm-formula-field-background, rgba(127, 127, 127, 0.2));
   color: inherit;
   font-family: inherit;
 }
 
 .pm-formula-error {
-  text-decoration: underline wavy #d11;
+  text-decoration: underline wavy var(--pm-formula-error-color, #d11);
   text-decoration-skip-ink: none;
 }
 
 /* A chip of a field the host no longer gives */
 .pm-formula-field.pm-formula-error {
-  background: rgba(221, 17, 17, 0.15);
-  color: #d11;
+  background: var(--pm-formula-error-background, rgba(221, 17, 17, 0.15));
+  color: var(--pm-formula-error-color, #d11);
 }
 
 .pm-formula-error-point {
   display: inline-block;
   width: 0;
   height: 1em;
-  border-left: 2px solid #d11;
+  border-left: 2px solid var(--pm-formula-error-color, #d11);
   vertical-align: text-bottom;
 }
 
@@ -69,16 +73,16 @@ span.pm-formula:empty {
   z-index: 100;
   max-width: 40em;
   padding: 2px 6px;
-  border: 1px solid #bbb;
+  border: 1px solid var(--pm-formula-tooltip-border-color, #bbb);
   border-radius: 3px;
-  background: #f5f5f5;
-  color: #222;
+  background: var(--pm-formula-tooltip-background, #f5f5f5);
+  color: var(--pm-formula-tooltip-color, #222);
   font: 13px/1.4 system-ui, sans-serif;
 }
 
 .pm-formula-signature,
-.pm-formula-name {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+.pm-formula-tooltip .pm-formula-name {
+  font-family: var(--pm-formula-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
 }
 
 .pm-formula-argument-active { font-weight: bold; }
@@ -86,7 +90,7 @@ span.pm-formula:empty {
 
 .pm-formula-diagnostic {
   padding-left: 6px;
-  border-left: 3px solid #d11;
+  border-left: 3px solid var(--pm-formula-error-color, #d11);
 }
 
 .pm-formula-fix {
@@ -94,8 +98,8 @@ span.pm-formula:empty {
   padding: 0 4px;
   border: none;
   border-radius: 3px;
-  background: #444;
-  color: #fff;
+  background: var(--pm-formula-fix-background, #444);
+  color: var(--pm-formula-fix-color, #fff);
   font: inherit;
   cursor: pointer;
 }
@@ -112,7 +116,7 @@ span.pm-formula:empty {
   padding: 0;
   overflow-y: auto;
   list-style: none;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--pm-formula-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
 }
 
 .pm-formula-completion {
@@ -122,8 +126,8 @@ span.pm-formula:empty {
 }
 
 .pm-formula-completion[aria-selected='true'] {
-  background: #17c;
-  color: #fff;
+  background: var(--pm-formula-selected-background, #17c);
+  color: var(--pm-formula-selected-color, #fff);
 }
 
 .pm-formula-completion-detail {
@@ -135,6 +139,6 @@ span.pm-formula:empty {
 .pm-formula-completion-info {
   max-width: 24em;
   padding: 2px 6px;
-  border-left: 1px solid #bbb;
+  border-left: 1px solid var(--pm-formula-tooltip-border-color, #bbb);
   white-space: pre-line;
 }
