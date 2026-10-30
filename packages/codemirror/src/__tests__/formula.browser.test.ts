@@ -115,6 +115,19 @@ describe(formula, () => {
       expect(await diagnosticsOf(view)).toEqual([{ from: 8, to: 13, message: 'Variable "total" is not defined.' }]);
     });
 
+    it('should mark the editor invalid for assistive technology while errors show', async () => {
+      const view = mount({ doc: 'price * total', extensions: [formula({ language, fields })] });
+
+      await diagnosticsOf(view);
+
+      const marked = view.contentDOM.getAttribute('aria-invalid');
+
+      view.dispatch({ changes: { from: 8, to: 13, insert: '2' } });
+      forceLinting(view);
+
+      await vi.waitFor(() => expect([marked, view.contentDOM.getAttribute('aria-invalid')]).toEqual(['true', null]));
+    });
+
     it('should word each error as the host does', async () => {
       const view = mount({ doc: 'price * total', extensions: [formula({ language, fields, message: ({ messageKey, payload }) => `${messageKey} ${Object.entries(payload).sort().join(' ')}` })] });
 

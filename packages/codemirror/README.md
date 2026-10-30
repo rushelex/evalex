@@ -59,6 +59,10 @@ Tokens are colored by the highlight style of the editor, such as the one its the
 
 An editor without a highlight style shows the formula uncolored. The text after a syntax error is left uncolored: the error underline marks it.
 
+### Errors
+
+Each error is underlined, with its message and the fixes of a misspelled name in its tooltip. While any error shows, the editor is `aria-invalid`, so assistive technology tells that the formula is not valid.
+
 ### Completion
 
 Fields are listed by their labels and inserted by their names: the author picks «Quantity», the formula gets `qty`. After a dot, the list holds the fields of a record and the methods of the type of the value before the dot, as the types of the fields tell. A function or a method is inserted as a call, with the caret between the parentheses unless it takes no arguments. The list opens by itself as a name is typed, after a dot and inside quotes, where it offers the words a text argument takes.
