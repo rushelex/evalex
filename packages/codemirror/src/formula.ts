@@ -5,6 +5,7 @@ import type { FormulaOptions } from './formula-options';
 import { EditorView } from '@codemirror/view';
 
 import { formulaCompletion } from './formula-completion';
+import { formulaFieldChips } from './formula-field-chips';
 import { formulaHighlighting } from './formula-highlighting';
 import { formulaHover } from './formula-hover';
 import { formulaLint } from './formula-lint';
@@ -16,24 +17,27 @@ const theme = EditorView.baseTheme({
   '.cm-formula-signature, .cm-formula-name': { fontFamily: 'monospace' },
   '.cm-formula-argument-active': { fontWeight: 'bold' },
   '.cm-formula-description': { opacity: '0.75', marginBottom: '2px' },
+  '.cm-formula-field': { padding: '0 4px', borderRadius: '4px', backgroundColor: 'rgba(127, 127, 127, 0.2)' },
 });
 
 /**
  * Makes a CodeMirror editor an editor of evalex formulas: it colors the formula, underlines its errors with fixes for
- * misspelled names, completes fields, functions and methods as the author types, shows the arguments of the call
- * around the caret, and tells what a name stands for under the pointer.
+ * misspelled names, shows fields by their labels, completes fields, functions and methods as the author types, shows
+ * the arguments of the call around the caret, and tells what a name stands for under the pointer.
  *
  * @remarks
  * Colors come from the highlight style of the editor, such as its theme, by the tags of `@lezer/highlight`: numbers are
  * `number`, names `variableName`, functions and methods `function(variableName)` and `function(propertyName)`. An
  * editor without a highlight style shows the formula uncolored.
  *
- * A completion of a function or a method inserts its call with the caret between the parentheses. The arguments of
- * the call around the caret show above it while the editor has focus, with the one being typed marked. Tooltips use
- * the classes `cm-formula-routines`, `cm-formula-signature`, `cm-formula-argument-active`, `cm-formula-description`
- * and `cm-formula-name`, which a theme may style. The options are
- * fixed for the extension: to change the fields, as when the formula moves to another cell, reconfigure it in a
- * `Compartment`.
+ * Each field the formula reads shows as a chip with its label, while the text keeps its name; the word being typed stays
+ * text until the caret leaves it. A completion of a function or a method inserts its call with the caret between the
+ * parentheses. The arguments of the call around the caret show above it while the editor has focus, with the one being
+ * typed marked. Chips and tooltips use the classes `cm-formula-field`, `cm-formula-routines`, `cm-formula-signature`,
+ * `cm-formula-argument-active`, `cm-formula-description` and `cm-formula-name`, which a theme may style.
+ *
+ * The options are fixed for the extension: to change the fields, as when the formula moves to another cell,
+ * reconfigure it in a `Compartment`.
  *
  * @param options - The language service of the scope, the fields the formula can read and how to word its errors.
  * @returns The extension to add to the editor state.
@@ -54,5 +58,5 @@ const theme = EditorView.baseTheme({
  * ```
  */
 export function formula(options: FormulaOptions): Extension {
-  return [formulaHighlighting(), formulaLint(options), formulaCompletion(options), formulaSignatureHelp(options), formulaHover(options), theme];
+  return [formulaHighlighting(), formulaLint(options), formulaCompletion(options), formulaSignatureHelp(options), formulaHover(options), formulaFieldChips(options), theme];
 }

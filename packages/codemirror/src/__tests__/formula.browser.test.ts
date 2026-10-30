@@ -279,6 +279,108 @@ describe(formula, () => {
     });
   });
 
+  describe('field chips', () => {
+    const line = { kind: 'Object', fields: [{ name: 'qty', label: 'Quantity', type: { kind: 'Number' } }] } as const;
+    const chipFields: readonly FormulaField[] = [...fields, { name: 'lines', label: 'Lines', type: { kind: 'Array', items: line } }];
+
+    it('should show each field the formula reads by its label, keeping its name in the text', () => {
+      const view = mount({ doc: 'price * qty + lines.first().qty()', extensions: [formula({ language, fields: chipFields })] });
+
+      view.dispatch({ selection: { anchor: 0 } });
+
+      expect([chipsOf(view), doc(view)]).toEqual([['Price', 'Quantity', 'Lines', 'Quantity'], 'price * qty + lines.first().qty()']);
+    });
+
+    it.each([
+      { case: 'a name that is not a field', text: 'total * 2' },
+      { case: 'a variable that hides a field', text: 'let price = 2 in price' },
+      { case: 'a function or a method', text: 'round(2).abs()' },
+    ])('should show $case as it is written', ({ text }) => {
+      const view = mount({ doc: text, extensions: [formula({ language, fields: chipFields })] });
+
+      view.dispatch({ selection: { anchor: 0 } });
+
+      expect(chipsOf(view)).toEqual([]);
+    });
+
+    it('should show no chips when the host passes no fields', () => {
+      const view = mount({ doc: 'price * qty', extensions: [formula({ language })] });
+
+      view.dispatch({ selection: { anchor: 0 } });
+
+      expect(chipsOf(view)).toEqual([]);
+    });
+
+    it('should make each chip a range the caret steps over and a deletion removes whole', () => {
+      const view = mount({ doc: 'price * qty', extensions: [formula({ language, fields: chipFields })] });
+      const atomic: [number, number][] = [];
+
+      view.dispatch({ selection: { anchor: 0 } });
+
+      for (const ranges of view.state.facet(EditorView.atomicRanges)) {
+        ranges(view).between(0, view.state.doc.length, (from, to) => {
+          atomic.push([from, to]);
+        });
+      }
+
+      expect(atomic).toEqual([[0, 5], [8, 11]]);
+    });
+
+    it('should keep the word being typed as text, and show it as a chip once the author types on', () => {
+      const view = mount({ doc: '', extensions: [formula({ language, fields: chipFields })] });
+
+      view.focus();
+      [...'qty'].forEach((character) => type(view, character));
+
+      expect(chipsOf(view)).toEqual([]);
+
+      type(view, ' ');
+
+      expect(chipsOf(view)).toEqual(['Quantity']);
+    });
+
+    it('should show the word being typed as a chip once the caret leaves it', () => {
+      const view = mount({ doc: ' + 1', extensions: [formula({ language, fields: chipFields })] });
+
+      view.focus();
+      view.dispatch({ selection: { anchor: 0 } });
+      [...'qty'].forEach((character) => type(view, character));
+      view.dispatch({ selection: { anchor: doc(view).length } });
+
+      expect(chipsOf(view)).toEqual(['Quantity']);
+    });
+
+    it('should not show a chip for a field on the way to a longer name', () => {
+      const view = mount({ doc: '', extensions: [formula({ language, fields: chipFields })] });
+
+      view.focus();
+      [...'qtyT'].forEach((character) => type(view, character));
+      view.dispatch({ selection: { anchor: 0 } });
+
+      expect(chipsOf(view)).toEqual([]);
+    });
+
+    it('should show the word being typed as a chip when the editor loses focus', async () => {
+      const view = mount({ doc: '', extensions: [formula({ language, fields: chipFields })] });
+
+      view.focus();
+      [...'price'].forEach((character) => type(view, character));
+      view.contentDOM.blur();
+
+      await vi.waitFor(() => expect(chipsOf(view)).toEqual(['Price']));
+    });
+
+    it('should show a field inserted by completion as a chip at once', async () => {
+      const view = mount({ doc: 'Quan', extensions: [formula({ language, fields: chipFields })] });
+
+      view.focus();
+      await complete(view);
+      await accept(view);
+
+      expect([doc(view), chipsOf(view)]).toEqual(['qty', ['Quantity']]);
+    });
+  });
+
   describe('hover', () => {
     const line = { kind: 'Object', fields: [{ name: 'qty', label: 'Quantity', type: { kind: 'Number' } }] } as const;
     const hoverFields: readonly FormulaField[] = [...fields, { name: 'lines', type: { kind: 'Array', items: line } }];
@@ -390,6 +492,10 @@ async function hoverAt({ view, pos }: { view: EditorView; pos: number }): Promis
 
     return found ?? view.dom;
   }, { timeout: 1500 });
+}
+
+function chipsOf(view: EditorView): (string | null)[] {
+  return [...view.contentDOM.querySelectorAll('.cm-formula-field')].map(({ textContent }) => textContent);
 }
 
 function doc(view: EditorView): string {
