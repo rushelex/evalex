@@ -10,7 +10,7 @@ import { convertValueToFormulaType } from './data-types/converter';
 import { Errors, FormulaError } from './errors';
 import { FormulaEvaluatorVisitor } from './evaluator.visitor';
 import { representativeValue } from './representative-value';
-import { Argument, CallbackArgument, ProcessedArgument } from './routines/arguments';
+import { Argument, CallbackArgument, ProcessedArgument, RepresentativeArgument } from './routines/arguments';
 import { routinesRegistry } from './routines/registry';
 import { kindsOf, membersOf, type, TypeBindings, unionOf } from './types';
 
@@ -392,31 +392,20 @@ export class TypeInferenceVisitor implements AST.IVisitor<FormulaType> {
    * The error the check of the arguments of `routine` raises on every value of their types, found by running the check
    * on one value of each kind they may have.
    *
-   * @returns `undefined` when the error may depend on the values: an argument of any type, a value a check of its own
-   * reads, too many kinds to try, kinds that fail differently, or an error that points at where a value came from,
-   * which may be a part of the argument.
+   * A value other than a literal passes a check of the argument's own, as evaluation gets past that check only on such a
+   * value.
+   *
+   * @returns `undefined` when the error may depend on the values: an argument of any type, too many kinds to try, kinds
+   * that fail differently, or an error that points at where a value came from, which may be a part of the argument.
    */
   #argumentsFailure({ routine, args, location }: { routine: Routine; args: readonly AST.AstNode[]; location: AST.Location }): FormulaError | undefined {
     const silent = this.#unreached();
-    const choices = args.map((arg, index): readonly FormulaDataType[] | undefined => {
-      if (arg.type === 'Literal') {
-        return [convertValueToFormulaType(arg.value)];
-      }
-
-      const kinds = kindsOf(silent.typeOf(arg));
-      const checked = routine.signatures.some((signature) => {
-        const parameter = parameterAt(signature, index);
-
-        return parameter instanceof Argument && parameter.validation !== undefined && kinds.some((kind) => parameter.kinds.includes(kind) || kind === Kind.Any);
-      });
-
-      return checked ? undefined : representativesOf(kinds);
-    });
+    const choices = args.map((arg) => (arg.type === 'Literal' ? [convertValueToFormulaType(arg.value)] : representativesOf(kindsOf(silent.typeOf(arg)))));
     const combinations = combine(choices);
     const errors = combinations?.map((values) => routine.argumentsError({
       args,
       visitor: this.#checker,
-      valueOf: (node) => new ProcessedArgument(values[args.indexOf(node)], node),
+      valueOf: (node) => (node.type === 'Literal' ? new ProcessedArgument(values[args.indexOf(node)], node) : new RepresentativeArgument(values[args.indexOf(node)], node)),
       location,
     }));
     const failure = errors && commonFailure(errors);

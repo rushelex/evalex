@@ -98,6 +98,6 @@ export class ErrorScorer {
    * @returns True if validation passes or no validation is defined
    */
   #isCustomValidationPass(arg: ProcessedArgument, argDef: Argument): boolean {
-    return !argDef.validation?.(arg.dataType);
+    return !argDef.failureOn(arg);
   }
 }

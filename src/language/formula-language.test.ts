@@ -405,6 +405,8 @@ describe(FormulaLanguage, () => {
       { formula: 'if(lines.length() > 0, title.round(), 1)', expected: [['formula_error.method_not_defined', 'round']] },
       { formula: 'lines.filter(curent.qty() > 1)', expected: [['formula_error.variable_not_defined', 'curent']] },
       { formula: 'lines.map(current.qtty())', expected: [['formula_error.field_not_defined', 'qtty']] },
+      { formula: 'toDateTime(today(), title, 1)', expected: [['formula_error.argument_type_mismatch', '1']] },
+      { formula: 'toDateTime(today(), title, "Mars/Olympus")', expected: [['formula_error.argument_validation_error', '"Mars/Olympus"']] },
     ])('should find what evaluation fails on whenever it reaches a part it may skip: $formula', ({ formula, expected }) => {
       expect(language.diagnose(formula, { fields: orderFields }).map(({ messageKey, location }) => [messageKey, formula.slice(location.start.offset, location.end.offset)])).toEqual(expected);
     });
@@ -420,9 +422,9 @@ describe(FormulaLanguage, () => {
       { formula: 'round(1, entry)', reason: 'an argument only some types of the value fit' },
       { formula: 'round(lines.first().sku(), 1)', reason: 'an argument of any type' },
       { formula: 'dateBetween(today(), today(), title)', reason: 'a word read from a field' },
+      { formula: 'toDateTime(today(), title, "Europe/Berlin")', reason: 'a word read from a field before a word the call takes' },
       { formula: '(lines.length() > 0 ? null : 1).round()', reason: 'a method of a value that may be empty' },
       { formula: '(lines.length() > 0 ? null : title).round()', reason: 'a method neither type of the value has, one of them empty' },
-      { formula: 'toDateTime(today(), title, 1)', reason: 'an argument checked after a word read from a field' },
       { formula: 'round(lines.length() > 0 ? "a" : "b")', reason: 'an argument whose value comes from a part of it' },
       { formula: 'lines.first().sku().filter(current > 1)', reason: 'an expression per item of a value of any type' },
       { formula: 'entry * 2', reason: 'an operand only some types of the value fit' },

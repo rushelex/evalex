@@ -101,7 +101,7 @@ export class ValidationErrorFactory {
     argDef: Argument,
     position: number,
   ): FormulaError | undefined {
-    const payload = argDef.validation?.(arg.dataType);
+    const payload = argDef.failureOn(arg);
 
     if (!payload) {
       return;

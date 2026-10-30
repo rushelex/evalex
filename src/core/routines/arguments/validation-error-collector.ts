@@ -123,11 +123,10 @@ export class ValidationErrorCollector {
       }
 
       // Check custom validation
-      if (argDef.validation?.(arg.dataType)) {
-        const customError = this.#errorFactory.createCustomValidationError(arg, argDef, index + 1);
-        if (customError) {
-          return customError;
-        }
+      const customError = this.#errorFactory.createCustomValidationError(arg, argDef, index + 1);
+
+      if (customError) {
+        return customError;
       }
     }
   }

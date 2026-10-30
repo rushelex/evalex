@@ -5,4 +5,5 @@ export * from './arguments-processor';
 export * from './callback-argument';
 export * from './callback-executor';
 export * from './processed-argument';
+export * from './representative-argument';
 export type * from './types';

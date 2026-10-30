@@ -1,8 +1,10 @@
 import type { FormulaDataType, Kind } from '../../data-types';
 import type { FormulaType, ValueType } from '../../types';
+import type { ProcessedArgument } from './processed-argument';
 
 import { kindsOf } from '../../types';
 import { argumentName } from './argument-name';
+import { RepresentativeArgument } from './representative-argument';
 
 /** What a failed custom check reports; the position of the argument is filled in by the engine. */
 export interface ArgumentValidationFailure {
@@ -58,5 +60,10 @@ export class Argument<
     // Validation runs only after the type check has passed, so the value always has the declared type.
     this.validation = options?.validation as ArgumentValidation<FormulaDataType> | undefined;
     this.choices = options?.choices;
+  }
+
+  /** What the argument's own check finds wrong with a value of a kind it takes; nothing on a {@link RepresentativeArgument}. */
+  failureOn(value: ProcessedArgument): ArgumentValidationFailure | undefined {
+    return value instanceof RepresentativeArgument ? undefined : this.validation?.(value.dataType);
   }
 }

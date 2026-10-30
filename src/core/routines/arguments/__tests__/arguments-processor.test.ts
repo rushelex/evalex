@@ -4,6 +4,7 @@ import { AstNodes } from '../../../../parser';
 
 import { FormulaEvaluationContext } from '../../../context';
 import { FormulaString, Kind } from '../../../data-types';
+import { convertValueToFormulaType } from '../../../data-types/converter';
 import { Errors } from '../../../errors';
 import { FormulaEvaluatorVisitor } from '../../../evaluator.visitor';
 import { type } from '../../../types';
@@ -11,6 +12,7 @@ import { Argument } from '../argument';
 import { ArgumentsProcessor } from '../arguments-processor';
 import { CallbackArgument } from '../callback-argument';
 import { ProcessedArgument } from '../processed-argument';
+import { RepresentativeArgument } from '../representative-argument';
 
 describe(ArgumentsProcessor, () => {
   const loc = (location: [start: number, end: number]): AST.Location => ({
@@ -281,6 +283,48 @@ describe(ArgumentsProcessor, () => {
           location: loc([0, 4]),
         }));
       });
+    });
+  });
+
+  describe('Representative values', () => {
+    const rejectsEveryText = () => new Argument(type.string, 'word', { validation: () => ({ message: 'Expected another word.' }) });
+    const representative = (value: string, location: [number, number]) => new RepresentativeArgument(new FormulaString(value), identifier('title', location));
+    const processWith = (processor: ArgumentsProcessor, values: ProcessedArgument[]) => processor.processWith({
+      args: values.map(({ node }) => node),
+      visitor: createMockVisitor(),
+      valueOf: (node) => values.find((value) => value.node === node) ?? new ProcessedArgument(new FormulaString(''), node),
+    });
+
+    it('should let a representative value pass the check of the argument\'s own, which a written value fails', () => {
+      const processor = new ArgumentsProcessor([rejectsEveryText()]);
+      const written = new ProcessedArgument(new FormulaString('a'), str());
+
+      expect([processor.validate(processWith(processor, [representative('a', [0, 5])])), processor.validate(processWith(processor, [written]))]).toEqual([true, false]);
+    });
+
+    it('should give the error of the argument after a representative value its check would reject', () => {
+      const processor = new ArgumentsProcessor([rejectsEveryText(), new Argument(type.string, 'other')]);
+      const args = processWith(processor, [representative('a', [0, 5]), new ProcessedArgument(convertValueToFormulaType(42), num([7, 9]))]);
+
+      expect(processor.getValidationError(args, loc([0, 100]))).toEqual(Errors.Argument.TypeMismatch.create({
+        argumentPosition: 2,
+        expected: [Kind.String],
+        actual: Kind.Number,
+      }, { location: loc([7, 9]) }));
+    });
+
+    it('should not prefer the arguments a representative value would fail the check of', () => {
+      const processor = new ArgumentsProcessor([
+        [new Argument(type.string, 'text'), new Argument(type.boolean, 'flag')],
+        [rejectsEveryText(), new Argument(type.string, 'other')],
+      ]);
+      const args = processWith(processor, [representative('a', [0, 5]), new ProcessedArgument(convertValueToFormulaType(42), num([7, 9]))]);
+
+      expect(processor.getValidationError(args, loc([0, 100]))).toEqual(Errors.Argument.TypeMismatch.create({
+        argumentPosition: 2,
+        expected: [Kind.Boolean],
+        actual: Kind.Number,
+      }, { location: loc([7, 9]) }));
     });
   });
 
