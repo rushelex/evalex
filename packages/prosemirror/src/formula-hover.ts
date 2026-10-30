@@ -1,4 +1,4 @@
-import type { FormulaDiagnostic, FormulaHover } from 'evalex/language';
+import type { FormulaHover } from 'evalex/language';
 import type { PluginView } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 
@@ -6,8 +6,8 @@ import type { FormulaService } from './formula-service';
 
 import { Plugin } from 'prosemirror-state';
 
+import { diagnosticInfo } from './diagnostic-info';
 import { FormulaText } from './formula-text';
-import { insertCompletion } from './insert-completion';
 import { routineInfo } from './routine-info';
 import { Tooltip } from './tooltip';
 import { typeText } from './type-text';
@@ -79,7 +79,7 @@ class Hover implements PluginView {
     const diagnostics = this.#service.diagnose(formula).filter(({ location: { start, end } }) => start.offset <= offset && offset <= end.offset);
     const hover = this.#service.hover(formula, offset);
     const content = [
-      ...diagnostics.map((diagnostic) => this.#diagnosticOf({ formula, diagnostic })),
+      ...diagnostics.map((diagnostic) => diagnosticInfo({ view, service: this.#service, formula, diagnostic })),
       ...(hover ? [hover.routines ? routineInfo({ routines: hover.routines }) : this.#nameOf({ formula, hover })] : []),
     ];
 
@@ -100,37 +100,6 @@ class Hover implements PluginView {
 
     dom.className = 'pm-formula-name';
     dom.textContent = hover.label === name ? `${name}: ${typeText(hover.type)}` : `${hover.label} · ${name}: ${typeText(hover.type)}`;
-
-    return dom;
-  }
-
-  /** The message of a diagnostic and a button per fix, which replaces the misspelled name. */
-  #diagnosticOf({ formula, diagnostic }: { formula: FormulaText; diagnostic: FormulaDiagnostic }): HTMLElement {
-    const dom = document.createElement('div');
-    const message = document.createElement('span');
-
-    dom.className = 'pm-formula-diagnostic';
-    message.textContent = this.#service.message(diagnostic);
-    dom.append(message);
-
-    for (const item of diagnostic.suggestions?.items ?? []) {
-      const button = document.createElement('button');
-
-      button.type = 'button';
-      button.className = 'pm-formula-fix';
-      button.textContent = item.label;
-      button.addEventListener('mousedown', (event) => event.preventDefault());
-      button.addEventListener('click', () => {
-        const { suggestions } = diagnostic;
-
-        // The tooltip hides as soon as the document changes, so the formula is still the one it was shown for
-        if (suggestions) {
-          this.#view.dispatch(insertCompletion({ state: this.#view.state, formula, from: suggestions.from, to: suggestions.to, item }));
-          this.#view.focus();
-        }
-      });
-      dom.append(button);
-    }
 
     return dom;
   }

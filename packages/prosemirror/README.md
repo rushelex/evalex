@@ -83,7 +83,7 @@ The caret stops twice at each edge of an inline formula, once outside and once i
 
 Each token carries the class of its kind: `pm-formula-number`, `pm-formula-string`, `pm-formula-regexp`, `pm-formula-boolean`, `pm-formula-null`, `pm-formula-name`, `pm-formula-function`, `pm-formula-method`, `pm-formula-keyword`, `pm-formula-operator` and `pm-formula-punctuation`. The text after a syntax error has none: the error underline marks it.
 
-Errors show half a second after the author stops typing, as `pm-formula-error`, or as a `pm-formula-error-point` mark where there is nothing to underline, as after `1 +`. Hovering over an error tells its message, with a button for each name spelled like a name the formula cannot read.
+Errors show half a second after the author stops typing, as `pm-formula-error`, or as a `pm-formula-error-point` mark where there is nothing to underline, as after `1 +`. Hovering over an error tells its message, with a button for each name spelled like a name the formula cannot read, and so does the caret inside an error while the editor has focus, below the line, so an author who moves by the keyboard reads it too.
 
 ### Completion
 

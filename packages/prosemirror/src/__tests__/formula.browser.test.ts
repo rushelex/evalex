@@ -366,6 +366,60 @@ describe(formula, () => {
 
       expect([formulasOf(view), view.state.selection.head]).toEqual([['round(price)'], caretAt({ view, offset: 5 })]);
     });
+
+    it('should tell the errors at the caret once they show, while the editor has focus', async () => {
+      const view = await mount({ blocks: [block('price * total')], options: { language, fields, message: ({ messageKey }) => messageKey } });
+
+      view.focus();
+
+      expect(await diagnosticHelpOf()).toEqual(['formula_error.variable_not_defined']);
+    });
+
+    it('should tell only the errors at the caret, not the others of the formula', async () => {
+      const view = await mount({ blocks: [block('totl + qtty')], options: { language, fields, message: ({ payload }) => JSON.stringify(payload) } });
+
+      view.focus();
+
+      expect(await diagnosticHelpOf()).toEqual([expect.stringContaining('qtty')]);
+    });
+
+    it('should not tell an error at the caret before its underline shows', async () => {
+      const view = await mount({ blocks: [block('price * total')], options: { language, fields } });
+
+      view.focus();
+
+      expect(document.querySelector('.pm-formula-diagnostic-help')).toBeNull();
+    });
+
+    it.each([
+      { case: 'the caret leaves the error', leave: (view: EditorView) => view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, caretAt({ view, offset: 0 })))) },
+      { case: 'the editor loses focus', leave: (view: EditorView) => view.dom.blur() },
+    ])('should hide the errors at the caret when $case', async ({ leave }) => {
+      const view = await mount({ blocks: [block('price * total')], options: { language, fields } });
+
+      view.focus();
+      await diagnosticHelpOf();
+      leave(view);
+
+      expect(document.querySelector('.pm-formula-diagnostic-help')).toBeNull();
+    });
+
+    it('should fix a misspelled name from the errors at the caret', async () => {
+      const view = await mount({ blocks: [block('price * qtty')], options: { language, fields } });
+
+      view.focus();
+      await diagnosticHelpOf();
+
+      const button = [...document.querySelectorAll('.pm-formula-diagnostic-help .pm-formula-fix')].find(({ textContent }) => textContent === 'Quantity');
+
+      if (!(button instanceof HTMLElement)) {
+        throw new TypeError('No fix Quantity');
+      }
+
+      await userEvent.click(button);
+
+      expect([formulasOf(view), chipsOf(view)]).toEqual([['price * qty'], ['Price', 'Quantity']]);
+    });
   });
 
   describe('completion', () => {
@@ -706,6 +760,17 @@ async function fix({ view, offset, label }: { view: EditorView; offset: number; 
   }
 
   await userEvent.click(button);
+}
+
+/** The messages of the errors at the caret once they show. */
+async function diagnosticHelpOf(): Promise<(string | null)[]> {
+  return vi.waitFor(() => {
+    const messages = [...document.querySelectorAll('.pm-formula-diagnostic-help .pm-formula-diagnostic > span')].map(({ textContent }) => textContent);
+
+    expect(messages.length).toBeGreaterThan(0);
+
+    return messages;
+  });
 }
 
 function listShown(): boolean {

@@ -3,16 +3,15 @@ import type { Node } from 'prosemirror-model';
 
 import type { FormulaService } from './formula-service';
 
-import { Plugin, PluginKey } from 'prosemirror-state';
+import { Plugin } from 'prosemirror-state';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 
+import { formulaLintKey as key } from './formula-lint-key';
 import { formulaRefreshKey } from './formula-refresh-key';
 import { FormulaText } from './formula-text';
 
 // How long the author pauses before errors show, so a name is not underlined while it is typed
 const DELAY = 500;
-
-const key = new PluginKey<DecorationSet>('formulaLint');
 
 /**
  * Underlines the errors of every formula a moment after it is edited, with `pm-formula-error`, or a

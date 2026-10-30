@@ -3,6 +3,7 @@ import type { Plugin } from 'prosemirror-state';
 import type { FormulaOptions } from './formula-options';
 
 import { formulaCompletion } from './formula-completion';
+import { formulaDiagnosticHelp } from './formula-diagnostic-help';
 import { formulaFieldChips } from './formula-field-chips';
 import { formulaHighlighting } from './formula-highlighting';
 import { formulaHover } from './formula-hover';
@@ -24,7 +25,7 @@ import { formulaSignatureHelp } from './formula-signature-help';
  *
  * Each field a formula reads shows as a chip with its label, while the text keeps its name, and the word being typed
  * stays text until the caret leaves it. The caret steps over a chip and a deletion removes it whole. Errors show a
- * moment after the author stops typing.
+ * moment after the author stops typing, and their messages show under the pointer and at the caret.
  *
  * The options are fixed for the plugins. For fields that change, `fields` is a function that returns the current list,
  * and a transaction marked by `refreshFormulas` makes the formulas read it again; to change the other options,
@@ -61,6 +62,7 @@ export function formula(options: FormulaOptions): Plugin[] {
     formulaLint(service),
     formulaFieldChips(service),
     formulaSignatureHelp(service),
+    formulaDiagnosticHelp(service),
     formulaHover(service),
   ];
 }
