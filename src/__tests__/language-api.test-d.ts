@@ -19,6 +19,10 @@ describe('language API', () => {
     expectTypeOf<API.FormulaDiagnostic['suggestions']>().toEqualTypeOf<API.FormulaCompletions | undefined>();
   });
 
+  it('should type the result of a formula with the type of the root API', () => {
+    expectTypeOf<API.FormulaLanguage['typeOf']>().toEqualTypeOf<(text: string, options?: { readonly fields?: readonly API.FormulaField[] }) => Root.FormulaType | undefined>();
+  });
+
   it('should list the fields a formula reads by their names', () => {
     expectTypeOf<API.FormulaLanguage['reads']>().toEqualTypeOf<(text: string) => string[]>();
   });

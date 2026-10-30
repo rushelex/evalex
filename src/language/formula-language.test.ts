@@ -9,7 +9,7 @@ import { FormulaScope } from '../core/formula-scope';
 import { arg } from '../core/routines/arguments';
 import { routinesRegistry } from '../core/routines/registry';
 import { type } from '../core/types';
-import { evaluateOutcome, fieldFormulaArbitrary, formulaValueArbitrary, typeOfValue } from '../testing-library';
+import { evaluateOutcome, fieldFormulaArbitrary, formulaValueArbitrary, matchesType, typeOfValue } from '../testing-library';
 import { FormulaLanguage, tokenize } from './index';
 
 // No built-in routine repeats an argument that takes words, so completion of a repeated one is checked on this one.
@@ -339,6 +339,34 @@ describe(FormulaLanguage, () => {
       { text: 'title + "abc"', offset: 10, reason: 'text' },
     ])('should give nothing at $reason', ({ text, offset }) => {
       expect(language.hover(text, offset, { fields: orderFields })).toBeUndefined();
+    });
+  });
+
+  describe('typeOf', () => {
+    const records = fc.record({ a: formulaValueArbitrary(), b: formulaValueArbitrary(), c: formulaValueArbitrary() });
+
+    it.prop([fieldFormulaArbitrary({ lazy: true }), records])('should give a type every value the formula evaluates to on a record of the field types has', (formula, record) => {
+      const outcome = evaluateOutcome(formula, { context: record });
+      const formulaType = language.typeOf(formula, { fields: fieldsOf(record) });
+
+      expect('value' in outcome && formulaType ? matchesType(outcome.value, formulaType) : true).toBe(true);
+    });
+
+    it.each([
+      { formula: 'order.qty() * 2', expected: { kind: 'Number' } },
+      { formula: 'lines.map(current.qty())', expected: { kind: 'Array', items: { kind: 'Number' } } },
+      { formula: 'title.upper()', expected: { kind: 'String' } },
+      { formula: 'nope', expected: { kind: 'Any' } },
+    ])('should give $formula the type of what it evaluates to on the fields', ({ formula, expected }) => {
+      expect(language.typeOf(formula, { fields: orderFields })).toEqual(expected);
+    });
+
+    it('should give any type to a field the host passes no type for', () => {
+      expect(language.typeOf('price', { fields: [{ name: 'price' }] })).toEqual({ kind: 'Any' });
+    });
+
+    it('should give no type to text that does not parse', () => {
+      expect(language.typeOf('round(1,', { fields: orderFields })).toBeUndefined();
     });
   });
 

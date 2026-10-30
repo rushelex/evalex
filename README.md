@@ -246,6 +246,12 @@ language.diagnose('price * qtty', { fields: [{ name: 'price' }, { name: 'qty' }]
 // { from: 8, to: 12, items: [{ kind: 'field', label: 'qty', text: 'qty' }] }
 ```
 
+`typeOf` gives the type of what a formula evaluates to on the fields, to show next to its result; text that does not parse has none:
+
+```ts
+language.typeOf('price * 2', { fields: [{ name: 'price', type: { kind: 'Number' } }] }); // { kind: 'Number' }
+```
+
 `reads` lists the fields a formula reads, each once, in the order it first reads them, so a host can warn before deleting a field a formula uses or load only the fields it needs. Names declared with `let`, names such as `current` and names inside `parent(…)` are not fields of the record:
 
 ```ts

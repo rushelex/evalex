@@ -19,6 +19,7 @@ import { Kind } from '../core/data-types';
 import { DependencyExtractorVisitor } from '../core/dependency-extractor.visitor';
 import { FormulaErrorCode } from '../core/errors';
 import { inferNodeType } from '../core/infer-node-type';
+import { inferType } from '../core/infer-type';
 import { kindsOf, membersOf, type } from '../core/types';
 import { findCalls, findCaretPlace, diagnose as findSyntaxErrors, parsePastErrors } from '../parser/grammar/parser';
 import { SYNTAX_ERROR_MESSAGES } from '../parser/grammar/syntax-error-messages';
@@ -196,6 +197,32 @@ export class FormulaLanguage {
     }
 
     return { from: place.from, to: place.to, items };
+  }
+
+  /**
+   * Returns the type of what a formula evaluates to on the host's data, to show next to its result.
+   *
+   * @remarks
+   * The type covers every value the formula can give on records whose fields have the types the host passes, so it is
+   * wider where the formula alone does not tell: a field without a type, a name that is not a field, and a routine that
+   * reads its arguments itself, such as `if`, hold any value.
+   *
+   * @param text - Formula text, as a host passes it to `FormulaScope.evaluate`.
+   * @param options - What the host knows about the place of the formula.
+   * @param options.fields - The fields the formula can read at its place in the host's data, with their types when the
+   * host knows them.
+   * @returns `undefined` for text that does not parse.
+   *
+   * @example
+   * ```ts
+   * language.typeOf('lines.map(current.qty())', { fields: [{ name: 'lines', type: { kind: 'Array', items: line } }] });
+   * // { kind: 'Array', items: { kind: 'Number' } }, when `qty` of `line` is a number
+   * ```
+   */
+  typeOf(text: string, options: { readonly fields?: readonly FormulaField[] } = {}): FormulaType | undefined {
+    const formula = findSyntaxErrors(text).length > 0 ? undefined : parsePastErrors(text);
+
+    return formula && inferType({ formula, fields: typesOf(options.fields ?? []) });
   }
 
   /**
