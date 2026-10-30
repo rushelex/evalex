@@ -39,7 +39,7 @@ class DiagnosticHelp implements PluginView {
 
   update(view: EditorView): void {
     const { empty, head } = view.state.selection;
-    const shown = empty && view.hasFocus() && (formulaLintKey.getState(view.state)?.find(head, head).length ?? 0) > 0;
+    const shown = empty && view.hasFocus() && (formulaLintKey.getState(view.state)?.decorations.find(head, head).length ?? 0) > 0;
     const formula = shown ? FormulaText.at(view.state.doc, head) : undefined;
     const offset = formula?.offsetAt(head) ?? 0;
     const diagnostics = formula ? this.#service.diagnose(formula).filter(({ location: { start, end } }) => start.offset <= offset && offset <= end.offset) : [];

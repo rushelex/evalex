@@ -367,6 +367,33 @@ describe(formula, () => {
       expect([formulasOf(view), view.state.selection.head]).toEqual([['round(price)'], caretAt({ view, offset: 5 })]);
     });
 
+    it('should mark an underlined error as invalid for assistive technology, described by its message', async () => {
+      const view = await mount({ blocks: [block('price * total')], options: { language, fields, message: ({ messageKey }) => messageKey } });
+
+      await underlinesOf(view);
+
+      const underline = view.dom.querySelector('.pm-formula-error');
+
+      expect([underline?.getAttribute('aria-invalid'), descriptionOf(underline)]).toEqual(['true', 'formula_error.variable_not_defined']);
+    });
+
+    it('should describe a formula by an error that has nothing to underline', async () => {
+      const view = await mount({ blocks: [block('1 +')], options: { language, message: ({ messageKey }) => messageKey } });
+
+      await vi.waitFor(() => expect(view.dom.querySelectorAll('.pm-formula-error-point')).toHaveLength(1));
+
+      expect(descriptionOf(view.dom.querySelector('.pm-formula'))).toBe(language.diagnose('1 +')[0]?.messageKey);
+    });
+
+    it('should take the messages of the errors away with the editor', async () => {
+      const view = await mount({ blocks: [block('price * total')], options: { language, fields } });
+
+      await underlinesOf(view);
+      view.destroy();
+
+      expect(document.querySelector('.pm-formula-messages')).toBeNull();
+    });
+
     it('should tell the errors at the caret once they show, while the editor has focus', async () => {
       const view = await mount({ blocks: [block('price * total')], options: { language, fields, message: ({ messageKey }) => messageKey } });
 
@@ -760,6 +787,11 @@ async function fix({ view, offset, label }: { view: EditorView; offset: number; 
   }
 
   await userEvent.click(button);
+}
+
+/** The text of the elements the `aria-describedby` of an element names. */
+function descriptionOf(element: Element | null): string | undefined {
+  return element?.getAttribute('aria-describedby')?.split(' ').map((id) => document.getElementById(id)?.textContent).join(' ');
 }
 
 /** The messages of the errors at the caret once they show. */
