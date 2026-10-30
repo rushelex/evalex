@@ -246,6 +246,12 @@ language.diagnose('price * qtty', { fields: [{ name: 'price' }, { name: 'qty' }]
 // { from: 8, to: 12, items: [{ kind: 'field', label: 'qty', text: 'qty' }] }
 ```
 
+`reads` lists the fields a formula reads, each once, in the order it first reads them, so a host can warn before deleting a field a formula uses or load only the fields it needs. Names declared with `let`, names such as `current` and names inside `parent(…)` are not fields of the record:
+
+```ts
+language.reads('let net = price * qty in lines.map(current.total()).sum() + net'); // ['price', 'qty', 'lines']
+```
+
 ## Formulas in data
 
 When formulas read each other — a spreadsheet, a table with computed columns, a form with derived fields — put them right into your data with `new Formula(text)`. An evaluator gives back the same data with every formula replaced by its result:

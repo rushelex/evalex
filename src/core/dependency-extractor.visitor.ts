@@ -59,6 +59,11 @@ export class DependencyExtractorVisitor implements AST.IVisitor<void> {
       this.#volatile = true;
     }
 
+    // `parent` reads its argument in the enclosing object, not in the record of the formula
+    if (callee.type === 'Identifier' && callee.name === 'parent') {
+      return;
+    }
+
     node.args.forEach((arg, index) => {
       const callbackVariables = getSharedCallbackVariables(routines, index);
 

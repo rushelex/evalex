@@ -342,6 +342,28 @@ describe(FormulaLanguage, () => {
     });
   });
 
+  describe('reads', () => {
+    const records = fc.record({ a: formulaValueArbitrary(), b: formulaValueArbitrary(), c: formulaValueArbitrary() });
+
+    it.prop([fieldFormulaArbitrary({ lazy: true }), records])('should list every field evaluation reads, so the formula gives the same on a record of those alone', (formula, record) => {
+      const read = Object.fromEntries(Object.entries(record).filter(([name]) => language.reads(formula).includes(name)));
+
+      expect(evaluateOutcome(formula, { context: read })).toHaveSameOutcomeAs(evaluateOutcome(formula, { context: record }));
+    });
+
+    it.each([
+      { formula: 'price * qty + price', expected: ['price', 'qty'] },
+      { formula: 'let net = price * qty in net * rate', expected: ['price', 'qty', 'rate'] },
+      { formula: 'lines.map(current.qty() * rate)', expected: ['lines', 'rate'] },
+      { formula: 'previous(total) + total', expected: ['total'] },
+      { formula: 'parent(budget) - spent', expected: ['spent'] },
+      { formula: 'round(today().day() + pi())', expected: [] },
+      { formula: 'round(price, ', expected: ['price'] },
+    ])('should list the fields $formula reads, each once, in the order it first reads them', ({ formula, expected }) => {
+      expect(language.reads(formula)).toEqual(expected);
+    });
+  });
+
   describe('diagnose', () => {
     const CHECKED_CODES: readonly string[] = ['REFERENCE_ERROR', 'ARGUMENT_TYPE_MISMATCH', 'ARGUMENT_COUNT_MISMATCH'];
     const records = fc.record({ a: formulaValueArbitrary(), b: formulaValueArbitrary(), c: formulaValueArbitrary() });

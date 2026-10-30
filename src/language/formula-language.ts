@@ -16,6 +16,7 @@ import type { FormulaSignatureHelp } from './formula-signature-help';
 
 import { checkFormula } from '../core/check-formula';
 import { Kind } from '../core/data-types';
+import { DependencyExtractorVisitor } from '../core/dependency-extractor.visitor';
 import { FormulaErrorCode } from '../core/errors';
 import { inferNodeType } from '../core/infer-node-type';
 import { kindsOf, membersOf, type } from '../core/types';
@@ -195,6 +196,28 @@ export class FormulaLanguage {
     }
 
     return { from: place.from, to: place.to, items };
+  }
+
+  /**
+   * Returns the names of the fields a formula reads, each once, in the order it first reads them.
+   *
+   * @remarks
+   * The names a formula declares with `let` and the names a routine gives an expression per item, such as `current`,
+   * are not fields. Neither are the names inside `parent(…)`, which reads them in the enclosing object. Text that does
+   * not parse gives the fields read in the parts that do, so the list follows the formula as it is typed.
+   *
+   * @param text - Formula text, complete or still being typed.
+   * @returns Every name the formula reads that a host must supply, whether or not it is one of the host's fields.
+   *
+   * @example
+   * ```ts
+   * language.reads('let net = price * qty in lines.map(current.total()).sum() + net'); // ['price', 'qty', 'lines']
+   * ```
+   */
+  reads(text: string): string[] {
+    const formula = parsePastErrors(text);
+
+    return formula ? [...DependencyExtractorVisitor.getDependencies(formula)] : [];
   }
 
   #itemsAt({ place, offset, fields }: { place: CaretPlace; offset: number; fields: readonly FormulaField[] }): FormulaCompletion[] {

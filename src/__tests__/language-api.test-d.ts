@@ -19,6 +19,10 @@ describe('language API', () => {
     expectTypeOf<API.FormulaDiagnostic['suggestions']>().toEqualTypeOf<API.FormulaCompletions | undefined>();
   });
 
+  it('should list the fields a formula reads by their names', () => {
+    expectTypeOf<API.FormulaLanguage['reads']>().toEqualTypeOf<(text: string) => string[]>();
+  });
+
   it('should create the language service from a scope and type its signature help with the routines of the root API', () => {
     expectTypeOf<typeof API.FormulaLanguage>().constructorParameters.toEqualTypeOf<[scope: Root.FormulaScope]>();
     expectTypeOf<API.FormulaLanguage['signatureHelp']>().toEqualTypeOf<(text: string, offset: number) => API.FormulaSignatureHelp | undefined>();
