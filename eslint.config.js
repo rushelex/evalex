@@ -5,7 +5,7 @@ export default antfu(
     ignores: [
       'node_modules',
       'dist',
-      'src/**/__generated__',
+      'packages/*/src/**/__generated__',
       '**/*.md',
     ],
     typescript: {
@@ -19,8 +19,8 @@ export default antfu(
   },
   {
     // evalex reads the global `Temporal`: an import would bundle a second implementation whose dates the host's fail `instanceof`
-    files: ['src/**/*.ts'],
-    ignores: ['src/testing-library/polyfill-temporal.ts'],
+    files: ['packages/*/src/**/*.ts'],
+    ignores: ['packages/evalex/src/testing-library/polyfill-temporal.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [{ group: ['temporal-polyfill', 'temporal-polyfill/*'], message: 'Use the global Temporal.' }],

@@ -1,41 +1,23 @@
 {
-  "name": "evalex",
+  "name": "evalex-workspace",
   "type": "module",
-  "version": "0.0.1",
-  "description": "Extensible formula engine with parsing, evaluation and reactive recalculation.",
+  "private": true,
+  "description": "The evalex packages: a typed formula language and its editor adapters.",
   "author": "Aleksey Shelementev <rushelex@gmail.com>",
   "license": "MIT",
-  "homepage": "https://github.com/rushelex/evalex#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rushelex/evalex.git"
   },
-  "bugs": {
-    "url": "https://github.com/rushelex/evalex/issues"
-  },
-  "exports": {
-    ".": "./dist/index.js",
-    "./language": "./dist/language.js",
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "LICENSE",
-    "README.md",
-    "dist",
-    "package.json"
-  ],
   "scripts": {
-    "build": "tsdown",
-    "dev": "tsdown --watch",
-    "start": "tsdown --watch",
+    "build": "pnpm --recursive build",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "prebench": "tsdown",
+    "prebench": "pnpm build",
     "bench": "vitest bench --run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --cache",
-    "lint:fix": "pnpm lint --fix",
-    "prepublishOnly": "pnpm run build"
+    "lint:fix": "pnpm lint --fix"
   },
   "devEngines": {
     "runtime": {
@@ -47,14 +29,6 @@
       "name": "pnpm",
       "version": "^12.15.0",
       "onFail": "download"
-    }
-  },
-  "peerDependencies": {
-    "temporal-polyfill": "^1.0.6"
-  },
-  "peerDependenciesMeta": {
-    "temporal-polyfill": {
-      "optional": true
     }
   },
   "devDependencies": {

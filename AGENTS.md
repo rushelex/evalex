@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Rules for working in this repository. Each module under `src/` has its own `AGENTS.md` with rules specific to it.
+Rules for working in this repository. Each package lives in `packages/`, and each module under `packages/evalex/src/` has its own `AGENTS.md` with rules specific to it.
 
 ## Product principles
 
@@ -25,9 +25,14 @@ A feature that fails one of them stays out of the core even when hosts need it. 
 
 ## Public API
 
-- The public surface is the package root and `evalex/language`, the entry point for formula editors. Adding, renaming or removing an export or an entry point is an API decision: propose it, don't just do it.
-- The library runs in browsers. No Node.js built-ins in `src/`, outside tests and benchmarks.
+- The public surface of `evalex` is its root and `evalex/language`, the entry point for formula editors. Adding, renaming or removing an export, an entry point or a package is an API decision: propose it, don't just do it.
+- Every package runs in browsers. No Node.js built-ins in a package's `src/`, outside tests and benchmarks.
 - No new runtime dependencies without the owner's approval. Development dependencies need approval too.
+
+## Packages
+
+- All packages share one version and are released together.
+- A package reads another from its source: tests, type-checking and lint run once over the whole repository, without a build.
 
 ## Issues
 

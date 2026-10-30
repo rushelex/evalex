@@ -1,0 +1,41 @@
+{
+  "name": "evalex",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "Typed formula language: parse and evaluate formulas, and answer formula editors.",
+  "author": "Aleksey Shelementev <rushelex@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/rushelex/evalex/tree/main/packages/evalex#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rushelex/evalex.git",
+    "directory": "packages/evalex"
+  },
+  "bugs": {
+    "url": "https://github.com/rushelex/evalex/issues"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./language": "./dist/language.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "prepublishOnly": "pnpm run build"
+  },
+  "peerDependencies": {
+    "temporal-polyfill": "^1.0.6"
+  },
+  "peerDependenciesMeta": {
+    "temporal-polyfill": {
+      "optional": true
+    }
+  }
+}

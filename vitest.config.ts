@@ -7,7 +7,7 @@ import { defineConfig } from 'vitest/config';
 // Benchmarks measure the built bundle: source modules pay for Vite's export getters on every call
 const benchResolve = {
   alias: {
-    evalex: path.resolve(import.meta.dirname, './dist/index.js'),
+    evalex: path.resolve(import.meta.dirname, './packages/evalex/dist/index.js'),
   },
 };
 
@@ -16,7 +16,10 @@ export default defineConfig({
 
   resolve: {
     alias: {
-      '~': path.resolve(import.meta.dirname, './src'),
+      '~': path.resolve(import.meta.dirname, './packages/evalex/src'),
+      // A package reads another from its source, so tests run without a build
+      'evalex/language': path.resolve(import.meta.dirname, './packages/evalex/src/language/index.ts'),
+      'evalex': path.resolve(import.meta.dirname, './packages/evalex/src/index.ts'),
     },
   },
 
@@ -24,11 +27,12 @@ export default defineConfig({
     globals: true,
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.(c|m)?[jt]s(x)?'],
+      include: ['packages/*/src/**/*.(c|m)?[jt]s(x)?'],
       exclude: ['**/node_modules/**', '**/dist/**', '**/*.d.ts', '**/index.ts'],
     },
-    exclude: ['**/*.{bench,benchmark}.ts'],
-    setupFiles: ['./src/testing-library/setup.ts'],
+    // Replaces the default exclude, so it names node_modules, where pnpm links each workspace package with its tests
+    exclude: ['**/node_modules/**', '**/*.{bench,benchmark}.ts'],
+    setupFiles: ['./packages/evalex/src/testing-library/setup.ts'],
     projects: [
       {
         extends: true,
@@ -55,7 +59,7 @@ export default defineConfig({
             '**/*.{browser,bench,benchmark,integration}.test.ts',
             '**/*.test-d.ts',
           ],
-          setupFiles: ['./src/testing-library/polyfill-temporal.ts'],
+          setupFiles: ['./packages/evalex/src/testing-library/polyfill-temporal.ts'],
           benchmark: { exclude: ['**/*'] },
         },
       },

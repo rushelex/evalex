@@ -2,6 +2,9 @@ minimumReleaseAgeExcludePrune: true
 trustPolicy: no-downgrade
 shellEmulator: true
 
+packages:
+  - packages/*
+
 # Security fixes for transitive dev dependencies pinned by their parents (pnpm audit)
 overrides:
   katex@<0.18.2: ^0.18.2

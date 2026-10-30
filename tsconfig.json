@@ -6,14 +6,15 @@
     "module": "preserve",
     "moduleResolution": "bundler",
     "paths": {
-      "~/*": ["./src/*"],
-      "evalex": ["./src/index.ts"]
+      "~/*": ["./packages/evalex/src/*"],
+      "evalex": ["./packages/evalex/src/index.ts"],
+      "evalex/language": ["./packages/evalex/src/language/index.ts"]
     },
     "resolveJsonModule": true,
     "types": [
       "vitest/globals",
       "@vitest/browser/matchers",
-      "./src/reset.d.ts"
+      "./packages/evalex/src/reset.d.ts"
     ],
     "strict": true,
     "noUnusedLocals": true,
