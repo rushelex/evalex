@@ -4,6 +4,7 @@ import type { FormulaRoutine, FormulaRoutineParameter } from '../core/formula-ro
 import type { FormulaScope } from '../core/formula-scope';
 import type { FormulaType } from '../core/types';
 import type { FormulaField } from '../core/types/formula-field';
+import type { FormulaTokenKind } from '../parser/ast/token';
 import type { CallSite } from '../parser/grammar/call-site';
 import type { CaretPlace } from '../parser/grammar/caret-place';
 import type { SyntaxError } from '../parser/grammar/syntax-error';
@@ -12,6 +13,7 @@ import type { FormulaCompletion } from './formula-completion';
 import type { FormulaCompletions } from './formula-completions';
 import type { FormulaDiagnostic } from './formula-diagnostic';
 import type { FormulaHover } from './formula-hover';
+import type { FormulaSegment } from './formula-segment';
 import type { FormulaSignatureHelp } from './formula-signature-help';
 import type { NamePlace } from './name-place';
 
@@ -22,7 +24,7 @@ import { FormulaErrorCode } from '../core/errors';
 import { inferNodeTypes } from '../core/infer-node-types';
 import { inferType } from '../core/infer-type';
 import { kindsOf, membersOf, type } from '../core/types';
-import { findCalls, findCaretPlace, diagnose as findSyntaxErrors, parsePastErrors } from '../parser/grammar/parser';
+import { findCalls, findCaretPlace, diagnose as findSyntaxErrors, parsePastErrors, tokenize } from '../parser/grammar/parser';
 import { SYNTAX_ERROR_MESSAGES } from '../parser/grammar/syntax-error-messages';
 import { findNames } from './find-names';
 import { spellingDistance } from './spelling-distance';
@@ -349,6 +351,52 @@ export class FormulaLanguage {
     return places.flatMap((place) => this.#hoverOf({ place, types, fields: options.fields }) ?? []);
   }
 
+  /**
+   * Splits formula text into pieces to show it without an editor, as in a cell or a list: each token with its kind, and
+   * each field with the label to show in place of its name.
+   *
+   * @remarks
+   * A name is a field where `names` tells it is one, so a variable named like a field is not, and a field of a record
+   * read by a method name is. Whitespace between tokens is a piece without a kind. A field read past a syntax error is a
+   * piece of the `invalid` text, with its label. Never throws, whatever the text.
+   *
+   * @param text - Formula text, complete or still being typed.
+   * @param options - What the host knows about the place of the formula.
+   * @param options.fields - The fields the formula can read at its place in the host's data, with their labels. Without
+   * them no piece is a field.
+   * @returns Pieces in the order of the text, whose texts make up the formula; empty for empty text.
+   *
+   * @example
+   * ```ts
+   * const fields = [{ name: 'price', label: 'Price' }, { name: 'qty', label: 'Quantity' }];
+   *
+   * language.segments('round(price * qty, 2)', { fields }).slice(0, 4);
+   * // [{ text: 'round', kind: 'function' }, { text: '(', kind: 'punctuation' },
+   * //  { text: 'price', kind: 'name', field: { name: 'price', label: 'Price' } }, { text: ' ' }]
+   * ```
+   */
+  segments(text: string, options: { readonly fields?: readonly FormulaField[] } = {}): FormulaSegment[] {
+    // Without the fields of the host any name is a field, so none is shown as one
+    const fields = options.fields ? this.names(text, options).filter(({ kind }) => kind === 'field') : [];
+    const segments: FormulaSegment[] = [];
+    let offset = 0;
+
+    for (const { kind, location: { start, end } } of tokenize(text)) {
+      if (offset < start.offset) {
+        segments.push({ text: text.slice(offset, start.offset) });
+      }
+
+      segments.push(...piecesOf({ text, kind, from: start.offset, to: end.offset, fields }));
+      offset = end.offset;
+    }
+
+    if (offset < text.length) {
+      segments.push({ text: text.slice(offset) });
+    }
+
+    return segments;
+  }
+
   /** What one name stands for, from the types of the nodes of its formula. */
   #hoverOf({ place, types, fields }: { place: NamePlace; types: ReturnType<typeof inferNodeTypes>; fields: readonly FormulaField[] | undefined }): FormulaHover | undefined {
     const { name, location } = place.name;
@@ -400,6 +448,29 @@ export class FormulaLanguage {
       return parameters[argument] ?? (last?.repeatable ? last : undefined);
     })).filter((parameter) => parameter !== undefined);
   }
+}
+
+/** The pieces of one token, with the fields inside it apart, as an `invalid` token holds them past a syntax error. */
+function piecesOf({ text, kind, from, to, fields }: { text: string; kind: FormulaTokenKind; from: number; to: number; fields: readonly FormulaHover[] }): FormulaSegment[] {
+  const pieces: FormulaSegment[] = [];
+  let offset = from;
+
+  for (const field of fields.filter((name) => from <= name.from && name.to <= to)) {
+    const name = text.slice(field.from, field.to);
+
+    if (offset < field.from) {
+      pieces.push({ text: text.slice(offset, field.from), kind });
+    }
+
+    pieces.push({ text: name, kind, field: { name, label: field.label } });
+    offset = field.to;
+  }
+
+  if (offset < to) {
+    pieces.push({ text: text.slice(offset, to), kind });
+  }
+
+  return pieces;
 }
 
 function nameAt({ places, offset }: { places: readonly NamePlace[]; offset: number }): NamePlace | undefined {

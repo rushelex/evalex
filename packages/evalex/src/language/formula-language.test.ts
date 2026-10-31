@@ -427,6 +427,77 @@ describe(FormulaLanguage, () => {
     });
   });
 
+  describe('segments', () => {
+    const letterFields = [{ name: 'a', label: 'A' }, { name: 'b', label: 'B' }, { name: 'c' }];
+
+    it.prop([fc.oneof(formulaText, fieldFormulaArbitrary({ lazy: true }))])('should give pieces that make up the formula, whatever the text', (text) => {
+      const segments = language.segments(text, { fields: letterFields });
+
+      expect(segments.map((segment) => segment.text).join('')).toBe(text);
+      expect(segments.filter((segment) => segment.text === '')).toEqual([]);
+    });
+
+    it.prop([fieldFormulaArbitrary({ lazy: true })])('should give a field to a piece that is the name of the field', (formula) => {
+      const fields = language.segments(formula, { fields: letterFields }).flatMap(({ text, field }) => (field ? [[text, field.name]] : []));
+
+      expect(fields.filter(([text, name]) => text !== name)).toEqual([]);
+    });
+
+    it.prop([fieldFormulaArbitrary({ lazy: true })])('should give the kinds of the tokens, and none between them', (formula) => {
+      const tokens = tokenize(formula).map(({ kind, location }) => [kind, formula.slice(location.start.offset, location.end.offset)]);
+      const kinds = language.segments(formula, { fields: letterFields }).filter(({ kind }) => kind);
+
+      expect(kinds.map(({ kind, text }) => [kind, text])).toEqual(tokens);
+      expect(language.segments(formula).filter(({ kind, text }) => !kind && text.trim() !== '')).toEqual([]);
+    });
+
+    it('should give the fields with their labels and the rest with their kinds', () => {
+      expect(language.segments('round(price * qty, 2)', { fields: [{ name: 'price', label: 'Price' }, { name: 'qty', label: 'Quantity' }] })).toEqual([
+        { text: 'round', kind: 'function' },
+        { text: '(', kind: 'punctuation' },
+        { text: 'price', kind: 'name', field: { name: 'price', label: 'Price' } },
+        { text: ' ' },
+        { text: '*', kind: 'operator' },
+        { text: ' ' },
+        { text: 'qty', kind: 'name', field: { name: 'qty', label: 'Quantity' } },
+        { text: ',', kind: 'punctuation' },
+        { text: ' ' },
+        { text: '2', kind: 'number' },
+        { text: ')', kind: 'punctuation' },
+      ]);
+    });
+
+    it('should give no field to a variable named as a field, nor to a name that is not a field', () => {
+      const segments = language.segments('let title = 1 in title + totl', { fields: orderFields });
+
+      expect(segments.filter(({ kind }) => kind === 'name').map(({ text, field }) => [text, field])).toEqual([['title', undefined], ['title', undefined], ['totl', undefined]]);
+    });
+
+    it('should give a field of a record read by a method name its label', () => {
+      expect(language.segments('order.qty()', { fields: orderFields }).slice(0, 3)).toEqual([
+        { text: 'order', kind: 'name', field: { name: 'order', label: 'order' } },
+        { text: '.', kind: 'punctuation' },
+        { text: 'qty', kind: 'method', field: { name: 'qty', label: 'Quantity' } },
+      ]);
+    });
+
+    it('should give a field read past a syntax error inside the invalid text', () => {
+      expect(language.segments('round(1,, title)', { fields: orderFields }).slice(-3)).toEqual([
+        { text: ',, ', kind: 'invalid' },
+        { text: 'title', kind: 'invalid', field: { name: 'title', label: 'title' } },
+        { text: ')', kind: 'invalid' },
+      ]);
+    });
+
+    it('should give no fields when the host passes none', () => {
+      expect(language.segments('round(price, 2)').filter(({ field }) => field)).toEqual([]);
+    });
+
+    it('should give nothing for empty text', () => {
+      expect(language.segments('')).toEqual([]);
+    });
+  });
+
   describe('typeOf', () => {
     const records = fc.record({ a: formulaValueArbitrary(), b: formulaValueArbitrary(), c: formulaValueArbitrary() });
 

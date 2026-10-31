@@ -232,6 +232,18 @@ language.names('round(price * qty, 2)', { fields: [...fields, { name: 'qty', lab
 // [['function', 'round'], ['field', 'Price'], ['field', 'Quantity']]
 ```
 
+`segments` splits a formula into pieces to show it without an editor, as in a table cell or a list of rules: each token with its kind, for coloring it, and each field with the label to show in place of its name. The texts of the pieces make up the formula, whitespace included:
+
+```ts
+language.segments('round(price * qty, 2)', { fields: [...fields, { name: 'qty', label: 'Quantity' }] });
+// [{ text: 'round', kind: 'function' }, { text: '(', kind: 'punctuation' },
+//  { text: 'price', kind: 'name', field: { name: 'price', label: 'Price' } }, { text: ' ' },
+//  { text: '*', kind: 'operator' }, { text: ' ' },
+//  { text: 'qty', kind: 'name', field: { name: 'qty', label: 'Quantity' } }, …]
+```
+
+The host draws each piece with its own components, so a cell reads `round(Price * Quantity, 2)` with the fields as chips. A name is a field where `names` tells it is one: a variable named like a field is not. Without `fields` no piece is a field.
+
 `diagnose` finds the errors to underline. In text that does not parse, they are the syntax errors, read on past each one the reader can step over, so separate mistakes show at once:
 
 ```ts
