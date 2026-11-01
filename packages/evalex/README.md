@@ -236,13 +236,17 @@ language.names('round(price * qty, 2)', { fields: [...fields, { name: 'qty', lab
 
 ```ts
 language.segments('round(price * qty, 2)', { fields: [...fields, { name: 'qty', label: 'Quantity' }] });
-// [{ text: 'round', kind: 'function' }, { text: '(', kind: 'punctuation' },
-//  { text: 'price', kind: 'name', field: { name: 'price', label: 'Price' } }, { text: ' ' },
-//  { text: '*', kind: 'operator' }, { text: ' ' },
-//  { text: 'qty', kind: 'name', field: { name: 'qty', label: 'Quantity' } }, …]
+// [{ text: 'round', from: 0, to: 5, kind: 'function' }, { text: '(', from: 5, to: 6, kind: 'punctuation' },
+//  { text: 'price', from: 6, to: 11, kind: 'name', field: { name: 'price', label: 'Price' } },
+//  { text: ' ', from: 11, to: 12 }, { text: '*', from: 12, to: 13, kind: 'operator' }, …]
 ```
 
-The host draws each piece with its own components, so a cell reads `round(Price * Quantity, 2)` with the fields as chips. A name is a field where `names` tells it is one: a variable named like a field is not. Without `fields` no piece is a field.
+The host draws each piece with its own components, so a cell reads `round(Price * Quantity, 2)` with the fields as chips. A name is a field where `names` tells it is one: a variable named like a field is not. Without `fields` no piece is a field. `from` and `to` are the offsets of the piece in the formula, the same as in the `location` of a diagnostic, so the host marks the pieces with errors, such as a field it no longer gives:
+
+```ts
+const errors = language.diagnose(text, { fields });
+const failed = (segment) => errors.some(({ location }) => location.start.offset < segment.to && segment.from < location.end.offset);
+```
 
 `diagnose` finds the errors to underline. In text that does not parse, they are the syntax errors, read on past each one the reader can step over, so separate mistakes show at once:
 

@@ -4,6 +4,10 @@ import type { FormulaTokenKind } from '../parser/ast/token';
 export interface FormulaSegment {
   /** The text of the piece; the texts of all pieces in order make up the formula. */
   readonly text: string;
+  /** Offset where the piece starts, for matching it with the errors of `diagnose`. */
+  readonly from: number;
+  /** Offset where the piece ends. */
+  readonly to: number;
   /** The kind of the token the piece is in, for coloring it; none for whitespace between tokens. */
   readonly kind?: FormulaTokenKind;
   /** For the name of a field, the field with the label to show in place of the name. */

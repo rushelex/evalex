@@ -358,7 +358,8 @@ export class FormulaLanguage {
    * @remarks
    * A name is a field where `names` tells it is one, so a variable named like a field is not, and a field of a record
    * read by a method name is. Whitespace between tokens is a piece without a kind. A field read past a syntax error is a
-   * piece of the `invalid` text, with its label. Never throws, whatever the text.
+   * piece of the `invalid` text, with its label. A name that is not a field, such as one the host no longer gives, is a
+   * piece with the span `diagnose` gives its error. Never throws, whatever the text.
    *
    * @param text - Formula text, complete or still being typed.
    * @param options - What the host knows about the place of the formula.
@@ -371,8 +372,9 @@ export class FormulaLanguage {
    * const fields = [{ name: 'price', label: 'Price' }, { name: 'qty', label: 'Quantity' }];
    *
    * language.segments('round(price * qty, 2)', { fields }).slice(0, 4);
-   * // [{ text: 'round', kind: 'function' }, { text: '(', kind: 'punctuation' },
-   * //  { text: 'price', kind: 'name', field: { name: 'price', label: 'Price' } }, { text: ' ' }]
+   * // [{ text: 'round', from: 0, to: 5, kind: 'function' }, { text: '(', from: 5, to: 6, kind: 'punctuation' },
+   * //  { text: 'price', from: 6, to: 11, kind: 'name', field: { name: 'price', label: 'Price' } },
+   * //  { text: ' ', from: 11, to: 12 }]
    * ```
    */
   segments(text: string, options: { readonly fields?: readonly FormulaField[] } = {}): FormulaSegment[] {
@@ -383,7 +385,7 @@ export class FormulaLanguage {
 
     for (const { kind, location: { start, end } } of tokenize(text)) {
       if (offset < start.offset) {
-        segments.push({ text: text.slice(offset, start.offset) });
+        segments.push({ text: text.slice(offset, start.offset), from: offset, to: start.offset });
       }
 
       segments.push(...piecesOf({ text, kind, from: start.offset, to: end.offset, fields }));
@@ -391,7 +393,7 @@ export class FormulaLanguage {
     }
 
     if (offset < text.length) {
-      segments.push({ text: text.slice(offset) });
+      segments.push({ text: text.slice(offset), from: offset, to: text.length });
     }
 
     return segments;
@@ -459,15 +461,15 @@ function piecesOf({ text, kind, from, to, fields }: { text: string; kind: Formul
     const name = text.slice(field.from, field.to);
 
     if (offset < field.from) {
-      pieces.push({ text: text.slice(offset, field.from), kind });
+      pieces.push({ text: text.slice(offset, field.from), from: offset, to: field.from, kind });
     }
 
-    pieces.push({ text: name, kind, field: { name, label: field.label } });
+    pieces.push({ text: name, from: field.from, to: field.to, kind, field: { name, label: field.label } });
     offset = field.to;
   }
 
   if (offset < to) {
-    pieces.push({ text: text.slice(offset, to), kind });
+    pieces.push({ text: text.slice(offset, to), from: offset, to, kind });
   }
 
   return pieces;

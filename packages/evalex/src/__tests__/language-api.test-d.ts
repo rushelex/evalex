@@ -61,6 +61,7 @@ describe('language API', () => {
     expectTypeOf<API.FormulaLanguage['segments']>().toEqualTypeOf<
       (text: string, options?: { readonly fields?: readonly API.FormulaField[] }) => API.FormulaSegment[]
     >();
+    expectTypeOf<API.FormulaSegment['from']>().toEqualTypeOf<number>();
     expectTypeOf<API.FormulaSegment['kind']>().toEqualTypeOf<API.FormulaTokenKind | undefined>();
     expectTypeOf<API.FormulaSegment['field']>().toEqualTypeOf<{ readonly name: string; readonly label: string } | undefined>();
   });

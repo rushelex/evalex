@@ -437,6 +437,13 @@ describe(FormulaLanguage, () => {
       expect(segments.filter((segment) => segment.text === '')).toEqual([]);
     });
 
+    it.prop([fc.oneof(formulaText, fieldFormulaArbitrary({ lazy: true }))])('should give each piece the span of its text, each starting where the one before ends', (text) => {
+      const segments = language.segments(text, { fields: letterFields });
+
+      expect(segments.filter(({ text: piece, from, to }) => text.slice(from, to) !== piece)).toEqual([]);
+      expect(segments.map(({ from }) => from)).toEqual(segments.map((_segment, index) => segments[index - 1]?.to ?? 0));
+    });
+
     it.prop([fieldFormulaArbitrary({ lazy: true })])('should give a field to a piece that is the name of the field', (formula) => {
       const fields = language.segments(formula, { fields: letterFields }).flatMap(({ text, field }) => (field ? [[text, field.name]] : []));
 
@@ -453,17 +460,17 @@ describe(FormulaLanguage, () => {
 
     it('should give the fields with their labels and the rest with their kinds', () => {
       expect(language.segments('round(price * qty, 2)', { fields: [{ name: 'price', label: 'Price' }, { name: 'qty', label: 'Quantity' }] })).toEqual([
-        { text: 'round', kind: 'function' },
-        { text: '(', kind: 'punctuation' },
-        { text: 'price', kind: 'name', field: { name: 'price', label: 'Price' } },
-        { text: ' ' },
-        { text: '*', kind: 'operator' },
-        { text: ' ' },
-        { text: 'qty', kind: 'name', field: { name: 'qty', label: 'Quantity' } },
-        { text: ',', kind: 'punctuation' },
-        { text: ' ' },
-        { text: '2', kind: 'number' },
-        { text: ')', kind: 'punctuation' },
+        { text: 'round', from: 0, to: 5, kind: 'function' },
+        { text: '(', from: 5, to: 6, kind: 'punctuation' },
+        { text: 'price', from: 6, to: 11, kind: 'name', field: { name: 'price', label: 'Price' } },
+        { text: ' ', from: 11, to: 12 },
+        { text: '*', from: 12, to: 13, kind: 'operator' },
+        { text: ' ', from: 13, to: 14 },
+        { text: 'qty', from: 14, to: 17, kind: 'name', field: { name: 'qty', label: 'Quantity' } },
+        { text: ',', from: 17, to: 18, kind: 'punctuation' },
+        { text: ' ', from: 18, to: 19 },
+        { text: '2', from: 19, to: 20, kind: 'number' },
+        { text: ')', from: 20, to: 21, kind: 'punctuation' },
       ]);
     });
 
@@ -473,19 +480,28 @@ describe(FormulaLanguage, () => {
       expect(segments.filter(({ kind }) => kind === 'name').map(({ text, field }) => [text, field])).toEqual([['title', undefined], ['title', undefined], ['totl', undefined]]);
     });
 
+    it('should give a name that is not a field the span of its error', () => {
+      const text = 'title + price';
+      const [error] = language.diagnose(text, { fields: orderFields });
+      const segment = language.segments(text, { fields: orderFields }).find(({ from }) => from === error?.location.start.offset);
+
+      expect(segment).toEqual({ text: 'price', from: 8, to: 13, kind: 'name' });
+      expect(segment?.to).toBe(error?.location.end.offset);
+    });
+
     it('should give a field of a record read by a method name its label', () => {
       expect(language.segments('order.qty()', { fields: orderFields }).slice(0, 3)).toEqual([
-        { text: 'order', kind: 'name', field: { name: 'order', label: 'order' } },
-        { text: '.', kind: 'punctuation' },
-        { text: 'qty', kind: 'method', field: { name: 'qty', label: 'Quantity' } },
+        { text: 'order', from: 0, to: 5, kind: 'name', field: { name: 'order', label: 'order' } },
+        { text: '.', from: 5, to: 6, kind: 'punctuation' },
+        { text: 'qty', from: 6, to: 9, kind: 'method', field: { name: 'qty', label: 'Quantity' } },
       ]);
     });
 
     it('should give a field read past a syntax error inside the invalid text', () => {
       expect(language.segments('round(1,, title)', { fields: orderFields }).slice(-3)).toEqual([
-        { text: ',, ', kind: 'invalid' },
-        { text: 'title', kind: 'invalid', field: { name: 'title', label: 'title' } },
-        { text: ')', kind: 'invalid' },
+        { text: ',, ', from: 7, to: 10, kind: 'invalid' },
+        { text: 'title', from: 10, to: 15, kind: 'invalid', field: { name: 'title', label: 'title' } },
+        { text: ')', from: 15, to: 16, kind: 'invalid' },
       ]);
     });
 
