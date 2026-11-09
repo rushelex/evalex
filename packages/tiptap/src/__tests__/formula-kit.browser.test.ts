@@ -48,6 +48,15 @@ describe('FormulaKit', () => {
     expect([formulasOf(editor), chipsOf(editor)]).toEqual([['round(price * qty, 2)', 'price'], ['Price', 'Quantity', 'Price']]);
   });
 
+  it('should show the value on the sample of the selected part of a formula', async () => {
+    const editor = await mount({ content: '<div data-formula>price * qty</div>', options: { language, sample: { price: 250, qty: 4 } } });
+
+    editor.view.focus();
+    editor.commands.setTextSelection({ from: 1, to: 12 });
+
+    await vi.waitFor(() => expect(document.querySelector('.pm-formula-value-help .pm-formula-value')?.textContent).toBe('= 1000'));
+  });
+
   it('should show the fields the host gives now, on the refreshFormulas command', async () => {
     let given: readonly FormulaField[] = fields;
     const editor = await mount({ content: '<div data-formula>price * total</div>', options: { language, fields: () => given } });

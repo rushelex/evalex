@@ -57,7 +57,8 @@ const formulaFieldNode = Node.create({
 /**
  * Makes a Tiptap editor an editor of evalex formulas: it adds the `formula`, `formulaBlock` and `formulaField` nodes to
  * the schema, and makes every formula colored, its errors underlined with fixes for misspelled names, its fields shown
- * as chips by their labels, with completion, the arguments of a call and what a name stands for as the author types.
+ * as chips by their labels, with completion, the arguments of a call and what a name stands for as the author types,
+ * and with a sample record, what each part evaluates to on it.
  *
  * @remarks
  * The nodes and their behavior are the ones of `@evalexjs/prosemirror`, so its stylesheet styles them and its options

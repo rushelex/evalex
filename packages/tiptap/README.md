@@ -53,6 +53,8 @@ fields = [{ name: 'price', label: 'Cost', type: { kind: 'Number' } }];
 editor.commands.refreshFormulas();
 ```
 
+With `sample`, a record of the host's data such as the first row of a table, hovering over a name and selecting a part of a formula show what it evaluates to on that record, [as in ProseMirror](https://github.com/rushelex/evalex/tree/main/packages/prosemirror#values-on-a-sample-record).
+
 The language and the other options are fixed for the editor.
 
 ## License
