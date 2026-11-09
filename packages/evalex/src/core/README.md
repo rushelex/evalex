@@ -163,7 +163,7 @@ scope.evaluate('"Due: " + due', { due: new Date('2024-07-28T14:35Z') }).value;
 | `duration` | `Temporal.Duration` | ISO 8601 duration: `P1DT2H` |
 | `number` | `number` | `1234.5` |
 | `boolean` | `boolean` | `true` / `false` |
-| `null` | `null` | empty text |
+| `null` | `null` | empty text, and `null` inside an object: `{ note: null }` |
 
 Text and regular expressions keep their own text. Error payloads keep machine text whatever the formatters are; error messages are localized through `messageKey`. A formatter that throws fails the evaluation with its own exception, and one that returns something other than text throws a `TypeError`.
 

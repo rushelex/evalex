@@ -24,7 +24,8 @@ export class FormulaNull extends FormulaDataType<null, typeof Kind.Null> {
   }
 
   toString(options?: ToStringOptions): string {
-    return formatWith({ formatter: options?.format?.null, value: null, kind: 'null' }) ?? '';
+    // Inside a list or an object, a missing value still shows as one
+    return formatWith({ formatter: options?.format?.null, value: null, kind: 'null' }) ?? (options?.asJSON ? 'null' : '');
   }
 
   /**
