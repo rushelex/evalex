@@ -1,4 +1,4 @@
-import type { FormulaError } from '../core/errors';
+import type { FormulaValue } from '../core/data-types';
 import type { FormulaErrorPayloads } from '../core/errors/error-payloads';
 import type { FormulaRoutine, FormulaRoutineParameter } from '../core/formula-routine';
 import type { FormulaScope } from '../core/formula-scope';
@@ -15,18 +15,26 @@ import type { FormulaDiagnostic } from './formula-diagnostic';
 import type { FormulaHover } from './formula-hover';
 import type { FormulaSegment } from './formula-segment';
 import type { FormulaSignatureHelp } from './formula-signature-help';
+import type { FormulaValueAt } from './formula-value-at';
 import type { NamePlace } from './name-place';
+import type { PiecePlace } from './piece-place';
 
 import { checkFormula } from '../core/check-formula';
-import { Kind } from '../core/data-types';
+import { isFormulaValue, Kind } from '../core/data-types';
 import { DependencyExtractorVisitor } from '../core/dependency-extractor.visitor';
-import { FormulaErrorCode } from '../core/errors';
+import { FormulaError, FormulaErrorCode } from '../core/errors';
+import { evaluateFormula } from '../core/evaluate-formula';
+import { HostValues } from '../core/host-values';
 import { inferNodeTypes } from '../core/infer-node-types';
 import { inferType } from '../core/infer-type';
+import { parseFormula } from '../core/parse-formula';
+import { scopeSettings } from '../core/scope-settings';
+import { DEFAULT_TIME_ZONE } from '../core/time-zone';
 import { kindsOf, membersOf, type } from '../core/types';
 import { findCalls, findCaretPlace, diagnose as findSyntaxErrors, parsePastErrors, tokenize } from '../parser/grammar/parser';
 import { SYNTAX_ERROR_MESSAGES } from '../parser/grammar/syntax-error-messages';
 import { findNames } from './find-names';
+import { findPieces } from './find-pieces';
 import { spellingDistance } from './spelling-distance';
 
 // What can stand in place of each kind of name that is not defined: a record reads a field by a method name
@@ -57,9 +65,11 @@ const SUGGESTED_KINDS: Readonly<Record<FormulaErrorPayloads['REFERENCE_ERROR']['
  * ```
  */
 export class FormulaLanguage {
+  readonly #scope: FormulaScope;
   readonly #routines: readonly FormulaRoutine[];
 
   constructor(scope: FormulaScope) {
+    this.#scope = scope;
     this.#routines = scope.routines();
   }
 
@@ -134,15 +144,14 @@ export class FormulaLanguage {
 
     // Every error a check finds points into the formula
     return checkFormula({ text, fields }).flatMap((error) => {
-      const { code, payload, message, messageKey, location } = error;
       const suggestions = this.#suggestionsFor({ text, error, fields: options.fields ?? [] });
-      const diagnostic = { code, payload, message: message.replace(/ \[\d+,\d+\]$/, ''), messageKey, location };
+      const diagnostic = diagnosticOf(error);
 
-      if (!location) {
+      if (!diagnostic) {
         return [];
       }
 
-      return [suggestions ? { ...diagnostic, location, suggestions } : { ...diagnostic, location }];
+      return [suggestions ? { ...diagnostic, suggestions } : diagnostic];
     });
   }
 
@@ -228,6 +237,65 @@ export class FormulaLanguage {
     const formula = findSyntaxErrors(text).length > 0 ? undefined : parsePastErrors(text);
 
     return formula && inferType({ formula, fields: typesOf(options.fields ?? []) });
+  }
+
+  /**
+   * Returns what the part of a formula at the caret or the selection evaluates to on a sample record, to show next to it.
+   *
+   * @remarks
+   * The part is the smallest one that holds the selection, with the parentheses and whitespace around it, such as
+   * `price * qty` for a selection of `(price * qty)`. The name of a function or a method stands for its call, and a name
+   * declared with `let` for the value it is given. The formula is evaluated once, whole, so a `let` name and `current`
+   * have the values they have there: a part evaluated per item gives a value per item, and a branch evaluation skips
+   * gives none.
+   *
+   * @param text - Formula text, as a host passes it to `FormulaScope.evaluate`.
+   * @param selection - The selection in `text`; a caret has `from` equal to `to`, and the end of a name counts as in it.
+   * @param selection.from - Offset where the selection starts.
+   * @param selection.to - Offset where the selection ends.
+   * @param options - The record to evaluate on.
+   * @param options.values - Host values by the names the formula reads them by, as `FormulaScope.evaluate` takes them.
+   * @returns `undefined` for text with syntax errors.
+   * @throws TypeError naming the path to a value of `values` the formula reads that has no formula form.
+   *
+   * @example
+   * ```ts
+   * const part = language.valueAt('round(price * qty, 2)', { from: 8, to: 15 }, { values: { price: 250, qty: 4 } });
+   *
+   * [part?.from, part?.to, part?.values[0]?.value]; // [6, 17, 1000], the value of `price * qty`
+   * ```
+   */
+  valueAt(text: string, selection: { readonly from: number; readonly to: number }, options: { readonly values: object }): FormulaValueAt | undefined {
+    const formula = findSyntaxErrors(text).length > 0 ? undefined : parseFormula(text);
+    const piece = formula && pieceAt({ text, pieces: findPieces(formula), selection });
+
+    if (!formula || !piece) {
+      return undefined;
+    }
+
+    const { format, timeZone } = scopeSettings.get(this.#scope) ?? { format: undefined, timeZone: DEFAULT_TIME_ZONE };
+    const values: FormulaValue[] = [];
+    const properties = new HostValues({ values: options.values, timeZone });
+
+    try {
+      evaluateFormula({ formula: text, ast: formula, properties, format, timeZone, onValue: (node, value) => {
+        if (node === piece.node && isFormulaValue(value)) {
+          values.push(value);
+        }
+      } });
+    }
+    catch (error) {
+      if (!isFormulaError(error)) {
+        throw error;
+      }
+
+      const diagnostic = diagnosticOf(error);
+      const inside = diagnostic && piece.from <= diagnostic.location.start.offset && diagnostic.location.end.offset <= piece.to;
+
+      return inside ? { from: piece.from, to: piece.to, values, error: diagnostic } : { from: piece.from, to: piece.to, values };
+    }
+
+    return { from: piece.from, to: piece.to, values };
   }
 
   /**
@@ -475,8 +543,54 @@ function piecesOf({ text, kind, from, to, fields }: { text: string; kind: Formul
   return pieces;
 }
 
+/** The diagnostic of an error, without the offsets its message ends with; none for an error that points nowhere. */
+function diagnosticOf(error: FormulaError): FormulaDiagnostic | undefined {
+  const { code, payload, message, messageKey, location } = error;
+
+  return location && { code, payload, message: message.replace(/ \[\d+,\d+\]$/, ''), messageKey, location };
+}
+
+/** The smallest part whose span, with the parentheses and whitespace around it, holds the selection; else the whole. */
+function pieceAt({ text, pieces, selection }: { text: string; pieces: readonly PiecePlace[]; selection: { readonly from: number; readonly to: number } }): PiecePlace | undefined {
+  // A part comes after the parts that hold it, so the last part that holds the selection is the smallest
+  const found = pieces.findLast((piece) => {
+    const { from, to } = paddedSpan({ text, piece });
+
+    return from <= selection.from && selection.to <= to;
+  });
+
+  return found ?? pieces[0];
+}
+
+/** The span of a part grown over the whitespace and the pairs of parentheses around it. */
+function paddedSpan({ text, piece }: { text: string; piece: PiecePlace }): { from: number; to: number } {
+  let { from, to } = piece;
+
+  for (;;) {
+    while (from > 0 && /\s/.test(text[from - 1] ?? '')) {
+      from--;
+    }
+
+    while (to < text.length && /\s/.test(text[to] ?? '')) {
+      to++;
+    }
+
+    if (text[from - 1] !== '(' || text[to] !== ')') {
+      return { from, to };
+    }
+
+    from--;
+    to++;
+  }
+}
+
 function nameAt({ places, offset }: { places: readonly NamePlace[]; offset: number }): NamePlace | undefined {
   return places.find(({ name: { location } }) => location.start.offset <= offset && offset <= location.end.offset);
+}
+
+// `instanceof` narrows a generic class to its `any` instantiation, so the guard names the error type.
+function isFormulaError(error: unknown): error is FormulaError {
+  return error instanceof FormulaError;
 }
 
 function isReferenceError(error: FormulaError): error is FormulaError<'REFERENCE_ERROR'> {

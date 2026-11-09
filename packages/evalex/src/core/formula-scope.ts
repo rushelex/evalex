@@ -11,6 +11,7 @@ import { HostValues } from './host-values';
 import { parseFormula } from './parse-formula';
 import { routinesRegistry } from './routines/registry';
 import { routineCatalog } from './routines/routine-catalog';
+import { scopeSettings } from './scope-settings';
 import { DEFAULT_TIME_ZONE, isTimeZone } from './time-zone';
 import { validateValueFormat } from './value-format';
 
@@ -75,6 +76,7 @@ export class FormulaScope {
 
     this.#format = options.format;
     this.#timeZone = options.timeZone ?? DEFAULT_TIME_ZONE;
+    scopeSettings.set(this, { format: this.#format, timeZone: this.#timeZone });
   }
 
   /**

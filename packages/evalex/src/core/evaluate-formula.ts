@@ -12,14 +12,16 @@ import { FormulaEvaluatorVisitor } from './evaluator.visitor';
  *
  * @throws FormulaError when the formula fails.
  */
-export function evaluateFormula({ formula, ast, properties, format, timeZone }: {
+export function evaluateFormula({ formula, ast, properties, format, timeZone, onValue }: {
   formula: string;
   ast: AST.AstNode;
   properties: GlobalProperties;
   format: ValueFormat | undefined;
   timeZone: string;
+  /** Called with each value a node of the formula evaluates to, for showing the values of its parts. */
+  onValue?: (node: AST.AstNode, value: FormulaDataType) => void;
 }): FormulaDataType {
-  const visitor = new FormulaEvaluatorVisitor(formula, new FormulaEvaluationContext(properties), { format, timeZone });
+  const visitor = new FormulaEvaluatorVisitor(formula, new FormulaEvaluationContext(properties), { format, timeZone, onValue });
 
   return visitor.evaluateNode(ast);
 }

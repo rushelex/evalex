@@ -248,6 +248,20 @@ const errors = language.diagnose(text, { fields });
 const failed = (segment) => errors.some(({ location }) => location.start.offset < segment.to && segment.from < location.end.offset);
 ```
 
+`valueAt` tells what a part of the formula evaluates to on a sample record the host passes, such as the first row of a table, so the author sees the value of `price * qty` while writing `round(price * qty, 2)`. The part is the smallest one that holds the selection, or the caret, with the parentheses around it:
+
+```ts
+const sample = { price: 250, qty: 4, lines: [{ qty: 1 }, { qty: 2 }, { qty: 3 }] };
+
+language.valueAt('round(price * qty, 2)', { from: 6, to: 17 }, { values: sample });
+// { from: 6, to: 17, values: [FormulaNumber 1000] }
+
+language.valueAt('lines.filter(current.qty() > 1)', { from: 13, to: 30 }, { values: sample })?.values.map(({ value }) => value);
+// [false, true, true], one value per item
+```
+
+The formula is evaluated once, whole, so `let` names and `current` have the values they have there. The name of a function or a method gives the result of its call. A branch evaluation skips gives no values, and a part evaluation fails in gives its `error` as a diagnostic, such as a division by zero on this record.
+
 `diagnose` finds the errors to underline. In text that does not parse, they are the syntax errors, read on past each one the reader can step over, so separate mistakes show at once:
 
 ```ts

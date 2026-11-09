@@ -542,6 +542,82 @@ describe(FormulaLanguage, () => {
     });
   });
 
+  describe('valueAt', () => {
+    const records = fc.record({ a: formulaValueArbitrary(), b: formulaValueArbitrary(), c: formulaValueArbitrary() });
+
+    const order = { price: 250, qty: 4, lines: [{ qty: 1 }, { qty: 2 }, { qty: 3 }] };
+
+    const valuesAt = ({ text, from, to = from }: { text: string; from: number; to?: number }): unknown[] | undefined => (
+      language.valueAt(text, { from, to }, { values: order })?.values.map(({ value }) => value)
+    );
+
+    it.prop([fieldFormulaArbitrary({ lazy: true }), records])('should give the whole formula the value or the error it evaluates to', (formula, record) => {
+      const outcome = evaluateOutcome(formula, { context: record });
+      const whole = language.valueAt(formula, { from: 0, to: formula.length }, { values: record });
+
+      expect(whole && { from: whole.from, to: whole.to }).toEqual({ from: 0, to: formula.length });
+      expect('value' in outcome ? whole?.values : whole?.error?.code).toEqual('value' in outcome ? [outcome.value] : outcome.error.code);
+    });
+
+    it.prop([fieldFormulaArbitrary({ lazy: true }).chain((text) => fc.tuple(fc.constant(text), fc.nat({ max: text.length }), fc.nat({ max: text.length }))), records])(
+      'should give a piece that holds the selection, apart from the parentheses and whitespace around it',
+      ([text, start, end], record) => {
+        const [from, to] = start <= end ? [start, end] : [end, start];
+        const piece = language.valueAt(text, { from, to }, { values: record });
+        const outside = piece && text.slice(Math.min(from, piece.from), piece.from) + text.slice(piece.to, Math.max(to, piece.to));
+
+        expect(piece && piece.to <= text.length).toBe(true);
+        expect(outside).toMatch(/^[\s()]*$/);
+      },
+    );
+
+    it('should give the value of the smallest piece that holds the selection', () => {
+      expect(language.valueAt('round(price * qty, 2)', { from: 8, to: 15 }, { values: order })).toEqual({ from: 6, to: 17, values: [expect.objectContaining({ kind: 'Number', value: 1000 })] });
+    });
+
+    it('should give a name at the caret its value, and a routine name the result of its call', () => {
+      const call = language.valueAt('lines.first().qty()', { from: 8, to: 8 }, { values: order });
+
+      expect(valuesAt({ text: 'round(price * qty, 2)', from: 8 })).toEqual([250]);
+      expect([call?.from, call?.to, call?.values.map(({ kind }) => kind)]).toEqual([0, 13, ['Object']]);
+    });
+
+    it('should give the value inside parentheses and whitespace to a selection of them', () => {
+      expect(language.valueAt('(price + qty) * 2', { from: 0, to: 13 }, { values: order })).toEqual({ from: 1, to: 12, values: [expect.objectContaining({ value: 254 })] });
+      expect(language.valueAt('round( price * qty, 2)', { from: 6, to: 18 }, { values: order })).toEqual({ from: 7, to: 18, values: [expect.objectContaining({ value: 1000 })] });
+      expect(language.valueAt('round(price * qty , 2)', { from: 6, to: 18 }, { values: order })).toMatchObject({ from: 6, to: 17 });
+    });
+
+    it('should give a piece evaluated per item its value on each item', () => {
+      expect(valuesAt({ text: 'lines.filter(current.qty() > 1)', from: 13, to: 30 })).toEqual([false, true, true]);
+    });
+
+    it('should give no values to a piece evaluation skips', () => {
+      expect(language.valueAt('qty > 1 ? price : price / 0', { from: 18, to: 27 }, { values: order })).toEqual({ from: 18, to: 27, values: [] });
+    });
+
+    it('should give the error evaluation fails with inside the piece', () => {
+      const piece = language.valueAt('qty > 9 ? price : price / 0', { from: 18, to: 27 }, { values: order });
+
+      const { start, end } = piece?.error?.location ?? { start: { offset: -1 }, end: { offset: -1 } };
+
+      expect([piece?.values, piece?.error?.code, piece?.error?.payload]).toEqual([[], 'ARITHMETIC_ERROR', { operation: 'division', dividend: 250 }]);
+      expect(start.offset >= 18 && end.offset <= 27).toBe(true);
+    });
+
+    it('should give no error to a piece evaluated before the formula fails elsewhere', () => {
+      expect(language.valueAt('price + qty / 0', { from: 2, to: 2 }, { values: order })).toEqual({ from: 0, to: 5, values: [expect.objectContaining({ value: 250 })] });
+    });
+
+    it('should give a name declared with let the value it is given', () => {
+      expect([valuesAt({ text: 'let net = price * qty in net + 1', from: 5 }), valuesAt({ text: 'let net = price * qty in net + 1', from: 26 })]).toEqual([[1000], [1000]]);
+    });
+
+    it('should give nothing for text that does not parse', () => {
+      expect(language.valueAt('round(price,', { from: 7, to: 7 }, { values: order })).toBeUndefined();
+    });
+  });
+
   describe('reads', () => {
     const records = fc.record({ a: formulaValueArbitrary(), b: formulaValueArbitrary(), c: formulaValueArbitrary() });
 

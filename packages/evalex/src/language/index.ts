@@ -7,4 +7,5 @@ export type { FormulaHover } from './formula-hover';
 export { FormulaLanguage } from './formula-language';
 export type { FormulaSegment } from './formula-segment';
 export type { FormulaSignatureHelp } from './formula-signature-help';
+export type { FormulaValueAt } from './formula-value-at';
 export { tokenize } from './tokenize';

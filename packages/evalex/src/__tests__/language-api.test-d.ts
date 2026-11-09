@@ -66,6 +66,14 @@ describe('language API', () => {
     expectTypeOf<API.FormulaSegment['field']>().toEqualTypeOf<{ readonly name: string; readonly label: string } | undefined>();
   });
 
+  it('should type the value at the selection with the values and the diagnostics of the root API', () => {
+    expectTypeOf<API.FormulaLanguage['valueAt']>().toEqualTypeOf<
+      (text: string, selection: { readonly from: number; readonly to: number }, options: { readonly values: object }) => API.FormulaValueAt | undefined
+    >();
+    expectTypeOf<API.FormulaValueAt['values'][number]>().toEqualTypeOf<Root.FormulaValue>();
+    expectTypeOf<API.FormulaValueAt['error']>().toEqualTypeOf<API.FormulaDiagnostic | undefined>();
+  });
+
   it('should type token kinds as plain text', () => {
     expectTypeOf<'function'>().toExtend<API.FormulaTokenKind>();
     expectTypeOf<'invalid'>().toExtend<API.FormulaTokenKind>();

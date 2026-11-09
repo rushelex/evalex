@@ -31,6 +31,8 @@ interface EvaluationHooks {
   format?: ValueFormat;
   /** The time zone the formula reads dates in. */
   timeZone?: string;
+  /** Called with each value a node evaluates to, every time it is evaluated, as when it is evaluated per item. */
+  onValue?: (node: AST.AstNode, value: FormulaDataType) => void;
 }
 
 /** The latest result of one evaluation and the part of the formula it came from, shared by its nested visitors. */
@@ -99,6 +101,7 @@ export class FormulaEvaluatorVisitor implements AST.IVisitor<FormulaDataType> {
     }
 
     origin.value = result;
+    this.#hooks?.onValue?.(node, result);
 
     return result;
   }
