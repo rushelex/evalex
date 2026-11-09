@@ -1,4 +1,4 @@
-import type { FormulaCompletions, FormulaDiagnostic, FormulaField, FormulaHover, FormulaSignatureHelp, FormulaToken } from 'evalex/language';
+import type { FormulaCompletions, FormulaDiagnostic, FormulaField, FormulaHover, FormulaSignatureHelp, FormulaToken, FormulaValueAt } from 'evalex/language';
 import type { Node } from 'prosemirror-model';
 
 import type { FormulaOptions } from './formula-options';
@@ -82,6 +82,14 @@ export class FormulaService {
     return this.#options.language.hover(formula.text, offset, { fields: this.fieldsOf(formula) });
   }
 
+  /** What the part of a formula at the selection evaluates to on its sample record; nothing without one. */
+  valueAt(formula: FormulaText, selection: { readonly from: number; readonly to: number }): FormulaValueAt | undefined {
+    const { sample } = this.#options;
+    const values = isSampleOfFormula(sample) ? sample({ node: formula.node, pos: formula.pos }) : sample;
+
+    return values && this.#options.language.valueAt(formula.text, selection, { values });
+  }
+
   message(diagnostic: FormulaDiagnostic): string {
     return this.#options.message?.(diagnostic) ?? diagnostic.message;
   }
@@ -100,4 +108,9 @@ export class FormulaService {
 
     return found;
   }
+}
+
+// `typeof` alone narrows an `object` to `Function`, whose call returns `any`, so the guard names the function type.
+function isSampleOfFormula(sample: FormulaOptions['sample']): sample is Extract<FormulaOptions['sample'], (formula: never) => unknown> {
+  return typeof sample === 'function';
 }

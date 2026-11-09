@@ -11,6 +11,7 @@ import { FormulaText } from './formula-text';
 import { routineInfo } from './routine-info';
 import { Tooltip } from './tooltip';
 import { typeText } from './type-text';
+import { valueInfo } from './value-info';
 
 // How long the pointer rests on a name before its tooltip shows
 const DELAY = 300;
@@ -18,7 +19,7 @@ const DELAY = 300;
 /**
  * Tells what is under the pointer in a formula: the errors there, with buttons that apply the fixes of a misspelled
  * name, and what the name stands for, a field with its label and type, a variable with its type, or the argument lists
- * and descriptions of the routines a call may run.
+ * and descriptions of the routines a call may run, and with a sample record, what it evaluates to on it.
  */
 export function formulaHover(service: FormulaService): Plugin {
   return new Plugin({
@@ -78,9 +79,11 @@ class Hover implements PluginView {
     const offset = formula.offsetAt(pos);
     const diagnostics = this.#service.diagnose(formula).filter(({ location: { start, end } }) => start.offset <= offset && offset <= end.offset);
     const hover = this.#service.hover(formula, offset);
+    const value = hover && this.#service.valueAt(formula, { from: hover.from, to: hover.to });
     const content = [
       ...diagnostics.map((diagnostic) => diagnosticInfo({ view, service: this.#service, formula, diagnostic })),
       ...(hover ? [hover.routines ? routineInfo({ routines: hover.routines }) : this.#nameOf({ formula, hover })] : []),
+      ...(value ? [valueInfo({ value, service: this.#service })] : []),
     ];
 
     if (content.length === 0) {

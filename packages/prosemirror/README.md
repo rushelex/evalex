@@ -63,6 +63,7 @@ The `textContent` of a formula node is the formula as evalex reads it, so that i
 | --- | --- |
 | `language` | The `FormulaLanguage` of the scope the formulas are evaluated in, with its functions and methods |
 | `fields` | The fields a formula can read, with their labels and types: one list for every formula, or a function that gives the list for a formula node at its position, such as by an attribute the host adds to the node. Without them, names are not checked, completion offers no fields and there are no chips |
+| `sample` | A record of the host's data, such as the first row of a table, that hovering and selecting show values on: one for every formula, or a function that gives the record for a formula node at its position. Without it, no values show |
 | `message` | Gives the text shown for an error, such as a translation found by its `messageKey` and filled in from its `payload`. The English message by default |
 
 A function for `fields` that returns the same list for the same formula lets the plugins reuse what they found in it; a formula is read again once its node changes or its list does.
@@ -95,9 +96,19 @@ While the editor has focus and the caret is inside a call, the argument lists of
 
 Hovering over a name tells what it stands for: a field with its label and type, such as `Price · price: Number`, a variable with its type, or the argument lists and descriptions of a function or method.
 
+### Values on a sample record
+
+With `sample`, each formula is evaluated on its record as the author writes it. Hovering over a name adds its value to its tooltip, `= 250` for `price`, and the name of a function or method gives the result of its call. Selecting a part of a formula, such as `price * qty`, shows its value below the selection while the editor has focus:
+
+```ts
+formula({ language, fields, sample: { price: 250, qty: 4 } });
+```
+
+Text shows in quotes and lists in brackets: `= "A-12"`, `= [1, 2, 3]`. A part evaluated per item, such as the condition of `filter`, shows a value per item, `= false, true, true`; a branch of `? :` evaluation skips shows `= —`; a part that fails on the record shows its error, worded by `message`.
+
 ### Styles
 
-`style.css` styles every part through `pm-formula-*` classes, which a theme overrides: `pm-formula` and `pm-formula-block` for the formulas, `pm-formula-field` for chips, `pm-formula-tooltip` for every tooltip, `pm-formula-completions`, `pm-formula-completion` and `pm-formula-completion-info` for the list, and `pm-formula-routines`, `pm-formula-signature`, `pm-formula-argument-active`, `pm-formula-description`, `pm-formula-name`, `pm-formula-diagnostic` and `pm-formula-fix` inside tooltips. Tooltips are placed in the body of the page, so no container of the editor clips them.
+`style.css` styles every part through `pm-formula-*` classes, which a theme overrides: `pm-formula` and `pm-formula-block` for the formulas, `pm-formula-field` for chips, `pm-formula-tooltip` for every tooltip, `pm-formula-completions`, `pm-formula-completion` and `pm-formula-completion-info` for the list, and `pm-formula-routines`, `pm-formula-signature`, `pm-formula-argument-active`, `pm-formula-description`, `pm-formula-name`, `pm-formula-diagnostic`, `pm-formula-fix`, `pm-formula-value` and `pm-formula-value-error` inside tooltips. Tooltips are placed in the body of the page, so no container of the editor clips them.
 
 A theme changes the colors and the font through CSS variables, without overriding the classes:
 
@@ -107,7 +118,7 @@ A theme changes the colors and the font through CSS variables, without overridin
 | `--pm-formula-font-family` | Formulas, argument lists and the completion list | A monospace font |
 | `--pm-formula-background` | Inline and block formulas | Translucent gray |
 | `--pm-formula-field-background` | Chips | Translucent gray |
-| `--pm-formula-error-color` | Error underlines and marks, the edge of a message and the text of a chip of a field the host no longer gives | Red |
+| `--pm-formula-error-color` | Error underlines and marks, the edge of a message, the text of a chip of a field the host no longer gives and of an error on the sample record | Red |
 | `--pm-formula-error-background` | A chip of a field the host no longer gives | Translucent red |
 | `--pm-formula-tooltip-background`, `--pm-formula-tooltip-color`, `--pm-formula-tooltip-border-color` | Tooltips and the completion list | Light gray, near black, gray |
 | `--pm-formula-selected-background`, `--pm-formula-selected-color` | The selected option of the list | Blue, white |

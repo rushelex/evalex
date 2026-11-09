@@ -16,6 +16,13 @@ export interface FormulaOptions {
    */
   readonly fields?: readonly FormulaField[] | ((formula: { readonly node: Node; readonly pos: number }) => readonly FormulaField[] | undefined);
   /**
+   * A record of the host's data a formula is evaluated on, such as the first row of a table, by the names the formula
+   * reads, as `FormulaScope.evaluate` takes them: one for every formula of the document, or the record for a formula node
+   * at its position. A name under the pointer and a selected part of a formula show what they evaluate to on it. Without
+   * it, no values show.
+   */
+  readonly sample?: object | ((formula: { readonly node: Node; readonly pos: number }) => object | undefined);
+  /**
    * Gives the text shown for a diagnostic, such as a translation found by its `messageKey` and filled in from its
    * `payload`.
    *

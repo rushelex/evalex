@@ -17,11 +17,12 @@ describe('@evalexjs/prosemirror API', () => {
     expectTypeOf<typeof API.formulaNodes>().toExtend<Readonly<Record<'formula' | 'formulaBlock' | 'formulaField', NodeSpec>>>();
   });
 
-  it('should take the language service, the fields of every formula or of each, and the wording of errors as options', () => {
+  it('should take the language service, the fields and the sample of every formula or of each, and the wording of errors as options', () => {
     expectTypeOf<API.FormulaOptions['language']>().toEqualTypeOf<FormulaLanguage>();
     expectTypeOf<API.FormulaOptions['fields']>().toEqualTypeOf<
       readonly FormulaField[] | ((formula: { readonly node: Node; readonly pos: number }) => readonly FormulaField[] | undefined) | undefined
     >();
+    expectTypeOf<API.FormulaOptions['sample']>().toEqualTypeOf<object | ((formula: { readonly node: Node; readonly pos: number }) => object | undefined) | undefined>();
     expectTypeOf<API.FormulaOptions['message']>().toEqualTypeOf<((diagnostic: FormulaDiagnostic) => string) | undefined>();
     expectTypeOf<{ language: FormulaLanguage }>().toExtend<API.FormulaOptions>();
   });

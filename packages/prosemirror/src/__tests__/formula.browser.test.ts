@@ -719,6 +719,86 @@ describe(formula, () => {
     });
   });
 
+  describe('values', () => {
+    const sample = { price: 250, qty: 4, lines: [{ qty: 1 }, { qty: 2 }, { qty: 3 }] };
+
+    it.each([
+      { text: 'price * 2', offset: 2, expected: '= 250' },
+      { text: 'lines.map(current.qty())', offset: 7, expected: '= [1, 2, 3]' },
+    ])('should tell the value on the sample of what is under the pointer: $text at $offset', async ({ text, offset, expected }) => {
+      const view = await mount({ blocks: [block(text)], options: { language, sample } });
+
+      expect((await hoverAt({ view, offset })).querySelector('.pm-formula-value')?.textContent).toBe(expected);
+    });
+
+    it.each([
+      { text: 'round(price * qty, 2)', from: 6, to: 17, expected: '= 1000' },
+      { text: 'lines.filter(current.qty() > 1)', from: 13, to: 30, expected: '= false, true, true' },
+      { text: 'qty > 1 ? price : price / 0', from: 18, to: 27, expected: '= —' },
+    ])('should show the value on the sample of the selected part: $text from $from to $to', async ({ text, from, to, expected }) => {
+      const view = await mount({ blocks: [block(text)], options: { language, fields, sample } });
+
+      view.focus();
+      select({ view, from, to });
+
+      expect(await valueHelpOf()).toBe(expected);
+    });
+
+    it('should evaluate each formula on its own sample', async () => {
+      const view = await mount({ blocks: [block('price'), block('price')], options: { language, sample: ({ pos }) => ({ price: pos }) } });
+      const [, second] = FormulaText.all(view.state.doc);
+
+      view.focus();
+      select({ view, from: 0, to: 5, index: 1 });
+
+      expect(await valueHelpOf()).toBe(`= ${second?.pos}`);
+    });
+
+    it('should word the error the selected part fails with as the host does', async () => {
+      const view = await mount({ blocks: [block('price / 0')], options: { language, sample, message: ({ code }) => `error ${code}` } });
+
+      view.focus();
+      select({ view, from: 0, to: 9 });
+
+      await vi.waitFor(() => expect(document.querySelector('.pm-formula-value-help .pm-formula-value-error')?.textContent).toBe('error ARITHMETIC_ERROR'));
+    });
+
+    it.each([
+      { case: 'the selection collapses', leave: (view: EditorView) => view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, caretAt({ view, offset: 3 })))) },
+      { case: 'the editor loses focus', leave: (view: EditorView) => view.dom.blur() },
+    ])('should hide the value of the selection when $case', async ({ leave }) => {
+      const view = await mount({ blocks: [block('price * qty')], options: { language, sample } });
+
+      view.focus();
+      select({ view, from: 0, to: 11 });
+      await valueHelpOf();
+      leave(view);
+
+      expect(document.querySelector('.pm-formula-value-help')).toBeNull();
+    });
+
+    it('should show no value for a selection that leaves the formula', async () => {
+      const view = await mount({ blocks: [paragraph('Total ', inline('price'), ' now')], options: { language, sample } });
+      const pos = caretAt({ view, offset: 2 });
+
+      view.focus();
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos, view.state.doc.content.size - 1)));
+      await settle();
+
+      expect(document.querySelector('.pm-formula-value-help')).toBeNull();
+    });
+
+    it('should show no values when the host passes no sample', async () => {
+      const view = await mount({ blocks: [block('price * qty')], options: { language } });
+
+      view.focus();
+      select({ view, from: 0, to: 11 });
+      await settle();
+
+      expect([document.querySelector('.pm-formula-value'), (await hoverAt({ view, offset: 2 })).querySelector('.pm-formula-value')]).toEqual([null, null]);
+    });
+  });
+
   describe('keys', () => {
     // The keys are pressed without what the browser does on its own, which differs from one browser to another
     it('should step the caret over a chip', async () => {
@@ -859,6 +939,20 @@ function descriptionOf(element: Element | null): string | undefined {
 }
 
 /** The messages of the errors at the caret once they show. */
+async function valueHelpOf(): Promise<string | null | undefined> {
+  return vi.waitFor(() => {
+    const found = document.querySelector('.pm-formula-value-help .pm-formula-value');
+
+    expect(found).not.toBeNull();
+
+    return found?.textContent;
+  });
+}
+
+function select({ view, from, to, index = 0 }: { view: EditorView; from: number; to: number; index?: number }): void {
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, caretAt({ view, offset: from, index }), caretAt({ view, offset: to, index }))));
+}
+
 async function diagnosticHelpOf(): Promise<(string | null)[]> {
   return vi.waitFor(() => {
     const messages = [...document.querySelectorAll('.pm-formula-diagnostic-help .pm-formula-diagnostic > span')].map(({ textContent }) => textContent);

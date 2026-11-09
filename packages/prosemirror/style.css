@@ -81,11 +81,13 @@ span.pm-formula:empty {
 }
 
 .pm-formula-signature,
-.pm-formula-tooltip .pm-formula-name {
+.pm-formula-tooltip .pm-formula-name,
+.pm-formula-value {
   font-family: var(--pm-formula-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
 }
 
 .pm-formula-argument-active { font-weight: bold; }
+.pm-formula-value-error { color: var(--pm-formula-error-color, #d11); }
 .pm-formula-description { opacity: 0.75; margin-bottom: 2px; }
 
 .pm-formula-diagnostic {

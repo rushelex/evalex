@@ -11,6 +11,7 @@ import { formulaKeys } from './formula-keys';
 import { formulaLint } from './formula-lint';
 import { FormulaService } from './formula-service';
 import { formulaSignatureHelp } from './formula-signature-help';
+import { formulaValueHelp } from './formula-value-help';
 
 /**
  * Makes every formula node of a ProseMirror document, `formula` and `formulaBlock` of `formulaNodes`, an editor of
@@ -25,7 +26,8 @@ import { formulaSignatureHelp } from './formula-signature-help';
  *
  * Each field a formula reads shows as a chip with its label, while the text keeps its name, and the word being typed
  * stays text until the caret leaves it. The caret steps over a chip and a deletion removes it whole. Errors show a
- * moment after the author stops typing, and their messages show under the pointer and at the caret.
+ * moment after the author stops typing, and their messages show under the pointer and at the caret. With a sample
+ * record, a name under the pointer and a selected part of a formula show what they evaluate to on it.
  *
  * The options are fixed for the plugins. For fields that change, `fields` is a function that returns the current list,
  * and a transaction marked by `refreshFormulas` makes the formulas read it again; to change the other options,
@@ -63,6 +65,7 @@ export function formula(options: FormulaOptions): Plugin[] {
     formulaFieldChips(service),
     formulaSignatureHelp(service),
     formulaDiagnosticHelp(service),
+    formulaValueHelp(service),
     formulaHover(service),
   ];
 }
