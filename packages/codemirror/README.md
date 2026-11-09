@@ -42,6 +42,7 @@ new EditorView({
 | --- | --- |
 | `language` | The `FormulaLanguage` of the scope the formula is evaluated in, with its functions and methods |
 | `fields` | The fields the formula can read, with their labels and types. Without them, names are not checked and completion offers no fields |
+| `sample` | A record of the host's data, such as the first row of a table, that hovering and selecting show values on. Without it, no values show |
 | `message` | Gives the text shown for an error, such as a translation found by its `messageKey` and filled in from its `payload`. The English message by default |
 
 ### Colors
@@ -79,7 +80,17 @@ While the editor has focus and the caret is inside a call, the argument lists of
 
 Hovering over a name tells what it stands for: a field with its label and type, such as `Price · price: Number`, a variable with its type, or the argument lists and descriptions of a function or method. Types read as `Array<Number>`, `{ qty: Number }` for a record, and `Number | Null` for one of several types.
 
-Chips and tooltips carry the classes `cm-formula-field`, `cm-formula-routines`, `cm-formula-signature`, `cm-formula-argument-active`, `cm-formula-description` and `cm-formula-name`; a theme styles them like any other part of the editor.
+### Values on a sample record
+
+With `sample`, the formula is evaluated on that record as the author writes it. Hovering over a name adds its value to its tooltip, `= 250` for `price`, and the name of a function or method gives the result of its call. Selecting a part of the formula, such as `price * qty`, shows its value below the selection while the editor has focus:
+
+```ts
+formula({ language, fields, sample: { price: 250, qty: 4 } });
+```
+
+Text shows in quotes and lists in brackets: `= "A-12"`, `= [1, 2, 3]`. A part evaluated per item, such as the condition of `filter`, shows a value per item, `= false, true, true`; a branch of `? :` evaluation skips shows `= —`; a part that fails on the record shows its error, worded by `message`.
+
+Chips and tooltips carry the classes `cm-formula-field`, `cm-formula-routines`, `cm-formula-signature`, `cm-formula-argument-active`, `cm-formula-description`, `cm-formula-name`, `cm-formula-value` and `cm-formula-value-error`; a theme styles them like any other part of the editor.
 
 ### Changing the fields
 

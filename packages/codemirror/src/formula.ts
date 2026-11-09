@@ -10,11 +10,13 @@ import { formulaHighlighting } from './formula-highlighting';
 import { formulaHover } from './formula-hover';
 import { formulaLint } from './formula-lint';
 import { formulaSignatureHelp } from './formula-signature-help';
+import { formulaValueHelp } from './formula-value-help';
 
 // Defaults a theme of the host overrides by the same class names
 const theme = EditorView.baseTheme({
-  '.cm-formula-routines, .cm-formula-name': { padding: '2px 6px', maxWidth: '40em' },
-  '.cm-formula-signature, .cm-formula-name': { fontFamily: 'monospace' },
+  '.cm-formula-routines, .cm-formula-name, .cm-tooltip.cm-formula-value': { padding: '2px 6px', maxWidth: '40em' },
+  '.cm-formula-signature, .cm-formula-name, .cm-formula-value': { fontFamily: 'monospace' },
+  '.cm-formula-value-error': { color: '#d11' },
   '.cm-formula-argument-active': { fontWeight: 'bold' },
   '.cm-formula-description': { opacity: '0.75', marginBottom: '2px' },
   '.cm-formula-field': { padding: '0 4px', borderRadius: '4px', backgroundColor: 'rgba(127, 127, 127, 0.2)' },
@@ -33,8 +35,10 @@ const theme = EditorView.baseTheme({
  * Each field the formula reads shows as a chip with its label, while the text keeps its name; the word being typed stays
  * text until the caret leaves it. A completion of a function or a method inserts its call with the caret between the
  * parentheses. The arguments of the call around the caret show above it while the editor has focus, with the one being
- * typed marked. Chips and tooltips use the classes `cm-formula-field`, `cm-formula-routines`, `cm-formula-signature`,
- * `cm-formula-argument-active`, `cm-formula-description` and `cm-formula-name`, which a theme may style.
+ * typed marked. With a sample record, a name under the pointer and a selected part of the formula show what they
+ * evaluate to on it. Chips and tooltips use the classes `cm-formula-field`, `cm-formula-routines`,
+ * `cm-formula-signature`, `cm-formula-argument-active`, `cm-formula-description`, `cm-formula-name`, `cm-formula-value`
+ * and `cm-formula-value-error`, which a theme may style.
  *
  * The options are fixed for the extension: to change the fields, as when the formula moves to another cell,
  * reconfigure it in a `Compartment`.
@@ -58,5 +62,5 @@ const theme = EditorView.baseTheme({
  * ```
  */
 export function formula(options: FormulaOptions): Extension {
-  return [formulaHighlighting(), formulaLint(options), formulaCompletion(options), formulaSignatureHelp(options), formulaHover(options), formulaFieldChips(options), theme];
+  return [formulaHighlighting(), formulaLint(options), formulaCompletion(options), formulaSignatureHelp(options), formulaHover(options), formulaValueHelp(options), formulaFieldChips(options), theme];
 }

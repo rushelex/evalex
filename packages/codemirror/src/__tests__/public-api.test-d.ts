@@ -8,9 +8,10 @@ describe('@evalexjs/codemirror API', () => {
     expectTypeOf<typeof API.formula>().toEqualTypeOf<(options: API.FormulaOptions) => Extension>();
   });
 
-  it('should take the language service, the fields and the wording of errors as options', () => {
+  it('should take the language service, the fields, the sample record and the wording of errors as options', () => {
     expectTypeOf<API.FormulaOptions['language']>().toEqualTypeOf<FormulaLanguage>();
     expectTypeOf<API.FormulaOptions['fields']>().toEqualTypeOf<readonly FormulaField[] | undefined>();
+    expectTypeOf<API.FormulaOptions['sample']>().toEqualTypeOf<object | undefined>();
     expectTypeOf<API.FormulaOptions['message']>().toEqualTypeOf<((diagnostic: FormulaDiagnostic) => string) | undefined>();
     expectTypeOf<{ language: FormulaLanguage }>().toExtend<API.FormulaOptions>();
   });

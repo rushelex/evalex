@@ -424,7 +424,78 @@ describe(formula, () => {
       await expect(hoverAt({ view, pos: 6 })).rejects.toThrow();
     });
   });
+
+  describe('values', () => {
+    const sample = { price: 250, qty: 4, lines: [{ qty: 1 }, { qty: 2 }, { qty: 3 }] };
+
+    it.each([
+      { doc: 'price * 2', pos: 2, expected: '= 250' },
+      { doc: 'lines.first()', pos: 8, expected: '= { qty: 1 }' },
+      { doc: 'lines.map(current.qty())', pos: 7, expected: '= [1, 2, 3]' },
+    ])('should tell the value on the sample of what is under the pointer: $doc at $pos', async ({ doc, pos, expected }) => {
+      const view = mount({ doc, extensions: [formula({ language, sample })] });
+
+      expect((await hoverAt({ view, pos })).querySelector('.cm-formula-value')?.textContent).toBe(expected);
+    });
+
+    it.each([
+      { doc: 'round(price * qty, 2)', from: 6, to: 17, expected: '= 1000' },
+      { doc: 'lines.filter(current.qty() > 1)', from: 13, to: 30, expected: '= false, true, true' },
+      { doc: 'qty > 1 ? price : price / 0', from: 18, to: 27, expected: '= —' },
+    ])('should show the value on the sample of the selected part: $doc from $from to $to', async ({ doc, from, to, expected }) => {
+      const view = mount({ doc, extensions: [formula({ language, sample })] });
+
+      view.focus();
+      view.dispatch({ selection: { anchor: from, head: to } });
+
+      expect(await selectionValueOf(view)).toBe(expected);
+    });
+
+    it('should word the error the selected part fails with as the host does', async () => {
+      const view = mount({ doc: 'price / 0', extensions: [formula({ language, sample, message: ({ code }) => `error ${code}` })] });
+
+      view.focus();
+      view.dispatch({ selection: { anchor: 0, head: 9 } });
+
+      await vi.waitFor(() => expect(view.dom.querySelector('.cm-tooltip.cm-formula-value-error')?.textContent).toBe('error ARITHMETIC_ERROR'));
+    });
+
+    it('should hide the value when the selection collapses or the editor loses focus', async () => {
+      const view = mount({ doc: 'price * qty', extensions: [formula({ language, sample })] });
+
+      view.focus();
+      view.dispatch({ selection: { anchor: 0, head: 11 } });
+      await selectionValueOf(view);
+      view.dispatch({ selection: { anchor: 3 } });
+      await vi.waitFor(() => expect(view.dom.querySelector('.cm-tooltip.cm-formula-value')).toBeNull());
+      view.dispatch({ selection: { anchor: 0, head: 11 } });
+      await selectionValueOf(view);
+      view.contentDOM.blur();
+
+      await vi.waitFor(() => expect(view.dom.querySelector('.cm-tooltip.cm-formula-value')).toBeNull());
+    });
+
+    it('should show no values when the host passes no sample', async () => {
+      const view = mount({ doc: 'price * qty', extensions: [formula({ language })] });
+
+      view.focus();
+      view.dispatch({ selection: { anchor: 0, head: 11 } });
+      await settle();
+
+      expect([view.dom.querySelector('.cm-formula-value'), (await hoverAt({ view, pos: 2 })).querySelector('.cm-formula-value')]).toEqual([null, null]);
+    });
+  });
 });
+
+async function selectionValueOf(view: EditorView): Promise<string | null | undefined> {
+  return vi.waitFor(() => {
+    const found = view.dom.querySelector('.cm-tooltip.cm-formula-value');
+
+    expect(found).not.toBeNull();
+
+    return found?.textContent;
+  });
+}
 
 function mount({ doc, extensions }: { doc: string; extensions: Extension }): EditorView {
   const view = new EditorView({ doc, extensions, parent: document.body });

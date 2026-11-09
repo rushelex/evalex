@@ -10,6 +10,12 @@ export interface FormulaOptions {
    */
   readonly fields?: readonly FormulaField[];
   /**
+   * A record of the host's data the formula is evaluated on, such as the first row of a table, by the names the formula
+   * reads, as `FormulaScope.evaluate` takes them: a name under the pointer and a selected part of the formula show what
+   * they evaluate to on it. Without it, no values show.
+   */
+  readonly sample?: object;
+  /**
    * Gives the text shown for a diagnostic, such as a translation found by its `messageKey` and filled in from its
    * `payload`.
    *
