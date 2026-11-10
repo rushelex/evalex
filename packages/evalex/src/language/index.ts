@@ -5,6 +5,7 @@ export type { FormulaCompletions } from './formula-completions';
 export type { FormulaDiagnostic } from './formula-diagnostic';
 export type { FormulaHover } from './formula-hover';
 export { FormulaLanguage } from './formula-language';
+export type { FormulaLanguageOptions } from './formula-language-options';
 export type { FormulaSegment } from './formula-segment';
 export type { FormulaSignatureHelp } from './formula-signature-help';
 export type { FormulaValueAt } from './formula-value-at';

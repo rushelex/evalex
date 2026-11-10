@@ -78,7 +78,7 @@ The word being typed stays text until the caret leaves it or the editor loses fo
 
 While the editor has focus and the caret is inside a call, the argument lists of what the call runs show above the caret, with the argument being typed marked: `round(number, [places]): Number`. Brackets mark an optional argument, `…` one that repeats, and a method shows the type it is called on, as in `Number.add(…)` and `Date.add(…)` for a value whose type is not known.
 
-Hovering over a name tells what it stands for: a field with its label and type, such as `Price · price: Number`, a variable with its type, or the argument lists and descriptions of a function or method. Types read as `Array<Number>`, `{ qty: Number }` for a record, and `Number | Null` for one of several types.
+Hovering over a name tells what it stands for: a field with its label and type, such as `Price · price: Number`, a variable with its type, or the argument lists and descriptions of a function or method. Descriptions come in the host's language when its `FormulaLanguage` is created with [`description`](https://github.com/rushelex/evalex/tree/main/packages/evalex#formula-editors). Types read as `Array<Number>`, `{ qty: Number }` for a record, and `Number | Null` for one of several types.
 
 ### Values on a sample record
 

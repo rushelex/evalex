@@ -176,6 +176,16 @@ help?.argument;          // 1
 
 For a method, `routines` holds every method of the name, since the kind of the value before the dot is not known before the formula is evaluated.
 
+Descriptions of functions and methods are English. To show them in the host's language, `description` gives the text for each routine, and every routine the language service gives carries it, in signature help, completion and hover alike:
+
+```ts
+const language = new FormulaLanguage(scope, {
+  description: (routine) => t(`routines.${routine.form}.${routine.name}`, { defaultValue: routine.description }),
+});
+```
+
+A routine comes whole, so a function and a method of one name, and a method that means different things on different kinds, such as `add` of numbers and of dates, can be worded apart. Function names and the formula syntax are not translated.
+
 `complete` gives what can be typed at the caret and the range it replaces. The host passes the fields the formula can read, with the labels authors know them by:
 
 ```ts

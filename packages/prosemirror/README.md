@@ -94,7 +94,7 @@ The list opens below the caret as a name is typed, after a dot and inside quotes
 
 While the editor has focus and the caret is inside a call, the argument lists of what the call runs show above the caret, with the argument being typed marked: `round(number, [places]): Number`. Brackets mark an optional argument, `…` one that repeats, and a method shows the type it is called on.
 
-Hovering over a name tells what it stands for: a field with its label and type, such as `Price · price: Number`, a variable with its type, or the argument lists and descriptions of a function or method.
+Hovering over a name tells what it stands for: a field with its label and type, such as `Price · price: Number`, a variable with its type, or the argument lists and descriptions of a function or method. Descriptions come in the host's language when its `FormulaLanguage` is created with [`description`](https://github.com/rushelex/evalex/tree/main/packages/evalex#formula-editors).
 
 ### Values on a sample record
 

@@ -77,6 +77,28 @@ const orderFields = [
 const language = new FormulaLanguage(new FormulaScope());
 
 describe(FormulaLanguage, () => {
+  describe('description', () => {
+    const translated = new FormulaLanguage(new FormulaScope(), { description: ({ form, name }) => `${form} ${name}` });
+
+    it.prop([formulaText.chain((text) => fc.tuple(fc.constant(text), fc.nat({ max: text.length })))])('should give every routine its description in the host language, whatever the text', ([text, offset]) => {
+      const routines = [
+        ...translated.signatureHelp(text, offset)?.routines ?? [],
+        ...translated.complete(text, offset)?.items.flatMap(({ routine }) => routine ?? []) ?? [],
+        ...translated.hover(text, offset)?.routines ?? [],
+      ];
+
+      expect(routines.filter(({ form, name, description }) => description !== `${form} ${name}`)).toEqual([]);
+    });
+
+    it('should describe a function and a method of one name apart', () => {
+      expect([translated.hover('round(1)', 2)?.routines?.[0]?.description, translated.hover('1.round()', 4)?.routines?.[0]?.description]).toEqual(['function round', 'method round']);
+    });
+
+    it('should keep the English description without the option', () => {
+      expect(language.hover('round(1)', 2)?.routines?.[0]?.description).toBe(new FormulaScope().routines().find(({ name, form }) => name === 'round' && form === 'function')?.description);
+    });
+  });
+
   describe('signatureHelp', () => {
     it.prop([expressionPieces])('should give the call and argument the caret is in after each piece of a formula', (pieces) => {
       const text = pieces.map(({ text }) => text).join('');

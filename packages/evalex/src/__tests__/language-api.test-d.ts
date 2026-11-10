@@ -28,7 +28,8 @@ describe('language API', () => {
   });
 
   it('should create the language service from a scope and type its signature help with the routines of the root API', () => {
-    expectTypeOf<typeof API.FormulaLanguage>().constructorParameters.toEqualTypeOf<[scope: Root.FormulaScope]>();
+    expectTypeOf<typeof API.FormulaLanguage>().constructorParameters.toEqualTypeOf<[scope: Root.FormulaScope, options?: API.FormulaLanguageOptions]>();
+    expectTypeOf<API.FormulaLanguageOptions['description']>().toEqualTypeOf<((routine: Root.FormulaRoutine) => string) | undefined>();
     expectTypeOf<API.FormulaLanguage['signatureHelp']>().toEqualTypeOf<(text: string, offset: number) => API.FormulaSignatureHelp | undefined>();
     expectTypeOf<API.FormulaSignatureHelp['routines'][number]>().toEqualTypeOf<Root.FormulaRoutine>();
   });

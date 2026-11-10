@@ -13,6 +13,7 @@ import type { FormulaCompletion } from './formula-completion';
 import type { FormulaCompletions } from './formula-completions';
 import type { FormulaDiagnostic } from './formula-diagnostic';
 import type { FormulaHover } from './formula-hover';
+import type { FormulaLanguageOptions } from './formula-language-options';
 import type { FormulaSegment } from './formula-segment';
 import type { FormulaSignatureHelp } from './formula-signature-help';
 import type { FormulaValueAt } from './formula-value-at';
@@ -49,7 +50,8 @@ const SUGGESTED_KINDS: Readonly<Record<FormulaErrorPayloads['REFERENCE_ERROR']['
  * Answers what a formula editor asks about the text being typed, with the functions and methods of a scope.
  *
  * @remarks
- * Create one per scope and reuse it on every keystroke: it reads the routines of the scope once, when it is created.
+ * Create one per scope and reuse it on every keystroke: it reads the routines of the scope once, when it is created,
+ * with their descriptions in the host's language when `description` gives them.
  * Its answers never throw, whatever the text.
  *
  * @example
@@ -68,9 +70,15 @@ export class FormulaLanguage {
   readonly #scope: FormulaScope;
   readonly #routines: readonly FormulaRoutine[];
 
-  constructor(scope: FormulaScope) {
+  /**
+   * @param scope - The scope whose functions and methods formulas call, and whose settings evaluate them.
+   * @param options - How the answers are worded for the host's readers.
+   */
+  constructor(scope: FormulaScope, options: FormulaLanguageOptions = {}) {
+    const { description } = options;
+
     this.#scope = scope;
-    this.#routines = scope.routines();
+    this.#routines = scope.routines().map((routine) => (description ? { ...routine, description: description(routine) } : routine));
   }
 
   /**
